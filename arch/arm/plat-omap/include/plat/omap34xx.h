@@ -87,6 +87,10 @@
 #define OMAP34XX_SEC_SHA1MD5_BASE	(OMAP34XX_SEC_BASE + 0x23000)
 #define OMAP34XX_SEC_AES_BASE	(OMAP34XX_SEC_BASE + 0x25000)
 
+/* VDD OPP identifiers */
+#define VDD1_OPP	0x1
+#define VDD2_OPP	0x2
+
 /* VDD1 OPPS */
 #define VDD1_OPP1	0x1
 #define VDD1_OPP2	0x2
