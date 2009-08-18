@@ -576,7 +576,9 @@ static int check_reset_complete (
 			index + 1);
 
 		// what happens if HCS_N_CC(params) == 0 ?
+#if !defined(CONFIG_ARCH_OMAP3)
 		port_status |= PORT_OWNER;
+#endif
 		port_status &= ~PORT_RWC_BITS;
 		ehci_writel(ehci, port_status, status_reg);
 
@@ -1057,7 +1059,9 @@ static int ehci_hub_control (
 				ehci_dbg (ehci,
 					"port %d low speed --> companion\n",
 					wIndex + 1);
+#if !defined(CONFIG_ARCH_OMAP3)
 				temp |= PORT_OWNER;
+#endif
 			} else {
 				ehci_vdbg (ehci, "port %d reset\n", wIndex + 1);
 				temp |= PORT_RESET;
@@ -1104,6 +1108,7 @@ error_exit:
 	return retval;
 }
 
+#ifndef CONFIG_ARCH_OMAP3
 static void ehci_relinquish_port(struct usb_hcd *hcd, int portnum)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
@@ -1123,3 +1128,4 @@ static int ehci_port_handed_over(struct usb_hcd *hcd, int portnum)
 	reg = &ehci->regs->port_status[portnum - 1];
 	return ehci_readl(ehci, reg) & PORT_OWNER;
 }
+#endif
