@@ -116,8 +116,11 @@ void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 EXPORT_SYMBOL_GPL(v4l2_device_unregister);
 
 int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
-						struct v4l2_subdev *sd)
+				struct v4l2_subdev *sd)
 {
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	struct media_entity *entity = &sd->entity;
+#endif
 	struct video_device *vdev;
 	int err;
 
@@ -135,7 +138,16 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 	err = v4l2_ctrl_add_handler(v4l2_dev->ctrl_handler, sd->ctrl_handler);
 	if (err)
 		return err;
-
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	/* Register the entity. */
+	if (v4l2_dev->mdev) {
+		err = media_device_register_entity(v4l2_dev->mdev, entity);
+		if (err < 0) {
+			module_put(sd->owner);
+			return err;
+		}
+	}
+#endif
 	sd->v4l2_dev = v4l2_dev;
 	spin_lock(&v4l2_dev->lock);
 	list_add_tail(&sd->list, &v4l2_dev->subdevs);
@@ -150,26 +162,39 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 	if (sd->flags & V4L2_SUBDEV_FL_HAS_DEVNODE) {
 		err = __video_register_device(vdev, VFL_TYPE_SUBDEV, -1, 1,
 					      sd->owner);
-		if (err < 0)
+		if (err < 0) {
 			v4l2_device_unregister_subdev(sd);
+			return err;
+		}
 	}
-
-	return err;
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	entity->v4l.major = VIDEO_MAJOR;
+	entity->v4l.minor = vdev->minor;
+#endif
+	return 0;
 }
 EXPORT_SYMBOL_GPL(v4l2_device_register_subdev);
 
 void v4l2_device_unregister_subdev(struct v4l2_subdev *sd)
 {
+	struct v4l2_device *v4l2_dev;
+
 	/* return if it isn't registered */
 	if (sd == NULL || sd->v4l2_dev == NULL)
 		return;
 
-	spin_lock(&sd->v4l2_dev->lock);
+	v4l2_dev = sd->v4l2_dev;
+
+	spin_lock(&v4l2_dev->lock);
 	list_del(&sd->list);
-	spin_unlock(&sd->v4l2_dev->lock);
+	spin_unlock(&v4l2_dev->lock);
 	sd->v4l2_dev = NULL;
 
 	module_put(sd->owner);
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	if (v4l2_dev->mdev)
+		media_device_unregister_entity(&sd->entity);
+#endif
 	video_unregister_device(&sd->devnode);
 }
 EXPORT_SYMBOL_GPL(v4l2_device_unregister_subdev);
