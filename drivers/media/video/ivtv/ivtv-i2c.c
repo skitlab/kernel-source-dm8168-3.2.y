@@ -277,7 +277,7 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 		info.platform_data = &pdata;
 
 		sd = v4l2_i2c_new_subdev_board(&itv->v4l2_dev, adap, &info,
-					       NULL);
+					       NULL, 0);
 	} else {
 		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
 				adap, type, hw_addrs[idx], NULL);

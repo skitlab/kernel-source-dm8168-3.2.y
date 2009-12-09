@@ -1555,7 +1555,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 		vpif_obj.sd[i] = v4l2_i2c_new_subdev_board(&vpif_obj.v4l2_dev,
 						i2c_adap,
 						&subdevdata[i].board_info,
-						NULL);
+						NULL, 0);
 		if (!vpif_obj.sd[i]) {
 			vpif_err("Error registering v4l2 subdevice\n");
 			goto probe_subdev_out;

@@ -319,6 +319,24 @@ controlled through GPIO pins. This distinction is only relevant when setting
 up the device, but once the subdev is registered it is completely transparent.
 
 
+V4L2 sub-device userspace API
+-----------------------------
+
+Beside exposing a kernel API through the v4l2_subdev_ops structure, V4L2
+sub-devices can also be controlled directly by userspace applications.
+
+When a sub-device is registered, a device node named v4l-subdevX can be created
+in /dev. If the sub-device supports direct userspace configuration it must set
+the V4L2_SUBDEV_FL_HAS_DEVNODE flag before being registered.
+
+For I2C and SPI sub-devices, the v4l2_device driver can disable registration of
+the device node if it wants to control the sub-device on its own. In that case
+it must set the v4l2_i2c_new_subdev_board or v4l2_spi_new_subdev enable_devnode
+argument to 0. Setting the argument to 1 will only enable device node
+registration if the sub-device driver has set the V4L2_SUBDEV_FL_HAS_DEVNODE
+flag.
+
+
 I2C sub-device drivers
 ----------------------
 

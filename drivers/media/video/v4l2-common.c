@@ -369,7 +369,7 @@ EXPORT_SYMBOL_GPL(v4l2_i2c_subdev_init);
 /* Load an i2c sub-device. */
 struct v4l2_subdev *v4l2_i2c_new_subdev_board(struct v4l2_device *v4l2_dev,
 		struct i2c_adapter *adapter, struct i2c_board_info *info,
-		const unsigned short *probe_addrs)
+		const unsigned short *probe_addrs, int enable_devnode)
 {
 	struct v4l2_subdev *sd = NULL;
 	struct i2c_client *client;
@@ -399,9 +399,12 @@ struct v4l2_subdev *v4l2_i2c_new_subdev_board(struct v4l2_device *v4l2_dev,
 	if (!try_module_get(client->driver->driver.owner))
 		goto error;
 	sd = i2c_get_clientdata(client);
+	if (!enable_devnode)
+		sd->flags &= ~V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 	/* Register with the v4l2_device which increases the module's
 	   use count as well. */
+	sd->initialized = 0;
 	if (v4l2_device_register_subdev(v4l2_dev, sd))
 		sd = NULL;
 	/* Decrease the module use count to match the first try_module_get. */
@@ -416,6 +419,8 @@ struct v4l2_subdev *v4l2_i2c_new_subdev_board(struct v4l2_device *v4l2_dev,
 		if (err && err != -ENOIOCTLCMD) {
 			v4l2_device_unregister_subdev(sd);
 			sd = NULL;
+		} else {
+			sd->initialized = 1;
 		}
 	}
 
@@ -440,7 +445,8 @@ struct v4l2_subdev *v4l2_i2c_new_subdev(struct v4l2_device *v4l2_dev,
 	strlcpy(info.type, client_type, sizeof(info.type));
 	info.addr = addr;
 
-	return v4l2_i2c_new_subdev_board(v4l2_dev, adapter, &info, probe_addrs);
+	return v4l2_i2c_new_subdev_board(v4l2_dev, adapter, &info, probe_addrs,
+					 0);
 }
 EXPORT_SYMBOL_GPL(v4l2_i2c_new_subdev);
 
@@ -510,7 +516,8 @@ void v4l2_spi_subdev_init(struct v4l2_subdev *sd, struct spi_device *spi,
 EXPORT_SYMBOL_GPL(v4l2_spi_subdev_init);
 
 struct v4l2_subdev *v4l2_spi_new_subdev(struct v4l2_device *v4l2_dev,
-		struct spi_master *master, struct spi_board_info *info)
+		struct spi_master *master, struct spi_board_info *info,
+		int enable_devnode)
 {
 	struct v4l2_subdev *sd = NULL;
 	struct spi_device *spi = NULL;
@@ -529,6 +536,8 @@ struct v4l2_subdev *v4l2_spi_new_subdev(struct v4l2_device *v4l2_dev,
 		goto error;
 
 	sd = spi_get_drvdata(spi);
+	if (!enable_devnode)
+		sd->flags &= ~V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 	/* Register with the v4l2_device which increases the module's
 	   use count as well. */

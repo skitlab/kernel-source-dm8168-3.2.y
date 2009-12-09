@@ -1987,7 +1987,7 @@ static __init int vpfe_probe(struct platform_device *pdev)
 			v4l2_i2c_new_subdev_board(&vpfe_dev->v4l2_dev,
 						  i2c_adap,
 						  &sdinfo->board_info,
-						  NULL);
+						  NULL, 0);
 		if (vpfe_dev->sd[i]) {
 			v4l2_info(&vpfe_dev->v4l2_dev,
 				  "v4l2 sub device %s registered\n",

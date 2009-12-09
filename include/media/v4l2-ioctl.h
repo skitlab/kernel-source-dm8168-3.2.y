@@ -316,6 +316,9 @@ extern long v4l2_compat_ioctl32(struct file *file, unsigned int cmd,
 				unsigned long arg);
 #endif
 
+extern long __video_usercopy(struct file *file, unsigned int cmd,
+				unsigned long arg, v4l2_kioctl func);
+
 /* Include support for obsoleted stuff */
 extern long video_usercopy(struct file *file, unsigned int cmd,
 				unsigned long arg, v4l2_kioctl func);

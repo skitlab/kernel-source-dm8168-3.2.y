@@ -2073,7 +2073,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	info.platform_data = &sensor_cfg;
 
 	cam->sensor = v4l2_i2c_new_subdev_board(&cam->v4l2_dev,
-			&cam->i2c_adapter, &info, NULL);
+			&cam->i2c_adapter, &info, NULL, 0);
 	if (cam->sensor == NULL) {
 		ret = -ENODEV;
 		goto out_smbus;

@@ -413,7 +413,7 @@ static unsigned long cmd_input_size(unsigned int cmd)
 	}
 }
 
-static long
+long
 __video_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 		v4l2_kioctl func)
 {
