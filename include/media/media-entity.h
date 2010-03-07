@@ -81,6 +81,8 @@ struct media_entity {
 	struct media_pad *pads;		/* Pads array (num_pads elements) */
 	struct media_link *links;	/* Links array (max_links elements)*/
 
+	int use_count;			/* Use count for the entity. */
+
 	union {
 		/* Node specifications */
 		struct {
@@ -128,6 +130,9 @@ int media_entity_init(struct media_entity *entity, u16 num_pads,
 void media_entity_cleanup(struct media_entity *entity);
 int media_entity_create_link(struct media_entity *source, u16 source_pad,
 		struct media_entity *sink, u16 sink_pad, u32 flags);
+
+struct media_entity *media_entity_get(struct media_entity *entity);
+void media_entity_put(struct media_entity *entity);
 
 void media_entity_graph_walk_start(struct media_entity_graph *graph,
 		struct media_entity *entity);
