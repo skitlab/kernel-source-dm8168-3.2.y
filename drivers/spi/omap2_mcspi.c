@@ -113,7 +113,11 @@ struct omap2_mcspi_dma {
 /* use PIO for small transfers, avoiding DMA setup/teardown overhead and
  * cache operations; better heuristics consider wordsize and bitrate.
  */
+#if defined(CONFIG_ARCH_TI81XX) /* TI81xx works only in PIO */
+#define DMA_MIN_BYTES			(4 * 1024 * 1024)
+#else
 #define DMA_MIN_BYTES			160
+#endif
 
 
 struct omap2_mcspi {
@@ -1159,6 +1163,7 @@ static int __init omap2_mcspi_probe(struct platform_device *pdev)
 		txdma_id = spi2_txdma_id;
 		num_chipselect = 2;
 		break;
+
 #if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) \
 	|| defined(CONFIG_ARCH_OMAP4)
 	case 3:

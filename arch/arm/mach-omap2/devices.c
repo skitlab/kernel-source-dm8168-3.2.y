@@ -331,6 +331,8 @@ static inline void ti81xx_init_pcm(void) {}
 #define OMAP4_MCSPI3_BASE		0x480b8100
 #define OMAP4_MCSPI4_BASE		0x480ba100
 
+#define TI816X_MCSPI1_BASE		0x48030100
+
 static struct omap2_mcspi_platform_config omap2_mcspi1_config = {
 	.num_cs		= 4,
 };
@@ -374,6 +376,7 @@ static struct platform_device omap2_mcspi2 = {
 		.platform_data = &omap2_mcspi2_config,
 	},
 };
+
 
 #if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
 	defined(CONFIG_ARCH_OMAP4)
@@ -424,6 +427,20 @@ static struct platform_device omap2_mcspi4 = {
 };
 #endif
 
+#ifdef CONFIG_ARCH_TI816X
+static inline void ti816x_mcspi_fixup(void)
+{
+	omap2_mcspi1_resources[0].start	= TI816X_MCSPI1_BASE;
+	omap2_mcspi1_resources[0].end	= TI816X_MCSPI1_BASE + 0xff;
+}
+#else
+static inline void ti816x_mcspi_fixup(void)
+{
+}
+#endif
+
+
+
 #ifdef CONFIG_ARCH_OMAP4
 static inline void omap4_mcspi_fixup(void)
 {
@@ -467,14 +484,16 @@ static inline void omap2_mcspi4_init(void)
 
 static void omap_init_mcspi(void)
 {
-	if (cpu_is_ti81xx())
-		return;
-
 	if (cpu_is_omap44xx())
 		omap4_mcspi_fixup();
 
+	if (cpu_is_ti816x())
+		ti816x_mcspi_fixup();
+
 	platform_device_register(&omap2_mcspi1);
-	platform_device_register(&omap2_mcspi2);
+
+	if (!cpu_is_ti816x())
+		platform_device_register(&omap2_mcspi2);
 
 	if (cpu_is_omap2430() || cpu_is_omap343x() || cpu_is_omap44xx())
 		omap2_mcspi3_init();
