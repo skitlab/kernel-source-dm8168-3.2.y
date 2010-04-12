@@ -141,6 +141,8 @@ static struct omap_board_mux board_mux[] __initdata = {
 #define board_mux	NULL
 #endif
 
+int __init ti_ahci_register(u8 num_inst);
+
 static void __init ti8168_evm_init(void)
 {
 	ti81xx_mux_init(board_mux);

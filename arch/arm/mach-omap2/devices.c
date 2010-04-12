@@ -17,6 +17,7 @@
 #include <linux/err.h>
 #include <linux/davinci_emac.h>
 #include <linux/cpsw.h>
+#include <linux/ahci_platform.h>
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
@@ -1661,6 +1662,123 @@ static void ti81xx_ethernet_init(void)
 		ti814x_cpsw_init();
 }
 
+#define P0PHYCR		0x178	/* SATA PHY0 Control Register offset
+				 * from AHCI base)
+				 */
+#define P1PHYCR		0x1F8	/* SATA PHY0 Control Register offset
+				 * from AHCI base)
+				 */
+
+#define PHY_ENPLL	1 /* bit0        1 */
+#define PHY_MPY		8 /* bits4:1     4 Clock Sources at 100MHz */
+#define PHY_LB		0 /* bits6:5     2 */
+#define PHY_CLKBYP	0 /* bits8:7     2 */
+#define PHY_RXINVPAIR	0 /* bit9        1 */
+#define PHY_LBK		0 /* bits11:10   2 */
+#define PHY_RXLOS	1 /* bit12	 1 */
+#define PHY_RXCDR	4 /* bits15:13   3 */
+#define PHY_RXEQ	1 /* bits19:16   4 */
+#define PHY_RxENOC	1 /* bit20       1 */
+#define PHY_TXINVPAIR	0 /* bit21	 1 */
+#define PHY_TXCM	0 /* bit22       1 */
+#define PHY_TXSWING	0x7 /* bits26:23   4 */
+#define PHY_TXDE	0x0 /* bits31:27   5 */
+
+#define PHY_CFGRX0_VAL		0x00C7CC22
+#define PHY_CFGRX1_VAL		0x008E0500
+#define PHY_CFGRX2_VAL		0x7BDEF000
+#define PHY_CFGRX3_VAL		0x1F180B0F
+#define PHY_CFGTX0_VAL		0x01001622
+#define PHY_CFGTX1_VAL		0x40000002
+#define PHY_CFGTX2_VAL		0x073CE39E
+
+static int ti81xx_ahci_plat_init(void)
+{
+	u32 phy_val = 0;
+	void __iomem *base;
+	struct clk *sata_clk;
+
+	sata_clk = clk_get(NULL, "sata_ick");
+	if (IS_ERR(sata_clk)) {
+		pr_err("ahci : Failed to get AHCI clock\n");
+		return -1;
+	}
+
+	if (clk_enable(sata_clk)) {
+		pr_err("ahci : Clock Enable Failed\n");
+		return -1;
+	}
+
+	phy_val = PHY_ENPLL << 0 | PHY_MPY << 1 | PHY_LB << 5 |
+			PHY_CLKBYP << 7 | PHY_RXINVPAIR << 9 |
+			PHY_LBK  << 10 | PHY_RXLOS << 12 |
+			PHY_RXCDR << 13 | PHY_RXEQ << 16 |
+			PHY_RxENOC << 20 | PHY_TXINVPAIR << 21 |
+			PHY_TXCM << 22 | PHY_TXSWING  << 23 | PHY_TXDE << 27;
+	base = ioremap(TI81XX_SATA_BASE, 0x10ffff);
+	if (!base) {
+		printk(KERN_WARNING
+				"%s: Unable to map SATA, "
+				"cannot turn on PHY.\n",  __func__);
+		return -1;
+	}
+
+	if (cpu_is_ti816x()) {
+		/* Initialize the SATA PHY */
+		writel(phy_val,	base + P0PHYCR);
+
+		/* ti816x platform has 2 SATA PHY's.
+		 * Initialize the second instance
+		 */
+		if (cpu_is_ti81xx())
+			writel(phy_val, base + P1PHYCR);
+	}
+
+	if (cpu_is_ti814x()) {
+		/* Configuring PHY registers for SATA */
+		writel(PHY_CFGRX0_VAL, base + TI814X_SATA_PHY_CFGRX0_OFFSET);
+		writel(PHY_CFGRX1_VAL, base + TI814X_SATA_PHY_CFGRX1_OFFSET);
+		writel(PHY_CFGRX2_VAL, base + TI814X_SATA_PHY_CFGRX2_OFFSET);
+		writel(PHY_CFGRX3_VAL, base + TI814X_SATA_PHY_CFGRX3_OFFSET);
+		writel(PHY_CFGTX0_VAL, base + TI814X_SATA_PHY_CFGTX0_OFFSET);
+		writel(PHY_CFGTX1_VAL, base + TI814X_SATA_PHY_CFGTX1_OFFSET);
+		writel(PHY_CFGTX2_VAL, base + TI814X_SATA_PHY_CFGTX2_OFFSET);
+	}
+
+	iounmap(base);
+
+	return 0;
+}
+
+static struct resource ti81xx_ahci_resources[] = {
+	{
+		.start	=	TI81XX_SATA_BASE,
+		.end	=	TI81XX_SATA_BASE + 0x10fff,
+		.flags	=	IORESOURCE_MEM,
+	},
+	{
+		.start	=	TI81XX_IRQ_SATA,
+		.flags	=	IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device ti81xx_ahci_device = {
+	.name	=	"ahci",
+	.dev	=	{
+				.coherent_dma_mask = DMA_BIT_MASK(32),
+			},
+	.num_resources = ARRAY_SIZE(ti81xx_ahci_resources),
+	.resource	= ti81xx_ahci_resources,
+};
+
+int __init ti81xx_init_ahci(void)
+{
+	if (ti81xx_ahci_plat_init() != 0)
+		return -1;
+
+	return platform_device_register(&ti81xx_ahci_device);
+}
+
 #if defined(CONFIG_ARCH_TI81XX)
 
 static struct resource ti81xx_mcasp_resource[] = {
@@ -1797,8 +1915,8 @@ static int __init omap2_init_devices(void)
 	ti816x_init_pcie();
 	ti81xx_register_edma();
 	ti81xx_init_pcm();
+	ti81xx_init_ahci();
 #endif
-
 	return 0;
 }
 arch_initcall(omap2_init_devices);
