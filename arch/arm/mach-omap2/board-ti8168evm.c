@@ -22,6 +22,8 @@
 #include <linux/device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
+#include <linux/mtd/physmap.h>
+#include <linux/phy.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -39,6 +41,7 @@
 #include "clock.h"
 #include "mux.h"
 #include "hsmmc.h"
+#include "board-flash.h"
 
 static struct omap2_hsmmc_info mmc[] = {
 	{
@@ -49,6 +52,43 @@ static struct omap2_hsmmc_info mmc[] = {
 		.ocr_mask	= MMC_VDD_33_34,
 	},
 	{}	/* Terminator */
+
+static struct mtd_partition ti816x_evm_norflash_partitions[] = {
+	/* bootloader (U-Boot, etc) in first 5 sectors */
+	{
+		.name		= "bootloader",
+		.offset		= 0,
+		.size		= 2 * SZ_128K,
+		.mask_flags	= MTD_WRITEABLE, /* force read-only */
+	},
+	/* bootloader params in the next 1 sectors */
+	{
+		.name		= "env",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_128K,
+		.mask_flags	= 0,
+	},
+	/* kernel */
+	{
+		.name		= "kernel",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 2 * SZ_2M,
+		.mask_flags	= 0
+	},
+	/* file system */
+	{
+		.name		= "filesystem",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 25 * SZ_2M,
+		.mask_flags	= 0
+	},
+	/* reserved */
+	{
+		.name		= "reserved",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= MTDPART_SIZ_FULL,
+		.mask_flags	= 0
+	}
 };
 
 static struct at24_platform_data eeprom_info = {
@@ -239,6 +279,8 @@ static void __init ti8168_evm_init(void)
 	/* initialize usb */
 	usb_musb_init(&musb_board_data);
 	omap2_hsmmc_init(mmc);
+	board_nor_init(ti816x_evm_norflash_partitions,
+		ARRAY_SIZE(ti816x_evm_norflash_partitions), 0);
 }
 
 static void __init ti8168_evm_map_io(void)
