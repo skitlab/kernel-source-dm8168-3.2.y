@@ -38,6 +38,7 @@
 #define __ASM_ARM_ARCH_IO_H
 
 #include <mach/hardware.h>
+#include <mach/pci.h>
 
 #define IO_SPACE_LIMIT 0xffffffff
 
