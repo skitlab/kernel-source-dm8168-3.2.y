@@ -33,6 +33,7 @@
 
 #include "mux.h"
 #include "control.h"
+#include "pcie-ti816x.h"
 
 #if defined(CONFIG_VIDEO_OMAP2) || defined(CONFIG_VIDEO_OMAP2_MODULE)
 
@@ -958,6 +959,83 @@ static inline void omap_init_vout(void) {}
 
 /*-------------------------------------------------------------------------*/
 
+#if defined(CONFIG_ARCH_TI816X) && defined(CONFIG_PCI)
+static struct ti816x_pcie_data ti816x_pcie_data = {
+	.msi_irq_base	= MSI_IRQ_BASE,
+	.msi_irq_num	= MSI_NR_IRQS,
+};
+
+static struct resource ti816x_pcie_resources[] = {
+	{
+		/* Register space */
+		.name		= "pcie-regs",
+		.start		= TI816X_PCIE_REG_BASE,
+		.end		= TI816X_PCIE_REG_BASE + SZ_16K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		/* Non-prefetch memory */
+		.name		= "pcie-nonprefetch",
+		.start		= TI816X_PCIE_MEM_BASE,
+		.end		= TI816X_PCIE_MEM_BASE + SZ_256M - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		/* IO window */
+		.name		= "pcie-io",
+		.start		= TI816X_PCIE_IO_BASE,
+		.end		= TI816X_PCIE_IO_BASE + SZ_2M + SZ_1M - 1,
+		.flags		= IORESOURCE_IO,
+	},
+	{
+		/* Inbound memory window */
+		.name		= "pcie-inbound0",
+		.start		= PHYS_OFFSET,
+		.end		= PHYS_OFFSET + SZ_2G - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		/* Legacy Interrupt */
+		.name		= "legacy_int",
+		.start		= TI81XX_IRQ_PCIINT0,
+		.end		= TI81XX_IRQ_PCIINT0,
+		.flags		= IORESOURCE_IRQ,
+	},
+#ifdef CONFIG_PCI_MSI
+	{
+		/* MSI Interrupt Line */
+		.name		= "msi_int",
+		.start		= TI81XX_IRQ_PCIINT1,
+		.end		= TI81XX_IRQ_PCIINT1,
+		.flags		= IORESOURCE_IRQ,
+	},
+#endif
+};
+
+static struct platform_device ti816x_pcie_device = {
+	.name		= "ti816x_pcie",
+	.id		= 0,
+	.dev		= {
+		.platform_data = &ti816x_pcie_data,
+	},
+	.num_resources	= ARRAY_SIZE(ti816x_pcie_resources),
+	.resource	= ti816x_pcie_resources,
+};
+
+static inline void ti816x_init_pcie(void)
+{
+	if (cpu_is_ti816x()) {
+		omap_ctrl_writel(TI816X_PCIE_PLLMUX_25X |
+				TI81XX_PCIE_DEVTYPE_RC,
+				TI816X_CONTROL_PCIE_CFG);
+
+		platform_device_register(&ti816x_pcie_device);
+	}
+}
+#else
+static inline void ti816x_init_pcie(void) {}
+#endif
+
 static int __init omap2_init_devices(void)
 {
 	/*
@@ -975,6 +1053,7 @@ static int __init omap2_init_devices(void)
 	omap_init_sham();
 	omap_init_aes();
 	omap_init_vout();
+	ti816x_init_pcie();
 
 	return 0;
 }
