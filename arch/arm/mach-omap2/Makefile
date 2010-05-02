@@ -164,6 +164,12 @@ ifneq ($(CONFIG_TIDSPBRIDGE),)
 obj-y					+= dsp.o
 endif
 
+obj-$(CONFIG_PCI)                       += pcie-ti816x.o
+
+ifeq ($(CONFIG_PCI_DEBUG),y)
+CFLAGS_pcie-ti816x.o += -DDEBUG
+endif
+
 # Specific board support
 obj-$(CONFIG_MACH_OMAP_GENERIC)		+= board-generic.o
 obj-$(CONFIG_MACH_OMAP_H4)		+= board-h4.o
