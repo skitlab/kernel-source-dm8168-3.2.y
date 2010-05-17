@@ -24,13 +24,10 @@
  * struct omap_opp - OMAP OPP description structure
  * @enabled:	true/false - marking this OPP as enabled/disabled
  * @rate:	Frequency in hertz
- * @opp_id:	(DEPRECATED) opp identifier
- * @u_volt:     minimum microvolts DC required for this OPP to function
+ * @u_volt:	Nominal voltage in microvolts corresponding to this OPP
+ * @opp_id:	opp identifier (deprecated)
  *
  * This structure stores the OPP information for a given domain.
- * Due to legacy reasons, this structure is currently exposed and
- * will soon be removed elsewhere and will only be used as a handle
- * from the OPP internal referencing mechanism
  */
 struct omap_opp {
 	bool enabled;
@@ -39,18 +36,19 @@ struct omap_opp {
 	u8 opp_id;
 };
 
-/*
- * This maintains pointers to the start of each OPP array.
- */
-
+/* This maintains pointers to the start of each OPP array. */
 static struct omap_opp *_opp_list[OPP_TYPES_MAX];
-/*
- * DEPRECATED: Meant to detect end of opp array
- * This is meant to help co-exist with current SRF etc
- * TODO: REMOVE!
- */
+
+/* Detect end of opp array */
 #define OPP_TERM(opp) (!(opp)->rate && !(opp)->u_volt && !(opp)->enabled)
 
+/**
+ * opp_get_voltage() - Gets the voltage corresponding to an opp
+ * @opp:	opp for which voltage has to be returned for
+ *
+ * Return voltage in micro volt corresponding to the opp, else
+ * return 0
+ */
 unsigned long opp_get_voltage(const struct omap_opp *opp)
 {
 	if (unlikely(!opp || IS_ERR(opp)) || !opp->enabled) {
@@ -60,6 +58,13 @@ unsigned long opp_get_voltage(const struct omap_opp *opp)
 	return opp->u_volt;
 }
 
+/**
+ * opp_get_freq() - Gets the frequency corresponding to an opp
+ * @opp:	opp for which frequency has to be returned for
+ *
+ * Return frequency in hertz corresponding to the opp, else
+ * return 0
+ */
 unsigned long opp_get_freq(const struct omap_opp *opp)
 {
 	if (unlikely(!opp || IS_ERR(opp)) || !opp->enabled) {
@@ -71,7 +76,8 @@ unsigned long opp_get_freq(const struct omap_opp *opp)
 
 /**
  * opp_find_by_opp_id - look up OPP by OPP ID (deprecated)
- * @opp_type: OPP type where we want the look up to happen.
+ * @opp_type:	OPP type where we want the look up to happen.
+ * @opp_id:	OPP ID to search for
  *
  * Returns the struct omap_opp pointer corresponding to the given OPP
  * ID @opp_id, or returns NULL on error.
@@ -99,6 +105,12 @@ struct omap_opp * __deprecated opp_find_by_opp_id(enum opp_t opp_type,
 	return ERR_PTR(-ENOENT);
 }
 
+/**
+ * opp_get_opp_id() - Provide OPP ID corresponding to an OPP (deprecated)
+ * @opp:	opp for which frequency has to be returned for
+ *
+ * Returns an OPP ID for the OPP required, if error, returns 0
+ */
 u8 __deprecated opp_get_opp_id(struct omap_opp *opp)
 {
 	if (unlikely(!opp || IS_ERR(opp)) || !opp->enabled) {
@@ -108,6 +120,13 @@ u8 __deprecated opp_get_opp_id(struct omap_opp *opp)
 	return opp->opp_id;
 }
 
+/**
+ * opp_get_opp_count() - Get number of opps enabled in the opp list
+ * @opp_type:	OPP type we want to count
+ *
+ * This functions returns the number of opps if there are any OPPs enabled,
+ * else returns corresponding error value.
+ */
 int opp_get_opp_count(enum opp_t opp_type)
 {
 	u8 n = 0;
@@ -130,6 +149,20 @@ int opp_get_opp_count(enum opp_t opp_type)
 	return n;
 }
 
+/**
+ * opp_find_freq_exact() - search for an exact frequency
+ * @opp_type:	OPP type we want to search in.
+ * @freq:	frequency to search for
+ * @enabled:	enabled/disabled OPP to search for
+ *
+ * Searches for exact match in the opp list and returns handle to the matching
+ * opp if found, else returns ERR_PTR in case of error and should be handled
+ * using IS_ERR.
+ *
+ * Note enabled is a modifier for the search. if enabled=true, then the match is
+ * for exact matching frequency and is enabled. if false, the match is for exact
+ * frequency which is disabled.
+ */
 struct omap_opp *opp_find_freq_exact(enum opp_t opp_type,
 				     unsigned long freq, bool enabled)
 {
@@ -154,6 +187,33 @@ struct omap_opp *opp_find_freq_exact(enum opp_t opp_type,
 	return OPP_TERM(oppl) ? ERR_PTR(-ENOENT) : oppl;
 }
 
+/**
+ * opp_find_freq_ceil() - Search for an rounded ceil freq
+ * @opp_type:	OPP type where we want to search in
+ * @freq:	Start frequency
+ *
+ * Search for the matching ceil *enabled* OPP from a starting freq
+ * for a domain.
+ *
+ * Returns *opp and *freq is populated with the match, else
+ * returns NULL opp if no match, else returns ERR_PTR in case of error.
+ *
+ * Example usages:
+ *	* find match/next highest available frequency *
+ *	freq = 350000;
+ *	opp = opp_find_freq_ceil(OPP_MPU, &freq))
+ *	if (IS_ERR(opp))
+ *		pr_err("unable to find a higher frequency\n");
+ *	else
+ *		pr_info("match freq = %ld\n", freq);
+ *
+ *	* print all supported frequencies in ascending order *
+ *	freq = 0; * Search for the lowest enabled frequency *
+ *	while (!IS_ERR(opp = opp_find_freq_ceil(OPP_MPU, &freq)) {
+ *		pr_info("freq = %ld\n", freq);
+ *		freq++; * for next higher match *
+ *	}
+ */
 struct omap_opp *opp_find_freq_ceil(enum opp_t opp_type, unsigned long *freq)
 {
 	struct omap_opp *oppl;
@@ -183,6 +243,33 @@ struct omap_opp *opp_find_freq_ceil(enum opp_t opp_type, unsigned long *freq)
 	return oppl;
 }
 
+/**
+ * opp_find_freq_floor() - Search for an rounded floor freq
+ * @opp_type:	OPP type we want to search in
+ * @freq:	Start frequency
+ *
+ * Search for the matching floor *enabled* OPP from a starting freq
+ * for a domain.
+ *
+ * Returns *opp and *freq is populated with the next match, else
+ * returns NULL opp if no match, else returns ERR_PTR in case of error.
+ *
+ * Example usages:
+ *	* find match/next lowest available frequency
+ *	freq = 350000;
+ *	opp = opp_find_freq_floor(OPP_MPU, &freq)))
+ *	if (IS_ERR(opp))
+ *		pr_err ("unable to find a lower frequency\n");
+ *	else
+ *		pr_info("match freq = %ld\n", freq);
+ *
+ *	* print all supported frequencies in descending order *
+ *	freq = ULONG_MAX; * search highest enabled frequency *
+ *	while (!IS_ERR(opp = opp_find_freq_floor(OPP_MPU, &freq)) {
+ *		pr_info("freq = %ld\n", freq);
+ *		freq--; * for next lower match *
+ *	}
+ */
 struct omap_opp *opp_find_freq_floor(enum opp_t opp_type, unsigned long *freq)
 {
 	struct omap_opp *prev_opp, *oppl;
@@ -224,6 +311,13 @@ static void omap_opp_populate(struct omap_opp *opp,
 	opp->u_volt = opp_def->u_volt;
 }
 
+/**
+ * opp_add()  - Add an OPP table from a table definitions
+ * @opp_type:	OPP type under which we want to add our new OPP.
+ * @opp_def:	omap_opp_def to describe the OPP which we want to add to list.
+ *
+ * This function adds an opp definition to the opp list and returns status.
+ */
 int opp_add(enum opp_t opp_type, const struct omap_opp_def *opp_def)
 {
 	struct omap_opp *opp, *oppt, *oppr, *oppl;
@@ -292,6 +386,17 @@ int opp_add(enum opp_t opp_type, const struct omap_opp_def *opp_def)
 	return 0;
 }
 
+/**
+ * opp_init_list() - Initialize an opp list from the opp definitions
+ * @opp_type:	OPP type to initialize this list for.
+ * @opp_defs:	Initial opp definitions to create the list.
+ *
+ * This function creates a list of opp definitions and returns status.
+ * This list can be used to further validation/search/modifications. New
+ * opp entries can be added to this list by using opp_add().
+ *
+ * In the case of error, suitable error code is returned.
+ */
 int __init opp_init_list(enum opp_t opp_type,
 				 const struct omap_opp_def *opp_defs)
 {
@@ -336,6 +441,16 @@ int __init opp_init_list(enum opp_t opp_type,
 	return 0;
 }
 
+/**
+ * opp_enable() - Enable a specific OPP
+ * @opp:	Pointer to opp
+ *
+ * Enables a provided opp. If the operation is valid, this returns 0, else the
+ * corresponding error value.
+ *
+ * OPP used here is from the the opp_is_valid/opp_has_freq or other search
+ * functions
+ */
 int opp_enable(struct omap_opp *opp)
 {
 	if (unlikely(!opp || IS_ERR(opp))) {
@@ -346,6 +461,16 @@ int opp_enable(struct omap_opp *opp)
 	return 0;
 }
 
+/**
+ * opp_disable() - Disable a specific OPP
+ * @opp:	Pointer to opp
+ *
+ * Disables a provided opp. If the operation is valid, this returns 0, else the
+ * corresponding error value.
+ *
+ * OPP used here is from the the opp_is_valid/opp_has_freq or other search
+ * functions
+ */
 int opp_disable(struct omap_opp *opp)
 {
 	if (unlikely(!opp || IS_ERR(opp))) {
@@ -356,7 +481,14 @@ int opp_disable(struct omap_opp *opp)
 	return 0;
 }
 
-/* XXX document */
+/**
+ * opp_init_cpufreq_table() - create a cpufreq table for a domain
+ * @opp_type:	OPP type to initialize this list for
+ * @table:	Cpufreq table returned back to caller
+ *
+ * Generate a cpufreq table for a provided domain - this assumes that the
+ * opp list is already initialized and ready for usage
+ */
 void opp_init_cpufreq_table(enum opp_t opp_type,
 			    struct cpufreq_frequency_table **table)
 {
