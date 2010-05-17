@@ -101,6 +101,10 @@ struct omap_opp * __deprecated opp_find_by_opp_id(enum opp_t opp_type,
 
 u8 __deprecated opp_get_opp_id(struct omap_opp *opp)
 {
+	if (unlikely(!opp || IS_ERR(opp)) || !opp->enabled) {
+		pr_err("%s: Invalid parameter being passed\n", __func__);
+		return 0;
+	}
 	return opp->opp_id;
 }
 
