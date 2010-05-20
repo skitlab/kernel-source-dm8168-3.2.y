@@ -47,6 +47,7 @@
 #include "clockdomains.h"
 #include <plat/omap_hwmod.h>
 
+#include "omap3-opp.h"
 /*
  * The machine specific code may provide the extra mapping besides the
  * default mapping provided here.
@@ -316,6 +317,9 @@ static int __init _omap2_init_reprogram_sdrc(void)
 void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 				 struct omap_sdrc_params *sdrc_cs1)
 {
+	/* initialize the opp table if board file has not done so */
+	omap3_pm_init_opp_table();
+
 	pwrdm_init(powerdomains_omap);
 	clkdm_init(clockdomains_omap, clkdm_autodeps);
 	if (cpu_is_omap242x())
