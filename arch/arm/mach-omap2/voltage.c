@@ -23,6 +23,7 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/debugfs.h>
 
 #include <plat/omap-pm.h>
 #include <plat/omap34xx.h>
@@ -36,6 +37,13 @@
 
 #define VP_IDLE_TIMEOUT		200
 #define VP_TRANXDONE_TIMEOUT	300
+
+#ifdef CONFIG_PM_DEBUG
+struct dentry *voltage_dir;
+#endif
+
+/* VP SR debug support */
+u32 enable_sr_vp_debug;
 
 /* PRM voltage module */
 u32 volt_mod;
@@ -107,6 +115,7 @@ struct omap_vdd_info{
 	struct clk *volt_clk;
 	int opp_type;
 	int volt_data_count;
+	int id;
 	unsigned long nominal_volt;
 	u8 cmdval_reg;
 	u8 vdd_sr_reg;
@@ -227,6 +236,54 @@ static int check_voltage_domain(int vdd)
 	}
 	return -EINVAL;
 }
+
+/* Voltage debugfs support */
+#ifdef CONFIG_PM_DEBUG
+static int vp_debug_get(void *data, u64 *val)
+{
+	u16 *option = data;
+
+	*val = *option;
+	return 0;
+}
+
+static int vp_debug_set(void *data, u64 val)
+{
+	if (enable_sr_vp_debug) {
+		u32 *option = data;
+		*option = val;
+	} else {
+		pr_notice("DEBUG option not enabled!\n	\
+			echo 1 > pm_debug/enable_sr_vp_debug - to enable\n");
+	}
+	return 0;
+}
+
+static int vp_volt_debug_get(void *data, u64 *val)
+{
+	struct omap_vdd_info *info = (struct omap_vdd_info *) data;
+	u8 vsel;
+
+	vsel = voltage_read_reg(info->vp_offs.voltage_reg);
+	pr_notice("curr_vsel = %x\n", vsel);
+	*val = vsel * 12500 + 600000;
+
+	return 0;
+}
+
+static int nom_volt_debug_get(void *data, u64 *val)
+{
+	struct omap_vdd_info *info = (struct omap_vdd_info *) data;
+
+	*val = get_curr_voltage(info->id);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(vp_debug_fops, vp_debug_get, vp_debug_set, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(vp_volt_debug_fops, vp_volt_debug_get, NULL, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(nom_volt_debug_fops, nom_volt_debug_get, NULL,
+								"%llu\n");
+#endif
 
 static void vp_latch_vsel(int vp_id)
 {
@@ -481,8 +538,49 @@ static void __init init_voltageprocesor(int vp_id)
 
 static void __init vdd_data_configure(int vdd)
 {
+#ifdef CONFIG_PM_DEBUG
+	struct dentry *vdd_debug;
+	char name[5];
+#endif
+	vdd_info[vdd].id = vdd;
 	if (cpu_is_omap34xx())
 		omap3_vdd_data_configure(vdd);
+
+#ifdef CONFIG_PM_DEBUG
+	sprintf(name, "VDD%d", vdd + 1);
+	vdd_debug = debugfs_create_dir(name, voltage_dir);
+	(void) debugfs_create_file("vp_errorgain", S_IRUGO | S_IWUGO,
+				vdd_debug,
+				&(vdd_info[vdd].vp_reg.vpconfig_errorgain),
+				&vp_debug_fops);
+	(void) debugfs_create_file("vp_smpswaittimemin", S_IRUGO | S_IWUGO,
+				vdd_debug, &(vdd_info[vdd].vp_reg.
+				vstepmin_smpswaittimemin),
+				&vp_debug_fops);
+	(void) debugfs_create_file("vp_stepmin", S_IRUGO | S_IWUGO, vdd_debug,
+				&(vdd_info[vdd].vp_reg.vstepmin_stepmin),
+				&vp_debug_fops);
+	(void) debugfs_create_file("vp_smpswaittimemax", S_IRUGO | S_IWUGO,
+				vdd_debug, &(vdd_info[vdd].vp_reg.
+				vstepmax_smpswaittimemax),
+				&vp_debug_fops);
+	(void) debugfs_create_file("vp_stepmax", S_IRUGO | S_IWUGO, vdd_debug,
+				&(vdd_info[vdd].vp_reg.vstepmax_stepmax),
+				&vp_debug_fops);
+	(void) debugfs_create_file("vp_vddmax", S_IRUGO | S_IWUGO, vdd_debug,
+				&(vdd_info[vdd].vp_reg.vlimitto_vddmax),
+				&vp_debug_fops);
+	(void) debugfs_create_file("vp_vddmin", S_IRUGO | S_IWUGO, vdd_debug,
+				&(vdd_info[vdd].vp_reg.vlimitto_vddmin),
+				&vp_debug_fops);
+	(void) debugfs_create_file("vp_timeout", S_IRUGO | S_IWUGO, vdd_debug,
+				&(vdd_info[vdd].vp_reg.vlimitto_timeout),
+				&vp_debug_fops);
+	(void) debugfs_create_file("curr_vp_volt", S_IRUGO, vdd_debug,
+				(void *) &vdd_info[vdd], &vp_volt_debug_fops);
+	(void) debugfs_create_file("curr_nominal_volt", S_IRUGO, vdd_debug,
+				(void *) &vdd_info[vdd], &nom_volt_debug_fops);
+#endif
 }
 static void __init init_voltagecontroller(void)
 {
@@ -541,8 +639,11 @@ static int vc_bypass_scale_voltage(u32 vdd, unsigned long target_volt)
 	vc_cmdval |= (target_vsel << vc_cmd_on_shift);
 	voltage_write_reg(vdd_info[vdd].cmdval_reg, vc_cmdval);
 
-	/* Setting vp errorgain based on the voltage */
-	if (volt_data) {
+	/*
+	 * Setting vp errorgain based on the voltage If the debug option is
+	 * enabled allow the override of errorgain from user side
+	 */
+	if (!enable_sr_vp_debug && volt_data) {
 		vp_errgain_val = voltage_read_reg(vdd_info[vdd].
 				vp_offs.vpconfig_reg);
 		vdd_info[vdd].vp_reg.vpconfig_errorgain =
@@ -629,8 +730,11 @@ static int vp_forceupdate_scale_voltage(u32 vdd, unsigned long target_volt)
 	vc_cmdval |= (target_vsel << vc_cmd_on_shift);
 	voltage_write_reg(vdd_info[vdd].cmdval_reg, vc_cmdval);
 
-	/* Getting  vp errorgain based on the voltage */
-	if (volt_data)
+	/*
+	 * Getting  vp errorgain based on the voltage If the debug option is
+	 * enabled allow the override of errorgain from user side.
+	 */
+	if (!enable_sr_vp_debug && volt_data)
 		vdd_info[vdd].vp_reg.vpconfig_errorgain =
 					volt_data->vp_errgain;
 	/*
@@ -798,6 +902,39 @@ void omap_voltageprocessor_enable(int vp_id)
 	 */
 	if (!voltscale_vpforceupdate)
 		vp_latch_vsel(vp_id);
+
+	/*
+	 * If debug is enabled, it is likely that the following parameters
+	 * were set from user space so rewrite them.
+	 */
+	if (enable_sr_vp_debug) {
+		vpconfig = voltage_read_reg(
+			vdd_info[vp_id].vp_offs.vpconfig_reg);
+		vpconfig |= (vdd_info[vp_id].vp_reg.vpconfig_errorgain <<
+			vdd_info[vp_id].vp_reg.vpconfig_errorgain_shift);
+		voltage_write_reg(vdd_info[vp_id].vp_offs.vpconfig_reg,
+			vpconfig);
+
+		voltage_write_reg(vdd_info[vp_id].vp_offs.vstepmin_reg,
+			(vdd_info[vp_id].vp_reg.vstepmin_smpswaittimemin <<
+			vdd_info[vp_id].vp_reg.vstepmin_smpswaittimemin_shift) |
+			(vdd_info[vp_id].vp_reg.vstepmin_stepmin <<
+			vdd_info[vp_id].vp_reg.vstepmin_stepmin_shift));
+
+		voltage_write_reg(vdd_info[vp_id].vp_offs.vstepmax_reg,
+			(vdd_info[vp_id].vp_reg.vstepmax_smpswaittimemax <<
+			vdd_info[vp_id].vp_reg.vstepmax_smpswaittimemax_shift) |
+			(vdd_info[vp_id].vp_reg.vstepmax_stepmax <<
+			vdd_info[vp_id].vp_reg.vstepmax_stepmax_shift));
+
+		voltage_write_reg(vdd_info[vp_id].vp_offs.vlimitto_reg,
+			(vdd_info[vp_id].vp_reg.vlimitto_vddmax <<
+			vdd_info[vp_id].vp_reg.vlimitto_vddmax_shift) |
+			(vdd_info[vp_id].vp_reg.vlimitto_vddmin <<
+			vdd_info[vp_id].vp_reg.vlimitto_vddmin_shift) |
+			(vdd_info[vp_id].vp_reg.vlimitto_timeout <<
+			vdd_info[vp_id].vp_reg.vlimitto_timeout_shift));
+	}
 
 	vpconfig = voltage_read_reg(vdd_info[vp_id].vp_offs.vpconfig_reg);
 	/* Enable VP */
@@ -1044,6 +1181,9 @@ static int __init omap_voltage_init(void)
 		return 0;
 	}
 
+#ifdef CONFIG_PM_DEBUG
+	voltage_dir = debugfs_create_dir("Voltage", pm_dbg_main_dir);
+#endif
 	if (cpu_is_omap34xx()) {
 		volt_mod = OMAP3430_GR_MOD;
 		vdd_info = omap3_vdd_info;
