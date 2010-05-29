@@ -26,8 +26,9 @@
 #include <plat/clockdomain.h>
 #include <plat/omap34xx.h>
 #include <plat/opp_twl_tps.h>
+#include <plat/smartreflex.h>
 
-#include "smartreflex.h"
+#include "voltage.h"
 #include "resource34xx.h"
 #include "pm.h"
 #include "cm.h"
@@ -353,12 +354,6 @@ static int program_opp(int res, enum opp_t opp_type, int target_level,
 {
 	int i, ret = 0, raise;
 	unsigned long freq;
-#ifdef CONFIG_OMAP_SMARTREFLEX
-	unsigned long t_opp, c_opp;
-
-	t_opp = ID_VDD(res) | ID_OPP_NO(target_level);
-	c_opp = ID_VDD(res) | ID_OPP_NO(current_level);
-#endif
 
 	/* See if have a freq associated, if not, invalid opp */
 	ret = opp_to_freq(&freq, opp_type, target_level);
@@ -370,15 +365,15 @@ static int program_opp(int res, enum opp_t opp_type, int target_level,
 	else
 		raise = 0;
 
+	omap_smartreflex_disable(res - 1);
+
 	for (i = 0; i < 2; i++) {
-		if (i == raise)
+		if (i == raise) {
 			ret = program_opp_freq(res, target_level,
 					current_level);
-#ifdef CONFIG_OMAP_SMARTREFLEX
-		else {
-			u8 vc, vt;
+		} else {
 			struct omap_opp *oppx;
-			unsigned long uvdc;
+			unsigned long uvdc_current, uvdc_target;
 
 			/*
 			 * transitioning from good to good OPP
@@ -386,21 +381,19 @@ static int program_opp(int res, enum opp_t opp_type, int target_level,
 			 */
 			oppx = opp_find_freq_exact(opp_type, freq, true);
 			BUG_ON(IS_ERR(oppx));
-			uvdc = opp_get_voltage(oppx);
-			vt = omap_twl_uv_to_vsel(uvdc);
+			uvdc_target = opp_get_voltage(oppx);
 
 			BUG_ON(opp_to_freq(&freq, opp_type, current_level));
 			oppx = opp_find_freq_exact(opp_type, freq, true);
 			BUG_ON(IS_ERR(oppx));
-			uvdc = opp_get_voltage(oppx);
-			vc = omap_twl_uv_to_vsel(uvdc);
+			uvdc_current = opp_get_voltage(oppx);
 
 			/* ok to scale.. */
-			sr_voltagescale_vcbypass(t_opp, c_opp, vt, vc);
+			omap_voltage_scale(res - 1, uvdc_target);
 		}
-#endif
 	}
 
+	omap_smartreflex_enable(res - 1);
 	return ret;
 }
 
