@@ -22,8 +22,6 @@
 
 #include <linux/platform_device.h>
 
-extern struct dentry *pm_dbg_main_dir;
-
 /*
  * Different Smartreflex IPs version. The v1 is the 65nm version used in
  * OMAP3430. The v2 is the update for the 45nm version of the IP
