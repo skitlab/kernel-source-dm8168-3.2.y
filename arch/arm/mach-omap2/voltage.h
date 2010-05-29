@@ -14,6 +14,9 @@
 #ifndef __ARCH_ARM_MACH_OMAP2_VOLTAGE_H
 #define __ARCH_ARM_MACH_OMAP2_VOLTAGE_H
 
+extern u32 enable_sr_vp_debug;
+extern struct dentry *pm_dbg_main_dir;
+
 /* VoltageDomain instances */
 #define VDD1	0
 #define VDD2	1
