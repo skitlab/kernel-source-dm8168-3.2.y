@@ -529,8 +529,13 @@ int sr_enable(int srid, unsigned long volt)
 		return -ENODATA;
 	}
 
-	/* errminlimit is opp dependent and hence linked to voltage */
-	sr->err_minlimit = volt_data->sr_errminlimit;
+	/*
+	 * errminlimit is opp dependent and hence linked to voltage
+	 * if the debug option is enabled, the user might have over ridden
+	 * this parameter so do not get it from voltage table
+	 */
+	if (!enable_sr_vp_debug)
+		sr->err_minlimit = volt_data->sr_errminlimit;
 
 	/* Enable the clocks */
 	if (!sr->is_sr_enable) {
@@ -785,8 +790,31 @@ static int omap_sr_autocomp_store(void *data, u64 val)
 	return 0;
 }
 
+static int omap_sr_params_show(void *data, u64 *val)
+{
+	u32 *param = data;
+
+	*val = *param;
+	return 0;
+}
+
+static int omap_sr_params_store(void *data, u64 val)
+{
+	if (enable_sr_vp_debug) {
+		u32 *option = data;
+		*option = val;
+	} else {
+		pr_notice("DEBUG option not enabled!\n	\
+			echo 1 > pm_debug/enable_sr_vp_debug - to enable\n");
+	}
+	return 0;
+}
+
 DEFINE_SIMPLE_ATTRIBUTE(pm_sr_fops, omap_sr_autocomp_show,
 		omap_sr_autocomp_store, "%llu\n");
+
+DEFINE_SIMPLE_ATTRIBUTE(sr_params_fops, omap_sr_params_show,
+		omap_sr_params_store, "%llu\n");
 #endif
 
 static int __init omap_smartreflex_probe(struct platform_device *pdev)
@@ -849,6 +877,13 @@ static int __init omap_smartreflex_probe(struct platform_device *pdev)
 	dbg_dir = debugfs_create_dir(name, sr_dbg_dir);
 	(void) debugfs_create_file("autocomp", S_IRUGO | S_IWUGO, dbg_dir,
 				(void *)sr_info, &pm_sr_fops);
+	(void) debugfs_create_file("errweight", S_IRUGO | S_IWUGO, dbg_dir,
+				&sr_info->err_weight, &sr_params_fops);
+	(void) debugfs_create_file("errmaxlimit", S_IRUGO | S_IWUGO, dbg_dir,
+				&sr_info->err_maxlimit, &sr_params_fops);
+	(void) debugfs_create_file("errminlimit", S_IRUGO | S_IWUGO, dbg_dir,
+				&sr_info->err_minlimit, &sr_params_fops);
+
 #endif
 
 	dev_info(&pdev->dev, "%s: SmartReflex driver initialized\n", __func__);
