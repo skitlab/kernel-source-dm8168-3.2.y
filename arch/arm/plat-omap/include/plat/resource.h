@@ -23,6 +23,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
+#include <linux/pm_qos_params.h>
 
 #include <plat/cpu.h>
 
@@ -56,6 +57,7 @@ struct shared_resource {
 	struct list_head node;
 	/* Protect each resource */
 	struct mutex resource_mutex;
+	struct pm_qos_request_list *pm_qos;
 };
 
 struct shared_resource_ops {
