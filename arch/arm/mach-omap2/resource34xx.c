@@ -74,19 +74,19 @@ int set_latency(struct shared_resource *resp, u32 latency)
 	if (latency == RES_LATENCY_DEFAULTLEVEL)
 		/* No more users left, remove the pm_qos_req if present */
 		if (*pm_qos_req_added) {
-			pm_qos_remove_requirement(PM_QOS_CPU_DMA_LATENCY,
-							resp->name);
+			pm_qos_remove_request(resp->pm_qos);
 			*pm_qos_req_added = 0;
 			return 0;
 		}
 
 	if (*pm_qos_req_added) {
-		return pm_qos_update_requirement(PM_QOS_CPU_DMA_LATENCY,
-						resp->name, latency);
+		pm_qos_update_request(resp->pm_qos, latency);
+		return 0;
 	} else {
 		*pm_qos_req_added = 1;
-		return pm_qos_add_requirement(PM_QOS_CPU_DMA_LATENCY,
-						resp->name, latency);
+		resp->pm_qos = pm_qos_add_request(PM_QOS_CPU_DMA_LATENCY,
+						  latency);
+		return resp->pm_qos ? 0 : -EINVAL;
 	}
 }
 
