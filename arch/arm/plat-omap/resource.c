@@ -19,6 +19,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <linux/semaphore.h>
 
 #include <plat/resource.h>
 
