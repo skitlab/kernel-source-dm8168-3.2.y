@@ -1989,6 +1989,18 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl,
 #ifdef CONFIG_USB_MUSB_OTG
 		break;
 #else
+#ifdef CONFIG_USB_MUSB_HDRC_HCD
+		plat->mode = MUSB_HOST;
+#endif
+
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
+		plat->mode = MUSB_PERIPHERAL;
+#endif
+	dev_info(dev, "degrade from otg to %s-only mode\n",
+		(plat->mode == MUSB_HOST) ? "host" : "peripheral");
+	break;
+#endif
+#ifndef CONFIG_USB_MUSB_OTG
 bad_config:
 #endif
 	default:
