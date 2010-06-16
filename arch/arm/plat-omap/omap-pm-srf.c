@@ -29,6 +29,8 @@
 #define LAT_RES_POSTAMBLE "_latency"
 #define MAX_LATENCY_RES_NAME 30
 
+static int initialized;
+
 /**
  * get_lat_res_name - gets the latency resource name given a power domain name
  * @pwrdm_name: Name of the power domain.
@@ -52,6 +54,9 @@ void get_lat_res_name(const char *pwrdm_name, char **lat_name, int size)
 
 void omap_pm_set_max_mpu_wakeup_lat(struct device *dev, long t)
 {
+	if (!initialized)
+		return;
+
 	if (!dev || t < -1) {
 		WARN_ON(1);
 		return;
@@ -291,6 +296,8 @@ int __init omap_pm_if_early_init(void)
 int __init omap_pm_if_init(void)
 {
 	resource_init(resources_omap);
+	initialized = 1;
+
 	return 0;
 }
 
