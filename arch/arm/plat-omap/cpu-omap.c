@@ -89,6 +89,7 @@ static int omap_target(struct cpufreq_policy *policy,
 #endif
 #if defined(CONFIG_ARCH_OMAP3) && !defined(CONFIG_OMAP_PM_NONE)
 	unsigned long freq;
+	struct device *mpu_dev = omap_get_mpu_device();
 #endif
 	int ret = 0;
 
@@ -115,7 +116,7 @@ static int omap_target(struct cpufreq_policy *policy,
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 #elif defined(CONFIG_ARCH_OMAP3) && !defined(CONFIG_OMAP_PM_NONE)
 	freq = target_freq * 1000;
-	if (opp_find_freq_ceil(OPP_MPU, &freq))
+	if (opp_find_freq_ceil(mpu_dev, &freq))
 		omap_pm_cpu_set_freq(freq);
 #endif
 	return ret;
@@ -134,10 +135,13 @@ static int __init omap_cpu_init(struct cpufreq_policy *policy)
 
 	policy->cur = policy->min = policy->max = omap_getspeed(0);
 
-	if (!cpu_is_omap34xx())
+	if (!cpu_is_omap34xx()) {
 		clk_init_cpufreq_table(&freq_table);
-	else
-		opp_init_cpufreq_table(OPP_MPU, &freq_table);
+	} else {
+		struct device *mpu_dev = omap_get_mpu_device();
+
+		opp_init_cpufreq_table(mpu_dev, &freq_table);
+	}
 
 	if (freq_table) {
 		result = cpufreq_frequency_table_cpuinfo(policy, freq_table);
