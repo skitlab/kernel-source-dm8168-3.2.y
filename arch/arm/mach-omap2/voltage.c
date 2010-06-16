@@ -102,7 +102,7 @@ struct vp_reg_val {
  * @vp_reg		: the register values, shifts, masks for various
  *			  vp registers
  * @volt_clk		: the clock associated with the vdd.
- * @opp_type		: the type of OPP associated with this vdd.
+ * @opp_dev		: the 'struct device' associated with this vdd.
  * @volt_data_count	: Number of distinct voltages supported by this vdd.
  * @nominal_volt	: Nominal voltaged for this vdd.
  * cmdval_reg		: Voltage controller cmdval register.
@@ -113,7 +113,7 @@ struct omap_vdd_info{
 	struct vp_reg_offs vp_offs;
 	struct vp_reg_val vp_reg;
 	struct clk *volt_clk;
-	int opp_type;
+	struct device *opp_dev;
 	int volt_data_count;
 	int id;
 	unsigned long nominal_volt;
@@ -385,7 +385,7 @@ static void __init omap3_vdd_data_configure(int vdd)
 		vdd_info[vdd].volt_clk = clk_get(NULL, "dpll1_ck");
 		WARN(IS_ERR(vdd_info[vdd].volt_clk),
 				"unable to get clock for VDD%d\n", vdd + 1);
-		vdd_info[vdd].opp_type = OPP_MPU;
+		vdd_info[vdd].opp_dev = omap_get_mpuss_device();
 		vdd_info[vdd].vp_reg.tranxdone_status =
 				OMAP3430_VP1_TRANXDONE_ST_MASK;
 		vdd_info[vdd].cmdval_reg = OMAP3_PRM_VC_CMD_VAL_0_OFFSET;
@@ -411,7 +411,7 @@ static void __init omap3_vdd_data_configure(int vdd)
 		vdd_info[vdd].volt_clk = clk_get(NULL, "l3_ick");
 		WARN(IS_ERR(vdd_info[vdd].volt_clk),
 				"unable to get clock for VDD%d\n", vdd + 1);
-		vdd_info[vdd].opp_type = OPP_L3;
+		vdd_info[vdd].opp_dev = omap_get_l3_device();
 		vdd_info[vdd].vp_reg.tranxdone_status =
 					OMAP3430_VP2_TRANXDONE_ST_MASK;
 		vdd_info[vdd].cmdval_reg = OMAP3_PRM_VC_CMD_VAL_1_OFFSET;
@@ -843,7 +843,7 @@ unsigned long get_curr_voltage(int vdd)
 	}
 
 	freq = vdd_info[vdd].volt_clk->rate;
-	opp = opp_find_freq_ceil(vdd_info[vdd].opp_type, &freq);
+	opp = opp_find_freq_ceil(vdd_info[vdd].opp_dev, &freq);
 	if (IS_ERR(opp)) {
 		pr_warning("%s: Unable to find OPP for VDD%d freq%ld\n",
 			__func__, vdd + 1, freq);
