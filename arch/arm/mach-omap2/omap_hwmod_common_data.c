@@ -66,3 +66,6 @@ struct omap_hwmod_class mpu_hwmod_class = {
 	.name = "mpu"
 };
 
+struct omap_hwmod_class dsp_hwmod_class = {
+	.name = "dsp"
+};
