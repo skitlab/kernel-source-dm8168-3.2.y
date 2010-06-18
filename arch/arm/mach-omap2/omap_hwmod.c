@@ -1050,6 +1050,14 @@ static int _setup(struct omap_hwmod *oh)
 		}
 	}
 
+#ifndef CONFIG_PM_RUNTIME
+	/*
+	 * If runtime PM is not enabled, leave the device enabled
+	 * since runtime PM will not be dynamically managing the device.
+	 */
+	oh->flags |= HWMOD_INIT_NO_IDLE;
+#endif
+
 	if (!(oh->flags & HWMOD_INIT_NO_IDLE))
 		_omap_hwmod_idle(oh);
 
