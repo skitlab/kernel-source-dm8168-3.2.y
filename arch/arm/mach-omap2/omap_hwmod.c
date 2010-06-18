@@ -1287,6 +1287,18 @@ int omap_hwmod_unregister(struct omap_hwmod *oh)
 }
 
 /**
+ * __omap_hwmod_enable - enable an omap_hwmod (non-locking version)
+ * @oh: struct omap_hwmod *
+ *
+ * Enable an omap_hwomd @oh.  Intended to be called in rare cases
+ * where usage is required in atomic context.
+ */
+int __omap_hwmod_enable(struct omap_hwmod *oh)
+{
+	return _enable(oh);
+}
+
+/**
  * omap_hwmod_enable - enable an omap_hwmod
  * @oh: struct omap_hwmod *
  *
@@ -1301,10 +1313,24 @@ int omap_hwmod_enable(struct omap_hwmod *oh)
 		return -EINVAL;
 
 	mutex_lock(&omap_hwmod_mutex);
-	r = _enable(oh);
+	r = __omap_hwmod_enable(oh);
 	mutex_unlock(&omap_hwmod_mutex);
 
 	return r;
+}
+
+
+/**
+ * __omap_hwmod_idle - idle an omap_hwmod (non-locking)
+ * @oh: struct omap_hwmod *
+ *
+ * Idle an omap_hwomd @oh.  Intended to be called in rare instances where
+ * used in atomic context.
+ */
+int __omap_hwmod_idle(struct omap_hwmod *oh)
+{
+	_idle(oh);
+	return 0;
 }
 
 /**
@@ -1319,9 +1345,7 @@ int omap_hwmod_idle(struct omap_hwmod *oh)
 	if (!oh)
 		return -EINVAL;
 
-	mutex_lock(&omap_hwmod_mutex);
-	_idle(oh);
-	mutex_unlock(&omap_hwmod_mutex);
+	__omap_hwmod_idle(oh);
 
 	return 0;
 }
