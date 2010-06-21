@@ -16,9 +16,12 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/cpufreq.h>
+#include <linux/err.h>
+#include <linux/list.h>
 
 #include <plat/opp_twl_tps.h>
 #include <plat/opp.h>
+#include <plat/omap_device.h>
 
 /**
  * struct omap_opp - OMAP OPP description structure
@@ -30,17 +33,50 @@
  * This structure stores the OPP information for a given domain.
  */
 struct omap_opp {
+	struct list_head node;
+
 	bool enabled;
 	unsigned long rate;
 	unsigned long u_volt;
 	u8 opp_id;
+
+	struct device_opp *dev_opp;  /* containing device_opp struct */
 };
 
-/* This maintains pointers to the start of each OPP array. */
-static struct omap_opp *_opp_list[OPP_TYPES_MAX];
+struct device_opp {
+	struct list_head node;
 
-/* Detect end of opp array */
-#define OPP_TERM(opp) (!(opp)->rate && !(opp)->u_volt && !(opp)->enabled)
+	struct omap_hwmod *oh;
+	struct device *dev;
+
+	struct list_head opp_list;
+	u32 opp_count;
+	u32 enabled_opp_count;
+};
+
+static LIST_HEAD(dev_opp_list);
+
+/**
+ * find_device_opp() - find device_opp struct using device pointer
+ * @dev: device pointer used to lookup device OPPs
+ *
+ * Search list of device OPPs for one containing matching device.
+ *
+ * Returns pointer to 'struct device_opp' if found, otherwise -ENODEV.
+ */
+static struct device_opp *find_device_opp(struct device *dev)
+{
+	struct device_opp *tmp_dev_opp, *dev_opp = ERR_PTR(-ENODEV);
+
+	list_for_each_entry(tmp_dev_opp, &dev_opp_list, node) {
+		if (tmp_dev_opp->dev == dev) {
+			dev_opp = tmp_dev_opp;
+			break;
+		}
+	}
+
+	return dev_opp;
+}
 
 /**
  * opp_get_voltage() - Gets the voltage corresponding to an opp
@@ -55,6 +91,7 @@ unsigned long opp_get_voltage(const struct omap_opp *opp)
 		pr_err("%s: Invalid parameters being passed\n", __func__);
 		return 0;
 	}
+
 	return opp->u_volt;
 }
 
@@ -71,6 +108,7 @@ unsigned long opp_get_freq(const struct omap_opp *opp)
 		pr_err("%s: Invalid parameters being passed\n", __func__);
 		return 0;
 	}
+
 	return opp->rate;
 }
 
@@ -82,27 +120,24 @@ unsigned long opp_get_freq(const struct omap_opp *opp)
  * Returns the struct omap_opp pointer corresponding to the given OPP
  * ID @opp_id, or returns NULL on error.
  */
-struct omap_opp * __deprecated opp_find_by_opp_id(enum opp_t opp_type,
+struct omap_opp * __deprecated opp_find_by_opp_id(struct device *dev,
 						  u8 opp_id)
 {
-	struct omap_opp *opps;
-	int i = 0;
+	struct device_opp *dev_opp;
+	struct omap_opp *temp_opp, *opp = ERR_PTR(-ENODEV);
 
-	if (unlikely(opp_type >= OPP_TYPES_MAX || !opp_id))
-		return ERR_PTR(-EINVAL);
-	opps = _opp_list[opp_type];
+	dev_opp = find_device_opp(dev);
+	if (IS_ERR(dev_opp))
+		return opp;
 
-	if (!opps)
-		return ERR_PTR(-ENOENT);
-
-	while (!OPP_TERM(&opps[i])) {
-		if (opps[i].enabled && (opps[i].opp_id == opp_id))
-			return &opps[i];
-
-		i++;
+	list_for_each_entry(temp_opp, &dev_opp->opp_list, node) {
+		if (temp_opp->enabled && temp_opp->opp_id == opp_id) {
+			opp = temp_opp;
+			break;
+		}
 	}
 
-	return ERR_PTR(-ENOENT);
+	return opp;
 }
 
 /**
@@ -117,6 +152,7 @@ u8 __deprecated opp_get_opp_id(struct omap_opp *opp)
 		pr_err("%s: Invalid parameter being passed\n", __func__);
 		return 0;
 	}
+
 	return opp->opp_id;
 }
 
@@ -127,26 +163,15 @@ u8 __deprecated opp_get_opp_id(struct omap_opp *opp)
  * This functions returns the number of opps if there are any OPPs enabled,
  * else returns corresponding error value.
  */
-int opp_get_opp_count(enum opp_t opp_type)
+int opp_get_opp_count(struct device *dev)
 {
-	u8 n = 0;
-	struct omap_opp *oppl;
+	struct device_opp *dev_opp;
 
-	if (unlikely(opp_type >= OPP_TYPES_MAX)) {
-		pr_err("%s: Invalid parameters being passed\n", __func__);
-		return -EINVAL;
-	}
+	dev_opp = find_device_opp(dev);
+	if (IS_ERR(dev_opp))
+		return -ENODEV;
 
-	oppl = _opp_list[opp_type];
-	if (!oppl)
-		return -ENOENT;
-
-	while (!OPP_TERM(oppl)) {
-		if (oppl->enabled)
-			n++;
-		oppl++;
-	}
-	return n;
+	return dev_opp->enabled_opp_count;
 }
 
 /**
@@ -163,28 +188,24 @@ int opp_get_opp_count(enum opp_t opp_type)
  * for exact matching frequency and is enabled. if false, the match is for exact
  * frequency which is disabled.
  */
-struct omap_opp *opp_find_freq_exact(enum opp_t opp_type,
+struct omap_opp *opp_find_freq_exact(struct device *dev,
 				     unsigned long freq, bool enabled)
 {
-	struct omap_opp *oppl;
+	struct device_opp *dev_opp;
+	struct omap_opp *temp_opp, *opp = ERR_PTR(-ENODEV);
 
-	if (unlikely(opp_type >= OPP_TYPES_MAX)) {
-		pr_err("%s: Invalid parameters being passed\n", __func__);
-		return ERR_PTR(-EINVAL);
-	}
+	dev_opp = find_device_opp(dev);
+	if (IS_ERR(dev_opp))
+		return opp;
 
-	oppl = _opp_list[opp_type];
-
-	if (!oppl)
-		return ERR_PTR(-ENOENT);
-
-	while (!OPP_TERM(oppl)) {
-		if ((oppl->rate == freq) && (oppl->enabled == enabled))
+	list_for_each_entry(temp_opp, &dev_opp->opp_list, node) {
+		if (temp_opp->enabled && temp_opp->rate == freq) {
+			opp = temp_opp;
 			break;
-		oppl++;
+		}
 	}
 
-	return OPP_TERM(oppl) ? ERR_PTR(-ENOENT) : oppl;
+	return opp;
 }
 
 /**
@@ -214,33 +235,24 @@ struct omap_opp *opp_find_freq_exact(enum opp_t opp_type,
  *		freq++; * for next higher match *
  *	}
  */
-struct omap_opp *opp_find_freq_ceil(enum opp_t opp_type, unsigned long *freq)
+struct omap_opp *opp_find_freq_ceil(struct device *dev, unsigned long *freq)
 {
-	struct omap_opp *oppl;
+	struct device_opp *dev_opp;
+	struct omap_opp *temp_opp, *opp = ERR_PTR(-ENODEV);
 
-	if (unlikely(opp_type >= OPP_TYPES_MAX || !freq ||
-		 IS_ERR(freq))) {
-		pr_err("%s: Invalid parameters being passed\n", __func__);
-		return ERR_PTR(-EINVAL);
-	}
+	dev_opp = find_device_opp(dev);
+	if (IS_ERR(dev_opp))
+		return opp;
 
-	oppl = _opp_list[opp_type];
-
-	if (!oppl)
-		return ERR_PTR(-ENOENT);
-
-	while (!OPP_TERM(oppl)) {
-		if (oppl->enabled && oppl->rate >= *freq)
+	list_for_each_entry(temp_opp, &dev_opp->opp_list, node) {
+		if (temp_opp->enabled && temp_opp->rate >= *freq) {
+			opp = temp_opp;
+			*freq = opp->rate;
 			break;
-		oppl++;
+		}
 	}
 
-	if (OPP_TERM(oppl))
-		return ERR_PTR(-ENOENT);
-
-	*freq = oppl->rate;
-
-	return oppl;
+	return opp;
 }
 
 /**
@@ -270,36 +282,24 @@ struct omap_opp *opp_find_freq_ceil(enum opp_t opp_type, unsigned long *freq)
  *		freq--; * for next lower match *
  *	}
  */
-struct omap_opp *opp_find_freq_floor(enum opp_t opp_type, unsigned long *freq)
+struct omap_opp *opp_find_freq_floor(struct device *dev, unsigned long *freq)
 {
-	struct omap_opp *prev_opp, *oppl;
+	struct device_opp *dev_opp;
+	struct omap_opp *temp_opp, *opp = ERR_PTR(-ENODEV);
 
-	if (unlikely(opp_type >= OPP_TYPES_MAX || !freq ||
-		 IS_ERR(freq))) {
-		pr_err("%s: Invalid parameters being passed\n", __func__);
-		return ERR_PTR(-EINVAL);
-	}
-	oppl = _opp_list[opp_type];
+	dev_opp = find_device_opp(dev);
+	if (IS_ERR(dev_opp))
+		return opp;
 
-	if (!oppl)
-		return ERR_PTR(-ENOENT);
-
-	prev_opp = oppl;
-	while (!OPP_TERM(oppl)) {
-		if (oppl->enabled) {
-			if (oppl->rate > *freq)
-				break;
-			prev_opp = oppl;
+	list_for_each_entry_reverse(temp_opp, &dev_opp->opp_list, node) {
+		if (temp_opp->enabled && temp_opp->rate <= *freq) {
+			opp = temp_opp;
+			*freq = opp->rate;
+			break;
 		}
-		oppl++;
 	}
 
-	if (prev_opp->rate > *freq)
-		return ERR_PTR(-ENOENT);
-
-	*freq = prev_opp->rate;
-
-	return prev_opp;
+	return opp;
 }
 
 /* wrapper to reuse converting opp_def to opp struct */
@@ -313,130 +313,79 @@ static void omap_opp_populate(struct omap_opp *opp,
 
 /**
  * opp_add()  - Add an OPP table from a table definitions
- * @opp_type:	OPP type under which we want to add our new OPP.
- * @opp_def:	omap_opp_def to describe the OPP which we want to add to list.
+ * @opp_def:	omap_opp_def to describe the OPP which we want to add.
  *
  * This function adds an opp definition to the opp list and returns status.
  */
-int opp_add(enum opp_t opp_type, const struct omap_opp_def *opp_def)
+int opp_add(const struct omap_opp_def *opp_def)
 {
-	struct omap_opp *opp, *oppt, *oppr, *oppl;
-	u8 n, i, ins;
+	struct omap_hwmod *oh;
+	struct device *dev = NULL;
+	struct device_opp *tmp_dev_opp, *dev_opp = NULL;
+	struct omap_opp *opp, *new_opp;
+	struct platform_device *pdev;
+	struct list_head *head;
+	int i;
 
-	if (unlikely(opp_type >= OPP_TYPES_MAX || !opp_def ||
-			 IS_ERR(opp_def))) {
-		pr_err("%s: Invalid params being passed\n", __func__);
+	/* find the correct hwmod, and device */
+	if (!opp_def->hwmod_name) {
+		pr_err("%s: missing name of omap_hwmod, ignoring.\n", __func__);
 		return -EINVAL;
 	}
-
-	n = 0;
-	oppl = _opp_list[opp_type];
-
-	if (!oppl)
-		return -ENOENT;
-
-	opp = oppl;
-	while (!OPP_TERM(opp)) {
-		n++;
-		opp++;
+	oh = omap_hwmod_lookup(opp_def->hwmod_name);
+	if (!oh) {
+		pr_warn("%s: no hwmod for %s, cannot add OPPs.\n",
+			__func__, opp_def->hwmod_name);
+		return -EINVAL;
 	}
+	pdev = &oh->od->pdev;
+	dev = &oh->od->pdev.dev;
 
-	/*
-	 * Allocate enough entries to copy the original list, plus the new
-	 * OPP, plus the concluding terminator
-	 */
-	oppr = kzalloc(sizeof(struct omap_opp) * (n + 2), GFP_KERNEL);
-	if (!oppr) {
-		pr_err("%s: No memory for new opp array\n", __func__);
-		return -ENOMEM;
-	}
-
-	/* Simple insertion sort */
-	opp = _opp_list[opp_type];
-	oppt = oppr;
-	ins = 0;
-	i = 1;
-	do {
-		if (ins || opp->rate < opp_def->freq) {
-			memcpy(oppt, opp, sizeof(struct omap_opp));
-			opp++;
-		} else {
-			omap_opp_populate(oppt, opp_def);
-			ins++;
+	/* Check for existing list for 'dev' */
+	list_for_each_entry(tmp_dev_opp, &dev_opp_list, node) {
+		if (dev == tmp_dev_opp->dev) {
+			dev_opp = tmp_dev_opp;
+			break;
 		}
-		oppt->opp_id = i;
-		oppt++;
-		i++;
-	} while (!OPP_TERM(opp));
-
-	/* If nothing got inserted, this belongs to the end */
-	if (!ins) {
-		omap_opp_populate(oppt, opp_def);
-		oppt->opp_id = i;
-		oppt++;
 	}
 
-	_opp_list[opp_type] = oppr;
+	if (!dev_opp) {
+		/* Allocate a new device OPP table */
+		dev_opp = kzalloc(sizeof(struct device_opp), GFP_KERNEL);
+		if (WARN_ON(!dev_opp))
+			return -ENOMEM;
 
-	/* Terminator implicitly added by kzalloc() */
+		dev_opp->oh = oh;
+		dev_opp->dev = &oh->od->pdev.dev;
+		INIT_LIST_HEAD(&dev_opp->opp_list);
 
-	/* Free the old list */
-	kfree(oppl);
-
-	return 0;
-}
-
-/**
- * opp_init_list() - Initialize an opp list from the opp definitions
- * @opp_type:	OPP type to initialize this list for.
- * @opp_defs:	Initial opp definitions to create the list.
- *
- * This function creates a list of opp definitions and returns status.
- * This list can be used to further validation/search/modifications. New
- * opp entries can be added to this list by using opp_add().
- *
- * In the case of error, suitable error code is returned.
- */
-int __init opp_init_list(enum opp_t opp_type,
-				 const struct omap_opp_def *opp_defs)
-{
-	struct omap_opp_def *t = (struct omap_opp_def *)opp_defs;
-	struct omap_opp *oppl;
-	u8 n = 0, i = 1;
-
-	if (unlikely(opp_type >= OPP_TYPES_MAX || !opp_defs ||
-			 IS_ERR(opp_defs))) {
-		pr_err("%s: Invalid params being passed\n", __func__);
-		return -EINVAL;
-	}
-	/* Grab a count */
-	while (t->enabled || t->freq || t->u_volt) {
-		n++;
-		t++;
+		list_add(&dev_opp->node, &dev_opp_list);
 	}
 
-	/*
-	 * Allocate enough entries to copy the original list, plus the
-	 * concluding terminator
-	 */
-	oppl = kzalloc(sizeof(struct omap_opp) * (n + 1), GFP_KERNEL);
-	if (!oppl) {
-		pr_err("%s: No memory for opp array\n", __func__);
+	/* allocate new OPP node */
+	new_opp = kzalloc(sizeof(struct omap_opp), GFP_KERNEL);
+	if (WARN_ON(!new_opp))
+		/* FIXME: free dev_opp ? */
 		return -ENOMEM;
+	omap_opp_populate(new_opp, opp_def);
+
+	/* Insert new OPP in order of increasing frequency */
+	head = &dev_opp->opp_list;
+	list_for_each_entry_reverse(opp, &dev_opp->opp_list, node) {
+		if (new_opp->rate >= opp->rate) {
+			head = &opp->node;
+			break;
+		}
 	}
+	list_add(&new_opp->node, head);
+	dev_opp->opp_count++;
+	if (new_opp->enabled)
+		dev_opp->enabled_opp_count++;
 
-
-	_opp_list[opp_type] = oppl;
-	while (n) {
-		omap_opp_populate(oppl, opp_defs);
-		oppl->opp_id = i;
-		n--;
-		oppl++;
-		opp_defs++;
-		i++;
-	}
-
-	/* Terminator implicitly added by kzalloc() */
+	/* renumber (deprecated) OPP IDs based on new order */
+	i = 0;
+	list_for_each_entry(opp, &dev_opp->opp_list, node)
+		opp->opp_id = i++;
 
 	return 0;
 }
@@ -453,11 +402,18 @@ int __init opp_init_list(enum opp_t opp_type,
  */
 int opp_enable(struct omap_opp *opp)
 {
+	struct device_opp *dev_opp;
+
 	if (unlikely(!opp || IS_ERR(opp))) {
 		pr_err("%s: Invalid parameters being passed\n", __func__);
 		return -EINVAL;
 	}
+
+	if (!opp->enabled && opp->dev_opp)
+		opp->dev_opp->enabled_opp_count++;
+
 	opp->enabled = true;
+
 	return 0;
 }
 
@@ -477,7 +433,12 @@ int opp_disable(struct omap_opp *opp)
 		pr_err("%s: Invalid parameters being passed\n", __func__);
 		return -EINVAL;
 	}
+
+	if (opp->enabled && opp->dev_opp)
+		opp->dev_opp->enabled_opp_count--;
+
 	opp->enabled = false;
+
 	return 0;
 }
 
@@ -489,43 +450,32 @@ int opp_disable(struct omap_opp *opp)
  * Generate a cpufreq table for a provided domain - this assumes that the
  * opp list is already initialized and ready for usage
  */
-void opp_init_cpufreq_table(enum opp_t opp_type,
+void opp_init_cpufreq_table(struct device *dev,
 			    struct cpufreq_frequency_table **table)
 {
-	int i = 0, j;
-	int opp_num;
-	struct cpufreq_frequency_table *freq_table;
+	struct device_opp *dev_opp;
 	struct omap_opp *opp;
+	struct cpufreq_frequency_table *freq_table;
+	int i = 0;
 
-	if (opp_type >= OPP_TYPES_MAX) {
-		pr_warning("%s: failed to initialize frequency"
-				"table\n", __func__);
+	dev_opp = find_device_opp(dev);
+	if (WARN_ON(!dev_opp))
 		return;
-	}
 
-	opp_num = opp_get_opp_count(opp_type);
-	if (opp_num < 0) {
-		pr_err("%s: no opp table?\n", __func__);
-		return;
-	}
-
-	freq_table = kmalloc(sizeof(struct cpufreq_frequency_table) *
-			     (opp_num + 1), GFP_ATOMIC);
+	freq_table = kzalloc(sizeof(struct cpufreq_frequency_table) *
+			     (dev_opp->enabled_opp_count + 1), GFP_ATOMIC);
 	if (!freq_table) {
-		pr_warning("%s: failed to allocate frequency"
-				"table\n", __func__);
+		pr_warning("%s: failed to allocate frequency table\n",
+			   __func__);
 		return;
 	}
 
-	opp = _opp_list[opp_type];
-	opp += opp_num;
-	for (j = opp_num; j >= 0; j--) {
+	list_for_each_entry(opp, &dev_opp->opp_list, node) {
 		if (opp->enabled) {
 			freq_table[i].index = i;
 			freq_table[i].frequency = opp->rate / 1000;
 			i++;
 		}
-		opp--;
 	}
 
 	freq_table[i].index = i;
