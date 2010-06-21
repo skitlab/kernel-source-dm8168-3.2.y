@@ -87,4 +87,8 @@ void omap2_set_globals_uart(struct omap_globals *);
 	}							\
 })
 
+struct device *omap_get_mpuss_device(void);
+struct device *omap_get_dsp_device(void);
+struct device *omap_get_l3_device(void);
+
 #endif /* __ARCH_ARM_MACH_OMAP_COMMON_H */
