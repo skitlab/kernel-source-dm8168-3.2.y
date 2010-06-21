@@ -409,10 +409,11 @@ static int _init_main_clk(struct omap_hwmod *oh)
 		return 0;
 
 	oh->_clk = omap_clk_get_by_name(oh->main_clk);
-	if (!oh->_clk)
+	if (!oh->_clk) {
 		pr_warning("omap_hwmod: %s: cannot clk_get main_clk %s\n",
 			   oh->name, oh->main_clk);
 		return -EINVAL;
+	}
 
 	if (!oh->_clk->clkdm)
 		pr_warning("omap_hwmod: %s: missing clockdomain for %s.\n",
@@ -444,10 +445,11 @@ static int _init_interface_clks(struct omap_hwmod *oh)
 			continue;
 
 		c = omap_clk_get_by_name(os->clk);
-		if (!c)
+		if (!c) {
 			pr_warning("omap_hwmod: %s: cannot clk_get interface_clk %s\n",
 				   oh->name, os->clk);
 			ret = -EINVAL;
+		}
 		os->_clk = c;
 	}
 
@@ -470,10 +472,11 @@ static int _init_opt_clks(struct omap_hwmod *oh)
 
 	for (i = oh->opt_clks_cnt, oc = oh->opt_clks; i > 0; i--, oc++) {
 		c = omap_clk_get_by_name(oc->clk);
-		if (!c)
+		if (!c) {
 			pr_warning("omap_hwmod: %s: cannot clk_get opt_clk %s\n",
 				   oh->name, oc->clk);
 			ret = -EINVAL;
+		}
 		oc->_clk = c;
 	}
 
@@ -938,7 +941,13 @@ static int _enable(struct omap_hwmod *oh)
  */
 static int _idle(struct omap_hwmod *oh)
 {
-	if (oh->_state != _HWMOD_STATE_ENABLED) {
+	/*
+	 * To idle, hwmod must be enabled, EXCEPT if hwmod was
+	 * initialized using the INIT_NO_IDLE flag.  In this case it
+	 * will not yet be enabled so we have to allow it to be idled.
+	 */
+	if ((oh->_state != _HWMOD_STATE_ENABLED) &&
+	    !(oh->flags & HWMOD_INIT_NO_IDLE)) {
 		WARN(1, "omap_hwmod: %s: idle state can only be entered from "
 		     "enabled state\n", oh->name);
 		return -EINVAL;
@@ -952,6 +961,9 @@ static int _idle(struct omap_hwmod *oh)
 	_disable_clocks(oh);
 
 	oh->_state = _HWMOD_STATE_IDLE;
+
+	/* Clear init flag which should only affect first call to idle */
+	oh->flags &= ~HWMOD_INIT_NO_IDLE;
 
 	return 0;
 }
@@ -1275,6 +1287,18 @@ int omap_hwmod_unregister(struct omap_hwmod *oh)
 }
 
 /**
+ * __omap_hwmod_enable - enable an omap_hwmod (non-locking version)
+ * @oh: struct omap_hwmod *
+ *
+ * Enable an omap_hwomd @oh.  Intended to be called in rare cases
+ * where usage is required in atomic context.
+ */
+int __omap_hwmod_enable(struct omap_hwmod *oh)
+{
+	return _enable(oh);
+}
+
+/**
  * omap_hwmod_enable - enable an omap_hwmod
  * @oh: struct omap_hwmod *
  *
@@ -1289,10 +1313,24 @@ int omap_hwmod_enable(struct omap_hwmod *oh)
 		return -EINVAL;
 
 	mutex_lock(&omap_hwmod_mutex);
-	r = _enable(oh);
+	r = __omap_hwmod_enable(oh);
 	mutex_unlock(&omap_hwmod_mutex);
 
 	return r;
+}
+
+
+/**
+ * __omap_hwmod_idle - idle an omap_hwmod (non-locking)
+ * @oh: struct omap_hwmod *
+ *
+ * Idle an omap_hwomd @oh.  Intended to be called in rare instances where
+ * used in atomic context.
+ */
+int __omap_hwmod_idle(struct omap_hwmod *oh)
+{
+	_idle(oh);
+	return 0;
 }
 
 /**
@@ -1307,9 +1345,7 @@ int omap_hwmod_idle(struct omap_hwmod *oh)
 	if (!oh)
 		return -EINVAL;
 
-	mutex_lock(&omap_hwmod_mutex);
-	_idle(oh);
-	mutex_unlock(&omap_hwmod_mutex);
+	__omap_hwmod_idle(oh);
 
 	return 0;
 }
