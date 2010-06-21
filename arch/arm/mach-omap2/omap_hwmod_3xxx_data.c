@@ -32,6 +32,7 @@
  */
 
 static struct omap_hwmod omap3xxx_mpu_hwmod;
+static struct omap_hwmod omap3xxx_iva2_hwmod;
 static struct omap_hwmod omap3xxx_l3_hwmod;
 static struct omap_hwmod omap3xxx_l4_core_hwmod;
 static struct omap_hwmod omap3xxx_l4_per_hwmod;
@@ -168,12 +169,56 @@ static struct omap_hwmod omap3xxx_mpu_hwmod = {
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
 };
 
+/*
+ * IVA2_2 interface data
+ */
+
+static struct omap_hwmod_addr_space omap3xxx_iva2_addrs[] = {
+	{
+		.pa_start	= 0x5c000000,
+		.pa_end		= 0x5effffff,
+		.flags		= ADDR_TYPE_RT
+	},
+};
+
+/* IVA2 <- L3 interface */
+static struct omap_hwmod_ocp_if omap3xxx_l3__iva2 = {
+	.master		= &omap3xxx_l3_hwmod,
+	.slave		= &omap3xxx_iva2_hwmod,
+	.clk		= "iva2_ck",
+	.addr		= omap3xxx_iva2_addrs,
+	.addr_cnt	= ARRAY_SIZE(omap3xxx_iva2_addrs),
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+static struct omap_hwmod_ocp_if *omap3xxx_iva2_masters[] = {
+	&omap3xxx_l3__iva2,
+};
+
+/*
+ * IVA2 (IVA2)
+ */
+
+static struct omap_hwmod omap3xxx_iva2_hwmod = {
+	.name		= "dsp",
+	.class		= &dsp_hwmod_class,
+	.main_clk	= "iva2_ck",
+	.masters	= omap3xxx_iva2_masters,
+	.masters_cnt	= ARRAY_SIZE(omap3xxx_iva2_masters),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430)
+};
+
 static __initdata struct omap_hwmod *omap3xxx_hwmods[] = {
 	&omap3xxx_l3_hwmod,
 	&omap3xxx_l4_core_hwmod,
 	&omap3xxx_l4_per_hwmod,
 	&omap3xxx_l4_wkup_hwmod,
 	&omap3xxx_mpu_hwmod,
+	&omap3xxx_iva2_hwmod,
+	&omap34xx_sr1_hwmod,
+	&omap34xx_sr2_hwmod,
+	&omap36xx_sr1_hwmod,
+	&omap36xx_sr2_hwmod,
 	NULL,
 };
 
