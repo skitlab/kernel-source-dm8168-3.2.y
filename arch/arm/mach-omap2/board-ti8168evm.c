@@ -20,6 +20,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/device.h>
+#include <linux/mtd/nand.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #include <linux/mtd/physmap.h>
@@ -38,6 +39,8 @@
 #include <plat/usb.h>
 #include <plat/mmc.h>
 #include <plat/gpio.h>
+#include <plat/gpmc.h>
+#include <plat/nand.h>
 
 #include "clock.h"
 #include "mux.h"
@@ -124,7 +127,37 @@ static struct mtd_partition ti816x_evm_norflash_partitions[] = {
                                          VPS_PCF8575_PIN3 |                    \
                                          VPS_PCF8575_PIN4)
 
+#define NAND_BLOCK_SIZE                SZ_128K
 
+static struct mtd_partition ti816x_nand_partitions[] = {
+/* All the partition sizes are listed in terms of NAND block size */
+	{
+		.name           = "U-Boot",
+		.offset         = 0,    /* Offset = 0x0 */
+		.size           = 19 * NAND_BLOCK_SIZE,
+		.mask_flags     = MTD_WRITEABLE,        /* force read-only */
+	},
+	{
+		.name           = "U-Boot Env",
+		.offset         = MTDPART_OFS_APPEND,   /* Offset = 0x260000 */
+		.size           = 1 * NAND_BLOCK_SIZE,
+	},
+	{
+		.name           = "Kernel",
+		.offset         = MTDPART_OFS_APPEND,   /* Offset = 0x280000 */
+		.size           = 34 * NAND_BLOCK_SIZE,
+	},
+	{
+		.name           = "File System",
+		.offset         = MTDPART_OFS_APPEND,   /* Offset = 0x6C0000 */
+		.size           = 1601 * NAND_BLOCK_SIZE,
+	},
+	{
+		.name           = "Reserved",
+		.offset         = MTDPART_OFS_APPEND,   /* Offset = 0xCEE0000 */
+		.size           = MTDPART_SIZ_FULL,
+	},
+};
 
 static struct at24_platform_data eeprom_info = {
 	.byte_len       = (256*1024) / 8,
@@ -481,6 +514,8 @@ static void __init ti8168_evm_init(void)
 	ti816x_spi_init();
 	/* initialize usb */
 	usb_musb_init(&musb_board_data);
+	board_nand_init(ti816x_nand_partitions,
+		ARRAY_SIZE(ti816x_nand_partitions), 0, NAND_BUSWIDTH_16);
 	omap2_hsmmc_init(mmc);
 	board_nor_init(ti816x_evm_norflash_partitions,
 		ARRAY_SIZE(ti816x_evm_norflash_partitions), 0);
