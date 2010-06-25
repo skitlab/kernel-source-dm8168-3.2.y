@@ -229,7 +229,10 @@
 #define OMAP3430_PRM_IRQSTATUS_IVA2			0x00f8
 #define OMAP3430_PRM_IRQENABLE_IVA2			0x00fc
 
-/* TI816X specific register offsets */
+/* TI816X PRM DEVICE offsets */
+#define TI816X_PRM_DEVICE_RSTCTRL			0x00A0
+
+/* TI816X specific register offsets from each PRM module base */
 #define TI816X_PM_PWSTCTRL				0x0000
 #define TI816X_PM_PWSTST				0x0004
 
@@ -439,6 +442,10 @@ extern int omap2_prm_deassert_hardreset(s16 prm_mod, u8 shift);
  */
 #define OMAP_LOGICRETSTATE_MASK				(1 << 2)
 
+/*
+ * TI816X PRM_DEVICE
+ */
+#define TI816X_GLOBAL_RST_COLD				(1 << 1)
 
 /*
  * MAX_MODULE_HARDRESET_WAIT: Maximum microseconds to wait for an OMAP
