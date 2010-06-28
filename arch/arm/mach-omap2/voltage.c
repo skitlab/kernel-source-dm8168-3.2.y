@@ -1196,4 +1196,4 @@ static int __init omap_voltage_init(void)
 	}
 	return 0;
 }
-arch_initcall(omap_voltage_init);
+device_initcall(omap_voltage_init);
