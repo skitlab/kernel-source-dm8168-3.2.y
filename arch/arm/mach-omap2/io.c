@@ -47,6 +47,7 @@
 #include "clockdomains.h"
 #include <plat/omap_hwmod.h>
 
+#include "omap3-opp.h"
 /*
  * The machine specific code may provide the extra mapping besides the
  * default mapping provided here.
@@ -342,6 +343,7 @@ void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 	omap_serial_early_init();
 	if (cpu_is_omap24xx() || cpu_is_omap34xx())   /* FIXME: OMAP4 */
 		omap_hwmod_late_init();
+	omap3_pm_init_opp_table();
 	omap_pm_if_init();
 	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
 		omap2_sdrc_init(sdrc_cs0, sdrc_cs1);
