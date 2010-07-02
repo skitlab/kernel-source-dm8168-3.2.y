@@ -117,6 +117,8 @@ unsigned long omap_device_get_rate(struct device *dev);
 void omap_device_populate_rate_fns(struct device *dev,
 		int (*set_rate)(struct device *dev, unsigned long rate),
 		unsigned long (*get_rate) (struct device *dev));
+int omap_device_scale(struct device *req_dev, struct device *dev,
+		unsigned long rate);
 
 /* Other */
 
@@ -125,7 +127,6 @@ int omap_device_enable_hwmods(struct omap_device *od);
 
 int omap_device_disable_clocks(struct omap_device *od);
 int omap_device_enable_clocks(struct omap_device *od);
-
 
 /*
  * Entries should be kept in latency order ascending
