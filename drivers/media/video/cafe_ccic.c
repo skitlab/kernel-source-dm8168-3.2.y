@@ -1992,6 +1992,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 {
 	int ret;
 	struct cafe_camera *cam;
+	struct i2c_board_info info;
 	struct ov7670_config sensor_cfg = {
 		/* This controller only does SMBUS */
 		.use_smbus = true,
@@ -2065,8 +2066,14 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 		sensor_cfg.clock_speed = 45;
 
 	cam->sensor_addr = 0x42;
-	cam->sensor = v4l2_i2c_new_subdev_cfg(&cam->v4l2_dev, &cam->i2c_adapter,
-			"ov7670", 0, &sensor_cfg, cam->sensor_addr, NULL);
+
+	memset(&info, 0, sizeof(info));
+	strlcpy(info.type, "ov7670", sizeof(info.type));
+	info.addr = cam->sensor_addr;
+	info.platform_data = &sensor_cfg;
+
+	cam->sensor = v4l2_i2c_new_subdev_board(&cam->v4l2_dev,
+			&cam->i2c_adapter, &info, NULL);
 	if (cam->sensor == NULL) {
 		ret = -ENODEV;
 		goto out_smbus;

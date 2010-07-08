@@ -428,9 +428,8 @@ error:
 }
 EXPORT_SYMBOL_GPL(v4l2_i2c_new_subdev_board);
 
-struct v4l2_subdev *v4l2_i2c_new_subdev_cfg(struct v4l2_device *v4l2_dev,
+struct v4l2_subdev *v4l2_i2c_new_subdev(struct v4l2_device *v4l2_dev,
 		struct i2c_adapter *adapter, const char *client_type,
-		int irq, void *platform_data,
 		u8 addr, const unsigned short *probe_addrs)
 {
 	struct i2c_board_info info;
@@ -440,12 +439,10 @@ struct v4l2_subdev *v4l2_i2c_new_subdev_cfg(struct v4l2_device *v4l2_dev,
 	memset(&info, 0, sizeof(info));
 	strlcpy(info.type, client_type, sizeof(info.type));
 	info.addr = addr;
-	info.irq = irq;
-	info.platform_data = platform_data;
 
 	return v4l2_i2c_new_subdev_board(v4l2_dev, adapter, &info, probe_addrs);
 }
-EXPORT_SYMBOL_GPL(v4l2_i2c_new_subdev_cfg);
+EXPORT_SYMBOL_GPL(v4l2_i2c_new_subdev);
 
 /* Return i2c client address of v4l2_subdev. */
 unsigned short v4l2_i2c_subdev_addr(struct v4l2_subdev *sd)

@@ -267,10 +267,17 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 				adap, type, 0, I2C_ADDRS(hw_addrs[idx]));
 	} else if (hw == IVTV_HW_CX25840) {
 		struct cx25840_platform_data pdata;
+		struct i2c_board_info info;
 
 		pdata.pvr150_workaround = itv->pvr150_workaround;
-		sd = v4l2_i2c_new_subdev_cfg(&itv->v4l2_dev,
-				adap, type, 0, &pdata, hw_addrs[idx], NULL);
+
+		memset(&info, 0, sizeof(info));
+		strlcpy(info.type, type, sizeof(info.type));
+		info.addr = hw_addrs[idx];
+		info.platform_data = &pdata;
+
+		sd = v4l2_i2c_new_subdev_board(&itv->v4l2_dev, adap, &info,
+					       NULL);
 	} else {
 		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
 				adap, type, hw_addrs[idx], NULL);
