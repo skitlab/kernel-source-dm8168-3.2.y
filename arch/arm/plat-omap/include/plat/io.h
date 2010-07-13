@@ -85,6 +85,9 @@
 #define TI81XX_L4_SLOW_IO_OFFSET	0xb2000000
 #define TI81XX_L4_SLOW_IO_ADDRESS(pa)	IOMEM((pa) + TI81XX_L4_SLOW_IO_OFFSET)
 
+#define TI81XX_L2_MC_IO_OFFSET		0xa4000000
+#define TI81XX_L2_MC_IO_ADDRESS(pa)	IOMEM((pa) + TI81XX_L2_MC_IO_OFFSET)
+
 /*
  * ----------------------------------------------------------------------------
  * Omap1 specific IO mapping
@@ -246,6 +249,11 @@
 						/* 0x48000000 --> 0xd8000000 */
 #define L4_SLOW_TI81XX_VIRT	(L4_SLOW_TI81XX_PHYS + TI81XX_L4_SLOW_IO_OFFSET)
 #define L4_SLOW_TI81XX_SIZE	SZ_4M
+
+#define TI81XX_L2_MC_PHYS	0x55000000
+						/* 0x55000000 --> upto 1MB */
+#define TI81XX_L2_MC_VIRT	(TI81XX_L2_MC_PHYS + TI81XX_L2_MC_IO_OFFSET)
+#define TI81XX_L2_MC_SIZE	SZ_1M
 
 /*
  * ----------------------------------------------------------------------------
