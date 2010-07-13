@@ -61,7 +61,7 @@ struct omap_opp_def {
 
 struct omap_opp;
 
-#ifdef CONFIG_CPU_FREQ
+#ifdef CONFIG_PM
 
 unsigned long opp_get_voltage(const struct omap_opp *opp);
 
@@ -141,5 +141,5 @@ void opp_init_cpufreq_table(struct omap_opp *opps,
 {
 }
 
-#endif		/* CONFIG_CPU_FREQ */
+#endif		/* CONFIG_PM */
 #endif		/* __ASM_ARM_OMAP_OPP_H */
