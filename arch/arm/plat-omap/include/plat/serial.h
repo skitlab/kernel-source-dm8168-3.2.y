@@ -86,6 +86,9 @@
 #define OMAP4UART2		OMAP2UART2
 #define OMAP4UART3		43
 #define OMAP4UART4		44
+#define TI816XUART1		81
+#define TI816XUART2		82
+#define TI816XUART3		83
 #define ZOOM_UART		95		/* Only on zoom2/3 */
 
 /* This is only used by 8250.c for omap1510 */
