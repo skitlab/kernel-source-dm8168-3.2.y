@@ -98,5 +98,13 @@
 #  define OMAP_NAME omap4
 # endif
 #endif
+#ifdef CONFIG_ARCH_TI816X
+# ifdef OMAP_NAME
+#  undef  MULTI_OMAP2
+#  define MULTI_OMAP2
+# else
+#  define OMAP_NAME ti816x
+# endif
+#endif
 
 #endif	/* __PLAT_OMAP_MULTI_H */
