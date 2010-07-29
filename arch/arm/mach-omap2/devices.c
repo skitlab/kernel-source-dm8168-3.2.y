@@ -1198,6 +1198,36 @@ static struct platform_device ti816x_emac2_device = {
 	.resource	=	ti816x_emac2_resources,
 };
 
+void ti816x_emac_mux(void)
+{
+	omap_mux_init_signal("gmii1_rxclk", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_rxd0", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_rxd1", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_rxd2", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_rxd3", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_rxd4", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_rxd5", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_rxd6", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_rxd7", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_rxdv", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_gtxclk", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_txd0", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_txd1", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_txd2", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_txd3", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_txd4", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_txd5", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_txd6", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_txd7", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_txen", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_txclk", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_col", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_crs", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_rxer", OMAP_MUX_MODE1);
+}
+
+
+
 void ti816x_ethernet_init(void)
 {
 	u32 mac_lo, mac_hi;
@@ -1244,10 +1274,9 @@ void ti816x_ethernet_init(void)
 	ti816x_emac2_pdata.interrupt_enable = NULL;
 	ti816x_emac2_pdata.interrupt_disable = NULL;
 	ti816x_emac2_device.dev.platform_data = &ti816x_emac2_pdata;
-#if 0
 	platform_device_register(&ti816x_emac2_device);
-	/* TODO: enable Pin Mux for EMAC instance 2 */
-#endif
+
+	ti816x_emac_mux();
 }
 #else
 static inline void ti816x_ethernet_init(void) {}
