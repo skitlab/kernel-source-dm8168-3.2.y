@@ -82,6 +82,9 @@
 #define OMAP2_EMU_IO_OFFSET		0xaa800000	/* Emulation */
 #define OMAP2_EMU_IO_ADDRESS(pa)	IOMEM((pa) + OMAP2_EMU_IO_OFFSET)
 
+#define TI816X_L4_SLOW_IO_OFFSET	0xb2000000
+#define TI816X_L4_SLOW_IO_ADDRESS(pa)	IOMEM((pa) + TI816X_L4_SLOW_IO_OFFSET)
+
 /*
  * ----------------------------------------------------------------------------
  * Omap1 specific IO mapping
@@ -235,6 +238,15 @@
 						/* 0x4e000000 --> 0xfd300000 */
 #define OMAP44XX_DMM_VIRT	(OMAP44XX_DMM_PHYS + OMAP4_L3_PER_IO_OFFSET)
 #define OMAP44XX_DMM_SIZE	SZ_1M
+
+/*
+ * TI816X Specific I/O Mapping
+ */
+#define L4_SLOW_TI816X_PHYS	L4_SLOW_TI816X_BASE
+						/* 0x48000000 --> 0xd8000000 */
+#define L4_SLOW_TI816X_VIRT	(L4_SLOW_TI816X_PHYS + TI816X_L4_SLOW_IO_OFFSET)
+#define L4_SLOW_TI816X_SIZE	SZ_4M
+
 /*
  * ----------------------------------------------------------------------------
  * Omap specific register access
@@ -287,6 +299,14 @@ static inline void omap34xx_map_common_io(void)
 extern void omap44xx_map_common_io(void);
 #else
 static inline void omap44xx_map_common_io(void)
+{
+}
+#endif
+
+#ifdef CONFIG_ARCH_TI816X
+extern void ti816x_map_common_io(void);
+#else
+static inline void ti816x_map_common_io(void)
 {
 }
 #endif

@@ -34,7 +34,7 @@
 		.endm
 
 /*
- * Unoptimized irq functions for multi-omap2, 3 and 4
+ * Unoptimized irq functions for multi-omap2, 3, 4 and ti816x
  */
 
 #ifdef MULTI_OMAP2
@@ -66,7 +66,7 @@ omap_irq_base:
 		tst	\base, #0x100		@ gic address?
 		bne	4401f			@ found gic
 
-		/* Handle omap2 and omap3 */
+		/* Handle omap2, omap3 and ti816x */
 		ldr	\irqnr, [\base, #0x98] /* IRQ pending reg 1 */
 		cmp	\irqnr, #0x0
 		bne	9998f
@@ -74,6 +74,14 @@ omap_irq_base:
 		cmp	\irqnr, #0x0
 		bne	9998f
 		ldr	\irqnr, [\base, #0xd8] /* IRQ pending reg 3 */
+		cmp	\irqnr, #0x0
+		bne	9998f
+
+		/*
+		 * ti816x has additional IRQ pending register. Checking this
+		 * register on omap2 & omap3 has no effect (read as 0).
+		 */
+		ldr	\irqnr, [\base, #0xf8] /* IRQ pending reg 4 */
 		cmp	\irqnr, #0x0
 9998:
 		ldrne	\irqnr, [\base, #INTCPS_SIR_IRQ_OFFSET]
@@ -121,6 +129,35 @@ omap_irq_base:
 9999:
 		ldrne	\irqnr, [\base, #INTCPS_SIR_IRQ_OFFSET]
 		and	\irqnr, \irqnr, #ACTIVEIRQ_MASK /* Clear spurious bits */
+
+		.endm
+#endif
+
+/*
+ * Optimized irq functions for ti816x
+ */
+
+#ifdef CONFIG_ARCH_TI816X
+		.macro  get_irqnr_preamble, base, tmp
+		ldr	\base, =OMAP3_IRQ_BASE
+		.endm
+
+		/* Check the pending interrupts. Note that base already set */
+		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
+		ldr	\irqnr, [\base, #0x98] /* IRQ pending reg 1 */
+		cmp	\irqnr, #0x0
+		bne	9999f
+		ldr	\irqnr, [\base, #0xb8] /* IRQ pending reg 2 */
+		cmp	\irqnr, #0x0
+		bne	9999f
+		ldr	\irqnr, [\base, #0xd8] /* IRQ pending reg 3 */
+		cmp	\irqnr, #0x0
+		bne	9999f
+		ldr	\irqnr, [\base, #0xf8] /* IRQ pending reg 4 */
+		cmp	\irqnr, #0x0
+9999:
+		ldrne	\irqnr, [\base, #INTCPS_SIR_IRQ_OFFSET]
+		and	\irqnr, \irqnr, #ACTIVEIRQ_MASK
 
 		.endm
 #endif

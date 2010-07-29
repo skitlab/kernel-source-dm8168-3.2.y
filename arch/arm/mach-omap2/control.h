@@ -246,6 +246,24 @@
  * that should be added.
  */
 
+/* TI816X spefic control submodules */
+#define TI816X_CONTROL_OCPCONF		0x000
+#define TI816X_CONTROL_DEVBOOT		0x040
+#define TI816X_CONTROL_DEVCONF		0x600
+
+/* TI816X CONTROL_DEVBOOT register offsets */
+#define TI816X_CONTROL_STATUS		(TI816X_CONTROL_DEVBOOT + 0x000)
+#define TI816X_CONTROL_BOOTSTAT		(TI816X_CONTROL_DEVBOOT + 0x004)
+
+/* TI816X CONTROL_DEVCONF register offsets */
+#define TI816X_CONTROL_DEVICE_ID	(TI816X_CONTROL_DEVCONF + 0x000)
+#define TI816X_CONTROL_MAC_ID0_LO	(TI816X_CONTROL_DEVCONF + 0x030)
+#define TI816X_CONTROL_MAC_ID0_HI	(TI816X_CONTROL_DEVCONF + 0x034)
+#define TI816X_CONTROL_MAC_ID1_LO	(TI816X_CONTROL_DEVCONF + 0x038)
+#define TI816X_CONTROL_MAC_ID1_HI	(TI816X_CONTROL_DEVCONF + 0x03c)
+#define TI816X_CONTROL_PCIE_CFG		(TI816X_CONTROL_DEVCONF + 0x040)
+/* TODO: Add other ti816x registers... */
+
 /*
  * Control module register bit defines - these should eventually go into
  * their own regbits file.  Some of these will be complicated, depending
@@ -331,6 +349,11 @@
 #define AM35XX_VPFE_VBUSP_SW_RST	BIT(2)
 #define AM35XX_HECC_SW_RST		BIT(3)
 #define AM35XX_VPFE_PCLK_SW_RST		BIT(4)
+
+/* TI816X CONTROL_PCIE_CFG bits */
+#define TI816X_PCIE_DEVTYPE_SHIFT	0
+#define TI816X_PCIE_DEVTYPE_MASK	(0x3 << 0)
+#define TI816X_PCIE_DEVTYPE_RC		(0x2 << 0)
 
 /*
  * CONTROL OMAP STATUS register to identify OMAP3 features

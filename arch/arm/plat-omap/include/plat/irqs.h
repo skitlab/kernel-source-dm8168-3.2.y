@@ -31,6 +31,9 @@
 /* All OMAP4 specific defines are moved to irqs-44xx.h */
 #include "irqs-44xx.h"
 
+/* All TI816X specific defines are in irqs-ti816x.h */
+#include "irqs-ti816x.h"
+
 /*
  * IRQ numbers for interrupt handler 1
  *

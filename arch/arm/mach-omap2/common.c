@@ -133,3 +133,22 @@ void __init omap2_set_globals_443x(void)
 }
 #endif
 
+#if defined(CONFIG_ARCH_TI816X)
+static struct omap_globals ti816x_globals = {
+	.class	= TI816X_CLASS,
+	.tap	= TI816X_L4_SLOW_IO_ADDRESS(TI816X_SCM_BASE),
+	.ctrl	= TI816X_CTRL_BASE,
+	.prm	= TI816X_PRCM_BASE,
+	.cm	= TI816X_PRCM_BASE,
+	.uart1_phys	= TI816X_UART1_BASE,
+	.uart2_phys	= TI816X_UART2_BASE,
+	.uart3_phys	= TI816X_UART3_BASE,
+};
+
+void __init omap2_set_globals_ti816x(void)
+{
+	omap2_set_globals_tap(&ti816x_globals);
+	omap2_set_globals_control(&ti816x_globals);
+	omap2_set_globals_prcm(&ti816x_globals);
+}
+#endif
