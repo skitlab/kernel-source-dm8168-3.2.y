@@ -228,6 +228,17 @@ static struct map_desc omap44xx_io_desc[] __initdata = {
 };
 #endif
 
+#ifdef CONFIG_ARCH_TI816X
+static struct map_desc ti816x_io_desc[] __initdata = {
+	{
+		.virtual	= L4_SLOW_TI816X_VIRT,
+		.pfn		= __phys_to_pfn(L4_SLOW_TI816X_PHYS),
+		.length		= L4_SLOW_TI816X_SIZE,
+		.type		= MT_DEVICE
+	},
+};
+#endif
+
 static void __init _omap2_map_common_io(void)
 {
 	/* Normally devicemaps_init() would flush caches and tlb after
@@ -271,6 +282,14 @@ void __init omap34xx_map_common_io(void)
 void __init omap44xx_map_common_io(void)
 {
 	iotable_init(omap44xx_io_desc, ARRAY_SIZE(omap44xx_io_desc));
+	_omap2_map_common_io();
+}
+#endif
+
+#ifdef CONFIG_ARCH_TI816X
+void __init ti816x_map_common_io()
+{
+	iotable_init(ti816x_io_desc, ARRAY_SIZE(ti816x_io_desc));
 	_omap2_map_common_io();
 }
 #endif
@@ -402,7 +421,8 @@ void __init omap2_init_common_devices(struct omap_sdrc_params *sdrc_cs0,
 {
 	omap_serial_early_init();
 
-	omap_hwmod_late_init();
+	if (!cpu_is_ti816x())
+		omap_hwmod_late_init();
 
 	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
 		omap2_sdrc_init(sdrc_cs0, sdrc_cs1);

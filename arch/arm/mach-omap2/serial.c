@@ -760,12 +760,13 @@ void __init omap_serial_init_port(struct omap_board_data *bdata)
 
 	/*
 	 * omap44xx: Never read empty UART fifo
+	 * ti816x: Never read when UART fifo empty or write when full
 	 * omap3xxx: Never read empty UART fifo on UARTs
 	 * with IP rev >=0x52
 	 */
 	uart->regshift = p->regshift;
 	uart->membase = p->membase;
-	if (cpu_is_omap44xx())
+	if (cpu_is_omap44xx() || cpu_is_ti816x())
 		uart->errata |= UART_ERRATA_FIFO_FULL_ABORT;
 	else if ((serial_read_reg(uart, UART_OMAP_MVER) & 0xFF)
 			>= UART_OMAP_NO_EMPTY_FIFO_READ_IP_REV)
