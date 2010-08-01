@@ -175,6 +175,15 @@ struct v4l2_subdev_core_ops {
 				 struct v4l2_event_subscription *sub);
 };
 
+/* open: called when the subdev device node is opened by an application.
+
+   close: called when the subdev device node is close.
+ */
+struct v4l2_subdev_file_ops {
+	int (*open)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh);
+	int (*close)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh);
+};
+
 /* s_mode: switch the tuner to a specific tuner mode. Replacement of s_radio.
 
    s_radio: v4l device was opened in Radio mode, to be replaced by s_mode.
@@ -416,6 +425,7 @@ struct v4l2_subdev_ir_ops {
 
 struct v4l2_subdev_ops {
 	const struct v4l2_subdev_core_ops	*core;
+	const struct v4l2_subdev_file_ops	*file;
 	const struct v4l2_subdev_tuner_ops	*tuner;
 	const struct v4l2_subdev_audio_ops	*audio;
 	const struct v4l2_subdev_video_ops	*video;

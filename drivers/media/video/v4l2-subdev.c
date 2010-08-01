@@ -61,7 +61,7 @@ static int subdev_open(struct file *file)
 	struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);
 	struct v4l2_subdev_fh *subdev_fh;
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	struct media_entity *entity;
+	struct media_entity *entity = NULL;
 #endif
 	int ret;
 
@@ -104,9 +104,17 @@ static int subdev_open(struct file *file)
 	}
 #endif
 
+	ret = v4l2_subdev_call(sd, file, open, subdev_fh);
+	if (ret < 0 && ret != -ENOIOCTLCMD)
+		goto err;
+
 	return 0;
 
 err:
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	if (entity)
+		media_entity_put(entity);
+#endif
 	v4l2_fh_del(&subdev_fh->vfh);
 	v4l2_fh_exit(&subdev_fh->vfh);
 	subdev_fh_free(subdev_fh);
@@ -117,13 +125,12 @@ err:
 
 static int subdev_close(struct file *file)
 {
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	struct video_device *vdev = video_devdata(file);
 	struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);
-#endif
 	struct v4l2_fh *vfh = file->private_data;
 	struct v4l2_subdev_fh *subdev_fh = to_v4l2_subdev_fh(vfh);
 
+	v4l2_subdev_call(sd, file, close, subdev_fh);
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	if (sd->v4l2_dev->mdev)
 		media_entity_put(&sd->entity);
