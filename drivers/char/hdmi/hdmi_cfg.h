@@ -1,78 +1,22 @@
 /*******************************************************************************
  *                                                                             *
- * Copyright (c) 2010 Texas Instruments Incorporated - http://www.ti.com/      *
- *                        ALL RIGHTS RESERVED                                  *
+ * TODO GPL
  *                                                                             *
  ******************************************************************************/
-
-/**
- * \ingroup VPS_DRV_FVID2_VPS_COMMON
- * \addtogroup VPS_DRV_FVID2_VPS_COMMON_HDMI HD-VPSS - Display HDMI Config API
- *
- * @{
- */
-
-/**
- *  \file vps_cfgHdmi.h
- *
- *  \brief HD-VPSS - Display HDMI Config API
- *
- *  Provides interfaces that could be used to configure HDMI.
- *  Applications are expected to configure HDMI encoder via Display Controller
- *  and FVID2 Control interface
- *
- *  For example
- *  1. Attach a callback to be notified of sink attach/detach status
- *      1.A. Use #IOCTL IOCTL_VPS_DCTRL_HDMI_ATTACH_HPD_CB
- *
- *  2. Get the current HDMI peripheral configuration
- *      2.A Use #IOCTL_VPS_DCTRL_HDMI_GET_CONFIG
- *
- *  3. Read sinks EDID
- *      3.A Use #IOCTL_VPS_DCTRL_HDMI_READ_EDID
- *
- *  4. Update HDMI configuration
- *      4.A Use #IOCTL_VPS_DCTRL_HDMI_SET_CONFIG
- *
- *  Policies
- *      1. AV Info frames would be transmitted at least once between 2 frames.
- *      2. Audio is not yet supported
- *         When supported - AV Info should be sent least once between 2 frames.
- *          and Audio info frames should be sent least once between 2 frames.
- */
 
 #ifndef _VPS_HDMICFG_H
 #define _VPS_HDMICFG_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
+	//typedef u32 u32;
+	typedef u32 Bool;
+	typedef unsigned char UInt8;
+	//typedef unsigned char u8;
+	typedef unsigned short UInt16;
 
-/* ========================================================================== */
-/*                             Include Files                                  */
-/* ========================================================================== */
-#include "cslr_hdmi.h"
-#include <linux/string.h>
-# include <linux/kernel.h>
-
-/* ========================================================================== */
-/*                          Linux Types                                       */
-/* ========================================================================== */
-//typedef unsigned int  u32;
-typedef unsigned int  Bool;
-typedef unsigned char UInt8;
-typedef unsigned short UInt16;
-
-#define Uint32  u32
 //#define NULL    0
 #define TRUE    1
 #define FALSE   0
-
-#define VpsHal_Handle           void *
-#define interruptHandle         void *
-#define HDMI_Ptr                void *
-#define UArg                    void *
 
 #define VPS_SOK                 (0x0u)
 #define VPS_EBADARGS            (-1)
@@ -91,921 +35,559 @@ typedef unsigned short UInt16;
 #define HDMI_GT_ERR             3
 #define HDMI_GT_INFO            4
 
+/* ========================================================================== */
+/*                    HDMI Silicon dependecy Do Not Alter                     */
+/* ========================================================================== */
+#define HDMI_PER_CNT		(1u)
+#define HDMI_CORE_0_REGS	(0x46c00400u)
+#define HDMI_WP_0_REGS		(0x46c00000u)
+#define HDMI_PHY_0_REGS		(0x48122000u)
+#define HDMI_PLLCTRL_0_REGS	(0x46c00600u)
 
-#define VpsUtils_memcpy         memcpy
-#define VpsHalHdmiTrace         (0x0)
+/* Width of R/G/B or Y/Cb/Cr channels */
+enum hdmi_bits_per_chan {
+	hdmi_8_bits_chan_width = 0x0,
+	hdmi_10_bits_chan_width,
+	hdmi_12_bits_chan_width,
+	hdmi_max_bits_chan_width
+};
 
-#define disableInterrupts       1;
-#define enableInterrupts
+/* Syncs configurations */
+enum hdmi_core_sync_gen {
+	hdmi_extract_syncs = 0x0,
+	/* Use extracted hSync, vSync and DE from input */
+	hdmi_generate_de,
+	/* Use incoming (from wrapper/hdvenc) vSync and hSync but generate DE */
+	hdmi_source_syncs,
+	/* Use incoming (from wrapper/hdvenc) vSync, hSync and DE */
+	hdmi_max_syncs
+};
 
-#define INCLUDE_BIOS_INT_HANDLER (0x0)
+/* Packing mode that wrappers supports */
+enum hdmi_wp_packmode {
+	hdmi_wp_30bit_RGB_YUV444 = 0x0,
+	hdmi_wp_24bit_RGB_YUV444_YUV422,
+	hdmi_wp_20bit_YUV444,
+	hdmi_wp_16bit_YUV422,
+	hdmi_wp_no_pack = 0x7
+};
 
-#define IGNORE_TV
+/*  YCbCr to RGB CSC coefficients */
+struct hdmi_csc_YCbCr_2_RGB_coeff {
+	u32 Y2RCOEFF_L;
+	u32 Y2RCOEFF_H;
+	u32 CR2RCOEFF_L;
+	u32 CR2RCOEFF_H;
+	u32 CB2BCOEFF_L;
+	u32 CB2BCOEFF_H;
+	u32 CR2GCOEFF_L;
+	u32 CR2GCOEFF_H;
+	u32 YOFFS1_L;
+	u32 YOFFS1_U;
+	u32 OFFS1_L;
+	u32 OFFS1_M;
+	u32 OFFS1_H;
+	u32 OFFS2_L;
+	u32 OFFS2_H;
+	u32 DC_LEV_L;
+	u32 DC_LEV_H;
+};
+
+/* Control options for YCbCr to RGB CSC */
+struct hdmi_csc_YCbCr_2_RGB_ctrl {
+	u32 enableRngExp;
+	u32 enableFullRngExp;
+	u32 customCoEff;
+	u32 srcCsSel;
+	/*  Select source color space - xvYCC if non-zero, YCbCr otherwise */
+	struct hdmi_csc_YCbCr_2_RGB_coeff coEff;
+};
+
+/* Dithering control options */
+struct hdmi_dither_cfg {
+	u32 M_D2;
+	u32 UP2;
+	u32 STR_422_EN;
+	u32 D_BC_EN;
+	u32 D_GC_EN;
+	u32 D_RC_EN;
+	u32 DRD;
+};
+
+/*
+ *  Defines the configurable parameters of in data path of HDMI block.
+ *  For enabled sub-block might require additional configurations
+ */
+struct hdmi_core_data_path {
+	u32 up_sampler_enable;
+	/*  422 to 444 */
+	u32 csc_YCbCr_2_RGB_enable;
+	struct hdmi_csc_YCbCr_2_RGB_ctrl csc_YCbCr_2_RGB_config;
+	u32 range_exp_RGB_enable;
+	u32 cscRGB_2_YCbCr_enable;
+	u32 csc_convert_standard;
+	/*  Specifies the color space standard to be used for color space
+	   conversions. non-zero value would configure to use BT.709,
+	   BT.601 otherwise. */
+	u32 range_comp_enable;
+	u32 down_sampler_enable;
+	/*  444 to 422 */
+	u32 range_clip_enable;
+	u32 clip_color_space;
+	/*  Specifies output color space of the clipper, non-zero value for
+	   YCbCr, RGB otherwise */
+	u32 dither_enable;
+	struct hdmi_dither_cfg dither_config;
+	enum hdmi_bits_per_chan output_width;
+	/*  Specifies the number of bits per channel that would sent out.
+	   If dithering is not enabled, the output would be truncated to the
+	   width specified here. */
+};
+
+/* Control DE generation */
+struct hdmi_core_de_dly_cfg {
+	u32 DE_DLY;
+	u32 DE_TOP;
+	u32 DE_CNTL;
+	u32 DE_CNTH;
+	u32 DE_LINL;
+	u32 DE_LINH;
+};
+
+/* Core input control configurations */
+struct hdmi_core_input_cfg {
+	enum hdmi_bits_per_chan data_bus_width;
+	enum hdmi_core_sync_gen sync_gen_cfg;
+	struct hdmi_core_de_dly_cfg de_delay_cfg;
+	/* when configured to generate DE - would require to provide this */
+	u32 edge_pol;
+	/* A non-zero value configure to latch input on rising edge, falling
+	   edge otherwise */
+};
+
+/* Wrapper control configuration */
+struct hdmi_wp_config {
+	u32 debounce_rcv_detect;
+	u32 debounce_rcv_sens;
+	u32 is_slave_mode;
+	/* Should be TRUE / positive for this TI 816X device */
+	enum hdmi_wp_packmode pack_mode;
+	u32 is_vSync_pol_inv;
+	u32 is_hSync_pol_inv;
+	enum hdmi_bits_per_chan width;
+	u32 vSync_pol;
+	u32 hSync_pol;
+	u32 hbp;
+	/* Not Supported - for TI 816X */
+	u32 hfp;
+	/*  Not Supported - for TI 816X */
+	u32 hsw;
+	/* Not Supported - for TI 816X */
+	u32 vbp;
+	/* Not Supported - for TI 816X */
+	u32 vfp;
+	/* Not Supported - for TI 816X */
+	u32 vsw;
+	/* Not Supported - for TI 816X */
+};
+
+/* Transmitted color space values */
+enum hdmi_avi_op_cs {
+	hdmi_avi_RGB_op_cs = 0x0,
+	hdmi_avi_YCbCr_422_op_cs = 0x1,
+	hdmi_avi_YCbCr_444_op_cs = 0x2,
+	hdmi_avi_max_op_cs
+};
+
+enum hdmi_avi_activ_ratio {
+	hdmi_avi_no_aspect_ratio = 0x0,
+	hdmi_avi_active_aspect_ratio,
+	hdmi_avi_max_aspect_ratio
+};
+
+struct hdmi_avi_bar_info {
+	u32 barInfoValid;
+	/* Specify if the BAR information is valid or not.
+	   0x01 - Vertical Bar Info is valid
+	   0x02 - Horizontal Bar Info is valid
+	   0x03 - Both Vertical & Horizontal is valid */
+	u32 topBar;
+	u32 bottomBar;
+	u32 leftBar;
+	u32 rightBar;
+};
+
+enum hdmi_avi_scan_info {
+	hdmi_avi_none_scan_info = 0x0,
+	hdmi_avi_over_scan,
+	hdmi_avi_under_scan,
+	hdmi_avi_max_scan
+};
+
+enum hdmi_avi_colorimetry {
+	hdmi_avi_none_colorimetry = 0x0,
+	hdmi_avi_BT601_colorimetry,
+	hdmi_avi_BT709_colorimetry,
+	hdmi_avi_max_colorimetry
+};
+
+enum hdmi_avi_aspectratio {
+	hdmi_avi_aspect_ratio_none = 0x0,
+	hdmi_avi_4_3_aspect_ratio,
+	hdmi_avi_16_9_aspect_ratio,
+	hdmi_avi_aspect_ratio_max
+};
+
+enum hdmi_avi_active_aspectratio {
+	/* Do not modify these values - would be used to program directly */
+	hdmi_avi_active_aspect_ratio_same = 0x8,
+	hdmi_avi_4_3_active_aspect_ratio = 0x9,
+	hdmi_avi_16_9_active_aspect_ratio = 0xA,
+	hdmi_avi_14_9_active_aspect_ratio = 0xB,
+	hdmi_avi_active_aspect_ratio_max = 0xC
+};
+
+enum hdmi_avi_non_uniform_sc {
+	hdmi_avi_non_uniform_scaling_none = 0x0,
+	hdmi_avi_horizontal_non_uniform_scaling = 0x1,
+	hdmi_avi_vertical_non_uniform_scaling = 0x2,
+	hdmi_avi_non_uniform_scaling_max = 0x3
+};
+
+struct hdmi_avi_frame_cfg {
+	u32 output_cs;
+	enum hdmi_avi_activ_ratio use_active_aspect_ratio;
+	struct hdmi_avi_bar_info bar_info;
+	enum hdmi_avi_scan_info scan_info;
+	enum hdmi_avi_colorimetry colorimetry_info;
+	enum hdmi_avi_aspectratio aspect_ratio;
+	enum hdmi_avi_active_aspectratio active_aspect_ratio;
+	u32 it_content_present;
+	u32 ext_colorimetry;
+	u32 quantization_range;
+	enum hdmi_avi_non_uniform_sc non_uniform_sc;
+	u32 format_identier;
+};
+
+struct hdmi_info_frame_cfg {
+	u32 use_avi_info_data;
+	struct hdmi_avi_frame_cfg aviData;
+	/* When audio, GAMUT is supported, add audio info packet data, GAMUT
+	   packet data, SPD packet (Source Product Description ) here */
+};
+
+struct hdmi_cfg_params {
+	u32 use_display_mode;
+	enum hdmi_resolution display_mode;
+	u32 use_wp_config;
+	struct hdmi_wp_config wp_config;
+	u32 use_core_config;
+	struct hdmi_core_input_cfg core_config;
+	u32 use_core_path_config;
+	struct hdmi_core_data_path core_path_config;
+	u32 use_info_frame_config;
+	struct hdmi_info_frame_cfg info_frame_config;
+};
+
+struct hdmi_edid_read_params {
+	u32 slave_address;
+	u32 segment_ptr;
+	u32 offset;
+	u32 no_of_bytes;
+	void *buffer_ptr;
+	u32 no_of_bytes_read;
+	u32 timeout;
+	u32 use_eddc_read;
+};
+
+struct ti816x_hdmi_init_params {
+	u32 wp_base_addr;
+	u32 core_base_addr;
+	u32 phy_base_addr;
+};
 
 /* ========================================================================== */
-/*                          HDMI Silicon dependecy                            */
-/* ========================================================================== */
-#define HDMI_PER_CNT            (1u)
-#define HDMI_CORE_0_REGS        (0x46c00400u)
-#define HDMI_WP_0_REGS          (0x46c00000u)
-#define HDMI_PHY_0_REGS         (0x48122000u)
-#define HDMI_PLLCTRL_0_REGS     (0x46c00600u)
-#define INTC_EVENTID_HDMI       (7u)
-#define PLATFORM_EVM_SI			(1u)
-
-/* ========================================================================== */
-/*                         Structure Declarations                             */
+/*                          Function Declarations                             */
 /* ========================================================================== */
 
-typedef int (*Vps_Hdmi_CbFxn) (u32 status, HDMI_Ptr appData);
+int ti816x_hdmi_lib_init(struct ti816x_hdmi_init_params *initParams);
+
+int ti816x_hdmi_lib_deinit(void *args);
+
+void* ti816x_hdmi_lib_open(u32 instance, int *status, void *args);
+int ti816x_hdmi_lib_close(void *handle, void *args);
+
+int ti816x_hdmi_lib_start(void *handle, void *args);
+
+int ti816x_hdmi_lib_stop(void *handle, void *args);
+
+int ti816x_hdmi_lib_control(void *handle, u32 cmd, void *cmdArgs,
+			void *additionalArgs);
+
+/* ========================================================================== */
+/*                 Defaults used to initialize different modes                */
+/* ========================================================================== */
+#define TI816x_HDMIWPCONFIG_10BIT_IF_SALVE {\
+                                    0x14, \
+                                    0x14, \
+                                    TRUE, \
+                                    hdmi_wp_30bit_RGB_YUV444,\
+                                    FALSE, \
+                                    FALSE, \
+                                    \
+                                    hdmi_10_bits_chan_width, \
+                                    TRUE, TRUE, 0x0, 0x0, 0x0, 0x0, 0x0,\
+                                     0x0 }
+#define TI816x_HDMIWPCONFIG_8BIT_IF_SALVE {\
+                                    0x14, \
+                                    0x14, \
+                                    TRUE, \
+                                    hdmi_wp_24bit_RGB_YUV444_YUV422,\
+                                    FALSE, \
+                                    FALSE, \
+                                    \
+                                    hdmi_8_bits_chan_width, \
+                                    TRUE, TRUE, 0x0, 0x0, 0x0, 0x0, 0x0,\
+                                     0x0}
+
+#define TI816X_HDMICORE_IPCFG_10BIT_IF_SRCD_SYNC {\
+                                       hdmi_10_bits_chan_width,\
+                                       hdmi_source_syncs,\
+                                       {0x0, 0x0, 0x0, 0x0, 0x0, 0x0},\
+                                       TRUE}
+#define TI816X_HDMICORE_IPCFG_8BIT_IF_SRCD_SYNC {\
+                                       hdmi_8_bits_chan_width,\
+                                       hdmi_source_syncs,\
+                                       {0x0, 0x0, 0x0, 0x0, 0x0, 0x0},\
+                                       TRUE}
+#define TI816X_HDMICSC_YCBCR2RGB_COEFF {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,\
+                                        0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,\
+                                        0x0}
+#define TI816X_HDMICSC_YCBCR2RGBCTRL_DISABLED {FALSE, \
+                                              FALSE, \
+                                              FALSE, \
+                                              FALSE, \
+                                              TI816X_HDMICSC_YCBCR2RGB_COEFF}
+
+#define TI816X_HDMIDITHERCONFIG {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}
+
+/*   Defaults to initialize core - by pass all modules, sets outwidth
+            to 10 bits/channel and BT709 for TV */
+#define TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_10BIT_OUTPUT_BT709 {\
+                                               FALSE, \
+                                               FALSE, \
+                                        TI816X_HDMICSC_YCBCR2RGBCTRL_DISABLED,\
+                                               FALSE, \
+                                               FALSE, \
+                                               TRUE, \
+                                               FALSE, \
+                                               FALSE, \
+                                               FALSE, \
+                                               FALSE, \
+                                               FALSE, \
+                                               TI816X_HDMIDITHERCONFIG, \
+                                               hdmi_10_bits_chan_width}
 
 
-#define IOCTL_HDMI_START      (0)
-#define IOCTL_HDMI_STOP       (1)
-#define IOCTL_HDMI_GET_STATUS (2)
-#define IOCTL_HDMI_READ_EDID  (3)
-#define IOCTL_HDMI_GET_CONFIG (4)
-#define IOCTL_HDMI_SET_CONFIG (5)
-#define IOCTL_HDMI_ATTACH_HPD_CB (6)
+#define TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_8BIT_OUTPUT_BT709 {\
+                                               FALSE, \
+                                               FALSE, \
+                                        TI816X_HDMICSC_YCBCR2RGBCTRL_DISABLED,\
+                                               FALSE, \
+                                               FALSE, \
+                                               TRUE, \
+                                               FALSE, \
+                                               FALSE, \
+                                               FALSE, \
+                                               FALSE, \
+                                               FALSE, \
+                                               TI816X_HDMIDITHERCONFIG, \
+                                               hdmi_8_bits_chan_width}
 
+#define TI816X_HDMI_AVI_INFOFRAME_BARINFO   {0x0, 0x0, 0x0, 0x0, 0x0}
 
-/**
- * \brief enum Vps_DcModeId
- *  Enum defining ID of the standard Modes. Standard timinig parameters
- *  will be used if the standard mode id is used for configuring mode
- *  in the venc.
- */
-typedef enum
-{
-    VPS_HDMI_MODE_NTSC = 0,
-    /**< Mode Id for NTSC */
-    VPS_HDMI_MODE_PAL,
-    /**< Mode Id for PAL */
-    VPS_HDMI_MODE_1080P_60,
-    /**< Mode Id for 1080p at 60fps mode */
-    VPS_HDMI_MODE_720P_60,
-    /**< Mode Id for 720p at 60fps mode */
-    VPS_HDMI_MODE_1080I_60,
-    /**< Mode Id for 1080I at 60fps mode */
-    VPS_HDMI_MODE_1080P_30,
-    /**< Mode Id for 1080P at 30fps mode */
-    VPS_HDMI_MAX_MODE
-    /**< This should be the last mode id */
-} Vps_HdmiModeId;
+/*   Configures HDMI AVI Info Frame with following configurations
+            output color space as RGB, Overscan - for TV, colorometry 709-HD TV
+            aspect ration as 16:9 */
 
-/**
- *  \brief Defines the number of bits per channel that would be used to transmit
- *         /receive video data to/from HDMIPHY/Wrapper.
- */
-typedef enum
-{
-    VPS_HAL_HDMI_8_BITS_CHAN_WIDTH  =   0x0,
-    /**< 8 bits per channel */
-    VPS_HAL_HDMI_10_BITS_CHAN_WIDTH,
-    /**< 10 bits per channel */
-    VPS_HAL_HDMI_12_BITS_CHAN_WIDTH,
-    /**< 12 bits per channel */
-    VPS_HAL_HDMI_MAX_BITS_CHAN_WIDTH
-    /**< Upper limit guard */
-}Vps_HdmiBitsPerChannel;
+#define TI816X_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT709_169  {\
+                            hdmi_avi_RGB_op_cs, \
+                            hdmi_avi_no_aspect_ratio, \
+                            TI816X_HDMI_AVI_INFOFRAME_BARINFO, \
+                            hdmi_avi_over_scan, \
+                            hdmi_avi_BT709_colorimetry, \
+                            hdmi_avi_16_9_aspect_ratio, \
+                            hdmi_avi_active_aspect_ratio_same, \
+                            FALSE, \
+                            0x0, \
+                            0x0, \
+                            hdmi_avi_non_uniform_scaling_none, \
+                            0x0}
 
+/*   Configures HDMI AVI Info Frame with following configurations
+            output color space as RGB, Overscan - for TV, colorometry 709-HD TV
+            aspect ration as 4:3 */
 
-/**
- *  \brief Defines the options available for generation of vSync, hSync and DE
- *         synchronization signals
- */
-typedef enum
-{
-    VPS_HAL_HDMI_SYNC_EXTRACT  =   0x0,
-    /**< Use extracted hSync, vSync and DE from input*/
-    VPS_HAL_HDMI_SYNC_GENERATE,
-    /**< Use incoming (from wrapper/hdvenc) vSync and hSync but generate DE */
-    VPS_HAL_HDMI_SYNC_SOURCED,
-    /**< Use incoming (from wrapper/hdvenc) vSync, hSync and DE */
-    VPS_HAL_HDMI_SYNC_MAX
-    /**< Upper limit guard */
-}Vps_HdmiCoreSyncGenCfg;
+#define TI816X_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT709_43  {\
+                            hdmi_avi_RGB_op_cs, \
+                            hdmi_avi_no_aspect_ratio, \
+                            TI816X_HDMI_AVI_INFOFRAME_BARINFO, \
+                            hdmi_avi_over_scan, \
+                            hdmi_avi_BT709_colorimetry, \
+                            hdmi_avi_4_3_aspect_ratio, \
+                            hdmi_avi_active_aspect_ratio_same, \
+                            FALSE, \
+                            0x0, \
+                            0x0, \
+                            hdmi_avi_non_uniform_scaling_none, \
+                            0x0}
+/*   Configures HDMI AVI Info Frame with following configurations
+            output color space as RGB, Overscan - for TV, colorometry 601-SD TV
+            aspect ration as 4:3 */
+#define TI816X_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT601_43  {\
+                            hdmi_avi_RGB_op_cs, \
+                            hdmi_avi_no_aspect_ratio, \
+                            TI816X_HDMI_AVI_INFOFRAME_BARINFO, \
+                            hdmi_avi_over_scan, \
+                            hdmi_avi_BT601_colorimetry, \
+                            hdmi_avi_4_3_aspect_ratio, \
+                            hdmi_avi_active_aspect_ratio_same, \
+                            FALSE, \
+                            0x0, \
+                            0x0, \
+                            hdmi_avi_non_uniform_scaling_none, \
+                            0x0}
 
+/*   Configures HDMI AVI Info Frame with following configurations
+            output color space as RGB, Overscan - for TV, colorometry 601-SD TV
+            aspect ration as none */
+#define TI816X_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT601_NO_ASPECT_RATIO  {\
+                            hdmi_avi_RGB_op_cs, \
+                            hdmi_avi_no_aspect_ratio, \
+                            TI816X_HDMI_AVI_INFOFRAME_BARINFO, \
+                            hdmi_avi_over_scan, \
+                            hdmi_avi_BT601_colorimetry, \
+                            hdmi_avi_aspect_ratio_none, \
+                            hdmi_avi_active_aspect_ratio_same, \
+                            FALSE, \
+                            0x0, \
+                            0x0, \
+                            hdmi_avi_non_uniform_scaling_none, \
+                            0x0}
 
-/**
- *  \brief Defines the arrangement of video data in interface between the source
- *         and wrapper.
- */
-typedef enum
-{
-    VPS_HAL_HDMI_WP_30BIT_RGB_YUV444    =   0x0,
-    /**< Pack as video_data[35:26], video_data[23:14] and video_data[11:2] */
-    VPS_HAL_HDMI_WP_24BIT_RGB_YUV444_YUV422,
-    /**< Pack as  video_data[35:28], video_data[23:16], video_data[11:4] */
-    VPS_HAL_HDMI_WP_20BIT_YUV422,
-    /**< Pack as  video_data[35:28], video_data[23:16], video_data[11:10],
-         video_data[7:6]*/
-    VPS_HAL_HDMI_WP_16BIT_YUV422,
-    /**< Pack as  video_data[35:28], video_data[23:16], video_data[11:4] */
-    VPS_HAL_HDMI_WP_NO_PACK             =   0x7
-    /**< No packing */
-}Vps_HdmiWpPackingMode;
-
-
-/**
- *  \brief YCbCr to RGB CSC coefficients
- *
- *         Defines the place holder for YCbCr to RGB color space converters
- *         coefficients, if applications choose to override the default
- *         configuration.
- *
- *         Note that members names do not follow coding guidelines to enable
- *         easy co-relation between members and register names used in
- *         specifications.
- */
-typedef struct
-{
-    u32  Y2RCOEFF_L;
-    /**< Refer peripheral documentation */
-    u32  Y2RCOEFF_H;
-    /**< Refer peripheral documentation */
-    u32  CR2RCOEFF_L;
-    /**< Refer peripheral documentation */
-    u32  CR2RCOEFF_H;
-    /**< Refer peripheral documentation */
-    u32  CB2BCOEFF_L;
-    /**< Refer peripheral documentation */
-    u32  CB2BCOEFF_H;
-    /**< Refer peripheral documentation */
-    u32  CR2GCOEFF_L;
-    /**< Refer peripheral documentation */
-    u32  CR2GCOEFF_H;
-    /**< Refer peripheral documentation */
-    u32  YOFFS1_L;
-    /**< Refer peripheral documentation */
-    u32  YOFFS1_U;
-    /**< Refer peripheral documentation */
-    u32  OFFS1_L;
-    /**< Refer peripheral documentation */
-    u32  OFFS1_M;
-    /**< Refer peripheral documentation */
-    u32  OFFS1_H;
-    /**< Refer peripheral documentation */
-    u32  OFFS2_L;
-    /**< Refer peripheral documentation */
-    u32  OFFS2_H;
-    /**< Refer peripheral documentation */
-    u32  DC_LEV_L;
-    /**< Refer peripheral documentation */
-    u32  DC_LEV_H;
-    /**< Refer peripheral documentation */
-}Vps_HdmiCSC_YCbCr2RGB_coEff;
-
-
-
-/**
- *  \brief RGB to xvYCC CSC coefficients
- *
- *         Defines the place holder for coefficients, if applications choose
- *         to override the default configuration.
- *         Note that members names do not follow coding guidelines to enable
- *         easy co-relation between members and register names used in
- *         specifications.
- */
-typedef struct
-{
-    u32  R2Y_COEFF_LOW;
-    /**< Refer peripheral documentation */
-    u32  R2Y_COEFF_UP;
-    /**< Refer peripheral documentation */
-    u32  G2Y_COEFF_LOW;
-    /**< Refer peripheral documentation */
-    u32  G2Y_COEFF_UP;
-    /**< Refer peripheral documentation */
-    u32  B2Y_COEFF_LOW;
-    /**< Refer peripheral documentation */
-    u32  B2Y_COEFF_UP;
-    /**< Refer peripheral documentation */
-    u32  R2CB_COEFF_LOW;
-    /**< Refer peripheral documentation */
-    u32  R2CB_COEFF_UP;
-    /**< Refer peripheral documentation */
-    u32  G2CB_COEFF_LOW;
-    /**< Refer peripheral documentation */
-    u32  G2CB_COEFF_UP;
-    /**< Refer peripheral documentation */
-    u32  B2CB_COEFF_LOW;
-    /**< Refer peripheral documentation */
-    u32  B2CB_COEFF_UP;
-    /**< Refer peripheral documentation */
-    u32  R2CR_COEFF_LOW;
-    /**< Refer peripheral documentation */
-    u32  G2CR_COEFF_LOW;
-    /**< Refer peripheral documentation */
-    u32  G2CR_COEFF_UP;
-    /**< Refer peripheral documentation */
-    u32  B2CR_COEFF_LOW;
-    /**< Refer peripheral documentation */
-    u32  B2CR_COEFF_UP;
-    /**< Refer peripheral documentation */
-    u32  RGB_OFFSET_LOW;
-    /**< Refer peripheral documentation */
-    u32  RGB_OFFSET_UP;
-    /**< Refer peripheral documentation */
-    u32  Y_OFFSET_LOW;
-    /**< Refer peripheral documentation */
-    u32  Y_OFFSET_UP;
-    /**< Refer peripheral documentation */
-    u32  CBCR_OFFSET_LOW;
-    /**< Refer peripheral documentation */
-    u32  CBCR_OFFSET_UP;
-    /**< Refer peripheral documentation */
-}Vps_Hdmi_RGB2xvYCC_coEffs;
-
-
-/**
- *  \brief  xvYCC to RGB/YCbCr CSC coefficients
- *
- *         Defines the place holder for coefficients, if applications choose
- *         to override the default configuration.
- *         Note that members names do not follow coding guidelines to enable
- *         easy co-relation between members and register names used in
- *         specifications.
- */
-typedef struct
-{
-    u32  Y2R_COEFF_LOW;
-    /**< Refer peripheral documentation */
-    /* TBD spec says this is valid when RGB_2_XVYCC.XV_CO_OV = 1 which is not consistent */
-    u32  Y2R_COEFF_UP;
-    /**< Refer peripheral documentation */
-    u32  CR2R_COEFF_LOW;
-    /**< Refer peripheral documentation */
-    u32  CR2R_COEFF_UP;
-    /**< Refer peripheral documentation */
-    u32  CB2B_COEFF_LOW;
-    /**< Refer peripheral documentation */
-    u32  CB2B_COEFF_UP;
-    /**< Refer peripheral documentation */
-    u32  CR2G_COEFF_LOW;
-    /**< Refer peripheral documentation */
-    u32  CR2G_COEFF_UP;
-    /**< Refer peripheral documentation */
-    u32  CB2G_COEFF_LOW;
-    /**< Refer peripheral documentation */
-    u32  CB2G_COEFF_UP;
-    /**< Refer peripheral documentation */
-    u32  YOFFSET1_LOW;
-    /**< Refer peripheral documentation */
-    u32  YOFFSET1_UP;
-    /**< Refer peripheral documentation */
-    u32  OFFSET1_LOW;
-    /**< Refer peripheral documentation */
-    u32  OFFSET1_MID;
-    /**< Refer peripheral documentation */
-    u32  OFFSET1_UP;
-    /**< Refer peripheral documentation */
-    u32  OFFSET2_LOW;
-    /**< Refer peripheral documentation */
-    u32  OFFSET2_UP;
-    /**< Refer peripheral documentation */
-    u32  DCLEVEL_LOW;
-    /**< Refer peripheral documentation */
-    u32  DC_LEVEL_UP;
-    /**< Refer peripheral documentation */
-}Vps_Hdmi_xvYCC2RGB_YCbCr_coEffs;
-
-
-/**
- *  \brief Configurations to enable RGB to xvYCC color space conversion
- */
-typedef struct
-{
-    u32  RGB2xvYCC_XV_EN;
-    /**<  Enable xvYCC color space. Non Zero enables */
-    u32  RGB2xvYCC_XV_CO_OV;
-    /**<  TRUE overrides default coefficients with application supplied
-              coefficients. Non Zero enables */
-    u32  RGB2xvYCC_XV_FUS;
-    /**<  Configure xvYCC mode, non zero sets mode to full scale, full scale is
-              disabled otherwise. Applicable only when enablexvYCC is TRUE */
-    Vps_Hdmi_RGB2xvYCC_coEffs     *RGB2xvYCC_Coefs;
-    /**<  Specify xvYCC coefficients */
-    Vps_Hdmi_RGB2xvYCC_coEffs     space4RGB2xvYCCCoefs;
-    /**<  Place holder for xvYCC coefficients */
-
-    u32      xvYCC2RGB_YCbCr_BYP_ALL;
-    /**<  Bound to change - not used for now */
-    u32      xvYCC2RGB_YCbCr_EXP_ONLY;
-    /**<  Bound to change - not used for now */
-    u32      xvYCC2RGB_YCbCr_FULLRANGE;
-    /**<  Bound to change - not used for now */
-    u32      xvYCC2RGB_YCbCr_SW_OVR;
-    /**<  Bound to change - not used for now */
-    u32      xvYCC2RGB_YCbCr_XVYCCSEL;
-    /**<  Bound to change - not used for now */
-    Vps_Hdmi_xvYCC2RGB_YCbCr_coEffs  *xvYCC2RGB_YCbCr_Coefs;
-    /**<  Bound to change - not used for now */
-    Vps_Hdmi_xvYCC2RGB_YCbCr_coEffs  space4xvYCC2RGB_YCbCr_Coefs;
-    /**<  Bound to change - not used for now */
-}Vps_HdmiCSC_xvYCC_Ctrl;
-
-
-/**
- *  struct Vps_HdmiCSC_YCbCr2RGB_Ctrl
- *  \brief Defines the configurable parameters color space converter. YCbCr to
- *         RGB. Corresponds to XVYCC2RGB_CTL register
- */
-typedef struct
-{
-    u32  enableRngExp;
-    /**<  A non-zero value configures the CSC module in expansion only mode. */
-    u32  enableFullRngExp;
-    /**<  A non-zero enables xvYCC full range expansion. */
-    u32  customCoEff;
-    /**<  A non-zero value configure to use custom coefficients -
-              Contents of structure Vps_HdmiCSC_YCbCr2RGB_coEff will be used */
-    u32  srcCsSel;
-    /**<  Select source color space - xvYCC if non-zero, YCbCr otherwise */
-    Vps_HdmiCSC_YCbCr2RGB_coEff  coEff;
-    /**<  Custom coefficients- will be used only when customCoEff is non-zero */
-}Vps_HdmiCSC_YCbCr2RGB_Ctrl;
-
-
-/**
- *  struct Vps_HdmiDitherConfig
- *  \brief Defines the configurable parameters dithering module.
- *         Note that members names do not follow coding guidelines to enable
- *         easy co-relation between members register names used in
- *         specifications
- */
-typedef struct
-{
-    u32  M_D2;
-    /**< Dither round option, non-zero value enables it, disabled otherwise.
-         refer peripheral documentation for details */
-    u32  UP2;
-    /**< Dither round option, non-zero value  enables it, disabled otherwise.
-         refer peripheral documentation for details */
-    u32  STR_422_EN;
-    /**< Color space 422 for dithering, non-zero value enables it, disabled
-         otherwise. refer peripheral documentation for details */
-    u32  D_BC_EN;
-    /**< Addition of random numbers on BLUE channel, non-zero value enables it,
-         disabled otherwise. refer peripheral documentation for details */
-    u32  D_GC_EN;
-    /**< Addition of random numbers on GREEN channel, non-zero value enables it,
-         disabled otherwise. refer peripheral documentation for details */
-    u32  D_RC_EN;
-    /**< Addition of random numbers on RED channel, non-zero value enables it,
-         disabled otherwise. refer peripheral documentation for details */
-    u32  DRD;
-    /**< Addition of random numbers and trucate LSb 2 bits, non-zero value
-         enables it,  disabled otherwise.
-         refer peripheral documentation for details */
-}Vps_HdmiDitherConfig;
-
-
-/**
- *  \brief Defines the configurable parameters of in data path of HDMI block.
- *         Pleaser refer HDMI peripheral document ion for details.
- *         For enabled sub-block might require additional configurations, unless
- *         documented otherwise
- */
-typedef struct
-{
-    u32                          upSamplerEnable;
-    /**<  Enable up sampler - convert 422 to 444 - non-zero value to enable,
-              in bypass otherwise */
-    u32                          cscYCbCr2RGBEnable;
-    /**<  Enable color space converter - Converts YCbCr to RGB
-              non-zero value to enable, in bypass otherwise - If enabled,
-              required to  supply CSC configuration in cscYCbCr2RGBConfig */
-    Vps_HdmiCSC_YCbCr2RGB_Ctrl      cscYCbCr2RGBConfig;
-    /**<  Configurations for color space converter */
-    u32      rangeExpRGBEnable;
-    /**<  Enable range expansion of pixel data from 16-235 to 0-255
-              non-zero value enables, disabled otherwise */
-    u32      cscRGB2YCbCrEnable;
-    /**<  Enable RGB to YCbCr color space converter. A non-zero value enables,
-          disabled otherwise.
-          If enabled, required to supply CSC configuration in */
-    /* TBD coefficients for RGB to YCbCr - supporting source requires to be
-       updated */
-    u32      csConvertStandard;
-    /**<  Specifies the color space standard to be used for color space
-              conversions. non-zero value would configure to use BT.709,
-              BT.601 otherwise.
-              If custom co-efficients are not specified, BT.709 or BT.601
-              standard co-efficients would be used - VID_CTRL.CSCSEL */
-    u32      rangeCompEnable;
-    /**<  A non-zero value enables range compression.
-          (for RGB, YCbCr) 0-255 to 16-235 */
-    u32      downSamplerEnable;
-    /**<  Enable up down sampler/decimation - convert 444 to 422 -
-          non-zero value enable, in bypass otherwise */
-    u32      rangeClipEnable;
-    /**<  Enable range clipping, from 16 to 235 (RGB and Y)/240 (CbCr).
-          A non-zero value enables it, disabled otherwise.
-          When enabled, clipColorSpace should be configured to select the output
-          color space of this block */
-    u32      clipColorSpace;
-    /**<  Specifies output color space of the clipper, non-zero value for YCbCr,
-          RGB otherwise */
-    u32      ditherEnable;
-    /**<  Configures dithering, non-zero value enables it, bypass otherwise. If
-              enabled you would require to configure the dithering options
-              via ditherConfig */
-    Vps_HdmiDitherConfig            ditherConfig;
-    /**<  Specify dithering configurations */
-
-    u32                          outputWidth;
-    /**<  Specifies the number of bits per channel that would sent out.
-              If dithering is not enabled, the output would be truncated to the
-              width specified here.
-              Supported values are defined in #Vps_HdmiBitsPerChannel */
-    /* Vps_HdmiCSC_xvYCC_Ctrl       xvYCCCtrl;
-      Reserved for now Control xvYCC to RGB conversions TBD Not clear as of now
-      */
-}Vps_HdmiCoreDataPathConfig;
-
-
-/**
- *  \brief Reserved for future use. Not used
- */
-typedef struct
-{
-    u32      memNotUSed;
-    /**< Not supported for now - defined for future use */
-}Vps_HdmiCecInitiatorConfig;
-
-/**
- *  \brief Reserved for future use. Not used
- */
-typedef struct
-{
-    u32      memNotUSed;
-    /**< Not supported for now - defined for future use */
-}Vps_HdmiCecFollowerConfig;
-
-
-/**
- *  \brief DE Generation configurations
- *
- *         Defines the delays between hSync, vSync and the actual display area.
- *         Note that members names do not follow coding guidelines to enable
- *         easy co-relation between members register names used in specification
- *         As these members have 1 to relation with the register names.
- */
-typedef struct
-{
-    u32      DE_DLY;
-    /**<  Delay between rising edge hSync and display of first column */
-    u32      DE_TOP;
-    /**<  Delay between rising edge vSync and display of first row */
-    u32      DE_CNTL;
-    /**<  Lower byte of coloumn count per row in active display region
-              Only LS byte is used */
-    u32      DE_CNTH;
-    /**<  Higher nibble of column count per row in active display region
-              Only LS nibble is used */
-    u32      DE_LINL;
-    /**<  Lower byte of row count in active display region
-              Only LS byte is used */
-    u32      DE_LINH;
-    /**<  Higher byte of row count in active display region
-              Only LS 3 bits is used */
-}Vps_HdmiCoreDEDelayConfig;
-
-
-/**
- *  \brief Defines configureable parameters of core input signals
- *
- *         Defines the configurable parameters of input video signal to core.
- *         Note that members names do not follow coding guidelines to enable
- *         easy co-relation between members register names used in specification
- */
-typedef struct
-{
-    u32                      dataBusWidth;
-    /**<  Specifies the width of the core input bus per channel, minimum would
-          8 bit/pixel and maximum would be 10 bits/pixel. i.e. Valid values are
-          VPS_HAL_HDMI_8_BITS_CHAN_WIDTH and VPS_HAL_HDMI_10_BITS_CHAN_WIDTH
-          Defined in #Vps_HdmiBitsPerChannel */
-    u32                      syncGenCfg;
-    /**<  Configure vSync, hSync and DE source/generation.
-          Supported values are defined in #Vps_HdmiCoreSyncGenCfg */
-    Vps_HdmiCoreDEDelayConfig   deDelayCfg;
-    /**<  When generating DE, i.e. when syncGenCfg == VPS_HAL_HDMI_SYNC_GENERATE
-          DE delay parameter requires to be configured.
-          Applications are expected to use this member to configure DE delay
-          parameters */
-    u32                      edgePol;
-    /**<  A non-zero value configure to latch input on rising edge, falling edge
-              otherwise - Recommended to use default -corresponds to SYS_CTRL1*/
-
-}Vps_HdmiCoreInputConfig;
-
-
-/**
- *  \brief Defines the configurable parameters of wrapper.
- */
-typedef struct
-{
-    u32  debounceRecvDetect;
-    /**<  Receiver Detect debounce value. A value between 1 to 63 inclusive
-               of both end point, determines size of the glitch filter
-               - HDMI_WP_DEBOUNCE.RXDET */
-    u32  debounceRecvSens;
-    /**<  Receiver sense/Line5Short debounce value. A value between 1 to 63
-              inclusive of both end point, determines size of glitch filter
-              - HDMI_WP_DEBOUNCE.LINE5VSHORT */
-    u32  isSlaveMode;
-    /**<  Slave / Master mode of operation. Only SLAVE mode supported.
-              A non-zero value configure Wrapper in slave mode, MASTER mode
-              otherwise.
-              In Slave mode, the wrapper would required to be provided with
-              Pixel Clock, Data Enable, Synchronization signal and pixel data.
-              In Master mode only pixel data is to be provided.
-              - HDMI_WP_VIDEO_CFG.MODE*/
-    u32  packMode;
-    /**<  In case the incoming video data is not packed, could be packed as
-              described by the enum - HDMI_WP_VIDEO_CFG.PACKING_MODE .
-              Valid values are defined in #Vps_HdmiWpPackingMode */
-    u32  isVSyncPolInverted;
-    /**<  A non-zero value inverts the polarity of VSync thats is going to the
-              core. Polarity remains un-changed otherwise Applicable for both
-              MASTER/SLAVE mode HDMI_WP_VIDEO_CFG.CORE_VSYNC_INV */
-    u32  isHSyncPolInverted;
-    /**<  A non-zero value inverts the polarity of HSync thats is going to the
-              core. Polarity remains un-changed otherwise. Applicable for both
-              MASTER/SLAVE mode HDMI_WP_VIDEO_CFG.CORE_HSYNC_INV */
-
-    u32  width;
-    /**<  Not supported - For future. Used in MASTER mode, Wrappers timing
-              generator is used, selects deep color - HDMI_WP_VIDEO_CFG.MODE.
-              Supported values are defined in #Vps_HdmiBitsPerChannel */
-    u32  vSyncPol;
-    /**<  Not Supported - For future. Used in MASTER mode,  TRUE for active
-              high, active LOW otherwise */
-    u32  hSyncPol;
-    /**<  Not Supported - For future. Used in MASTER mode,  TRUE for active
-              high, active LOW otherwise */
-    u32  hbp;
-    /**<  Not Supported - Used in MASTER mode, Horizontal back porch */
-    u32  hfp;
-    /**<  Not Supported - Used in MASTER mode, Horizontal front porch */
-    u32  hsw;
-    /**<  Not Supported - Used in MASTER mode, Horizontal sync pulse width */
-    u32  vbp;
-    /**<  Not Supported - Used in MASTER mode, Vertical back porch */
-    u32  vfp;
-    /**<  Not Supported - Used in MASTER mode, Vertical front porch */
-    u32  vsw;
-    /**<  Not Supported - Used in MASTER mode, Vertical sync pulse width */
-    u32  cecClockDivisor;
-    /**<  Not Supported - For future use, When CEC is supported
-              Specifies the divisor that would be applied for clock derived
-              from DDC_CLOCK. */
-}Vps_HdmiWpConfig;
-
-
-/*******************************************************************************
-*                       Information Packets Specifies                          *
-*******************************************************************************/
-/**
- *  \brief Defines the transmitted video color space.
- *         Initializing the enumerations explicitly, so that these values could
- *         directly be used to configure register.
- */
-typedef enum
-{
-    VPS_HAL_HDMI_AVIINFO_OP_CS_RGB          = 0x0,
-    /**< RGB color space is used */
-    VPS_HAL_HDMI_AVIINFO_OP_CS_YCbCr_422    = 0x1,
-    /**< YCbCr 422 color space is used */
-    VPS_HAL_HDMI_AVIINFO_OP_CS_YCbCr_444    = 0x2,
-    /**< YCbCr 444 color space is used */
-    VPS_HAL_HDMI_AVIINFO_OP_CS_MAX
-    /**< enum guard */
-}Vps_HdmiAviInfoOpCs;
-
-
-/**
- *  \brief Configure if active information is present or not
- */
-typedef enum
-{
-    VPS_HAL_HDMI_AVIINFO_ACTIVE_ASPECTRATION_NO    = 0x0,
-    /**< Active aspect ratio not specified */
-    VPS_HAL_HDMI_AVIINFO_ACTIVE_ASPECTRATION_YES   = 0x1
-    /**< Active aspect ratio specified */
-}Vps_HdmiAviInfoActiveRatio;
-
-
-/**
- *  \brief Defines the Bar information
- */
-typedef struct
-{
-    u32  barInfoValid;
-    /**< Specify if the BAR information is valid or not.
-         0x01 - Vertical Bar Info is valid
-         0x02 - Horizontal Bar Info is valid
-         0x03 - Both Vertical & Horizontal is valid */
-    u32  topBar;
-    /**< Line number of End of Top Bar - LSb 16 bits are considered */
-    u32  bottomBar;
-    /**< Line number of End of Bottom Bar - LSb 16 bits are considered  */
-    u32  leftBar;
-    /**< Line number of End of Left Bar - LSb 16 bits are considered  */
-    u32  rightBar;
-    /**< Line number of End of Right Bar - LSb 16 bits are considered  */
-}Vps_HdmiAviInfoBarInfo;
-
-
-/**
- *  \brief Configure scan information
- */
-typedef enum
-{
-    VPS_HAL_HDMI_AVIINFO_SCAN_INFO_NONE         = 0x0,
-    /**< No scan information */
-    VPS_HAL_HDMI_AVIINFO_SCAN_INFO_OVERSCAN     = 0x1,
-    /**< Overscan - For Television */
-    VPS_HAL_HDMI_AVIINFO_SCAN_INFO_UNDERSCAN    = 0x2,
-    /**< Overscan - For computer monitors */
-    VPS_HAL_HDMI_AVIINFO_SCAN_INFO_MAX          = 0x3
-    /**< MAximum scan info guard */
-}Vps_HdmiAviInfoScanInfo;
-
-
-/**
- *  \brief Colorimetry configurations
- */
-typedef enum
-{
-    VPS_HAL_HDMI_AVIINFO_COLORIMETRY_NONE       = 0x0,
-    /**< No Colorimetry information */
-    VPS_HAL_HDMI_AVIINFO_COLORIMETRY_BT601      = 0x1,
-    /**< BT.601 - For standard television */
-    VPS_HAL_HDMI_AVIINFO_COLORIMETRY_BT709      = 0x2,
-    /**< BT.709 - For Advanced / High Definition television  */
-    VPS_HAL_HDMI_AVIINFO_COLORIMETRY_MAX        = 0x3
-    /**< enum guard */
-}Vps_HdmiAviInfoColorimetry;
-
-
-/**
- *  \brief Aspect ratio of the video being sent
- */
-typedef enum
-{
-    VPS_HAL_HDMI_AVIINFO_ASPECTRATIO_NONE       = 0x0,
-    /**< No Aspect ration specified */
-    VPS_HAL_HDMI_AVIINFO_ASPECTRATIO_4_3        = 0x1,
-    /**< 4:3 */
-    VPS_HAL_HDMI_AVIINFO_ASPECTRATIO_16_9       = 0x2,
-    /**< 16:9 */
-    VPS_HAL_HDMI_AVIINFO_ASPECTRATIO_MAX        = 0x3
-    /* Enum guard */
-}Vps_HdmiAviInfoAspectRatio;
-
-
-/**
- *  \brief Active Aspect ratio
- */
-typedef enum
-{
-    VPS_HAL_HDMI_AVIINFO_ACTIVE_ASPECTRATIO_SAME    = 0x8,
-    /**< Same as the aspect ration specified AVI_InfoFrame.M1, M0 */
-    VPS_HAL_HDMI_AVIINFO_ACTIVE_ASPECTRATIO_4_3     = 0x9,
-    /**< 4:3 */
-    VPS_HAL_HDMI_AVIINFO_ACTIVE_ASPECTRATIO_16_9    = 0xA,
-    /**< 16:9 */
-    VPS_HAL_HDMI_AVIINFO_ACTIVE_ASPECTRATIO_14_9    = 0xB,
-    /**< 14:9 */
-    VPS_HAL_HDMI_AVIINFO_ACTIVE_ASPECTRATIO_MAX     = 0xC
-    /* Enum Guard */
-}Vps_HdmiAviInfoActiveAspectRatio;
-
-
-/**
- *  \brief NON-Uniform scaling on horizontal/vertical plane
- */
-typedef enum
-{
-    VPS_HAL_HDMI_AVIINFO_NONUNIFORM_SCALING_NONE    = 0x0,
-    /**< No non-uniform scaling performed AVI_InfoFrame.SC1, SC0 */
-    VPS_HAL_HDMI_AVIINFO_NONUNIFORM_SCALING_HORI    = 0x1,
-    /**< Non-uniform scaled on horizontal plane */
-    VPS_HAL_HDMI_AVIINFO_NONUNIFORM_SCALING_VER     = 0x2,
-    /**< Non-uniform scaled on vertical plane */
-    VPS_HAL_HDMI_AVIINFO_NONUNIFORM_SCALING_MAX     = 0x3
-    /* Enum guard */
-}Vps_HdmiAviInfoNonUniformScaling;
-
-
-/**
- *  \brief AVI Info frame configurations
- *
- *         Using AVI info frame applications could configure sink to decode
- *         video data correctly.
- *         These information would communicated to an attached sink via a AVI
- *         info frame
- */
-typedef struct
-{
-    u32                  outputCs;
-    /**< Configure the color space that would be transmitted.
-         AVI_InfoFrame.Y1 and Y0
-         Valid values are defined by #Vps_HdmiAviInfoOpCs */
-    u32                  useActiveAspectRatio;
-    /**< Active aspect ratio specified, AVI_InfoFrame.A0
-         Valid values are defined by #Vps_HdmiAviInfoActiveRatio */
-    Vps_HdmiAviInfoBarInfo  barInfo;
-    /**< Configure the width of the frame
-         AVI_InfoFrame.B1, B0, Byte 6, 7, 8, 9, 10, 11, 12 and 13 */
-    u32                  scanInfo;
-    /**< Configure scan information AVI_InfoFrame.S1, S0
-         - such OverScan/UnderScan/...
-         Valid values are defined by #Vps_HdmiAviInfoScanInfo */
-    u32                  colorimetryInfo;
-    /**< Configure colorimetry information AVI_InfoFrame.C1, C0
-         Valid values are defined by #Vps_HdmiAviInfoColorimetry */
-    u32                  aspectRatio;
-    /**< Configure the aspect ration AVI_InfoFrame.M1, M0
-         Valid values are defined by #Vps_HdmiAviInfoAspectRatio */
-    u32                  activeAspectRatio;
-    /**< Configure the aspect ration AVI_InfoFrame.R3, R2, R1, R0
-         Valid values are defined by #Vps_HdmiAviInfoActiveAspectRatio */
-    u32                  itContentPresent;
-    /**< IT content present, TRUE marks it FALSE resets it AVI_InfoFrame.ITC */
-    u32                  extColorimetry;
-    /**< Extended colorimetry AVI_InfoFrame.EC2, EC1, EC0 TBD use enum*/
-    u32                  quantizationRange;
-    /**< Quantization range  TBD use enum */
-    u32                  nonUniformSc;
-    /**< If non-uniform scaling done, specify it AVI_InfoFrame.SC1, SC0
-         Valid values are defined by #Vps_HdmiAviInfoNonUniformScaling */
-    u32                  formatIdentier;
-    /**< CEA861 Video format identification code  TBD use enum
-         AVI_InfoFrame.VIC6, VIC5, VIC4, VIC3, VIC2, VIC1 and VIC0 */
-    /**< Pixel repetition will be determined by the HAL and programmed
-         accordingly */
-}Vps_HdmiAviInfoFrameCfg;
-
-
-/**
- *  \brief Info Frame configurations.
- *
- *         Defines the configurable parameters of info frames that would be
- *         sent sink. To be used to instruct sinks on video and audio
- *         configurations
- */
-typedef struct
-{
-    u32                      useAviInfoData;
-    /**< A non-zero value configures HAL to pick up the data from aviData to
-         frame the AVI info frame which would be sent sink periodically */
-    Vps_HdmiAviInfoFrameCfg     aviData;
-    /**< Instruct sink on video parameters such as, aspect ratio, non-uniform
-         scaling, etc... */
-    /* When audio, GAMUT is supported, add audio info packet data, GAMUT packet
-       data, SPD packet (Source Product Description ) here */
-}Vps_HdmiInfoFrameCfg;
-
-
-/*******************************************************************************
-*                     Information Packets Specifies Ends                       *
-*******************************************************************************/
-
-
-/**
- *  struct Vps_HdmiCoreDataPathConfig
- *  \brief HDMI Peripheral configurations
- *
- *         Defines the configurable parameters of HDMI block.
- *         Pleaser refer HDMI peripheral documentation for details. If a block
- *         such as wrapper (WP), Data Enable (DE), etc... dose not required to
- *         be configured, applications to choose to use the default config
- *         values, or last configured values.
- */
-typedef struct
-{
-    u32                          useDcDisplayMode;
-    /**<  A non-zero value specifies to use the display controller mode supplied
-          by the below member, otherwise use the last configurations
-          (initially it would be the default) */
-    Vps_HdmiModeId               displayMode;
-    /**<  Display Controllers / venc mode of operations.
-          This Will be used to extract information like resolution, scan type
-          and frame rate.
-          \par CAUTION When custom modes are used, the pixel repetitions
-                        requires to be calculated TBD */
-    u32                          useWpConfig;
-    /**<  A non-zero value specifies to use the wrapper config supplied by the
-          below member, otherwise use the last configurations
-          (initially it would be the default) */
-    Vps_HdmiWpConfig                wpConfig;
-    /**<  Wrapper configurations - Supports SLAVE mode only */
-    u32                          useCoreIpConfig;
-    /**<  A non-zero value specifies to use the input configuration supplied by
-              the member below, otherwise use the last configurations
-              (initially it would be the default) */
-    Vps_HdmiCoreInputConfig         coreIpConfig;
-    /**<  Input signal configurations for the core - Recommended to use the
-              the default values. As the connections between core and wrapper is
-              hardwired. Defined here to enhance portability - Please refer the
-              Vps_HdmiCoreInputConfig for details on programmable parameters
-              */
-    u32                          useCorePathConfig;
-    /**<  A non-zero value specifies to use the path configuration supplied by
-          the below member, otherwise use the last configurations
-          (initially it would be the default) */
-    Vps_HdmiCoreDataPathConfig      corePathConfig;
-    /**<  Configurable parameters of in data path of HDMI block */
-    u32                          useInfoFrameConfig;
-    /**< A non-zero value configures the HAL to use the AVI Info frame details
-         specified in infoFrameCfg. Defaults are used otherwise.*/
-    Vps_HdmiInfoFrameCfg            infoFrameConfig;
-    /**<  Configure the packets that would be sent to the sink */
-    Vps_Hdmi_CbFxn           cbOnHPD;
-    /**<  Application supplied function that would called when an HDMI
-              capable sink/receiver is detected.
-              Additionally note that - Once a sink (repeater) is detected, this
-              callback could be called multiple times to indicate addition/
-              deletion of sink attached to the repeater. */
-    HDMI_Ptr                         cbArgs;
-    /**<  Arguments that would be passed back to application on occurrence
-              of hot plug detect */
-    Vps_Hdmi_CbFxn           cbOnErr;
-    /**<  Reserved for future use. Error callback - will be called on
-              occurrence of error defined in cbOnErrors */
-    int                           cbOnErrors;
-    /**<  Reserved for future use. On following errors the error callback
-              would be called */
-    u32                          hdcpEnable;
-    /**<  Reserved for future use. TRUE would enable HDCP, HDCP would be
-              disabled otherwise */
-    u32                          cecEnable;
-    /**<  Reserved for future use. TRUE would enable CEC, CEC would be
-              disabled otherwise */
-    u32                          cecInitiator;
-    /**<  Reserved for future use. Applicable only when enableCEC is TRUE
-              TRUE would configure this port as a initiator, follower otherwise.
-              */
-    Vps_HdmiCecInitiatorConfig      cecInitiateConfig;
-    /**<  Reserved for future use. */
-    Vps_HdmiCecFollowerConfig       cecFollowerConfig;
-    /**<  Reserved for future use. */
-}Vps_HdmiConfigParams;
+/*   Configures HDMI Packets that would be sent during data island period
+            Right now, AVI Info packets are supported. For HD Display */
+#define TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_43   {TRUE, \
+                                TI816X_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT709_43}
+#define TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169  {TRUE, \
+                                TI816X_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT709_169}
+/*   Configures HDMI Packets that would be sent during data island period
+            Right now, AVI Info packets are supported. For NTSC display*/
+#define TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_NTSC   {TRUE, \
+                TI816X_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT601_NO_ASPECT_RATIO}
+/*   Configures HDMI Packets that would be sent during data island period
+            Right now, AVI Info packets are supported. For APL display */
+#define TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_PAL   {TRUE, \
+                                TI816X_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT601_43}
 
 
 /* ========================================================================== */
-/*                         EDID Specific Structures                           */
+/*            Defaults that could be used to initialize HDMI                  */
+/*  Recommended to start with struct hdmi_wp_config, if reading for first time*/
+/*  To understand the configurations paramters for the HDMI                   */
 /* ========================================================================== */
-
-
-/**
- *  \brief Configurations required to read EDID.
- *
- *         Defines the parameters required to read EDID from a sink.
- *         Note that this function just READS EDID content. Caller will have to
- *         parse the EDID data for sinks capabilities
- *         Read starting address would be computed based on the formula below
- *              = segmentPtr * 128 + offset;
- *         e.g. for Block 0x0, to read one block starting at address 0x0
- *         slaveAddress = 0xA0
- *         segmentPtr   = 0x0
- *         offset       = 0x0
- *         noOfBytes    = 0x80
+/*
+ * Defaults that could be used initialize HDMI HAL in 1080 P, 60 FPS,
+ * 4:3 Aspect Ratio, for HD TV
+ *        Wrapper - confiured as 10 bit interface with HDVENC and SLAVE
+ *        Core input configured as 10 bit interface with syncs sourced from
+ *          wrapper
+ *        Core Data path - All in bypass mode, outwidth set 10 bits/channel
+ *          - In case color space converter is enabled - set to BT709.
  */
-typedef struct
-{
-    u32      slaveAddress;
-    /**<  DDC Slave to address. 7 bit slave address, LSByte, ignoring LSbit
-              i.e. bits 1-7 is used.
-              0xA0 should be passed to READ EDID PROM
-              Relates to DDC_ADDR register of core - NO error check performed*/
-    u32      segmentPtr;
-    /**<  Segment to address of the addressed slave. Segment that you would
-              want read. LS byte is used i.e. bit0-7 Relates to DDC_SEGM
-              NO error check performed for this param */
-    u32      offset;
-    /**<  Offset with in the segment that you would want to read.
-              LSByte is used i.e. bit0-7, relates to DDC_OFFSET
-              NO error check performed for this param */
-    u32      noOfBytes;
-    /**<  Number of bytes to be read. Should not greater than 1024 bytes
-              per request */
-    HDMI_Ptr         bufferPtr;
-    /**<  Pointer to a buffer that would store the read the data. Should be
-              big enough to accommodate the request number of bytes. */
-    u32      noOfBytesRead;
-    /**< [OUT] Specifies the number of bytes that has been read. */
-}Vps_HdmiEdidReadParams;
+#define TI816X_HDMI_10BIT_1080p_60_16_9_HD {\
+        TRUE, hdmi_1080P_60_mode,\
+        TRUE, TI816x_HDMIWPCONFIG_10BIT_IF_SALVE,\
+        TRUE, TI816X_HDMICORE_IPCFG_10BIT_IF_SRCD_SYNC,\
+        TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_10BIT_OUTPUT_BT709,\
+        TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
+
+#define TI816X_HDMI_8BIT_1080p_60_16_9_HD {\
+        TRUE, hdmi_1080P_60_mode,\
+        TRUE, TI816x_HDMIWPCONFIG_8BIT_IF_SALVE,\
+        TRUE, TI816X_HDMICORE_IPCFG_8BIT_IF_SRCD_SYNC,\
+        TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_8BIT_OUTPUT_BT709,\
+        TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
+
+/*
+ * Defaults that could be used initialize HDMI HAL in 1080 P, 30 FPS,
+ *        4:3 Aspect Ratio, for HD TV
+ *        Wrapper - confiured as 10 bit interface with HDVENC and SLAVE
+ *        Core input configured as 10 bit interface with syncs sourced from
+ *          wrapper
+ *        Core Data path - All in bypass mode, outwidth set 10 bits/channel
+ *          - In case color space converter is enabled - set to BT709.
+ */
+#define TI816X_HDMI_10BIT_1080p_30_16_9_HD {\
+        TRUE, hdmi_1080P_30_mode,\
+        TRUE, TI816x_HDMIWPCONFIG_10BIT_IF_SALVE,\
+        TRUE, TI816X_HDMICORE_IPCFG_10BIT_IF_SRCD_SYNC,\
+        TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_10BIT_OUTPUT_BT709,\
+        TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
+
+#define TI816X_HDMI_8BIT_1080p_30_16_9_HD {\
+        TRUE, hdmi_1080P_30_mode,\
+        TRUE, TI816x_HDMIWPCONFIG_8BIT_IF_SALVE,\
+        TRUE, TI816X_HDMICORE_IPCFG_8BIT_IF_SRCD_SYNC,\
+        TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_8BIT_OUTPUT_BT709,\
+        TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
+
+/*
+ * Defaults that could be used initialize HDMI HAL in 1080I P, 60 FPS,
+ *        4:3 Aspect Ratio, for HD TV
+ *        Wrapper - confiured as 10 bit interface with HDVENC and SLAVE
+ *        Core input configured as 10 bit interface with syncs sourced from
+ *          wrapper
+ *        Core Data path - All in bypass mode, outwidth set 10 bits/channel
+ *          - In case color space converter is enabled - set to BT709.
+ */
+#define TI816X_HDMI_10BIT_1080i_60_16_9_HD {\
+        TRUE, hdmi_1080I_60_mode,\
+        TRUE, TI816x_HDMIWPCONFIG_10BIT_IF_SALVE,\
+        TRUE, TI816X_HDMICORE_IPCFG_10BIT_IF_SRCD_SYNC,\
+        TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_10BIT_OUTPUT_BT709,\
+        TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
+
+#define TI816X_HDMI_8BIT_1080i_60_16_9_HD {\
+        TRUE, hdmi_1080I_60_mode,\
+        TRUE, TI816x_HDMIWPCONFIG_8BIT_IF_SALVE,\
+        TRUE, TI816X_HDMICORE_IPCFG_8BIT_IF_SRCD_SYNC,\
+        TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_8BIT_OUTPUT_BT709,\
+        TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
+
+/*
+ * Defaults that could be used initialize HDMI HAL in 720 P, 60 FPS,
+ *        16:9 Aspect Ratio, for HD TV
+ *        Wrapper - confiured as 10 bit interface with HDVENC and SLAVE
+ *        Core input configured as 10 bit interface with syncs sourced from
+ *          wrapper
+ *        Core Data path - All in bypass mode, outwidth set 10 bits/channel
+ *          - In case color space converter is enabled - set to BT709.
+ */
+#define TI816X_HDMI_10BIT_720_60_16_9_HD {\
+        TRUE, hdmi_720P_60_mode,\
+        TRUE, TI816x_HDMIWPCONFIG_10BIT_IF_SALVE,\
+        TRUE, TI816X_HDMICORE_IPCFG_10BIT_IF_SRCD_SYNC,\
+        TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_10BIT_OUTPUT_BT709,\
+        TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_43}
+
+#define TI816X_HDMI_8BIT_720_60_16_9_HD {\
+        TRUE, hdmi_720P_60_mode,\
+        TRUE, TI816x_HDMIWPCONFIG_8BIT_IF_SALVE,\
+        TRUE, TI816X_HDMICORE_IPCFG_8BIT_IF_SRCD_SYNC,\
+        TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_8BIT_OUTPUT_BT709,\
+        TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_43}
 
 
-#ifdef __cplusplus
-}
-#endif
+#endif				/* _VPS_HDMICFG_H */
 
-#endif /* _VPS_HDMICFG_H */
-
-/* @} */

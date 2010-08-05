@@ -24,36 +24,37 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/init.h>
+#include <linux/string.h>
 #include <linux/ti816x_hdmi.h>
 
 #include "hdmi_cfg.h"
-#include "hdmi.h"
+//#include "hdmi.h"
 
 #define TI816X_HDMI_DRIVER_NAME 	"TI816X_HDMI"
 
 struct ti816x_hdmi_params
 {
 	/* Handle to library */
-	void * hdmi_lib_handle;
+	void* hdmi_lib_handle;
 	/* Other parameters */
 	u32 wp_v_addr;
 	u32 core_v_addr;
 	u32 phy_v_addr;
-	Vps_HdmiConfigParams *cfg;
+	struct hdmi_cfg_params *cfg;
 	int i;
 };
 
 /* Global var */
 struct ti816x_hdmi_params hdmi_obj;
-static Vps_HdmiInitParams initParams;
+static struct ti816x_hdmi_init_params initParams;
 
 #if 1
 static u32 hdmi_mode = 4;
 #endif
-static Vps_HdmiConfigParams param720p60  = HDMI_HAL_INIT_8BIT_720P_60_16_9_HD;
-static Vps_HdmiConfigParams param1080p30 = HDMI_HAL_INIT_8BIT_1080P_30_16_9_HD;
-static Vps_HdmiConfigParams param1080i60 = HDMI_HAL_INIT_8BIT_1080I_60_16_9_HD;
-static Vps_HdmiConfigParams param1080p60 = HDMI_HAL_INIT_8BIT_1080P_60_16_9_HD;
+static struct hdmi_cfg_params param720p60  = TI816X_HDMI_8BIT_720_60_16_9_HD;
+static struct hdmi_cfg_params param1080p30 = TI816X_HDMI_8BIT_1080p_30_16_9_HD;
+static struct hdmi_cfg_params param1080i60 = TI816X_HDMI_8BIT_1080i_60_16_9_HD;
+static struct hdmi_cfg_params param1080p60 = TI816X_HDMI_8BIT_1080p_60_16_9_HD;
 
 #if 0
 module_param(hdmi_mode, uint, S_IRUGO);
@@ -77,7 +78,7 @@ static int ti816x_hdmi_remove(struct device *device);
 static int ti816x_hdmi_open(struct inode *inode, struct file *filp);
 static int ti816x_hdmi_release(struct inode *inode, struct file *filp);
 static int ti816x_hdmi_ioctl(struct inode *inode, struct file *file,
-                      unsigned int cmd, unsigned long arg);
+                      u32 cmd, unsigned long arg);
 
 static struct file_operations ti816x_hdmi_fops = {
         .owner = THIS_MODULE,
@@ -110,16 +111,16 @@ static int ti816x_hdmi_open(struct inode *inode, struct file *filp)
 
 	/* Call library to open HDMI */
 	if (hdmi_obj.cfg != NULL){
-		hdmi_obj.hdmi_lib_handle = VpsHal_hdmiOpen(0,hdmi_obj.cfg,&ret,0x0);
+		hdmi_obj.hdmi_lib_handle =
+            ti816x_hdmi_lib_open(0, &ret, 0x0);
 
 	}
-
 	if ((ret == 0x0) && (hdmi_obj.hdmi_lib_handle != NULL)) {
 
 		printk("TI816x_hdmi: Opend\n");
 		filp->private_data = &hdmi_obj;
 
-		ret = VpsHal_hdmiStart(hdmi_obj.hdmi_lib_handle, 0x0);
+		//ret = VpsHal_hdmiStart(hdmi_obj.hdmi_lib_handle, 0x0);
 	}
 	else{
 		printk("TI816x_hdmi: Could not open\n");
@@ -155,10 +156,13 @@ static int ti816x_hdmi_release(struct inode *inode, struct file *filp)
  * the application.
  */
 static int ti816x_hdmi_ioctl(struct inode *inode, struct file *file,
-                      unsigned int cmd, unsigned long arg)
+                      u32 cmd, unsigned long arg)
 {
+    struct ti816x_hdmi_params *params =
+		(struct ti816x_hdmi_params *)file->private_data;
+    void * handle = params->hdmi_lib_handle;
 	printk("TI816x_hdmi: Ioctl\n");
-	return 0;
+    return (ti816x_hdmi_lib_control(handle, cmd, arg, NULL));
 }
 
 static void ti816x_hdmi_platform_release(struct device *device)
@@ -243,14 +247,14 @@ int __init ti816x_hdmi_init(void)
 
 	/* Initialize the global strucutres... */
 	hdmi_obj.hdmi_lib_handle = NULL;
-	hdmi_obj.wp_v_addr = (int) ioremap(HDMI_WP_0_REGS, sizeof(CSL_Hdmi_WpRegs) + 1);
+	hdmi_obj.wp_v_addr = (int) ioremap(HDMI_WP_0_REGS, 512);
 	if (hdmi_obj.wp_v_addr == 0x0){
 		printk("TI816x_hdmi: Could not ioremap for WP\n");
 		goto err_remove_class;
 	} else {
 /*		printk("Wrapper at address %x", hdmi_obj.wp_v_addr);*/
 	}
-	hdmi_obj.core_v_addr = (int) ioremap(HDMI_CORE_0_REGS, sizeof(CSL_Hdmi_CoreRegs) + 1);
+	hdmi_obj.core_v_addr = (int) ioremap(HDMI_CORE_0_REGS, sizeof(2560) + 1);
 	if (hdmi_obj.core_v_addr == 0x0){
 		printk("TI816x_hdmi: Could not ioremap for Core\n");
 		goto err_remove_class;
@@ -258,7 +262,7 @@ int __init ti816x_hdmi_init(void)
 /*		printk("Core at address %x", hdmi_obj.core_v_addr);*/
 	}
 
-	hdmi_obj.phy_v_addr = (int) ioremap(HDMI_PHY_0_REGS, sizeof(CSL_Hdmi_PhyRegs) + 1);
+	hdmi_obj.phy_v_addr = (int) ioremap(HDMI_PHY_0_REGS, sizeof(64) + 1);
 	if (hdmi_obj.phy_v_addr == 0x0){
 		printk("TI816x_hdmi: Could not ioremap for PHY\n");
 		goto err_remove_class;
@@ -273,21 +277,16 @@ int __init ti816x_hdmi_init(void)
 #endif
 
 	/* Initialize the HDMI library */
-	initParams.wpBaseAddr       =   (u32) hdmi_obj.wp_v_addr;
-	initParams.coreBaseAddr     =   (u32) hdmi_obj.core_v_addr;
-	initParams.phyBaseAddr      =   (u32) hdmi_obj.phy_v_addr;
-	initParams.pllCtrlBaseAddr  =   (int) ioremap(HDMI_PLLCTRL_0_REGS, sizeof(CSL_Hdmi_PllCtrlRegs) + 1);
-	if (initParams.pllCtrlBaseAddr == 0x0){
-		printk("TI816x_hdmi: Could not ioremap for PLL\n");
-		goto err_remove_class;
-	}
-
+	initParams.wp_base_addr       =   (u32) hdmi_obj.wp_v_addr;
+	initParams.core_base_addr     =   (u32) hdmi_obj.core_v_addr;
+	initParams.phy_base_addr      =   (u32) hdmi_obj.phy_v_addr;
+#if 0
 	initParams.interruptNo      =   0x7;
 	initParams.vencId           =   0;
 	initParams.encoderId        =   0;
-
+#endif
 /*	printk("hdmi :: Initializing driver \n");*/
-	if (VpsHal_hdmiInit(&initParams) != 0x0){
+	if (ti816x_hdmi_lib_init(&initParams) != 0x0){
 		printk("TI816x_hdmi: Init failed\n");
 		goto err_remove_class;
 	}
@@ -349,24 +348,24 @@ void __exit ti816x_hdmi_exit(void)
 #if 1
 static void configureHdVenc1080P30(int useEmbeddedSync)
 {
-	volatile unsigned int *vencHd_D_Base	=	NULL;
+	volatile u32 *vencHd_D_Base	=	NULL;
 #if 0
-    volatile unsigned int *clkc_mod = NULL;
+    volatile u32 *clkc_mod = NULL;
 
-    clkc_mod =  (volatile unsigned int *) ioremap(0x48100000, 0x200);
+    clkc_mod =  (volatile u32 *) ioremap(0x48100000, 0x200);
 
-    clkc_mod = (volatile unsigned int *) (((unsigned int )clkc_mod) + 0x100);
+    clkc_mod = (volatile u32 *) (((u32 )clkc_mod) + 0x100);
 
     *clkc_mod   =   0xFFFFFFFF;
 
-    clkc_mod = (volatile unsigned int *) (((unsigned int )clkc_mod) + 0x14);
+    clkc_mod = (volatile u32 *) (((u32 )clkc_mod) + 0x14);
 
     *clkc_mod = 0xC000E;
     clkc_mod++;
     *clkc_mod = 0xF;
 #endif
 
-    vencHd_D_Base = (volatile unsigned int *) ioremap(0x48106000, 0x80);
+    vencHd_D_Base = (volatile u32 *) ioremap(0x48106000, 0x80);
     if (useEmbeddedSync != 0x0)
     {
         *vencHd_D_Base = 0x4002A033;

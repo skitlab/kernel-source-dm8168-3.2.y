@@ -33,7 +33,27 @@
 #define TI816X_HDMI_SET_PARAM	_IOW('N', num, dtype)
 #define TI816X_HDMI_GET_PARAM	_IOR('N', num, dtype)
 #endif
+/* IOCLT Supported by this driver */
+#define IOCTL_HDMI_START      		(0)
+#define IOCTL_HDMI_STOP       		(1)
+#define IOCTL_HDMI_GET_STATUS 		(2)
+#define IOCTL_HDMI_READ_EDID  		(3)
+/* Use this command only when hdmi is streaming video to a sink */
+#define IOCTL_HDMI_GET_CONFIG 		(4)
+#define IOCTL_HDMI_SET_CONFIG 		(5)
+#define IOCTL_HDMI_SET_MODE         (6)
 /* Data Types */
+
+/* Supported resolutions */
+enum hdmi_resolution {
+	hdmi_ntsc_mode = 0,
+	hdmi_pal_mode,
+	hdmi_1080P_60_mode,
+	hdmi_720P_60_mode,
+	hdmi_1080I_60_mode,
+	hdmi_1080P_30_mode,
+	hdmi_max_mode
+};
 
 #endif /* End of #ifndef __TI816X_HDMI_H__ */
 
