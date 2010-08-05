@@ -1145,6 +1145,12 @@ config TI816X_PCIE_BOOTDRV
 	  ioctls provided by this driver to perform the boot operation. Use 'M'
 	  to build as module.
 
+config TI816X_HDMI
+	tristate "TI816X HDMI Driver"
+	help
+	  This option builds driver required for booting TI816X HDMI
+	  Use 'M' to build as module.
+
 source "drivers/s390/char/Kconfig"
 
 config RAMOOPS
