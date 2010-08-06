@@ -341,6 +341,8 @@ void __exit ti816x_hdmi_exit(void)
 	iounmap((int *)hdmi_obj.wp_v_addr);
 	iounmap((int *)hdmi_obj.core_v_addr);
 	iounmap((int *)hdmi_obj.phy_v_addr);
+    iounmap((int *)hdmi_obj.prcm_v_addr);
+    iounmap((int *)hdmi_obj.venc_v_addr);
 }
 
 module_init(ti816x_hdmi_init);
