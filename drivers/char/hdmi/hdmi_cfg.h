@@ -42,7 +42,7 @@
 #define HDMI_CORE_0_REGS	(0x46c00400u)
 #define HDMI_WP_0_REGS		(0x46c00000u)
 #define HDMI_PHY_0_REGS		(0x48122000u)
-#define HDMI_PLLCTRL_0_REGS	(0x46c00600u)
+#define PRCM_0_REGS			(0x48180000u)
 
 /* Width of R/G/B or Y/Cb/Cr channels */
 enum hdmi_bits_per_chan {
@@ -304,6 +304,7 @@ struct ti816x_hdmi_init_params {
 	u32 wp_base_addr;
 	u32 core_base_addr;
 	u32 phy_base_addr;
+	u32 prcm_base_addr;
 };
 
 /* ========================================================================== */

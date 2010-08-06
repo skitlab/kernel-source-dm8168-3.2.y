@@ -40,6 +40,7 @@ struct ti816x_hdmi_params
 	u32 wp_v_addr;
 	u32 core_v_addr;
 	u32 phy_v_addr;
+	u32 prcm_v_addr;
 	struct hdmi_cfg_params *cfg;
 	int i;
 };
@@ -245,6 +246,13 @@ int __init ti816x_hdmi_init(void)
 		goto err_remove_class;
 	}
 
+	hdmi_obj.prcm_v_addr = (int) ioremap(PRCM_0_REGS, 0x500);
+	if (hdmi_obj.prcm_v_addr == 0x0){
+		printk("TI816x_hdmi: Could not ioremap for PRCM\n");
+		goto err_remove_class;
+	} else {
+		printk("PRCM at address %x", hdmi_obj.prcm_v_addr);
+	}
 	/* Initialize the global strucutres... */
 	hdmi_obj.hdmi_lib_handle = NULL;
 	hdmi_obj.wp_v_addr = (int) ioremap(HDMI_WP_0_REGS, 512);
@@ -252,22 +260,22 @@ int __init ti816x_hdmi_init(void)
 		printk("TI816x_hdmi: Could not ioremap for WP\n");
 		goto err_remove_class;
 	} else {
-/*		printk("Wrapper at address %x", hdmi_obj.wp_v_addr);*/
+		printk("Wrapper at address %x", hdmi_obj.wp_v_addr);
 	}
-	hdmi_obj.core_v_addr = (int) ioremap(HDMI_CORE_0_REGS, sizeof(2560) + 1);
+	hdmi_obj.core_v_addr = (int) ioremap(HDMI_CORE_0_REGS, 2560);
 	if (hdmi_obj.core_v_addr == 0x0){
 		printk("TI816x_hdmi: Could not ioremap for Core\n");
 		goto err_remove_class;
 	} else {
-/*		printk("Core at address %x", hdmi_obj.core_v_addr);*/
+		printk("Core at address %x", hdmi_obj.core_v_addr);
 	}
 
-	hdmi_obj.phy_v_addr = (int) ioremap(HDMI_PHY_0_REGS, sizeof(64) + 1);
+	hdmi_obj.phy_v_addr = (int) ioremap(HDMI_PHY_0_REGS, 64);
 	if (hdmi_obj.phy_v_addr == 0x0){
 		printk("TI816x_hdmi: Could not ioremap for PHY\n");
 		goto err_remove_class;
 	} else {
-/*		printk("PHY at address %x", hdmi_obj.phy_v_addr);*/
+		printk("PHY at address %x", hdmi_obj.phy_v_addr);
 	}
 
 #if 1
@@ -280,6 +288,8 @@ int __init ti816x_hdmi_init(void)
 	initParams.wp_base_addr       =   (u32) hdmi_obj.wp_v_addr;
 	initParams.core_base_addr     =   (u32) hdmi_obj.core_v_addr;
 	initParams.phy_base_addr      =   (u32) hdmi_obj.phy_v_addr;
+	initParams.prcm_base_addr     =   (u32) hdmi_obj.prcm_v_addr;
+	printk("%s %d prcm_base = %x\n", __func__, __LINE__, initParams.prcm_base_addr);
 #if 0
 	initParams.interruptNo      =   0x7;
 	initParams.vencId           =   0;

@@ -134,6 +134,7 @@ struct instance_cfg {
 	u32 core_base_addr;
 	u32 wp_base_addr;
 	u32 phy_base_addr;
+	u32 prcm_base_addr;
 	Bool is_recvr_sensed;
 	Bool is_scl_clocked;
 	Bool is_streaming;
@@ -1240,6 +1241,42 @@ exit_this_func:
 	return (rtn_value);
 }
 
+void enable_hdmi_clocks(u32 prcm_base)
+{
+	u32 temp;
+    printk("HDMI Clk enable in progress\n");
+	temp = 2;
+	/*Enable Power Domain Transition for HDMI */
+    __raw_writel(temp, (prcm_base + CM_HDMI_CLKSTCTRL_OFF));
+	/*Enable HDMI Clocks*/
+	__raw_writel(temp, (prcm_base + CM_ACTIVE_HDMI_CLKCTRL_OFF));
+
+	/*Check clocks are active*/
+	while(((__raw_readl(prcm_base + CM_HDMI_CLKSTCTRL_OFF)) >> 8) != 0x3);
+
+	printk("HDMI Clk enanbled\n");
+
+	/* Check to see module is functional */
+	while(((__raw_readl(prcm_base + CM_ACTIVE_HDMI_CLKCTRL_OFF) & 0x70000) >> 16) != 0) ;
+
+	printk("HDMI Clocks enabled successfully\n");
+
+#if 0
+	WR_MEM_32(CM_HDMI_CLKSTCTRL,        2);
+    WR_MEM_32(CM_ACTIVE_HDMI_CLKCTRL,   2);
+
+    /*Check clocks are active*/
+    while(((RD_MEM_32(CM_HDMI_CLKSTCTRL) & 0x300) >> 8) != 0x3) ;
+
+    GEL_TextOut("\tHDMI Clocks are active \n","Output",1,1,1);
+
+    /* Check to see module is functional */
+    while(((RD_MEM_32(CM_ACTIVE_HDMI_CLKCTRL) & 0x70000) >> 16) != 0) ;
+
+    GEL_TextOut("\tPRCM for HDMI is Done Successfully  \n","Output",1,1,1);
+#endif
+}
+
 /* ========================================================================== */
 /*                            Global Functions                                */
 /* ========================================================================== */
@@ -1261,6 +1298,9 @@ int ti816x_hdmi_lib_init(struct ti816x_hdmi_init_params *init_param)
 	hdmi_config.core_base_addr = init_param->core_base_addr;
 	hdmi_config.wp_base_addr = init_param->wp_base_addr;
 	hdmi_config.phy_base_addr = init_param->phy_base_addr;
+	hdmi_config.prcm_base_addr = init_param->prcm_base_addr;
+	printk("%s %d prcm_base = %x\n", __func__, __LINE__, init_param->prcm_base_addr);
+	enable_hdmi_clocks(hdmi_config.prcm_base_addr);
 
 	memcpy(((void *) &(hdmi_config.config)),
 	       ((void *) &default_config), sizeof(struct hdmi_cfg_params));
