@@ -41,6 +41,7 @@ struct ti816x_hdmi_params
 	u32 core_v_addr;
 	u32 phy_v_addr;
 	u32 prcm_v_addr;
+    u32 venc_v_addr;
 	struct hdmi_cfg_params *cfg;
 	int i;
 };
@@ -56,16 +57,6 @@ static struct hdmi_cfg_params param720p60  = TI816X_HDMI_8BIT_720_60_16_9_HD;
 static struct hdmi_cfg_params param1080p30 = TI816X_HDMI_8BIT_1080p_30_16_9_HD;
 static struct hdmi_cfg_params param1080i60 = TI816X_HDMI_8BIT_1080i_60_16_9_HD;
 static struct hdmi_cfg_params param1080p60 = TI816X_HDMI_8BIT_1080p_60_16_9_HD;
-
-#if 0
-module_param(hdmi_mode, uint, S_IRUGO);
-
-MODULE_PARM_DESC(hdmi_mode, "Resolution required 1-720p60 2-1080p30 3-1080i60 4-1080p60 (default:2)");
-#endif
-
-#if 1
-static void configureHdVenc1080P30(int useEmbeddedSync);
-#endif
 
 static int ti816x_hdmi_major;
 static struct cdev ti816x_hdmi_cdev;
@@ -278,23 +269,20 @@ int __init ti816x_hdmi_init(void)
 		printk("PHY at address %x", hdmi_obj.phy_v_addr);
 	}
 
-#if 1
-	printk("hdmi :: Initializing the venc \n");
-	configureHdVenc1080P30(0);
-	printk("hdmi :: Venc initialized \n");
-#endif
-
+    hdmi_obj.venc_v_addr = (volatile u32 *) ioremap(0x48106000, 0x80);
+    if (hdmi_obj.venc_v_addr == 0x0){
+		printk("TI816x_hdmi: Could not ioremap for Venc\n");
+		goto err_remove_class;
+	} else {
+		printk("PHY at address %x", hdmi_obj.venc_v_addr);
+	}
 	/* Initialize the HDMI library */
 	initParams.wp_base_addr       =   (u32) hdmi_obj.wp_v_addr;
 	initParams.core_base_addr     =   (u32) hdmi_obj.core_v_addr;
 	initParams.phy_base_addr      =   (u32) hdmi_obj.phy_v_addr;
 	initParams.prcm_base_addr     =   (u32) hdmi_obj.prcm_v_addr;
-	printk("%s %d prcm_base = %x\n", __func__, __LINE__, initParams.prcm_base_addr);
-#if 0
-	initParams.interruptNo      =   0x7;
-	initParams.vencId           =   0;
-	initParams.encoderId        =   0;
-#endif
+    initParams.venc_base_addr     =   (u32) hdmi_obj.venc_v_addr;
+
 /*	printk("hdmi :: Initializing driver \n");*/
 	if (ti816x_hdmi_lib_init(&initParams) != 0x0){
 		printk("TI816x_hdmi: Init failed\n");
@@ -354,93 +342,6 @@ void __exit ti816x_hdmi_exit(void)
 	iounmap((int *)hdmi_obj.core_v_addr);
 	iounmap((int *)hdmi_obj.phy_v_addr);
 }
-
-#if 1
-static void configureHdVenc1080P30(int useEmbeddedSync)
-{
-	volatile u32 *vencHd_D_Base	=	NULL;
-#if 0
-    volatile u32 *clkc_mod = NULL;
-
-    clkc_mod =  (volatile u32 *) ioremap(0x48100000, 0x200);
-
-    clkc_mod = (volatile u32 *) (((u32 )clkc_mod) + 0x100);
-
-    *clkc_mod   =   0xFFFFFFFF;
-
-    clkc_mod = (volatile u32 *) (((u32 )clkc_mod) + 0x14);
-
-    *clkc_mod = 0xC000E;
-    clkc_mod++;
-    *clkc_mod = 0xF;
-#endif
-
-    vencHd_D_Base = (volatile u32 *) ioremap(0x48106000, 0x80);
-    if (useEmbeddedSync != 0x0)
-    {
-        *vencHd_D_Base = 0x4002A033;
-    }
-    else
-    {
-        *vencHd_D_Base = 0x4003A033;
-    }
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x003F0275;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x1EA500BB;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x1F9901C2;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x1FD71E67;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x004001C2;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x00200200;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x1B6C0C77;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x1C0C0C30;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x1C0C0C30;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x84465898;    /* 0x28 */
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x3F000028;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x587800BF;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x00000460;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x000C39E7;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x58780118;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x0002A86D;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x00438000;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x05000000;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x00003000;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x00000000;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x58780110;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x0002A86D;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x00438000;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x05000000;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x00003000;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x00000000;
-	vencHd_D_Base++;
-	*vencHd_D_Base = 0x00000000;
-
-}
-#endif
 
 module_init(ti816x_hdmi_init);
 module_exit(ti816x_hdmi_exit);

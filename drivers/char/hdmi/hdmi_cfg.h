@@ -18,16 +18,6 @@
 #define TRUE    1
 #define FALSE   0
 
-#define VPS_SOK                 (0x0u)
-#define VPS_EBADARGS            (-1)
-#define VPS_EUNSUPPORTED_CMD    (-2)
-#define VPS_EFAIL               (-3)
-#define VPS_ETIMEOUT            (-4)
-#define VPS_EUNSUPPORTED_OPS    (-5)
-#define VPS_EALLOC              (-6)
-#define VPS_EDRIVER_INUSE       (-7)
-#define VPS_EOUT_OF_RANGE       (-8)
-#define VPS_EDEVICE_INUSE       (-9)
 
 #define HDMI_GT_ENTER           0
 #define HDMI_GT_DEBUG           1
@@ -305,6 +295,7 @@ struct ti816x_hdmi_init_params {
 	u32 core_base_addr;
 	u32 phy_base_addr;
 	u32 prcm_base_addr;
+    u32 venc_base_addr;
 };
 
 /* ========================================================================== */

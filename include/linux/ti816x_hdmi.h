@@ -42,6 +42,7 @@
 #define IOCTL_HDMI_GET_CONFIG 		(4)
 #define IOCTL_HDMI_SET_CONFIG 		(5)
 #define IOCTL_HDMI_SET_MODE         (6)
+#define IOCTL_HDMI_TEST_HDMI        (7)
 /* Data Types */
 
 /* Supported resolutions */

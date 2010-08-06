@@ -29,8 +29,10 @@
 /*                             Include Files                                  */
 /* ========================================================================== */
 #include <linux/kernel.h>
+#include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/ti816x_hdmi.h>
+
 #include "hdmi_cfg.h"
 #include "regoffsets.h"
 /* #include <arch\arm\include\asm\io.h> */
@@ -135,6 +137,7 @@ struct instance_cfg {
 	u32 wp_base_addr;
 	u32 phy_base_addr;
 	u32 prcm_base_addr;
+    u32 venc_base_addr;
 	Bool is_recvr_sensed;
 	Bool is_scl_clocked;
 	Bool is_streaming;
@@ -677,7 +680,7 @@ static int configure_policies(struct instance_cfg *inst_context)
 		HDMI_0_TRACE("No Pixel repeatation required");
 	} else {
 		HDMI_0_TRACE("Could not determine pixel that would be required");
-		rtn_value = VPS_EUNSUPPORTED_OPS;
+		rtn_value = -EINVAL ;
 		goto exit_this_func;
 	}
 	__raw_writel(temp, (core_addr + HDMI_CORE_VID_CTRL_OFFSET));
@@ -848,7 +851,7 @@ static int configure_avi_info_frame(struct instance_cfg *inst_context)
 		infoPkt->format_identier = 16u;
 		break;
 	default:
-		rtn_value = VPS_EUNSUPPORTED_CMD;
+		rtn_value = -EINVAL ;
 		goto exit_this_func;
 	}
 
@@ -982,7 +985,7 @@ static int configure_csc_ycbcr_rgb(struct instance_cfg *inst_context)
 
 static int validate_info_frame_cfg(struct hdmi_info_frame_cfg *config)
 {
-	int rtn_value = VPS_EBADARGS;
+	int rtn_value = -EFAULT ;
 	struct hdmi_avi_frame_cfg *aviData = NULL;
 	HDMI_0_TRACE(">>>>validate_info_frame_cfg");
 
@@ -1036,12 +1039,12 @@ static int validate_core_config(struct hdmi_core_input_cfg *config)
 
 	if (config->data_bus_width > hdmi_10_bits_chan_width) {
 		HDMI_0_TRACE("Bus width should be <=30 bits/pixel");
-		return (VPS_EBADARGS);
+		return (-EFAULT );
 	}
 
 	if (config->sync_gen_cfg >= hdmi_max_syncs) {
 		HDMI_0_TRACE("Incorrect meathods used for synchronization");
-		return (VPS_EBADARGS);
+		return (-EFAULT );
 	}
 
 	HDMI_0_TRACE("validate_core_config<<<<");
@@ -1050,7 +1053,7 @@ static int validate_core_config(struct hdmi_core_input_cfg *config)
 
 static int validate_wp_cfg(struct hdmi_wp_config *config)
 {
-	int rtn_value = VPS_EBADARGS;
+	int rtn_value = -EFAULT ;
 	HDMI_0_TRACE(">>>>validate_wp_cfg");
 
 	if ((config->debounce_rcv_detect < 0x01) ||
@@ -1091,7 +1094,7 @@ static int validate_path_config(struct hdmi_core_data_path *config)
 	if (config->output_width >= hdmi_max_bits_chan_width) {
 		HDMI_1_TRACE("In valid output channel width",
 			       config->output_width);
-		return (VPS_EBADARGS);
+		return (-EFAULT );
 	}
 	HDMI_0_TRACE("validate_path_config<<<<");
 	return (0x0);
@@ -1107,7 +1110,7 @@ static int check_copy_config(struct instance_cfg *inst_cntxt,
 	if (config->use_display_mode != 0x0) {
 		if (config->display_mode >= hdmi_max_mode) {
 			HDMI_0_TRACE("Incorrect mode id");
-			rtn_value = VPS_EUNSUPPORTED_CMD;
+			rtn_value = -EINVAL ;
 			goto exit_this_func;
 		}
 		inst_cntxt->config.display_mode = config->display_mode;
@@ -1205,7 +1208,7 @@ static int determine_pixel_repeatation(struct instance_cfg *inst_context)
 		break;
 	default:
 		/* This should not happen */
-		rtn_value = VPS_EFAIL;
+		rtn_value = -EINVAL ;
 		HDMI_0_TRACE("The display format is not supported");
 		break;
 	}
@@ -1228,7 +1231,7 @@ static int determine_pixel_repeatation(struct instance_cfg *inst_context)
 			}
 			/* We could not still meet the HDMI needs - let the
 			   caller know */
-			rtn_value = VPS_EOUT_OF_RANGE;
+			rtn_value = -EINVAL ;
 			HDMI_0_TRACE(
 				"Resolution too low Could not reach 25 MHz");
 			goto exit_this_func;
@@ -1277,6 +1280,286 @@ void enable_hdmi_clocks(u32 prcm_base)
 #endif
 }
 
+
+/* Ideally vencs should be configured from the HDVPSS drivers.  But in case
+ * we want to test the HDMI this fuction can be used to generate the test
+ * pattern on venc and HDMI can be tested in absence of HDVPSS drivers
+ */
+/*******************************************************************************
+ *                          Venc Configurations                               *
+ ******************************************************************************/
+
+static void configure_venc_1080p30(u32 *venc_base, int useEmbeddedSync)
+{
+    if (useEmbeddedSync != 0x0)
+    {
+        *venc_base = 0x4002A033;
+    }
+    else
+    {
+        *venc_base = 0x4003A033;
+    }
+	venc_base++;
+	*venc_base = 0x003F0275;
+	venc_base++;
+	*venc_base = 0x1EA500BB;
+	venc_base++;
+	*venc_base = 0x1F9901C2;
+	venc_base++;
+	*venc_base = 0x1FD71E67;
+	venc_base++;
+	*venc_base = 0x004001C2;
+	venc_base++;
+	*venc_base = 0x00200200;
+	venc_base++;
+	*venc_base = 0x1B6C0C77;
+	venc_base++;
+	*venc_base = 0x1C0C0C30;
+	venc_base++;
+	*venc_base = 0x1C0C0C30;
+	venc_base++;
+	*venc_base = 0x84465898;    /* 0x28 */
+	venc_base++;
+	*venc_base = 0x3F000028;
+	venc_base++;
+	*venc_base = 0x587800BF;
+	venc_base++;
+	*venc_base = 0x00000460;
+	venc_base++;
+	*venc_base = 0x000C39E7;
+	venc_base++;
+	*venc_base = 0x58780118;
+	venc_base++;
+	*venc_base = 0x0002A86D;
+	venc_base++;
+	*venc_base = 0x00438000;
+	venc_base++;
+	*venc_base = 0x05000000;
+	venc_base++;
+	*venc_base = 0x00003000;
+	venc_base++;
+	*venc_base = 0x00000000;
+	venc_base++;
+	*venc_base = 0x58780110;
+	venc_base++;
+	*venc_base = 0x0002A86D;
+	venc_base++;
+	*venc_base = 0x00438000;
+	venc_base++;
+	*venc_base = 0x05000000;
+	venc_base++;
+	*venc_base = 0x00003000;
+	venc_base++;
+	*venc_base = 0x00000000;
+	venc_base++;
+	*venc_base = 0x00000000;
+
+}
+
+void configure_venc_1080p60(u32 *venc_base, int useEmbeddedSync)
+{
+
+    if (useEmbeddedSync != 0x0)
+    {
+        *venc_base = 0x4002A033;
+    }
+    else
+    {
+        *venc_base = 0x4003A033;
+    }
+	venc_base++;
+	*venc_base = 0x003F0275;
+	venc_base++;
+	*venc_base = 0x1EA500BB;
+	venc_base++;
+	*venc_base = 0x1F9901C2;
+	venc_base++;
+	*venc_base = 0x1FD71E67;
+	venc_base++;
+	*venc_base = 0x004001C2;
+	venc_base++;
+	*venc_base = 0x00200200;
+	venc_base++;
+	*venc_base = 0x1B6C0C77;
+	venc_base++;
+	*venc_base = 0x1C0C0C30;
+	venc_base++;
+	*venc_base = 0x1C0C0C30;
+	venc_base++;
+	*venc_base = 0x84465898;    /* 0x28 */
+	venc_base++;
+	*venc_base = 0x3F000028;
+	venc_base++;
+	*venc_base = 0x587800BF;
+	venc_base++;
+	*venc_base = 0x00000460;
+	venc_base++;
+	*venc_base = 0x000C39E7;
+	venc_base++;
+	*venc_base = 0x58780118;
+	venc_base++;
+	*venc_base = 0x0002A86D;
+	venc_base++;
+	*venc_base = 0x00438000;
+	venc_base++;
+	*venc_base = 0x05000000;
+	venc_base++;
+	*venc_base = 0x00003000;
+	venc_base++;
+	*venc_base = 0x00000000;
+	venc_base++;
+	*venc_base = 0x58780110;
+	venc_base++;
+	*venc_base = 0x0002A86D;
+	venc_base++;
+	*venc_base = 0x00438000;
+	venc_base++;
+	*venc_base = 0x05000000;
+	venc_base++;
+	*venc_base = 0x00003000;
+	venc_base++;
+	*venc_base = 0x00000000;
+	venc_base++;
+	*venc_base = 0x00000000;
+
+}
+
+
+void configure_venc_1080i60(u32 *venc_base, int useEmbeddedSync)
+{
+
+    if (useEmbeddedSync != 0x0)
+    {
+        *venc_base = 0x4002A033;
+    }
+    else
+    {
+        *venc_base = 0x4003A03A;
+    }
+
+	venc_base++;
+	*venc_base = 0x003F0275;
+	venc_base++;
+	*venc_base = 0x1EA500BB;
+	venc_base++;
+	*venc_base = 0x1F9901C2;
+	venc_base++;
+	*venc_base = 0x1FD71E67;
+	venc_base++;
+	*venc_base = 0x004001C2;
+	venc_base++;
+	*venc_base = 0x00200200;
+	venc_base++;
+	*venc_base = 0x1B6C0C77;
+	venc_base++;
+	*venc_base = 0x1C0C0C30;
+	venc_base++;
+	*venc_base = 0x1C0C0C30;
+	venc_base++;
+	*venc_base = 0x84465898;    /* 0x28 */
+	venc_base++;
+	*venc_base = 0x3F245013;
+	venc_base++;
+	*venc_base = 0x587800C0;
+	venc_base++;
+	*venc_base = 0x00000230;
+	venc_base++;
+	*venc_base = 0x000C39E7;
+	venc_base++;
+	*venc_base = 0x587800C1;
+	venc_base++;
+	*venc_base = 0x0001586D;
+	venc_base++;
+	*venc_base = 0x0021C247;
+	venc_base++;
+	*venc_base = 0x0500021C;
+	venc_base++;
+	*venc_base = 0x05001232;
+	venc_base++;
+	*venc_base = 0x00234234;
+	venc_base++;
+	*venc_base = 0x587800C0;
+	venc_base++;
+	*venc_base = 0x0001586D;
+	venc_base++;
+	*venc_base = 0x0021C247;
+	venc_base++;
+	*venc_base = 0x0500021C;
+	venc_base++;
+	*venc_base = 0x05001232;
+	venc_base++;
+	*venc_base = 0x00000000;
+	venc_base++;
+	*venc_base = 0x00000000;
+}
+
+void configure_venc_720p60(u32* venc_base, int useEmbeddedSync)
+{
+    if (useEmbeddedSync != 0x0)
+    {
+        *venc_base = 0x4002A033;
+    }
+    else
+    {
+        *venc_base = 0x4003A033;
+    }
+
+	venc_base++;
+	*venc_base = 0x1FD01E24;
+	venc_base++;
+	*venc_base = 0x02DC020C;
+	venc_base++;
+	*venc_base = 0x00DA004A;
+	venc_base++;
+	*venc_base = 0x020C1E6C;
+	venc_base++;
+	*venc_base = 0x02001F88;
+	venc_base++;
+	*venc_base = 0x00200000;
+	venc_base++;
+	*venc_base = 0x1B6C0C77;
+	venc_base++;
+	*venc_base = 0x1C0C0C30;
+	venc_base++;
+	*venc_base = 0x1C0C0C30;
+	venc_base++;
+	*venc_base = 0x842EE672;    /* 0x28 */
+	venc_base++;
+	*venc_base = 0x3F000018;
+	venc_base++;
+	*venc_base = 0x50500103;
+	venc_base++;
+	*venc_base = 0x000002E8;
+	venc_base++;
+	*venc_base = 0x000C39E7;
+	venc_base++;
+	*venc_base = 0x50500172;
+	venc_base++;
+	*venc_base = 0x0001A64B;
+	venc_base++;
+	*venc_base = 0x002D0000;
+	venc_base++;
+	*venc_base = 0x05000000;
+	venc_base++;
+	*venc_base = 0x00003000;
+	venc_base++;
+	*venc_base = 0x00000000;
+	venc_base++;
+	*venc_base = 0x5050016A;
+	venc_base++;
+	*venc_base = 0x0001A64B;
+	venc_base++;
+	*venc_base = 0x002D0000;
+	venc_base++;
+	*venc_base = 0x05000000;
+	venc_base++;
+	*venc_base = 0x00003000;
+	venc_base++;
+	*venc_base = 0x00000000;
+	venc_base++;
+	*venc_base = 0x00000000;
+}
+
 /* ========================================================================== */
 /*                            Global Functions                                */
 /* ========================================================================== */
@@ -1285,7 +1568,7 @@ int ti816x_hdmi_lib_init(struct ti816x_hdmi_init_params *init_param)
 {
 	int rtn_value = 0x0;
 	if (init_param == NULL) {
-		rtn_value = VPS_EBADARGS;
+		rtn_value = -EFAULT ;
 		goto exit_this_func;
 	}
 
@@ -1299,6 +1582,7 @@ int ti816x_hdmi_lib_init(struct ti816x_hdmi_init_params *init_param)
 	hdmi_config.wp_base_addr = init_param->wp_base_addr;
 	hdmi_config.phy_base_addr = init_param->phy_base_addr;
 	hdmi_config.prcm_base_addr = init_param->prcm_base_addr;
+    hdmi_config.venc_base_addr = init_param->prcm_base_addr;
 	printk("%s %d prcm_base = %x\n", __func__, __LINE__, init_param->prcm_base_addr);
 	enable_hdmi_clocks(hdmi_config.prcm_base_addr);
 
@@ -1317,7 +1601,7 @@ int ti816x_hdmi_lib_deinit(void *args)
 
 	if ((hdmi_config.state != HDMI_INST_CLOSED) &&
 	    (hdmi_config.state != HDMI_INST_INITIALIZED)) {
-		rtn_value = VPS_EALLOC;
+		rtn_value = -EINVAL ;
 		goto exit_this_func;
 	}
 	/* Semaphore_delete(&(hdmi_config[index].guard)); */
@@ -1334,14 +1618,13 @@ int ti816x_hdmi_lib_deinit(void *args)
 void *ti816x_hdmi_lib_open(u32 instance, int *status, void *args)
 {
     struct instance_cfg *inst_context = NULL;
-    struct hdmi_cfg_params config;
     int    retval = 0;
 
     inst_context = &(hdmi_config);
     if ((hdmi_config.state == HDMI_INST_OPENED) ||
 	    (hdmi_config.state == HDMI_INST_UN_INITIALIZED)) {
         if (status)
-            *status = VPS_EDRIVER_INUSE;
+            *status = -EINVAL ;
         return NULL;
 	}
     /* While opening configure the HDMI with default parameters. These
@@ -1365,12 +1648,11 @@ int ti816x_hdmi_lib_config(struct hdmi_cfg_params *config)
 	int rtn_value = 0x0;
 	volatile u32 reset_time_out;
 	volatile u32 temp;
-	volatile u32 wp_addr;
 
     inst_context = &(hdmi_config);
 	if (config != NULL) {
 		if (check_copy_config(&(hdmi_config), config) != 0x0) {
-			rtn_value = VPS_EBADARGS;
+			rtn_value = -EFAULT ;
 			goto exit_this_func;
 		}
 	}
@@ -1391,7 +1673,7 @@ int ti816x_hdmi_lib_config(struct hdmi_cfg_params *config)
 		reset_time_out--;
 		if (reset_time_out == 0x0) {
 			HDMI_0_TRACE("Could not reset wrapper ");
-			rtn_value = VPS_EBADARGS;
+			rtn_value = -EFAULT ;
 			goto exit_this_func;
 		}
 	}
@@ -1405,7 +1687,7 @@ int ti816x_hdmi_lib_config(struct hdmi_cfg_params *config)
 	rtn_value = configure_wrapper(inst_context);
 	if (rtn_value != 0x0) {
 		HDMI_0_TRACE("Could not configure wrapper");
-		rtn_value = VPS_EFAIL;
+		rtn_value = -EINVAL ;
 	}
 
 	temp =
@@ -1499,19 +1781,19 @@ int ti816x_hdmi_lib_close(void *handle, void *args)
 	HDMI_ARGS_CHECK((args == NULL));
 
 	if (handle == NULL) {
-		rtn_value = VPS_EBADARGS;
+		rtn_value = -EFAULT ;
 		goto exit_this_func;
 	}
 	inst_context = (struct instance_cfg *) handle;
 	if (inst_context->state != HDMI_INST_OPENED) {
-		rtn_value = VPS_EUNSUPPORTED_OPS;
+		rtn_value = -EINVAL ;
 		goto exit_this_func;
 	}
 	if (inst_context->is_streaming == FALSE) {
 		inst_context->state = HDMI_INST_CLOSED;
 		goto exit_this_func;
 	}
-	rtn_value = VPS_EBADARGS;
+	rtn_value = -EFAULT ;
 exit_this_func:
 	HDMI_0_TRACE("ti816x_hdmi_lib_close<<<<");
 	return (rtn_value);
@@ -1525,13 +1807,13 @@ static int ti816x_hdmi_lib_get_cfg(void *handle,
 	HDMI_0_TRACE(">>>>ti816x_hdmi_lib_get_cfg");
 	HDMI_ARGS_CHECK((args == NULL));
 	if ((handle == NULL) || (config == NULL)) {
-		rtn_value = VPS_EBADARGS;
+		rtn_value = -EFAULT ;
 		HDMI_0_TRACE("Invalid handle/config pointer");
 		goto exit_this_func;
 	}
 	inst_context = (struct instance_cfg *) handle;
 	if (inst_context->state != HDMI_INST_OPENED) {
-		rtn_value = VPS_EUNSUPPORTED_OPS;
+		rtn_value = -EINVAL ;
 		HDMI_0_TRACE("Instance not yet opened");
 		goto exit_this_func;
 	}
@@ -1567,16 +1849,16 @@ static int ti816x_hdmi_lib_set_cfg(void *handle,
 		       (inst_context->coreRegOvrlay != NULL));
 	if (inst_context->state != HDMI_INST_OPENED) {
 		HDMI_0_TRACE("Not yet opened");
-		rtn_value = VPS_EDRIVER_INUSE;
+		rtn_value = -EINVAL ;
 		goto exit_this_func;
 	}
 	if (inst_context->is_streaming == TRUE) {
 		HDMI_0_TRACE("Streaming - cannot re-configure");
-		rtn_value = VPS_EUNSUPPORTED_CMD;
+		rtn_value = -EINVAL ;
 		goto exit_this_func;
 	}
 	if (config == NULL) {
-		rtn_value = VPS_EBADARGS;
+		rtn_value = -EFAULT ;
 		goto exit_this_func;
 	}
 
@@ -1594,7 +1876,7 @@ static int ti816x_hdmi_lib_set_cfg(void *handle,
 		rtn_value = configure_wrapper(inst_context);
 		if (rtn_value != 0x0) {
 			HDMI_0_TRACE("Could not configure wrapper");
-			rtn_value = VPS_EFAIL;
+			rtn_value = -EINVAL ;
 			goto exit_this_func;
 		}
 	}
@@ -1690,13 +1972,13 @@ int ti816x_hdmi_lib_start(void *handle, void *args)
 	HDMI_ARGS_CHECK((args == NULL));
 
 	if (handle == NULL) {
-		rtn_value = VPS_EBADARGS;
+		rtn_value = -EFAULT ;
 		HDMI_0_TRACE("Invalid handle/config pointer");
 		goto exit_this_func;
 	}
 	inst_context = (struct instance_cfg *) handle;
 	if (inst_context->state != HDMI_INST_OPENED) {
-		rtn_value = VPS_EUNSUPPORTED_OPS;
+		rtn_value = -EINVAL ;
 		HDMI_0_TRACE("Instance not yet opened");
 		goto exit_this_func;
 	}
@@ -1787,7 +2069,7 @@ int ti816x_hdmi_lib_start(void *handle, void *args)
 		HDMI_0_TRACE("Started the port");
 	} else {
 			if (inst_context->is_recvr_sensed == TRUE){
-				rtn_value = VPS_EBADARGS;
+				rtn_value = -EFAULT ;
 				HDMI_0_TRACE("No Sinks dected-not starting");
 			}
 		}
@@ -1806,13 +2088,13 @@ int ti816x_hdmi_lib_stop(void *handle, void *args)
 	HDMI_ARGS_CHECK((args == NULL));
 
 	if (handle == NULL) {
-		rtn_value = VPS_EBADARGS;
+		rtn_value = -EFAULT ;
 		HDMI_0_TRACE("Invalid handle/config pointer");
 		goto exit_this_func;
 	}
 	inst_context = (struct instance_cfg *) handle;
 	if (inst_context->state != HDMI_INST_OPENED) {
-		rtn_value = VPS_EUNSUPPORTED_OPS;
+		rtn_value = -EINVAL ;
 		HDMI_0_TRACE("Instance not yet opened");
 		goto exit_this_func;
 	}
@@ -1847,13 +2129,13 @@ int ti816x_hdmi_lib_control(void *handle,
 	HDMI_0_TRACE(">>>>ti816x_hdmi_lib_control");
 	/* Validate the handle and execute the command. */
 	if ((handle == NULL) || (cmdArgs == NULL)) {
-		rtn_value = VPS_EBADARGS;
+		rtn_value = -EFAULT ;
 		HDMI_0_TRACE("Invalid handle/cmdArgs pointer");
 		goto exit_this_func;
 	}
 	inst_context = (struct instance_cfg *) handle;
 	if (inst_context->state != HDMI_INST_OPENED) {
-		rtn_value = VPS_EUNSUPPORTED_OPS;
+		rtn_value = -EINVAL ;
 		HDMI_0_TRACE("Instance not yet opened");
 		goto exit_this_func;
 	}
@@ -1866,7 +2148,7 @@ int ti816x_hdmi_lib_control(void *handle,
 		rtn_value = ti816x_hdmi_lib_stop(handle, NULL);
 		break;
 	case IOCTL_HDMI_GET_STATUS:
-		rtn_value = VPS_EBADARGS;
+		rtn_value = -EFAULT ;
 		if (cmdArgs != NULL) {
 			(*(u32 *) cmdArgs) = inst_context->is_streaming;
 			rtn_value = 0x0;
@@ -1888,14 +2170,41 @@ int ti816x_hdmi_lib_control(void *handle,
     {
         if (NULL != cmdArgs)
         {
-            return (ti816x_hdmi_lib_config((struct hdmi_cfg_params *)cmdArgs));
+            rtn_value =
+                (ti816x_hdmi_lib_config((struct hdmi_cfg_params *)cmdArgs));
         }
-		return (VPS_EBADARGS);
+        else
+        {
+            rtn_value = -EFAULT ;
+        }
+
     }
     case IOCTL_HDMI_SET_MODE:
-            return (ti816x_hdmi_set_mode((enum hdmi_resolution)cmdArgs));
+            rtn_value =  (ti816x_hdmi_set_mode((enum hdmi_resolution)cmdArgs));
+            break;
+    case IOCTL_HDMI_TEST_HDMI:
+        printk("In HDMI TEST venc_base = %d\n", inst_context->venc_base_addr);
+        switch ((enum hdmi_resolution)cmdArgs)
+        {
+            case hdmi_1080P_30_mode:
+                configure_venc_1080p30((u32 *)inst_context->venc_base_addr, 0);
+                break;
+            case hdmi_1080P_60_mode:
+                configure_venc_1080p60((u32 *)inst_context->venc_base_addr, 0);
+                break;
+            case hdmi_1080I_60_mode:
+                configure_venc_1080i60((u32 *)inst_context->venc_base_addr, 0);
+                break;
+            case hdmi_720P_60_mode:
+                configure_venc_720p60((u32 *)inst_context->venc_base_addr, 0);
+                break;
+            default :
+                rtn_value = -EINVAL;
+        }
+        rtn_value =  ti816x_hdmi_set_mode((enum hdmi_resolution)cmdArgs);
+        break;
 	default:
-		rtn_value = VPS_EBADARGS;
+		rtn_value = -EFAULT ;
 		HDMI_0_TRACE("Un-recoganized command");
 		break;
 	}
@@ -1922,33 +2231,33 @@ static int ti816x_hdmi_lib_read_edid(void *handle,
 
 	if ((handle == NULL) || (r_params == NULL)) {
 		HDMI_0_TRACE("Invalid params ");
-		rtn_value = VPS_EBADARGS;
+		rtn_value = -EFAULT ;
 		goto exit_this_func;
 	}
 	inst_context = handle;
 	buf_ptr = (UInt8 *) r_params->buffer_ptr;
 	if (buf_ptr == NULL) {
 		HDMI_0_TRACE("Invalid buffer pointer");
-		rtn_value = VPS_EBADARGS;
+		rtn_value = -EFAULT ;
 		goto exit_this_func;
 	}
 	/* 10 bits to hold the count - which would be 3FF */
 	if ((r_params->no_of_bytes == 0x0)
 	    || (r_params->no_of_bytes > 0x3FF)) {
 		HDMI_0_TRACE("Invalid byte count");
-		rtn_value = VPS_EBADARGS;
+		rtn_value = -EFAULT ;
 		goto exit_this_func;
 	}
 	r_params->no_of_bytes_read = 0x0;
 	if ((inst_context->state != HDMI_INST_OPENED) ||
 	    (inst_context->is_recvr_sensed != TRUE)) {
 		HDMI_0_TRACE("HPD not detected - HAL not opened");
-		rtn_value = VPS_EUNSUPPORTED_OPS;
+		rtn_value = -EINVAL ;
 		goto exit_this_func;
 	}
 	if (r_params->timeout == 0x0){
 		HDMI_0_TRACE("Could not read in given time");
-		rtn_value = VPS_ETIMEOUT;
+		rtn_value = -ETIME ;
 		goto exit_this_func;
 	}
 
@@ -1957,7 +2266,7 @@ static int ti816x_hdmi_lib_read_edid(void *handle,
 	if ((temp & HDMI_RI_STAT_RI_STARTED_MASK) ==
 		HDMI_RI_STAT_RI_STARTED_MASK) {
 		HDMI_0_TRACE("RI Check enbled - DDC bus busy");
-		rtn_value = VPS_EDEVICE_INUSE;
+		rtn_value = -EINVAL ;
 		goto exit_this_func;
 	}
 
@@ -1976,7 +2285,7 @@ static int ti816x_hdmi_lib_read_edid(void *handle,
 		}
 		if (timeout == 0x0) {
 			HDMI_0_TRACE("Could not clock SCL before read");
-			rtn_value = VPS_ETIMEOUT;
+			rtn_value = -ETIME ;
 			goto exit_this_func;
 		}
 		inst_context->is_scl_clocked = TRUE;
@@ -2012,7 +2321,7 @@ static int ti816x_hdmi_lib_read_edid(void *handle,
 	}
 	if (timeout == 0x0) {
 		HDMI_0_TRACE("Could not clear FIFOs");
-		rtn_value = VPS_ETIMEOUT;
+		rtn_value = -ETIME ;
 		goto abort_exit_this_func;
 	}
 
@@ -2028,7 +2337,7 @@ static int ti816x_hdmi_lib_read_edid(void *handle,
 			HDMI_CORE_DDC_FIFOCNT_OFFSET));
 	while (temp == 0x0) {
 		if (io_timeout == 0x0){
-			rtn_value = VPS_ETIMEOUT;
+			rtn_value = -ETIME ;
 			goto abort_exit_this_func;
 		}
 		temp = __raw_readl((inst_context->core_base_addr +
@@ -2044,19 +2353,19 @@ static int ti816x_hdmi_lib_read_edid(void *handle,
 		/* Bus is being held by the slave / others...
 		   Ultra Slow slaves? */
 		HDMI_0_TRACE("Bus being held low");
-		rtn_value = VPS_EFAIL;
+		rtn_value = -EINVAL ;
 		goto abort_exit_this_func;
 	}
 	if ((cmd_status & HDMI_DDC_STATUS_NO_ACK_MASK) ==
 	    HDMI_DDC_STATUS_NO_ACK_MASK) {
 		/* UnPlugged TV? */
 		HDMI_0_TRACE("No ACK from the device");
-		rtn_value = VPS_EFAIL;
+		rtn_value = -EINVAL ;
 		goto abort_exit_this_func;
 	}
 	while (r_byte_cnt < r_params->no_of_bytes){
 		if (inst_context->is_recvr_sensed != TRUE) {
-			rtn_value = VPS_ETIMEOUT;
+			rtn_value = -ETIME ;
 			goto abort_exit_this_func;
 		}
 		temp = __raw_readl((inst_context->core_base_addr +
@@ -2065,7 +2374,7 @@ static int ti816x_hdmi_lib_read_edid(void *handle,
 			while (temp == 0x0)
 			{
 				if (io_timeout == 0x0){
-					rtn_value = VPS_ETIMEOUT;
+					rtn_value = -ETIME ;
 					goto abort_exit_this_func;
 				}
 				io_timeout--;
