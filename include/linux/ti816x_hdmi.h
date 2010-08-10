@@ -24,25 +24,29 @@
 #ifndef __TI816X_HDMI_H__
 #define __TI816X_HDMI_H__
 
-#if 0
-#include <linux/ioctl.h>
-#include <linux/types.h>
 
+#include <linux/ioctl.h>
 
 /* IOCTL definitions */
-#define TI816X_HDMI_SET_PARAM	_IOW('N', num, dtype)
-#define TI816X_HDMI_GET_PARAM	_IOR('N', num, dtype)
-#endif
+#define TI816XHDMI_MAGIC            'N'
+#define TI816XHDMI_IOW(num, dtype)  _IOW(TI816XHDMI_MAGIC, num, dtype)
+#define TI816XHDMI_IOR(num, dtype)  _IOR(TI816XHDMI_MAGIC, num, dtype)
+#define TI816XHDMI_IOWR(num, dtype) _IOWR(TI816XHDMI_MAGIC, num, dtype)
+#define TI816XHDMI_IO(num)          _IO(TI816XHDMI_MAGIC, num)
+
 /* IOCLT Supported by this driver */
-#define IOCTL_HDMI_START      		(0)
-#define IOCTL_HDMI_STOP       		(1)
-#define IOCTL_HDMI_GET_STATUS 		(2)
-#define IOCTL_HDMI_READ_EDID  		(3)
+#define TI816XHDMI_START      		TI816XHDMI_IO(0)
+#define TI816XHDMI_STOP       		TI816XHDMI_IO(1)
+#define TI816XHDMI_GET_STATUS 		TI816XHDMI_IOR(2, int *)
+#define TI816XHDMI_READ_EDID  		TI816XHDMI_IOR(3, struct hdmi_edid_read_params)
 /* Use this command only when hdmi is streaming video to a sink */
-#define IOCTL_HDMI_GET_CONFIG 		(4)
-#define IOCTL_HDMI_SET_CONFIG 		(5)
-#define IOCTL_HDMI_SET_MODE         (6)
-#define IOCTL_HDMI_TEST_HDMI        (7)
+/* TODO Not supported for now */
+#if 0
+#define TI816XHDMI_GET_CONFIG 		TI816XHDMI_IOR(4, struct hdmi_cfg_params)
+#define TI816XHDMI_SET_CONFIG 		TI816XHDMI_IOW(5, struct hdmi_cfg_params)
+#endif
+#define TI816XHDMI_SET_MODE         TI816XHDMI_IOW(6, enum hdmi_resolution)
+#define TI816XHDMI_TEST_HDMI        TI816XHDMI_IOW(7, enum hdmi_resolution)
 /* Data Types */
 
 /* Supported resolutions */
@@ -55,7 +59,16 @@ enum hdmi_resolution {
 	hdmi_1080P_30_mode,
 	hdmi_max_mode
 };
-
+struct hdmi_edid_read_params {
+	unsigned int slave_address;
+	unsigned int segment_ptr;
+	unsigned int offset;
+	unsigned int no_of_bytes;
+	void *buffer_ptr;
+	unsigned int no_of_bytes_read;
+	unsigned int timeout;
+	unsigned int use_eddc_read;
+};
 #endif /* End of #ifndef __TI816X_HDMI_H__ */
 
 

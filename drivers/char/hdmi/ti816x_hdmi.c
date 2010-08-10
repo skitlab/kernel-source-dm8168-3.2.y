@@ -28,9 +28,8 @@
 #include <linux/ti816x_hdmi.h>
 
 #include "hdmi_cfg.h"
-//#include "hdmi.h"
 
-#define TI816X_HDMI_DRIVER_NAME 	"TI816X_HDMI"
+#define TI816X_HDMI_DRIVER_NAME     "TI816X_HDMI"
 
 struct ti816x_hdmi_params
 {
@@ -41,7 +40,7 @@ struct ti816x_hdmi_params
 	u32 core_v_addr;
 	u32 phy_v_addr;
 	u32 prcm_v_addr;
-    u32 venc_v_addr;
+	u32 venc_v_addr;
 	struct hdmi_cfg_params *cfg;
 	int i;
 };
@@ -70,28 +69,28 @@ static int ti816x_hdmi_remove(struct device *device);
 static int ti816x_hdmi_open(struct inode *inode, struct file *filp);
 static int ti816x_hdmi_release(struct inode *inode, struct file *filp);
 static int ti816x_hdmi_ioctl(struct inode *inode, struct file *file,
-                      u32 cmd, unsigned long arg);
+					  u32 cmd, unsigned long arg);
 
 static struct file_operations ti816x_hdmi_fops = {
-        .owner = THIS_MODULE,
-        .open = ti816x_hdmi_open,
-        .release = ti816x_hdmi_release,
-        .ioctl = ti816x_hdmi_ioctl,
+	.owner = THIS_MODULE,
+	.open = ti816x_hdmi_open,
+	.release = ti816x_hdmi_release,
+	.ioctl = ti816x_hdmi_ioctl,
 };
 
 static struct device_driver ti816x_hdmi_driver = {
-        .name = TI816X_HDMI_DRIVER_NAME,
-        .bus = &platform_bus_type,
-        .probe = ti816x_hdmi_probe,
-        .remove = ti816x_hdmi_remove,
+	.name = TI816X_HDMI_DRIVER_NAME,
+	.bus = &platform_bus_type,
+	.probe = ti816x_hdmi_probe,
+	.remove = ti816x_hdmi_remove,
 };
 
 static struct platform_device ti816x_hdmi_plat_device = {
-        .name = TI816X_HDMI_DRIVER_NAME,
-        .id = 2,
-        .dev = {
-           .release = ti816x_hdmi_platform_release,
-        }
+	.name = TI816X_HDMI_DRIVER_NAME,
+	.id = 2,
+	.dev = {
+	   .release = ti816x_hdmi_platform_release,
+	}
 };
 
 /*
@@ -104,7 +103,7 @@ static int ti816x_hdmi_open(struct inode *inode, struct file *filp)
 	/* Call library to open HDMI */
 	if (hdmi_obj.cfg != NULL){
 		hdmi_obj.hdmi_lib_handle =
-            ti816x_hdmi_lib_open(0, &ret, 0x0);
+			ti816x_hdmi_lib_open(0, &ret, 0x0);
 
 	}
 	if ((ret == 0x0) && (hdmi_obj.hdmi_lib_handle != NULL)) {
@@ -112,7 +111,6 @@ static int ti816x_hdmi_open(struct inode *inode, struct file *filp)
 		printk("TI816x_hdmi: Opend\n");
 		filp->private_data = &hdmi_obj;
 
-		//ret = VpsHal_hdmiStart(hdmi_obj.hdmi_lib_handle, 0x0);
 	}
 	else{
 		printk("TI816x_hdmi: Could not open\n");
@@ -148,28 +146,28 @@ static int ti816x_hdmi_release(struct inode *inode, struct file *filp)
  * the application.
  */
 static int ti816x_hdmi_ioctl(struct inode *inode, struct file *file,
-                      u32 cmd, unsigned long arg)
+					  u32 cmd, unsigned long arg)
 {
-    struct ti816x_hdmi_params *params =
+	struct ti816x_hdmi_params *params =
 		(struct ti816x_hdmi_params *)file->private_data;
-    void * handle = params->hdmi_lib_handle;
+	void * handle = params->hdmi_lib_handle;
 	printk("TI816x_hdmi: Ioctl\n");
-    return (ti816x_hdmi_lib_control(handle, cmd, arg, NULL));
+	return (ti816x_hdmi_lib_control(handle, cmd, (void *)arg, NULL));
 }
 
 static void ti816x_hdmi_platform_release(struct device *device)
 {
-        /* this is called when the reference count goes to zero */
+		/* this is called when the reference count goes to zero */
 }
 static int __init ti816x_hdmi_probe(struct device *device)
 {
 	printk("TI816x_hdmi: probe\n");
-        return 0;
+		return 0;
 }
 static int ti816x_hdmi_remove(struct device *device)
 {
 	printk("TI816x_hdmi: remove\n");
-        return 0;
+		return 0;
 }
 
 /**
@@ -207,19 +205,19 @@ int __init ti816x_hdmi_init(void)
 		goto err_remove_region;
 	}
 
-        /* register driver as a platform driver */
+		/* register driver as a platform driver */
 	result = driver_register(&ti816x_hdmi_driver);
-        if (result) {
+		if (result) {
 		printk("TI816x_hdmi: Cound register driver\n");
-                goto err_remove_cdev;
-        }
+				goto err_remove_cdev;
+		}
 
-        /* register the drive as a platform device */
+		/* register the drive as a platform device */
 	result = platform_device_register(&ti816x_hdmi_plat_device);
-        if (result) {
+		if (result) {
 		printk("TI816x_hdmi: Cound register as platform device\n");
-                goto err_driver_unregister;
-        }
+				goto err_driver_unregister;
+		}
 
 	ti816x_hdmi_class = class_create(THIS_MODULE, TI816X_HDMI_DRIVER_NAME);
 	if (IS_ERR(ti816x_hdmi_class)) {
@@ -269,8 +267,8 @@ int __init ti816x_hdmi_init(void)
 		printk("PHY at address %x", hdmi_obj.phy_v_addr);
 	}
 
-    hdmi_obj.venc_v_addr = (volatile u32 *) ioremap(0x48106000, 0x80);
-    if (hdmi_obj.venc_v_addr == 0x0){
+	hdmi_obj.venc_v_addr = (volatile u32) ioremap(0x48106000, 0x80);
+	if (hdmi_obj.venc_v_addr == 0x0){
 		printk("TI816x_hdmi: Could not ioremap for Venc\n");
 		goto err_remove_class;
 	} else {
@@ -281,9 +279,9 @@ int __init ti816x_hdmi_init(void)
 	initParams.core_base_addr     =   (u32) hdmi_obj.core_v_addr;
 	initParams.phy_base_addr      =   (u32) hdmi_obj.phy_v_addr;
 	initParams.prcm_base_addr     =   (u32) hdmi_obj.prcm_v_addr;
-    initParams.venc_base_addr     =   (u32) hdmi_obj.venc_v_addr;
+	initParams.venc_base_addr     =   (u32) hdmi_obj.venc_v_addr;
 
-/*	printk("hdmi :: Initializing driver \n");*/
+/*  printk("hdmi :: Initializing driver \n");*/
 	if (ti816x_hdmi_lib_init(&initParams) != 0x0){
 		printk("TI816x_hdmi: Init failed\n");
 		goto err_remove_class;
@@ -341,8 +339,8 @@ void __exit ti816x_hdmi_exit(void)
 	iounmap((int *)hdmi_obj.wp_v_addr);
 	iounmap((int *)hdmi_obj.core_v_addr);
 	iounmap((int *)hdmi_obj.phy_v_addr);
-    iounmap((int *)hdmi_obj.prcm_v_addr);
-    iounmap((int *)hdmi_obj.venc_v_addr);
+	iounmap((int *)hdmi_obj.prcm_v_addr);
+	iounmap((int *)hdmi_obj.venc_v_addr);
 }
 
 module_init(ti816x_hdmi_init);

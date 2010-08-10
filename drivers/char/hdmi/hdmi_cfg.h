@@ -1,38 +1,32 @@
 /*******************************************************************************
- *                                                                             *
+ *																			   *
  * TODO GPL
- *                                                                             *
+ *																			   *
  ******************************************************************************/
 
-#ifndef _VPS_HDMICFG_H
-#define _VPS_HDMICFG_H
+#ifndef _HDMI_CFG_H
+#define _HDMI_CFG_H
 
 
-	//typedef u32 u32;
-	typedef u32 Bool;
-	typedef unsigned char UInt8;
-	//typedef unsigned char u8;
-	typedef unsigned short UInt16;
-
-//#define NULL    0
-#define TRUE    1
-#define FALSE   0
+//#define NULL	  0
+#define TRUE	1
+#define FALSE	0
 
 
-#define HDMI_GT_ENTER           0
-#define HDMI_GT_DEBUG           1
-#define HDMI_GT_LEAVE           2
-#define HDMI_GT_ERR             3
-#define HDMI_GT_INFO            4
+#define HDMI_GT_ENTER			0
+#define HDMI_GT_DEBUG			1
+#define HDMI_GT_LEAVE			2
+#define HDMI_GT_ERR 			3
+#define HDMI_GT_INFO			4
 
 /* ========================================================================== */
-/*                    HDMI Silicon dependecy Do Not Alter                     */
+/*			  HDMI Silicon dependecy Do Not Alter		      */
 /* ========================================================================== */
 #define HDMI_PER_CNT		(1u)
 #define HDMI_CORE_0_REGS	(0x46c00400u)
 #define HDMI_WP_0_REGS		(0x46c00000u)
-#define HDMI_PHY_0_REGS		(0x48122000u)
-#define PRCM_0_REGS			(0x48180000u)
+#define HDMI_PHY_0_REGS 	(0x48122000u)
+#define PRCM_0_REGS 		(0x48180000u)
 
 /* Width of R/G/B or Y/Cb/Cr channels */
 enum hdmi_bits_per_chan {
@@ -62,7 +56,7 @@ enum hdmi_wp_packmode {
 	hdmi_wp_no_pack = 0x7
 };
 
-/*  YCbCr to RGB CSC coefficients */
+/*	YCbCr to RGB CSC coefficients */
 struct hdmi_csc_YCbCr_2_RGB_coeff {
 	u32 Y2RCOEFF_L;
 	u32 Y2RCOEFF_H;
@@ -89,7 +83,7 @@ struct hdmi_csc_YCbCr_2_RGB_ctrl {
 	u32 enableFullRngExp;
 	u32 customCoEff;
 	u32 srcCsSel;
-	/*  Select source color space - xvYCC if non-zero, YCbCr otherwise */
+	/* Select source color space - xvYCC if non-zero, YCbCr otherwise */
 	struct hdmi_csc_YCbCr_2_RGB_coeff coEff;
 };
 
@@ -105,31 +99,31 @@ struct hdmi_dither_cfg {
 };
 
 /*
- *  Defines the configurable parameters of in data path of HDMI block.
- *  For enabled sub-block might require additional configurations
+ * Defines the configurable parameters of in data path of HDMI block.
+ * For enabled sub-block might require additional configurations
  */
 struct hdmi_core_data_path {
 	u32 up_sampler_enable;
-	/*  422 to 444 */
+	/*	422 to 444 */
 	u32 csc_YCbCr_2_RGB_enable;
 	struct hdmi_csc_YCbCr_2_RGB_ctrl csc_YCbCr_2_RGB_config;
 	u32 range_exp_RGB_enable;
 	u32 cscRGB_2_YCbCr_enable;
 	u32 csc_convert_standard;
-	/*  Specifies the color space standard to be used for color space
+	/* Specifies the color space standard to be used for color space
 	   conversions. non-zero value would configure to use BT.709,
 	   BT.601 otherwise. */
 	u32 range_comp_enable;
 	u32 down_sampler_enable;
-	/*  444 to 422 */
+	/*	444 to 422 */
 	u32 range_clip_enable;
 	u32 clip_color_space;
-	/*  Specifies output color space of the clipper, non-zero value for
+	/* Specifies output color space of the clipper, non-zero value for
 	   YCbCr, RGB otherwise */
 	u32 dither_enable;
 	struct hdmi_dither_cfg dither_config;
 	enum hdmi_bits_per_chan output_width;
-	/*  Specifies the number of bits per channel that would sent out.
+	/* Specifies the number of bits per channel that would sent out.
 	   If dithering is not enabled, the output would be truncated to the
 	   width specified here. */
 };
@@ -170,7 +164,7 @@ struct hdmi_wp_config {
 	u32 hbp;
 	/* Not Supported - for TI 816X */
 	u32 hfp;
-	/*  Not Supported - for TI 816X */
+	/*	Not Supported - for TI 816X */
 	u32 hsw;
 	/* Not Supported - for TI 816X */
 	u32 vbp;
@@ -266,6 +260,7 @@ struct hdmi_info_frame_cfg {
 	   packet data, SPD packet (Source Product Description ) here */
 };
 
+/* Configuration parameters for HDMI */
 struct hdmi_cfg_params {
 	u32 use_display_mode;
 	enum hdmi_resolution display_mode;
@@ -279,27 +274,16 @@ struct hdmi_cfg_params {
 	struct hdmi_info_frame_cfg info_frame_config;
 };
 
-struct hdmi_edid_read_params {
-	u32 slave_address;
-	u32 segment_ptr;
-	u32 offset;
-	u32 no_of_bytes;
-	void *buffer_ptr;
-	u32 no_of_bytes_read;
-	u32 timeout;
-	u32 use_eddc_read;
-};
-
 struct ti816x_hdmi_init_params {
 	u32 wp_base_addr;
 	u32 core_base_addr;
 	u32 phy_base_addr;
 	u32 prcm_base_addr;
-    u32 venc_base_addr;
+	u32 venc_base_addr;
 };
 
 /* ========================================================================== */
-/*                          Function Declarations                             */
+/*			Function Declarations    			      */
 /* ========================================================================== */
 
 int ti816x_hdmi_lib_init(struct ti816x_hdmi_init_params *initParams);
@@ -317,269 +301,269 @@ int ti816x_hdmi_lib_control(void *handle, u32 cmd, void *cmdArgs,
 			void *additionalArgs);
 
 /* ========================================================================== */
-/*                 Defaults used to initialize different modes                */
+/*		   Defaults used to initialize different modes	 	      */
 /* ========================================================================== */
 #define TI816x_HDMIWPCONFIG_10BIT_IF_SALVE {\
-                                    0x14, \
-                                    0x14, \
-                                    TRUE, \
-                                    hdmi_wp_30bit_RGB_YUV444,\
-                                    FALSE, \
-                                    FALSE, \
-                                    \
-                                    hdmi_10_bits_chan_width, \
-                                    TRUE, TRUE, 0x0, 0x0, 0x0, 0x0, 0x0,\
-                                     0x0 }
+					0x14, \
+					0x14, \
+					TRUE, \
+					hdmi_wp_30bit_RGB_YUV444,\
+					FALSE, \
+					FALSE, \
+					\
+					hdmi_10_bits_chan_width, \
+					TRUE, TRUE, 0x0, 0x0, 0x0, 0x0, 0x0,\
+					 0x0 }
 #define TI816x_HDMIWPCONFIG_8BIT_IF_SALVE {\
-                                    0x14, \
-                                    0x14, \
-                                    TRUE, \
-                                    hdmi_wp_24bit_RGB_YUV444_YUV422,\
-                                    FALSE, \
-                                    FALSE, \
-                                    \
-                                    hdmi_8_bits_chan_width, \
-                                    TRUE, TRUE, 0x0, 0x0, 0x0, 0x0, 0x0,\
-                                     0x0}
+					0x14, \
+					0x14, \
+					TRUE, \
+					hdmi_wp_24bit_RGB_YUV444_YUV422,\
+					FALSE, \
+					FALSE, \
+					\
+					hdmi_8_bits_chan_width, \
+					TRUE, TRUE, 0x0, 0x0, 0x0, 0x0, 0x0,\
+					0x0}
 
 #define TI816X_HDMICORE_IPCFG_10BIT_IF_SRCD_SYNC {\
-                                       hdmi_10_bits_chan_width,\
-                                       hdmi_source_syncs,\
-                                       {0x0, 0x0, 0x0, 0x0, 0x0, 0x0},\
-                                       TRUE}
+					hdmi_10_bits_chan_width,\
+					hdmi_source_syncs,\
+					{0x0, 0x0, 0x0, 0x0, 0x0, 0x0},\
+					TRUE}
 #define TI816X_HDMICORE_IPCFG_8BIT_IF_SRCD_SYNC {\
-                                       hdmi_8_bits_chan_width,\
-                                       hdmi_source_syncs,\
-                                       {0x0, 0x0, 0x0, 0x0, 0x0, 0x0},\
-                                       TRUE}
+					hdmi_8_bits_chan_width,\
+					hdmi_source_syncs,\
+					{0x0, 0x0, 0x0, 0x0, 0x0, 0x0},\
+					TRUE}
 #define TI816X_HDMICSC_YCBCR2RGB_COEFF {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,\
-                                        0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,\
-                                        0x0}
+					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,\
+					0x0}
 #define TI816X_HDMICSC_YCBCR2RGBCTRL_DISABLED {FALSE, \
-                                              FALSE, \
-                                              FALSE, \
-                                              FALSE, \
-                                              TI816X_HDMICSC_YCBCR2RGB_COEFF}
+						FALSE, \
+						FALSE, \
+						FALSE, \
+						TI816X_HDMICSC_YCBCR2RGB_COEFF}
 
 #define TI816X_HDMIDITHERCONFIG {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}
 
-/*   Defaults to initialize core - by pass all modules, sets outwidth
-            to 10 bits/channel and BT709 for TV */
+/*	 Defaults to initialize core - by pass all modules, sets outwidth
+			to 10 bits/channel and BT709 for TV */
 #define TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_10BIT_OUTPUT_BT709 {\
-                                               FALSE, \
-                                               FALSE, \
-                                        TI816X_HDMICSC_YCBCR2RGBCTRL_DISABLED,\
-                                               FALSE, \
-                                               FALSE, \
-                                               TRUE, \
-                                               FALSE, \
-                                               FALSE, \
-                                               FALSE, \
-                                               FALSE, \
-                                               FALSE, \
-                                               TI816X_HDMIDITHERCONFIG, \
-                                               hdmi_10_bits_chan_width}
+					FALSE, \
+					FALSE, \
+					TI816X_HDMICSC_YCBCR2RGBCTRL_DISABLED,\
+					FALSE, \
+					FALSE, \
+					TRUE, \
+					FALSE, \
+					FALSE, \
+					FALSE, \
+					FALSE, \
+					FALSE, \
+					TI816X_HDMIDITHERCONFIG, \
+					hdmi_10_bits_chan_width}
 
 
 #define TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_8BIT_OUTPUT_BT709 {\
-                                               FALSE, \
-                                               FALSE, \
-                                        TI816X_HDMICSC_YCBCR2RGBCTRL_DISABLED,\
-                                               FALSE, \
-                                               FALSE, \
-                                               TRUE, \
-                                               FALSE, \
-                                               FALSE, \
-                                               FALSE, \
-                                               FALSE, \
-                                               FALSE, \
-                                               TI816X_HDMIDITHERCONFIG, \
-                                               hdmi_8_bits_chan_width}
+					FALSE, \
+					FALSE, \
+					TI816X_HDMICSC_YCBCR2RGBCTRL_DISABLED,\
+					FALSE, \
+					FALSE, \
+					TRUE, \
+					FALSE, \
+					FALSE, \
+					FALSE, \
+					FALSE, \
+					FALSE, \
+					TI816X_HDMIDITHERCONFIG, \
+					hdmi_8_bits_chan_width}
 
-#define TI816X_HDMI_AVI_INFOFRAME_BARINFO   {0x0, 0x0, 0x0, 0x0, 0x0}
+#define TI816X_HDMI_AVI_INFOFRAME_BARINFO	{0x0, 0x0, 0x0, 0x0, 0x0}
 
-/*   Configures HDMI AVI Info Frame with following configurations
-            output color space as RGB, Overscan - for TV, colorometry 709-HD TV
-            aspect ration as 16:9 */
+/*	 Configures HDMI AVI Info Frame with following configurations
+			output color space as RGB, Overscan - for TV, colorometry 709-HD TV
+			aspect ration as 16:9 */
 
 #define TI816X_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT709_169  {\
-                            hdmi_avi_RGB_op_cs, \
-                            hdmi_avi_no_aspect_ratio, \
-                            TI816X_HDMI_AVI_INFOFRAME_BARINFO, \
-                            hdmi_avi_over_scan, \
-                            hdmi_avi_BT709_colorimetry, \
-                            hdmi_avi_16_9_aspect_ratio, \
-                            hdmi_avi_active_aspect_ratio_same, \
-                            FALSE, \
-                            0x0, \
-                            0x0, \
-                            hdmi_avi_non_uniform_scaling_none, \
-                            0x0}
+					hdmi_avi_RGB_op_cs, \
+					hdmi_avi_no_aspect_ratio, \
+					TI816X_HDMI_AVI_INFOFRAME_BARINFO, \
+					hdmi_avi_over_scan, \
+					hdmi_avi_BT709_colorimetry, \
+					hdmi_avi_16_9_aspect_ratio, \
+					hdmi_avi_active_aspect_ratio_same, \
+					FALSE, \
+					0x0, \
+					0x0, \
+					hdmi_avi_non_uniform_scaling_none, \
+					0x0}
 
-/*   Configures HDMI AVI Info Frame with following configurations
-            output color space as RGB, Overscan - for TV, colorometry 709-HD TV
-            aspect ration as 4:3 */
+/*	 Configures HDMI AVI Info Frame with following configurations
+			output color space as RGB, Overscan - for TV, colorometry 709-HD TV
+			aspect ration as 4:3 */
 
 #define TI816X_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT709_43  {\
-                            hdmi_avi_RGB_op_cs, \
-                            hdmi_avi_no_aspect_ratio, \
-                            TI816X_HDMI_AVI_INFOFRAME_BARINFO, \
-                            hdmi_avi_over_scan, \
-                            hdmi_avi_BT709_colorimetry, \
-                            hdmi_avi_4_3_aspect_ratio, \
-                            hdmi_avi_active_aspect_ratio_same, \
-                            FALSE, \
-                            0x0, \
-                            0x0, \
-                            hdmi_avi_non_uniform_scaling_none, \
-                            0x0}
-/*   Configures HDMI AVI Info Frame with following configurations
-            output color space as RGB, Overscan - for TV, colorometry 601-SD TV
-            aspect ration as 4:3 */
+					hdmi_avi_RGB_op_cs, \
+					hdmi_avi_no_aspect_ratio, \
+					TI816X_HDMI_AVI_INFOFRAME_BARINFO, \
+					hdmi_avi_over_scan, \
+					hdmi_avi_BT709_colorimetry, \
+					hdmi_avi_4_3_aspect_ratio, \
+					hdmi_avi_active_aspect_ratio_same, \
+					FALSE, \
+					0x0, \
+					0x0, \
+					hdmi_avi_non_uniform_scaling_none, \
+					0x0}
+/*	 Configures HDMI AVI Info Frame with following configurations
+			output color space as RGB, Overscan - for TV, colorometry 601-SD TV
+			aspect ration as 4:3 */
 #define TI816X_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT601_43  {\
-                            hdmi_avi_RGB_op_cs, \
-                            hdmi_avi_no_aspect_ratio, \
-                            TI816X_HDMI_AVI_INFOFRAME_BARINFO, \
-                            hdmi_avi_over_scan, \
-                            hdmi_avi_BT601_colorimetry, \
-                            hdmi_avi_4_3_aspect_ratio, \
-                            hdmi_avi_active_aspect_ratio_same, \
-                            FALSE, \
-                            0x0, \
-                            0x0, \
-                            hdmi_avi_non_uniform_scaling_none, \
-                            0x0}
+					hdmi_avi_RGB_op_cs, \
+					hdmi_avi_no_aspect_ratio, \
+					TI816X_HDMI_AVI_INFOFRAME_BARINFO, \
+					hdmi_avi_over_scan, \
+					hdmi_avi_BT601_colorimetry, \
+					hdmi_avi_4_3_aspect_ratio, \
+					hdmi_avi_active_aspect_ratio_same, \
+					FALSE, \
+					0x0, \
+					0x0, \
+					hdmi_avi_non_uniform_scaling_none, \
+					0x0}
 
-/*   Configures HDMI AVI Info Frame with following configurations
-            output color space as RGB, Overscan - for TV, colorometry 601-SD TV
-            aspect ration as none */
+/*	 Configures HDMI AVI Info Frame with following configurations
+			output color space as RGB, Overscan - for TV, colorometry 601-SD TV
+			aspect ration as none */
 #define TI816X_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT601_NO_ASPECT_RATIO  {\
-                            hdmi_avi_RGB_op_cs, \
-                            hdmi_avi_no_aspect_ratio, \
-                            TI816X_HDMI_AVI_INFOFRAME_BARINFO, \
-                            hdmi_avi_over_scan, \
-                            hdmi_avi_BT601_colorimetry, \
-                            hdmi_avi_aspect_ratio_none, \
-                            hdmi_avi_active_aspect_ratio_same, \
-                            FALSE, \
-                            0x0, \
-                            0x0, \
-                            hdmi_avi_non_uniform_scaling_none, \
-                            0x0}
+					hdmi_avi_RGB_op_cs, \
+					hdmi_avi_no_aspect_ratio, \
+					TI816X_HDMI_AVI_INFOFRAME_BARINFO, \
+					hdmi_avi_over_scan, \
+					hdmi_avi_BT601_colorimetry, \
+					hdmi_avi_aspect_ratio_none, \
+					hdmi_avi_active_aspect_ratio_same, \
+					FALSE, \
+					0x0, \
+					0x0, \
+					hdmi_avi_non_uniform_scaling_none, \
+					0x0}
 
-/*   Configures HDMI Packets that would be sent during data island period
-            Right now, AVI Info packets are supported. For HD Display */
-#define TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_43   {TRUE, \
-                                TI816X_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT709_43}
+/*	 Configures HDMI Packets that would be sent during data island period
+			Right now, AVI Info packets are supported. For HD Display */
+#define TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_43	 {TRUE, \
+				TI816X_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT709_43}
 #define TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169  {TRUE, \
-                                TI816X_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT709_169}
-/*   Configures HDMI Packets that would be sent during data island period
-            Right now, AVI Info packets are supported. For NTSC display*/
+				TI816X_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT709_169}
+/*	 Configures HDMI Packets that would be sent during data island period
+			Right now, AVI Info packets are supported. For NTSC display*/
 #define TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_NTSC   {TRUE, \
-                TI816X_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT601_NO_ASPECT_RATIO}
-/*   Configures HDMI Packets that would be sent during data island period
-            Right now, AVI Info packets are supported. For APL display */
+	TI816X_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT601_NO_ASPECT_RATIO}
+/* Configures HDMI Packets that would be sent during data island period
+   Right now, AVI Info packets are supported. For APL display */
 #define TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_PAL   {TRUE, \
-                                TI816X_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT601_43}
+				TI816X_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT601_43}
 
 
 /* ========================================================================== */
-/*            Defaults that could be used to initialize HDMI                  */
-/*  Recommended to start with struct hdmi_wp_config, if reading for first time*/
-/*  To understand the configurations paramters for the HDMI                   */
+/*			  Defaults that could be used to initialize HDMI				  */
+/*	Recommended to start with struct hdmi_wp_config, if reading for first time*/
+/*	To understand the configurations paramters for the HDMI 				  */
 /* ========================================================================== */
 /*
  * Defaults that could be used initialize HDMI HAL in 1080 P, 60 FPS,
  * 4:3 Aspect Ratio, for HD TV
- *        Wrapper - confiured as 10 bit interface with HDVENC and SLAVE
- *        Core input configured as 10 bit interface with syncs sourced from
- *          wrapper
- *        Core Data path - All in bypass mode, outwidth set 10 bits/channel
- *          - In case color space converter is enabled - set to BT709.
+ * Wrapper - confiured as 10 bit interface with HDVENC and SLAVE
+ * Core input configured as 10 bit interface with syncs sourced from
+ * wrapper
+ * Core Data path - All in bypass mode, outwidth set 10 bits/channel
+ *- In case color space converter is enabled - set to BT709.
  */
 #define TI816X_HDMI_10BIT_1080p_60_16_9_HD {\
-        TRUE, hdmi_1080P_60_mode,\
-        TRUE, TI816x_HDMIWPCONFIG_10BIT_IF_SALVE,\
-        TRUE, TI816X_HDMICORE_IPCFG_10BIT_IF_SRCD_SYNC,\
-        TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_10BIT_OUTPUT_BT709,\
-        TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
+		TRUE, hdmi_1080P_60_mode,\
+		TRUE, TI816x_HDMIWPCONFIG_10BIT_IF_SALVE,\
+		TRUE, TI816X_HDMICORE_IPCFG_10BIT_IF_SRCD_SYNC,\
+		TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_10BIT_OUTPUT_BT709,\
+		TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
 
 #define TI816X_HDMI_8BIT_1080p_60_16_9_HD {\
-        TRUE, hdmi_1080P_60_mode,\
-        TRUE, TI816x_HDMIWPCONFIG_8BIT_IF_SALVE,\
-        TRUE, TI816X_HDMICORE_IPCFG_8BIT_IF_SRCD_SYNC,\
-        TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_8BIT_OUTPUT_BT709,\
-        TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
+		TRUE, hdmi_1080P_60_mode,\
+		TRUE, TI816x_HDMIWPCONFIG_8BIT_IF_SALVE,\
+		TRUE, TI816X_HDMICORE_IPCFG_8BIT_IF_SRCD_SYNC,\
+		TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_8BIT_OUTPUT_BT709,\
+		TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
 
 /*
  * Defaults that could be used initialize HDMI HAL in 1080 P, 30 FPS,
- *        4:3 Aspect Ratio, for HD TV
- *        Wrapper - confiured as 10 bit interface with HDVENC and SLAVE
- *        Core input configured as 10 bit interface with syncs sourced from
- *          wrapper
- *        Core Data path - All in bypass mode, outwidth set 10 bits/channel
- *          - In case color space converter is enabled - set to BT709.
+ * 4:3 Aspect Ratio, for HD TV
+ * Wrapper - confiured as 10 bit interface with HDVENC and SLAVE
+ * Core input configured as 10 bit interface with syncs sourced from
+ * wrapper
+ * Core Data path - All in bypass mode, outwidth set 10 bits/channel
+ *- In case color space converter is enabled - set to BT709.
  */
 #define TI816X_HDMI_10BIT_1080p_30_16_9_HD {\
-        TRUE, hdmi_1080P_30_mode,\
-        TRUE, TI816x_HDMIWPCONFIG_10BIT_IF_SALVE,\
-        TRUE, TI816X_HDMICORE_IPCFG_10BIT_IF_SRCD_SYNC,\
-        TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_10BIT_OUTPUT_BT709,\
-        TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
+		TRUE, hdmi_1080P_30_mode,\
+		TRUE, TI816x_HDMIWPCONFIG_10BIT_IF_SALVE,\
+		TRUE, TI816X_HDMICORE_IPCFG_10BIT_IF_SRCD_SYNC,\
+		TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_10BIT_OUTPUT_BT709,\
+		TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
 
 #define TI816X_HDMI_8BIT_1080p_30_16_9_HD {\
-        TRUE, hdmi_1080P_30_mode,\
-        TRUE, TI816x_HDMIWPCONFIG_8BIT_IF_SALVE,\
-        TRUE, TI816X_HDMICORE_IPCFG_8BIT_IF_SRCD_SYNC,\
-        TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_8BIT_OUTPUT_BT709,\
-        TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
+		TRUE, hdmi_1080P_30_mode,\
+		TRUE, TI816x_HDMIWPCONFIG_8BIT_IF_SALVE,\
+		TRUE, TI816X_HDMICORE_IPCFG_8BIT_IF_SRCD_SYNC,\
+		TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_8BIT_OUTPUT_BT709,\
+		TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
 
 /*
  * Defaults that could be used initialize HDMI HAL in 1080I P, 60 FPS,
- *        4:3 Aspect Ratio, for HD TV
- *        Wrapper - confiured as 10 bit interface with HDVENC and SLAVE
- *        Core input configured as 10 bit interface with syncs sourced from
- *          wrapper
- *        Core Data path - All in bypass mode, outwidth set 10 bits/channel
- *          - In case color space converter is enabled - set to BT709.
+ * 4:3 Aspect Ratio, for HD TV
+ * Wrapper - confiured as 10 bit interface with HDVENC and SLAVE
+ * Core input configured as 10 bit interface with syncs sourced from
+ * wrapper
+ * Core Data path - All in bypass mode, outwidth set 10 bits/channel
+ *- In case color space converter is enabled - set to BT709.
  */
 #define TI816X_HDMI_10BIT_1080i_60_16_9_HD {\
-        TRUE, hdmi_1080I_60_mode,\
-        TRUE, TI816x_HDMIWPCONFIG_10BIT_IF_SALVE,\
-        TRUE, TI816X_HDMICORE_IPCFG_10BIT_IF_SRCD_SYNC,\
-        TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_10BIT_OUTPUT_BT709,\
-        TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
+		TRUE, hdmi_1080I_60_mode,\
+		TRUE, TI816x_HDMIWPCONFIG_10BIT_IF_SALVE,\
+		TRUE, TI816X_HDMICORE_IPCFG_10BIT_IF_SRCD_SYNC,\
+		TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_10BIT_OUTPUT_BT709,\
+		TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
 
 #define TI816X_HDMI_8BIT_1080i_60_16_9_HD {\
-        TRUE, hdmi_1080I_60_mode,\
-        TRUE, TI816x_HDMIWPCONFIG_8BIT_IF_SALVE,\
-        TRUE, TI816X_HDMICORE_IPCFG_8BIT_IF_SRCD_SYNC,\
-        TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_8BIT_OUTPUT_BT709,\
-        TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
+		TRUE, hdmi_1080I_60_mode,\
+		TRUE, TI816x_HDMIWPCONFIG_8BIT_IF_SALVE,\
+		TRUE, TI816X_HDMICORE_IPCFG_8BIT_IF_SRCD_SYNC,\
+		TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_8BIT_OUTPUT_BT709,\
+		TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
 
 /*
  * Defaults that could be used initialize HDMI HAL in 720 P, 60 FPS,
- *        16:9 Aspect Ratio, for HD TV
- *        Wrapper - confiured as 10 bit interface with HDVENC and SLAVE
- *        Core input configured as 10 bit interface with syncs sourced from
- *          wrapper
- *        Core Data path - All in bypass mode, outwidth set 10 bits/channel
- *          - In case color space converter is enabled - set to BT709.
+ * 16:9 Aspect Ratio, for HD TV
+ * Wrapper - confiured as 10 bit interface with HDVENC and SLAVE
+ * Core input configured as 10 bit interface with syncs sourced from
+ * wrapper
+ * Core Data path - All in bypass mode, outwidth set 10 bits/channel
+ *- In case color space converter is enabled - set to BT709.
  */
 #define TI816X_HDMI_10BIT_720_60_16_9_HD {\
-        TRUE, hdmi_720P_60_mode,\
-        TRUE, TI816x_HDMIWPCONFIG_10BIT_IF_SALVE,\
-        TRUE, TI816X_HDMICORE_IPCFG_10BIT_IF_SRCD_SYNC,\
-        TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_10BIT_OUTPUT_BT709,\
-        TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_43}
+		TRUE, hdmi_720P_60_mode,\
+		TRUE, TI816x_HDMIWPCONFIG_10BIT_IF_SALVE,\
+		TRUE, TI816X_HDMICORE_IPCFG_10BIT_IF_SRCD_SYNC,\
+		TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_10BIT_OUTPUT_BT709,\
+		TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_43}
 
 #define TI816X_HDMI_8BIT_720_60_16_9_HD {\
-        TRUE, hdmi_720P_60_mode,\
-        TRUE, TI816x_HDMIWPCONFIG_8BIT_IF_SALVE,\
-        TRUE, TI816X_HDMICORE_IPCFG_8BIT_IF_SRCD_SYNC,\
-        TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_8BIT_OUTPUT_BT709,\
-        TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_43}
+		TRUE, hdmi_720P_60_mode,\
+		TRUE, TI816x_HDMIWPCONFIG_8BIT_IF_SALVE,\
+		TRUE, TI816X_HDMICORE_IPCFG_8BIT_IF_SRCD_SYNC,\
+		TRUE, TI816X_HDMICOREDATAPATHCONFIG_BYPS_ALL_8BIT_OUTPUT_BT709,\
+		TRUE, TI816X_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_43}
 
 
-#endif				/* _VPS_HDMICFG_H */
+#endif				/* _HDMI_CFG_H */
 
