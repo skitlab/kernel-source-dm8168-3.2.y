@@ -1,18 +1,3 @@
-static inline void __raw_writel(volatile u32 val, volatile u32 addr)
-{
-	*((int *) (addr)) = val;
-}
-
-static inline void __raw_writec(volatile u8 val, volatile u32 addr)
-{
-	*((int *) (addr)) = val;
-}
-
-static inline u32 __raw_readl(volatile u32 addr)
-{
-	return (u32) (*((int *) (addr)));
-}
-
 /*********************************PHY Registers********************************/
 #define PHY_TMDS_CNTL1_OFFSET			(0x00000000)
 #define PHY_TMDS_CNTL2_OFFSET			(0x00000004)

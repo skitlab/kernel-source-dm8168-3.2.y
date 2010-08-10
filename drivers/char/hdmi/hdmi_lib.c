@@ -35,6 +35,7 @@
 
 #include "hdmi_cfg.h"
 #include "regoffsets.h"
+#include <asm/io.h>
 
 /* ========================================================================== */
 /*	Local Configurations						      */
@@ -187,8 +188,13 @@ static int ti816x_hdmi_lib_config(struct hdmi_cfg_params *config);
 static struct instance_cfg hdmi_config;
 /* Pool of HDMI objects */
 static struct hdmi_cfg_params default_config =
-	TI816X_HDMI_8BIT_720_60_16_9_HD;
+	TI816X_HDMI_8BIT_1080p_60_16_9_HD;
 /* Default configuration to start with */
+
+struct hdmi_cfg_params config1 = TI816X_HDMI_8BIT_1080p_60_16_9_HD;
+struct hdmi_cfg_params config2 = TI816X_HDMI_8BIT_720_60_16_9_HD;
+struct hdmi_cfg_params config3 = TI816X_HDMI_8BIT_1080i_60_16_9_HD;
+struct hdmi_cfg_params config4 = TI816X_HDMI_8BIT_1080p_30_16_9_HD;
 
 /* ========================================================================== */
 /*				Local Functions 			      */
@@ -926,7 +932,7 @@ static int configure_avi_info_frame(struct instance_cfg *inst_context)
 		check_sum += data_byte;
 	}
 
-	__raw_writec((u8) (HDMI_AVI_INFOFRAME_CONST_0x100 - (u16) check_sum),
+	__raw_writeb((u8) (HDMI_AVI_INFOFRAME_CONST_0x100 - (u16) check_sum),
 		(inst_context->core_base_addr + HDMI_CORE_AVI_CHSUM_OFFSET));
 
 	HDMI_1_TRACE("AVI - Computed check sum %d", check_sum);
@@ -1291,6 +1297,7 @@ void enable_hdmi_clocks(u32 prcm_base)
 
 static void configure_venc_1080p30(u32 *venc_base, int useEmbeddedSync)
 {
+    printk("%s %d\n",  __func__, __LINE__);
 	if (useEmbeddedSync != 0x0)
 	{
 		*venc_base = 0x4002A033;
@@ -1358,7 +1365,7 @@ static void configure_venc_1080p30(u32 *venc_base, int useEmbeddedSync)
 
 void configure_venc_1080p60(u32 *venc_base, int useEmbeddedSync)
 {
-
+    printk("%s %d\n",  __func__, __LINE__);
 	if (useEmbeddedSync != 0x0)
 	{
 		*venc_base = 0x4002A033;
@@ -1427,7 +1434,7 @@ void configure_venc_1080p60(u32 *venc_base, int useEmbeddedSync)
 
 void configure_venc_1080i60(u32 *venc_base, int useEmbeddedSync)
 {
-
+    printk("%s %d\n",  __func__, __LINE__);
 	if (useEmbeddedSync != 0x0)
 	{
 		*venc_base = 0x4002A033;
@@ -1495,6 +1502,7 @@ void configure_venc_1080i60(u32 *venc_base, int useEmbeddedSync)
 
 void configure_venc_720p60(u32* venc_base, int useEmbeddedSync)
 {
+    printk("%s %d\n",  __func__, __LINE__);
 	if (useEmbeddedSync != 0x0)
 	{
 		*venc_base = 0x4002A033;
@@ -1589,6 +1597,10 @@ int ti816x_hdmi_lib_init(struct ti816x_hdmi_init_params *init_param)
 	memcpy(((void *) &(hdmi_config.config)),
 		   ((void *) &default_config), sizeof(struct hdmi_cfg_params));
 	hdmi_config.state = HDMI_INST_INITIALIZED;
+
+    configure_venc_1080p60((u32 *)hdmi_config.venc_base_addr, 0);
+	ti816x_hdmi_lib_config(&hdmi_config.config);
+    ti816x_hdmi_lib_start(&hdmi_config, NULL);
 
 	/*TODO - Setup hdmi clock mux ON */
 exit_this_func:
@@ -1744,10 +1756,6 @@ int ti816x_hdmi_lib_config(struct hdmi_cfg_params *config)
 exit_this_func:
 	return (rtn_value);
 }
-struct hdmi_cfg_params config1 = TI816X_HDMI_8BIT_1080p_60_16_9_HD;
-struct hdmi_cfg_params config2 = TI816X_HDMI_8BIT_720_60_16_9_HD;
-struct hdmi_cfg_params config3 = TI816X_HDMI_8BIT_1080i_60_16_9_HD;
-struct hdmi_cfg_params config4 = TI816X_HDMI_8BIT_1080p_30_16_9_HD;
 int ti816x_hdmi_set_mode(enum hdmi_resolution resolution)
 {
 	struct hdmi_cfg_params *ptr_config;
@@ -1977,11 +1985,13 @@ int ti816x_hdmi_lib_start(void *handle, void *args)
 		goto exit_this_func;
 	}
 	inst_context = (struct instance_cfg *) handle;
+#if 0
 	if (inst_context->state != HDMI_INST_OPENED) {
 		rtn_value = -EINVAL ;
 		HDMI_0_TRACE("Instance not yet opened");
 		goto exit_this_func;
 	}
+#endif
 	if ((inst_context->is_streaming == FALSE) &&
 		(inst_context->is_recvr_sensed == TRUE)){
 			HDMI_0_TRACE("Trying to start the port");
@@ -2093,11 +2103,13 @@ int ti816x_hdmi_lib_stop(void *handle, void *args)
 		goto exit_this_func;
 	}
 	inst_context = (struct instance_cfg *) handle;
+#if 0
 	if (inst_context->state != HDMI_INST_OPENED) {
 		rtn_value = -EINVAL ;
 		HDMI_0_TRACE("Instance not yet opened");
 		goto exit_this_func;
 	}
+#endif
 	if (inst_context->is_streaming == TRUE) {
 		HDMI_0_TRACE("Trying to stop the port");
 		temp = __raw_readl(inst_context->core_base_addr +
