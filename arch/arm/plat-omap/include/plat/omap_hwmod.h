@@ -35,6 +35,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/ioport.h>
+#include <linux/mutex.h>
 #include <plat/cpu.h>
 
 struct omap_device;
@@ -484,6 +485,7 @@ struct omap_hwmod {
 	void				*dev_attr;
 	u32				_sysc_cache;
 	void __iomem			*_mpu_rt_va;
+	struct mutex                    mutex;
 	struct list_head		node;
 	u16				flags;
 	u8				_mpu_port_index;
