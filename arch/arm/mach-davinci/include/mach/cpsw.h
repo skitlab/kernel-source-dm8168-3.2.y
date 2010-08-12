@@ -8,9 +8,11 @@ struct cpsw_slave_data {
 	u32		sliver_reg_ofs;
 	const char	*phy_id;
 	int		phy_if;
+	u8	mac_addr[ETH_ALEN];
 };
 
 struct cpsw_platform_data {
+	u32	ss_reg_ofs;	/* Subsystem control register offset */
 	int	channels;	/* number of cpdma channels (symmetric) */
 	u32	cpdma_reg_ofs;	/* cpdma register offset */
 
@@ -23,8 +25,6 @@ struct cpsw_platform_data {
 	u32	host_port_reg_ofs; /* cpsw cpdma host port registers */
 
 	u32	hw_stats_reg_ofs;  /* cpsw hardware statistics counters */
-
-	u8	mac_addr[ETH_ALEN];
 
 	int	rx_descs;
 

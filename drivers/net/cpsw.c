@@ -47,6 +47,25 @@ do {								\
 #define CPSW_MIN_PACKET_SIZE	60
 #define CPSW_MAX_PACKET_SIZE	(1500 + 14 + 4 + 4)
 
+#define CPSW_IRQ_QUIRK
+#ifdef CPSW_IRQ_QUIRK
+#define cpsw_enable_irq(priv)	\
+	do {			\
+		u32 i;		\
+		for (i = 0; i < priv->num_irqs; i++) \
+			enable_irq(priv->irqs_table[i]); \
+	} while (0);
+#define cpsw_disable_irq(priv)	\
+	do {			\
+		u32 i;		\
+		for (i = 0; i < priv->num_irqs; i++) \
+			disable_irq_nosync(priv->irqs_table[i]); \
+	} while (0);
+#else
+#define cpsw_enable_irq(priv) do { } while (0);
+#define cpsw_disable_irq(priv) do { } while (0);
+#endif
+
 static int debug_level;
 module_param(debug_level, int, 0);
 MODULE_PARM_DESC(debug_level, "cpsw debug level (NETIF_MSG bits)");
@@ -58,6 +77,17 @@ MODULE_PARM_DESC(ale_ageout, "cpsw ale ageout interval (seconds)");
 static int rx_packet_max = CPSW_MAX_PACKET_SIZE;
 module_param(rx_packet_max, int, 0);
 MODULE_PARM_DESC(rx_packet_max, "maximum receive packet size (bytes)");
+
+struct cpsw_ss_regs {
+	u32	id_ver;
+	u32	soft_reset;
+	u32	control;
+	u32	int_control;
+	u32	rx_thresh_en;
+	u32	rx_en;
+	u32	tx_en;
+	u32	misc_en;
+};
 
 struct cpsw_regs {
 	u32	id_ver;
@@ -73,7 +103,9 @@ struct cpsw_slave_regs {
 	u32	flow_thresh;
 	u32	port_vlan;
 	u32	tx_pri_map;
-	u32	gap_thresh;
+	u32	ts_ctl;
+	u32	ts_seq_ltype;
+	u32	ts_vlan;
 	u32	sa_lo;
 	u32	sa_hi;
 };
@@ -158,6 +190,7 @@ struct cpsw_priv {
 	struct device			*dev;
 	struct cpsw_platform_data	data;
 	struct cpsw_regs __iomem	*regs;
+	struct cpsw_ss_regs __iomem	*ss_regs;
 	struct cpsw_hw_stats __iomem	*hw_stats;
 	struct cpsw_host_regs __iomem	*host_port_regs;
 	u32				msg_enable;
@@ -177,7 +210,31 @@ struct cpsw_priv {
 	struct cpdma_ctlr		*dma;
 	struct cpdma_chan		*txch, *rxch;
 	struct cpsw_ale			*ale;
+
+#ifdef CPSW_IRQ_QUIRK
+	/* snapshot of IRQ numbers */
+	u32 irqs_table[4];
+	u32 num_irqs;
+#endif
 };
+
+static void cpsw_intr_enable(struct cpsw_priv *priv)
+{
+	__raw_writel(0xFF, &priv->ss_regs->tx_en);
+	__raw_writel(0xFF, &priv->ss_regs->rx_en);
+
+	cpdma_ctlr_int_ctrl(priv->dma, true);
+	return;
+}
+
+static void cpsw_intr_disable(struct cpsw_priv *priv)
+{
+	__raw_writel(0, &priv->ss_regs->tx_en);
+	__raw_writel(0, &priv->ss_regs->rx_en);
+
+	cpdma_ctlr_int_ctrl(priv->dma, false);
+	return;
+}
 
 void cpsw_tx_handler(void *token, int len, int status)
 {
@@ -230,8 +287,13 @@ static irqreturn_t cpsw_interrupt(int irq, void *dev_id)
 {
 	struct cpsw_priv *priv = dev_id;
 
-	if (likely(netif_running(priv->ndev)))
+	if (likely(netif_running(priv->ndev))) {
+		cpsw_intr_disable(priv);
 		napi_schedule(&priv->napi);
+	}
+
+	cpsw_disable_irq(priv);
+
 	return IRQ_HANDLED;
 }
 
@@ -248,7 +310,9 @@ static int cpsw_poll(struct napi_struct *napi, int budget)
 
 	if (num_rx < budget) {
 		napi_complete(napi);
+		cpsw_intr_enable(priv);
 		cpdma_ctlr_eoi(priv->dma);
+		cpsw_enable_irq(priv);
 	}
 
 	return num_rx;
@@ -454,6 +518,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	int i, ret;
 	u32 reg;
 
+	cpsw_intr_disable(priv);
 	netif_carrier_off(ndev);
 
 	ret = clk_enable(priv->clk);
@@ -509,8 +574,8 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	/* continue even if we didn't manage to submit all receive descs */
 	msg(info, ifup, "submitted %d rx descriptors\n", i);
 
+	cpsw_intr_enable(priv);
 	cpdma_ctlr_start(priv->dma);
-	cpdma_ctlr_int_ctrl(priv->dma, true);
 	napi_enable(&priv->napi);
 
 	return 0;
@@ -530,6 +595,7 @@ static int cpsw_ndo_stop(struct net_device *ndev)
 	struct cpsw_priv *priv = netdev_priv(ndev);
 
 	msg(info, ifdown, "shutting down cpsw device\n");
+	cpsw_intr_disable(priv);
 	cpdma_ctlr_int_ctrl(priv->dma, false);
 	cpdma_ctlr_stop(priv->dma);
 	netif_stop_queue(priv->ndev);
@@ -613,10 +679,12 @@ static void cpsw_ndo_tx_timeout(struct net_device *ndev)
 
 	msg(err, tx_err, "transmit timeout, restarting dma");
 	priv->stats.tx_errors++;
+	cpsw_intr_disable(priv);
 	cpdma_ctlr_int_ctrl(priv->dma, false);
 	cpdma_chan_stop(priv->txch);
 	cpdma_chan_start(priv->txch);
 	cpdma_ctlr_int_ctrl(priv->dma, true);
+	cpsw_intr_enable(priv);
 }
 
 static struct net_device_stats *cpsw_ndo_get_stats(struct net_device *ndev)
@@ -629,9 +697,11 @@ static void cpsw_ndo_poll_controller(struct net_device *ndev)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 
+	cpsw_intr_disable(priv);
 	cpdma_ctlr_int_ctrl(priv->dma, false);
 	cpsw_interrupt(ndev->irq, priv);
 	cpdma_ctlr_int_ctrl(priv->dma, true);
+	cpsw_intr_enable(priv);
 }
 
 static const struct net_device_ops cpsw_netdev_ops = {
@@ -695,7 +765,7 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 	struct cpdma_params		dma_params;
 	struct cpsw_ale_params		ale_params;
 	void __iomem			*regs;
-	int ret = 0, i;
+	int ret = 0, i, k = 0;
 
 	if (!data) {
 		pr_err("cpsw: platform data missing\n");
@@ -763,6 +833,7 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 	}
 	priv->regs = regs;
 	priv->host_port = data->slaves;
+	priv->ss_regs = regs + data->ss_reg_ofs;
 	priv->host_port_regs = regs + data->host_port_reg_ofs;
 	priv->hw_stats = regs + data->hw_stats_reg_ofs;
 
@@ -823,11 +894,19 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 		goto clean_ale_ret;
 	}
 
-	ret = request_irq(ndev->irq, cpsw_interrupt, 0, dev_name(&pdev->dev),
-			  priv);
-	if (ret < 0) {
-		dev_err(priv->dev, "error attaching irq handler\n");
-		goto clean_ale_ret;
+	while ((res = platform_get_irq(pdev, k))) {
+		for (i = res->start; i <= res->end; i++) {
+			if (request_irq(i, cpsw_interrupt, 0,
+					dev_name(&pdev->dev), priv)) {
+				dev_err(priv->dev, "error attaching irq\n");
+				goto clean_ale_ret;
+			}
+			#ifdef CPSW_IRQ_QUIRK
+			priv->irqs_table[k] = i;
+			priv->num_irqs = k;
+			#endif
+		}
+		k++;
 	}
 
 	ndev->flags |= IFF_ALLMULTI;	/* see cpsw_ndo_change_rx_flags() */

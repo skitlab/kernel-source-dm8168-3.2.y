@@ -1450,6 +1450,162 @@ static inline void ti81xx_register_edma(void) {}
 
 /*-------------------------------------------------------------------------*/
 
+#ifdef CONFIG_ARCH_TI814X
+#define TI814X_CPSW_BASE		(0x4A100000)
+#define TI814X_CPSW_MDIO_BASE		(0x4A100800)
+
+static u64 cpsw_dma_mask = DMA_BIT_MASK(32);
+/* TODO : Verify the offsets */
+struct cpsw_slave_data cpsw_slaves[] = {
+	{
+		.slave_reg_ofs  = 0x50,
+		.sliver_reg_ofs = 0x700,
+		.phy_id		= {"0:00"}, /* TODO : Fix the phy address */
+	},
+	{
+		.slave_reg_ofs  = 0x90,
+		.sliver_reg_ofs = 0x740,
+		.phy_id		= {"0:01"},
+	},
+};
+
+static struct cpsw_platform_data ti814x_cpsw_pdata = {
+	.ss_reg_ofs		= 0x900,
+	.channels		= 8,
+	.cpdma_reg_ofs		= 0x100,
+	.slaves			= 2,
+	.slave_data		= cpsw_slaves,
+	.ale_reg_ofs		= 0x600,
+	.ale_entries		= 1024,
+	.host_port_reg_ofs      = 0x28,
+	.hw_stats_reg_ofs       = 0x400,
+	.rx_descs               = 512,
+	.mac_control            = /* BIT(18) |*/ /* IFCTLA *//* TODO:Need this*/
+				  BIT(15) | /* EXTEN      */
+				  BIT(5)  | /* MIIEN      */
+				  BIT(4)  | /* TXFLOWEN   */
+				  BIT(3),   /* RXFLOWEN   */
+};
+
+static struct mdio_platform_data cpsw_mdio_pdata = {
+	.bus_freq       = TI814X_EMAC_MDIO_FREQ,
+};
+
+static struct resource cpsw_mdio_resources[] = {
+	{
+		.start  = TI814X_CPSW_MDIO_BASE,
+		.end    = TI814X_CPSW_MDIO_BASE + SZ_4K - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device cpsw_mdio_device = {
+	.name           = "davinci_mdio",
+	.id             = 0,
+	.num_resources  = ARRAY_SIZE(mdio_resources),
+	.resource       = cpsw_mdio_resources,
+	.dev.platform_data = &cpsw_mdio_pdata,
+};
+
+static struct resource ti814x_cpsw_resources[] = {
+	{
+		.start  = TI814X_CPSW_BASE,
+		.end    = TI814X_CPSW_BASE + SZ_4K - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.start	= TI814X_IRQ_MACRXTHR0,
+		.end	= TI814X_IRQ_MACRXTHR0,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= TI814X_IRQ_MACRXINT0,
+		.end	= TI814X_IRQ_MACRXINT0,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= TI814X_IRQ_MACTXINT0,
+		.end	= TI814X_IRQ_MACTXINT0,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= TI814X_IRQ_MACMISC0,
+		.end	= TI814X_IRQ_MACMISC0,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device ti814x_cpsw_device = {
+	.name		=	"cpsw",
+	.id		=	0,
+	.num_resources	=	ARRAY_SIZE(ti814x_cpsw_resources),
+	.resource	=	ti814x_cpsw_resources,
+	.dev		=	{
+					.platform_data	   = &ti814x_cpsw_pdata;
+					.dma_mask	   =  cpsw_dma_mask;
+					.coherent_dma_mask = cpsw_dma_mask;
+				},
+};
+
+void ti814x_cpsw_mux(void)
+{
+	omap_mux_init_signal("gmii1_rxclk", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_rxd0", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_rxd1", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_rxd2", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_rxd3", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_rxd4", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_rxd5", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_rxd6", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_rxd7", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_rxdv", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_gtxclk", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_txd0", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_txd1", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_txd2", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_txd3", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_txd4", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_txd5", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_txd6", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_txd7", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_txen", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_txclk", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_col", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_crs", OMAP_MUX_MODE1);
+	omap_mux_init_signal("gmii1_rxer", OMAP_MUX_MODE1);
+}
+
+void ti814x_cpsw_init(void)
+{
+	u32 mac_lo, mac_hi;
+
+	mac_lo = omap_ctrl_readl(TI81XX_CONTROL_MAC_ID0_LO);
+	mac_hi = omap_ctrl_readl(TI81XX_CONTROL_MAC_ID0_HI);
+	cpsw_slaves[0].mac_addr[0] = mac_hi & 0xFF;
+	cpsw_slaves[0].mac_addr[1] = (mac_hi & 0xFF00) >> 8;
+	cpsw_slaves[0].mac_addr[2] = (mac_hi & 0xFF0000) >> 16;
+	cpsw_slaves[0].mac_addr[3] = (mac_hi & 0xFF000000) >> 24;
+	cpsw_slaves[0].mac_addr[4] = mac_lo & 0xFF;
+	cpsw_slaves[0].mac_addr[5] = (mac_lo & 0xFF00) >> 8;
+
+	mac_lo = omap_ctrl_readl(TI81XX_CONTROL_MAC_ID1_LO);
+	mac_hi = omap_ctrl_readl(TI81XX_CONTROL_MAC_ID1_HI);
+	cpsw_slaves[1].mac_addr[0] = mac_hi & 0xFF;
+	cpsw_slaves[1].mac_addr[1] = (mac_hi & 0xFF00) >> 8;
+	cpsw_slaves[1].mac_addr[2] = (mac_hi & 0xFF0000) >> 16;
+	cpsw_slaves[1].mac_addr[3] = (mac_hi & 0xFF000000) >> 24;
+	cpsw_slaves[1].mac_addr[4] = mac_lo & 0xFF;
+	cpsw_slaves[1].mac_addr[5] = (mac_lo & 0xFF00) >> 8;
+#if 0
+	ti814x_cpsw_mux();
+#endif
+	platform_device_register(&cpsw_mdio_device);
+	platform_device_register(&ti814x_cpsw_device);
+}
+#else
+static inline void ti814x_cpsw_init(void) {}
+#endif
+
 #if defined(CONFIG_ARCH_TI816X) && defined(CONFIG_PCI)
 static struct ti816x_pcie_data ti816x_pcie_data = {
 	.msi_irq_base	= MSI_IRQ_BASE,
@@ -1544,9 +1700,12 @@ static int __init omap2_init_devices(void)
 	omap_init_sham();
 	omap_init_aes();
 	omap_init_vout();
+#ifdef CONFIG_ARCH_TI81XX
+	ti816x_ethernet_init();
+	ti814x_cpsw_init();
 	ti816x_init_pcie();
 	ti81xx_register_edma();
-	ti816x_ethernet_init();
+#endif
 
 	return 0;
 }
