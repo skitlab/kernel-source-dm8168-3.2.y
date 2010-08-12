@@ -49,14 +49,11 @@ struct ti816x_hdmi_params
 struct ti816x_hdmi_params hdmi_obj;
 static struct ti816x_hdmi_init_params initParams;
 
-#if 1
-static u32 hdmi_mode = 4;
-#endif
-static struct hdmi_cfg_params param720p60  = TI816X_HDMI_8BIT_720_60_16_9_HD;
-static struct hdmi_cfg_params param1080p30 = TI816X_HDMI_8BIT_1080p_30_16_9_HD;
-static struct hdmi_cfg_params param1080i60 = TI816X_HDMI_8BIT_1080i_60_16_9_HD;
-static struct hdmi_cfg_params param1080p60 = TI816X_HDMI_8BIT_1080p_60_16_9_HD;
 
+
+#if 1
+static int  hdmi_mode = -1;
+#endif
 static int ti816x_hdmi_major;
 static struct cdev ti816x_hdmi_cdev;
 static dev_t ti816x_hdmi_dev_id;
@@ -177,12 +174,6 @@ int __init ti816x_hdmi_init(void)
 {
 	int result;
 
-	if ((hdmi_mode < 0x1) || (hdmi_mode > 0x4)){
-		printk("\n In correct resolution selected \n");
-		printk("1-> 720p60 2-> 1080p30 3-> 1080i60 4->1080p60\n");
-		result = -1;
-		goto err_exit;
-	}
 	/* Get the major number for this module */
 	result = alloc_chrdev_region(&ti816x_hdmi_dev_id, 0, 1, TI816X_HDMI_DRIVER_NAME);
 	if (result) {
@@ -281,31 +272,16 @@ int __init ti816x_hdmi_init(void)
 	initParams.prcm_base_addr     =   (u32) hdmi_obj.prcm_v_addr;
 	initParams.venc_base_addr     =   (u32) hdmi_obj.venc_v_addr;
 
-/*  printk("hdmi :: Initializing driver \n");*/
-	if (ti816x_hdmi_lib_init(&initParams) != 0x0){
+	/* Set the HDMI user to proper value if not set correctly */
+	printk("hdmi_mode = %d\n", hdmi_mode);
+	if (hdmi_mode != -1 && (hdmi_mode < 0 || hdmi_mode >= hdmi_max_mode))
+	{
+		hdmi_mode = hdmi_1080P_60_mode;
+	}
+	printk("hdmi_mode = %d\n", hdmi_mode);
+	if (ti816x_hdmi_lib_init(&initParams, hdmi_mode) != 0x0){
 		printk("TI816x_hdmi: Init failed\n");
 		goto err_remove_class;
-	}
-	switch (hdmi_mode) {
-		case 1:
-			hdmi_obj.cfg = &param720p60;
-			printk("Configured HDMI for 720 P 60\n");
-		break;
-		case 2:
-			hdmi_obj.cfg = &param1080p30;
-			printk("Configured HDMI for 1080 P 30\n");
-		break;
-		case 3:
-			hdmi_obj.cfg = &param1080i60;
-			printk("Configured HDMI for 1080 I 60\n");
-		break;
-		case 4:
-			hdmi_obj.cfg = &param1080p60;
-			printk("Configured HDMI for 1080 P 60\n");
-		break;
-		default:
-			hdmi_obj.cfg = NULL;
-		break;
 	}
 	printk("hdmi :: Initialized \n");
 	return 0;
@@ -342,6 +318,7 @@ void __exit ti816x_hdmi_exit(void)
 	iounmap((int *)hdmi_obj.prcm_v_addr);
 	iounmap((int *)hdmi_obj.venc_v_addr);
 }
+module_param_named(hdmi_mode, hdmi_mode, int, 0664);
 
 module_init(ti816x_hdmi_init);
 module_exit(ti816x_hdmi_exit);

@@ -286,7 +286,8 @@ struct ti816x_hdmi_init_params {
 /*			Function Declarations    			      */
 /* ========================================================================== */
 
-int ti816x_hdmi_lib_init(struct ti816x_hdmi_init_params *initParams);
+int ti816x_hdmi_lib_init(struct ti816x_hdmi_init_params *initParams,
+	enum hdmi_resolution hdmi_mode);
 
 int ti816x_hdmi_lib_deinit(void *args);
 

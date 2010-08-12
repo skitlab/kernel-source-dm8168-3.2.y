@@ -118,7 +118,7 @@
 #define HDMI_VIDEO_STAND_1080P60		(2200 * 1125 * 60)
 #define HDMI_VIDEO_STAND_1080I60		(2200 * 1125 * 30)
 #define HDMI_VIDEO_STAND_1080P30		(2200 * 1125 * 30)
-
+#define HDMI_TEST				(1)
 /* ========================================================================== */
 /*				Local Structure 			      */
 /* ========================================================================== */
@@ -191,10 +191,10 @@ static struct hdmi_cfg_params default_config =
 	TI816X_HDMI_8BIT_1080p_60_16_9_HD;
 /* Default configuration to start with */
 
-struct hdmi_cfg_params config1 = TI816X_HDMI_8BIT_1080p_60_16_9_HD;
-struct hdmi_cfg_params config2 = TI816X_HDMI_8BIT_720_60_16_9_HD;
-struct hdmi_cfg_params config3 = TI816X_HDMI_8BIT_1080i_60_16_9_HD;
-struct hdmi_cfg_params config4 = TI816X_HDMI_8BIT_1080p_30_16_9_HD;
+struct hdmi_cfg_params config_1080p60 = TI816X_HDMI_8BIT_1080p_60_16_9_HD;
+struct hdmi_cfg_params config_720p60 = TI816X_HDMI_8BIT_720_60_16_9_HD;
+struct hdmi_cfg_params config_1080i60 = TI816X_HDMI_8BIT_1080i_60_16_9_HD;
+struct hdmi_cfg_params config_1080p30 = TI816X_HDMI_8BIT_1080p_30_16_9_HD;
 
 /* ========================================================================== */
 /*				Local Functions 			      */
@@ -1572,14 +1572,15 @@ void configure_venc_720p60(u32* venc_base, int useEmbeddedSync)
 /*			  Global Functions				      */
 /* ========================================================================== */
 
-int ti816x_hdmi_lib_init(struct ti816x_hdmi_init_params *init_param)
+int ti816x_hdmi_lib_init(struct ti816x_hdmi_init_params *init_param,
+	enum hdmi_resolution hdmi_mode)
 {
 	int rtn_value = 0x0;
 	if (init_param == NULL) {
 		rtn_value = -EFAULT ;
 		goto exit_this_func;
 	}
-
+	printk("%s %d %d\n", __func__, __LINE__, hdmi_mode);
 	hdmi_config.is_recvr_sensed = FALSE;
 	hdmi_config.is_streaming = FALSE;
 	hdmi_config.is_scl_clocked = FALSE;
@@ -1594,13 +1595,68 @@ int ti816x_hdmi_lib_init(struct ti816x_hdmi_init_params *init_param)
 	printk("%s %d prcm_base = %x\n", __func__, __LINE__, init_param->prcm_base_addr);
 	enable_hdmi_clocks(hdmi_config.prcm_base_addr);
 
-	memcpy(((void *) &(hdmi_config.config)),
-		   ((void *) &default_config), sizeof(struct hdmi_cfg_params));
 	hdmi_config.state = HDMI_INST_INITIALIZED;
+        if (-1 != hdmi_mode)
+	{
+		switch (hdmi_mode)
+		{
+			case hdmi_1080P_60_mode:
+			memcpy(&hdmi_config.config, &config_1080p60,
+				sizeof(struct hdmi_cfg_params));
+#ifdef HDMI_TEST
+			configure_venc_1080p60(
+				(u32 *)hdmi_config.venc_base_addr, 0);
+#endif
+			printk("%s %d\n", __func__, __LINE__);
 
-    configure_venc_1080p60((u32 *)hdmi_config.venc_base_addr, 0);
-	ti816x_hdmi_lib_config(&hdmi_config.config);
-    ti816x_hdmi_lib_start(&hdmi_config, NULL);
+			break;
+			case hdmi_720P_60_mode:
+			memcpy(&hdmi_config.config, &config_720p60,
+				sizeof(struct hdmi_cfg_params));
+#ifdef HDMI_TEST
+			configure_venc_720p60(
+				(u32 *)hdmi_config.venc_base_addr, 0);
+#endif
+			printk("%s %d\n", __func__, __LINE__);
+			break;
+			case hdmi_1080I_60_mode:
+			memcpy(&hdmi_config.config, &config_1080i60,
+				sizeof(struct hdmi_cfg_params));
+#ifdef HDMI_TEST
+			configure_venc_1080i60(
+				(u32 *)hdmi_config.venc_base_addr, 0);
+#endif
+			printk("%s %d\n", __func__, __LINE__);
+			break;
+			case hdmi_1080P_30_mode:
+			memcpy(&hdmi_config.config, &config_1080p30,
+				sizeof(struct hdmi_cfg_params));
+#ifdef HDMI_TEST
+			configure_venc_1080p30(
+				(u32 *)hdmi_config.venc_base_addr, 0);
+#endif
+			printk("%s %d\n", __func__, __LINE__);
+
+			break;
+			case -1:
+				break;
+			default:
+			memcpy(&hdmi_config.config, &config_1080p60,
+				sizeof(struct hdmi_cfg_params));
+#ifdef HDMI_TEST
+			configure_venc_1080p60(
+				(u32 *)hdmi_config.venc_base_addr, 0);
+#endif
+			printk("%s %d\n", __func__, __LINE__);
+		}
+		ti816x_hdmi_lib_config(&hdmi_config.config);
+		ti816x_hdmi_lib_start(&hdmi_config, NULL);
+	}
+	else
+	{
+		memcpy(((void *) &(hdmi_config.config)),
+		   ((void *) &default_config), sizeof(struct hdmi_cfg_params));
+	}
 
 	/*TODO - Setup hdmi clock mux ON */
 exit_this_func:
@@ -1763,16 +1819,16 @@ int ti816x_hdmi_set_mode(enum hdmi_resolution resolution)
 	switch (resolution)
 	{
 		case hdmi_1080P_60_mode:
-			ptr_config = &config1;
+			ptr_config = &config_1080p60;
 			break;
 		case hdmi_720P_60_mode:
-			ptr_config = &config2;
+			ptr_config = &config_720p60;
 			break;
 		case hdmi_1080I_60_mode:
-			ptr_config = &config3;
+			ptr_config = &config_1080i60;
 			break;
 		case hdmi_1080P_30_mode:
-			ptr_config = &config4;
+			ptr_config = &config_1080p30;
 			break;
 		default:
 			return -1;
