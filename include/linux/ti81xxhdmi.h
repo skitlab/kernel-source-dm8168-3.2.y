@@ -1,6 +1,6 @@
 /*
  *
- * HDMI driver header file for TI 816x
+ * HDMI driver header file for TI 81xx
  *
  * Copyright (C) 2010 TI
  * Author: Sujith Shivalingappa <sujith.s@ti.com>
@@ -21,36 +21,37 @@
  * 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  */
 
-#ifndef __TI816X_HDMI_H__
-#define __TI816X_HDMI_H__
+#ifndef __TI81XXHDMI_H__
+#define __TI81XXHDMI_H__
 
 
 #include <linux/ioctl.h>
 
 /* IOCTL definitions */
-#define TI816XHDMI_MAGIC            'N'
-#define TI816XHDMI_IOW(num, dtype)  _IOW(TI816XHDMI_MAGIC, num, dtype)
-#define TI816XHDMI_IOR(num, dtype)  _IOR(TI816XHDMI_MAGIC, num, dtype)
-#define TI816XHDMI_IOWR(num, dtype) _IOWR(TI816XHDMI_MAGIC, num, dtype)
-#define TI816XHDMI_IO(num)          _IO(TI816XHDMI_MAGIC, num)
+#define TI81XXHDMI_MAGIC            'N'
+#define TI81XXHDMI_IOW(num, dtype)  _IOW(TI81XXHDMI_MAGIC, num, dtype)
+#define TI81XXHDMI_IOR(num, dtype)  _IOR(TI81XXHDMI_MAGIC, num, dtype)
+#define TI81XXHDMI_IOWR(num, dtype) _IOWR(TI81XXHDMI_MAGIC, num, dtype)
+#define TI81XXHDMI_IO(num)          _IO(TI81XXHDMI_MAGIC, num)
 
 /* IOCLT Supported by this driver */
-#define TI816XHDMI_START      		TI816XHDMI_IO(0)
-#define TI816XHDMI_STOP       		TI816XHDMI_IO(1)
-#define TI816XHDMI_GET_STATUS 		TI816XHDMI_IOR(2, int *)
-#define TI816XHDMI_READ_EDID  		TI816XHDMI_IOR(3, struct hdmi_edid_read_params)
+#define TI81XXHDMI_START      		TI81XXHDMI_IO(0)
+#define TI81XXHDMI_STOP       		TI81XXHDMI_IO(1)
+#define TI81XXHDMI_GET_STATUS 		TI81XXHDMI_IOR(2, int *)
+#define TI81XXHDMI_READ_EDID  		TI81XXHDMI_IOR(3, struct ti81xxdhmi_edid_params)
 /* Use this command only when hdmi is streaming video to a sink */
 /* TODO Not supported for now */
 #if 0
-#define TI816XHDMI_GET_CONFIG 		TI816XHDMI_IOR(4, struct hdmi_cfg_params)
-#define TI816XHDMI_SET_CONFIG 		TI816XHDMI_IOW(5, struct hdmi_cfg_params)
+#define TI81XXHDMI_GET_CONFIG 		TI81XXHDMI_IOR(4, struct hdmi_cfg_params)
+#define TI81XXHDMI_SET_CONFIG 		TI81XXHDMI_IOW(5, struct hdmi_cfg_params)
 #endif
-#define TI816XHDMI_SET_MODE         TI816XHDMI_IOW(6, enum hdmi_resolution)
-#define TI816XHDMI_TEST_HDMI        TI816XHDMI_IOW(7, enum hdmi_resolution)
+#define TI81XXHDMI_SET_MODE         TI81XXHDMI_IOW(6, enum ti81xxhdmi_mode)
+#define TI81XXHDMI_GET_MODE         TI81XXHDMI_IOR(7, enum ti81xxhdmi_mode)
+#define TI81XXHDMI_TEST_HDMI        TI81XXHDMI_IOW(8, enum ti81xxhdmi_mode)
 /* Data Types */
 
 /* Supported resolutions */
-enum hdmi_resolution {
+enum ti81xxhdmi_mode {
 	hdmi_ntsc_mode = 0,
 	hdmi_pal_mode,
 	hdmi_1080P_60_mode,
@@ -59,7 +60,7 @@ enum hdmi_resolution {
 	hdmi_1080P_30_mode,
 	hdmi_max_mode
 };
-struct hdmi_edid_read_params {
+struct ti81xxdhmi_edid_params {
 	unsigned int slave_address;
 	unsigned int segment_ptr;
 	unsigned int offset;
@@ -69,6 +70,6 @@ struct hdmi_edid_read_params {
 	unsigned int timeout;
 	unsigned int use_eddc_read;
 };
-#endif /* End of #ifndef __TI816X_HDMI_H__ */
+#endif /* End of #ifndef __TI81XXHDMI_H__ */
 
 
