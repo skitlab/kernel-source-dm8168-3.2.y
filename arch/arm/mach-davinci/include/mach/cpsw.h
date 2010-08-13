@@ -31,6 +31,8 @@ struct cpsw_platform_data {
 	void	(*phy_control)(bool enabled);
 
 	u32	mac_control;
+
+	u32	gigabit_en; /* Is gigabit capable AND enabled */
 };
 
 #endif /* __CPSW_H__ */

@@ -512,6 +512,67 @@ static void cpsw_init_host_port(struct cpsw_priv *priv)
 			   1 << priv->host_port);
 }
 
+#define PHY_CONFIG_REG	22
+static void cpsw_set_phy_config(struct cpsw_priv *priv)
+{
+	struct cpsw_platform_data *pdata = priv->pdev->dev.platform_data;
+	struct phy_device *phydev = NULL;
+	struct cpsw_slave *slave = NULL;
+	struct mii_bus *miibus;
+	int phy_addr = 0;
+	u16 val = 0;
+	u16 tmp = 0;
+	u32 i = 0;
+
+	if (!pdata->gigabit_en)
+		return;
+
+	for (i = 0; i < pdata->slaves; i++) {
+		slave = priv->slaves[i];
+		phydev = slave->phy;
+		if (!phydev)
+			continue;
+		miibus = phydev->bus;
+		phy_addr = phydev->addr;
+
+		/* TODO : This check is required. Make it graceful*/
+		if (phydev->phy_id != 0x0282F013) {
+			/* This enabled TX_CLK-ing in case of
+			 * 10/100MBps operation
+			 */
+			val = miibus->read(miibus, phy_addr, PHY_CONFIG_REG);
+			val |= BIT(5);
+			miibus->write(miibus, phy_addr, PHY_CONFIG_REG, val);
+			tmp = miibus->read(miibus, phy_addr, PHY_CONFIG_REG);
+			return;
+		}
+	}
+
+	/* Following lines enable gigbit advertisement capability even in case
+	 * the advertisement is not enabled by default
+	 */
+	val = miibus->read(miibus, phy_addr, MII_BMCR);
+	val |= (BMCR_SPEED100 | BMCR_ANENABLE | BMCR_FULLDPLX);
+	miibus->write(miibus, phy_addr, MII_BMCR, val);
+	tmp = miibus->read(miibus, phy_addr, MII_BMCR);
+
+	tmp = miibus->read(miibus, phy_addr, MII_BMSR);
+	if (tmp & 0x1) {
+		val = miibus->read(miibus, phy_addr, MII_CTRL1000);
+		val |= BIT(9);
+		miibus->write(miibus, phy_addr, MII_CTRL1000, val);
+		tmp = miibus->read(miibus, phy_addr, MII_CTRL1000);
+	}
+
+	val = miibus->read(miibus, phy_addr, MII_ADVERTISE);
+	val |= (ADVERTISE_10HALF | ADVERTISE_10FULL | \
+		ADVERTISE_100HALF | ADVERTISE_100FULL);
+	miibus->write(miibus, phy_addr, MII_ADVERTISE, val);
+	tmp = miibus->read(miibus, phy_addr, MII_ADVERTISE);
+
+	return;
+}
+
 static int cpsw_ndo_open(struct net_device *ndev)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
@@ -542,6 +603,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	    (reg >> 8 & 0x7), reg & 0xff, (reg >> 11) & 0x1f);
 
 	/* initialize host and slave ports */
+	cpsw_set_phy_config(priv);
 	cpsw_init_host_port(priv);
 	for_each_slave(priv, cpsw_slave_open, priv);
 
