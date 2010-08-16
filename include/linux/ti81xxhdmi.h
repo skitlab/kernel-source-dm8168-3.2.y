@@ -45,9 +45,10 @@
 #define TI81XXHDMI_GET_CONFIG 		TI81XXHDMI_IOR(4, struct hdmi_cfg_params)
 #define TI81XXHDMI_SET_CONFIG 		TI81XXHDMI_IOW(5, struct hdmi_cfg_params)
 #endif
-#define TI81XXHDMI_SET_MODE         TI81XXHDMI_IOW(6, enum ti81xxhdmi_mode)
-#define TI81XXHDMI_GET_MODE         TI81XXHDMI_IOR(7, enum ti81xxhdmi_mode)
-#define TI81XXHDMI_TEST_HDMI        TI81XXHDMI_IOW(8, enum ti81xxhdmi_mode)
+#define TI81XXHDMI_SET_MODE         	TI81XXHDMI_IOW(6, enum ti81xxhdmi_mode)
+#define TI81XXHDMI_GET_MODE         	TI81XXHDMI_IOR(7, enum ti81xxhdmi_mode)
+#define TI81XXHDMI_TEST_HDMI        	TI81XXHDMI_IOW(8, enum ti81xxhdmi_mode)
+#define TI81XXHDMI_GET_PHY_STAT		TI81XXHDMI_IOR(9, enum ti81xxhdmi_mode)
 /* Data Types */
 
 /* Supported resolutions */
@@ -69,6 +70,15 @@ struct ti81xxdhmi_edid_params {
 	unsigned int no_of_bytes_read;
 	unsigned int timeout;
 	unsigned int use_eddc_read;
+};
+struct ti81xxhdmi_phy_status {
+	unsigned int rst_done_pclk;
+	unsigned int rst_done_pwrclk;
+	unsigned int rst_done_scpclk;
+	unsigned int rst_done_refclk;
+	unsigned int dct_5v_short_clk;
+	unsigned int rx_detect;
+	unsigned int dct_5v_short_data;
 };
 #endif /* End of #ifndef __TI81XXHDMI_H__ */
 

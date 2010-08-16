@@ -165,6 +165,8 @@ static int determine_pixel_repeatation(struct instance_cfg *inst_context);
 static int ti81xx_hdmi_lib_read_edid(void *handle,
 				   struct ti81xxdhmi_edid_params *r_params,
 				   void *args);
+static int get_phy_status(struct instance_cfg *inst_context,
+	struct ti81xxhdmi_phy_status *stat);
 #if 0
 static int ti81xx_hdmi_lib_get_cfg(void *handle,
 				struct hdmi_cfg_params *config,
@@ -191,6 +193,8 @@ struct hdmi_cfg_params config_1080p30 = TI81XX_HDMI_8BIT_1080p_30_16_9_HD;
 /*				Local Functions 			      */
 /* ========================================================================== */
 
+
+#ifdef CONFIG_SND_TI816X_SOC
 /*
  *	   This function is expected to be called when initializing or
  *	   when re-configuring. After re-configuration its recomended to reset the
@@ -302,7 +306,161 @@ exit_this_func:
 	THDBG("configure_phy<<<<");
 	return (rtn_value);
 }
+#else
+static int configure_phy(struct instance_cfg *inst_context)
+{
+	int rtn_value = 0x0;
+	int phy_base;
+	volatile u32 temp;
 
+	THDBG(">>>>configure_phy\n");
+
+	phy_base = inst_context->phy_base_addr;
+	/* Steps
+	 * Set the Transmit control register based on the pixel clock setting.
+	 * Set the digital control register
+	 * Set the power control
+	 * Set the pad control register
+	 * Disable Trim and Test Control
+	 * Analog interface Control
+	 * Digital interface control
+	 * disable bist test.
+	 */
+	/* TX Control */
+	temp = 0;
+	switch (inst_context->config.display_mode)
+	{
+		case hdmi_1080P_30_mode:
+		case hdmi_720P_60_mode:
+		case hdmi_1080I_60_mode:
+		temp = 0x1 << 30;
+		break;
+		case hdmi_1080P_60_mode:
+		temp = 0x2 << 30;
+		break;
+		default:
+		return -1;
+	}
+	/* Enable de-emphasis on all the links D0, D1, D2 and CLK */
+	temp |= 0x1 << 27;
+	temp |= 0x1 << 26;
+	temp |= 0x1 << 25;
+	temp |= 0x1 << 24;
+	/* Set the default de-emphasis value for all the links
+	 * TODO: Get the proper de-emphasis value
+	 */
+	temp |= HDMI_PHY_DEF_DE_EMPHASIS_VAL << 21;
+	temp |= HDMI_PHY_DEF_DE_EMPHASIS_VAL << 18;
+	temp |= HDMI_PHY_DEF_DE_EMPHASIS_VAL << 15;
+	temp |= HDMI_PHY_DEF_DE_EMPHASIS_VAL << 12;
+	/* Configure the slow edge for the normal setting */
+	temp |= 0x0 << 10;
+	temp |= 0x0 << 8;
+	temp |= 0x0 << 6;
+	temp |= 0x0 << 4;
+	/* Set the TMDS level for normal I/O of 3.3V */
+	temp |= 0x0 << 3;
+	/* Nominal current of 10ma used for signalling */
+	temp |= 0x0 << 1;
+	__raw_writel(temp, HDMI_PHY_TX_CTRL_OFF);
+
+	/* Digital control */
+	temp = 0;
+	/* Use bit 30 from this register as the enable signal for the TMDS */
+	temp |= 1 << 31;
+	/* Enable TMDS signal. TODO*/
+	temp |= 1 << 30;
+	/* Use 28 pin as the TX valid from this register */
+	temp |= 1  << 29;
+	/* Tx Valid enable TODO*/
+	temp |= 1 << 28;
+	__raw_writel(temp, HDMI_PHY_DIGITAL_CTRL_OFF);
+
+	/* Power Control */
+	temp = 0;
+	/* Normal behaivour of LDO */
+	temp |= 0 << 31;
+	/* Set the LDO power up counter to default value of 21usec */
+	temp |= 0x3F << 24;
+	/* Set the BGON value to default of 1usec */
+	temp |= 0x3 << 19;
+	/* Set the TBIAS counter to default value */
+	temp |= 0x19 << 7;
+	/* Get the LDOs in then normal state TODO*/
+	temp |= 0x0 << 6;
+	/* Bandgap voltage internally TODO*/
+	temp |= 0x0 << 5;
+	/* Test disable TODO*/
+	temp |= 0x0 << 4;
+	/* TODO Get the proper value for the LDO voltage based on the */
+	temp |= HDMI_PHY_DEF_LDO_VOLTAGE_VAL << 0;
+	__raw_writel(temp, HDMI_PHY_PWR_CTRL_OFF);
+
+	/* Pad configuration Control */
+	temp = 0;
+	/* TODO What should be the value */
+	temp |= 0x0 << 31;
+	/* Normal polarity for all the links */
+	temp |= 0x0 << 30;
+	temp |= 0x0 << 29;
+	temp |= 0x0 << 28;
+	temp |= 0x0 << 27;
+	/* Normal channel assignment for all the channels */
+	temp |= 0x0 << 22;
+	/* TODO currently setting the default value to 0x0 */
+	temp |= HDMI_PHY_DEF_VTHRESHPU_CNTL_VAL << 16;
+	/* Don't force the RX Detect to HI state*/
+	temp |= 0x0 << 15;
+	__raw_writel(temp, HDMI_PHY_PAD_CFG_CTRL_OFF);
+
+	/* Trim and Test Control */
+	/* TODO Don't use the Bandgap values */
+	temp |= 0x0 << 31;
+	/* TODO Dont use cap trim settings */
+	temp |= 0x0 << 15;
+	/* TODO Dont enable the bandgap and switched cap current */
+	temp |= 0x0 << 7;
+	temp |= 0x0 << 6;
+	__raw_writel(temp, HDMI_PHY_TRIM_TEST_CTRL_OFF);
+
+	/* Analog Interface control */
+	temp = 0;
+	/* TODO: Don't put AFE in debug mode */
+	temp |= 0x0 << 16;
+	/* TODO: Don't use the LDO prog register */
+	temp |= 0x0 << 15;
+	/* TODO: Don't override the value of the analog signal LDOPGD*/
+	temp |= 0x0 << 14;
+	/* TODO: Don't override the value of the analog signal BGON */
+	temp |= 0x0 << 13;
+	/* TODO: Don't override the value of the analog signal TXON */
+	temp |= 0x0 << 12;
+	/* TODO: Dont use the register to override the clock lane pos */
+	temp |= 0x0 << 10;
+	/* TODO: Analog characterization For now putting it to 0*/
+	temp |= 0x0 << 0;
+	__raw_writel(temp, HDMI_PHY_ANG_INT_CTRL_OFF);
+
+	/* Digital Interface Control */
+	temp = 0;
+	/* TODO: Don't use this register for data output */
+	temp |= 0x0 << 31;
+	__raw_writel(temp, HDMI_PHY_DATA_INT_CTRL_OFF);
+
+	/* BIST register */
+	temp = 0;
+	/* TODO: Don't use the LDO bist conrtol */
+	temp |= 0x0 << 31;
+	/* TODO: Don't use LB mode */
+	temp |= 0x0 << 27;
+	/* TODO: Don't use  the LB LANE SEL */
+	temp |= 0x0 << 24;
+	__raw_writel(temp, HDMI_PHY_BIST_OFF);
+
+	return rtn_value;
+}
+
+#endif
 
 /*
  * Configure the wrapper with debouce data packing modes, timming
@@ -1238,7 +1396,49 @@ exit_this_func:
 	THDBG(">>>>determine_pixel_repeatation");
 	return (rtn_value);
 }
+#ifdef CONFIG_SND_TI816X_SOC
+int get_phy_status(struct instance_cfg *inst_context,
+			 struct ti81xxhdmi_phy_status *stat)
+{
+	int rtn_value = 0;
+	int phy_base;
+	unsigned int temp;
 
+	THDBG(">>>>get_phy_status\n");
+	phy_base = inst_context->phy_base_addr;
+	if (!stat)
+	{
+		rtn_value = -EFAULT;
+		goto exit_this_func;
+	}
+
+	temp = __raw_readl(phy_base + HDMI_PHY_PWR_CTRL_OFF);
+	stat->rst_done_pclk = (temp & HDMI_PHY_RESETDONEPIXELCLK_MASK) <<
+				HDMI_PHY_RESETDONEPIXELCLK_SHIFT;
+        stat->rst_done_pwrclk = (temp & HDMI_PHY_RESETDONEPWRCLK_MASK) <<
+				HDMI_PHY_RESETDONEPWRCLK_SHIFT;
+        stat->rst_done_scpclk = (temp & HDMI_PHY_RESETDONESCPCLK_MASK) <<
+				HDMI_PHY_RESETDONESCPCLK_SHIFT;
+	stat->rst_done_refclk = (temp & HDMI_PHY_RESETDONEREFCLK_MASK) <<
+				HDMI_PHY_RESETDONEREFCLK_SHIFT;
+	temp = __raw_readl(phy_base + HDMI_PHY_PAD_CFG_CTRL_OFF);
+	stat->dct_5v_short_clk = (temp & HDMI_PHY_DET5VSHT_CLK_MASK) <<
+				HDMI_PHY_DET5VSHT_CLK_SHIFT;
+	stat->rx_detect = (temp & HDMI_PHY_RXDET_LINE_MASK) >>
+					HDMI_PHY_RXDET_LINE_SHIFT;
+	stat->dct_5v_short_data = (temp & HDMI_PHY_DET5VSHT_DATA_MASK) >>
+					HDMI_PHY_DET5VSHT_DATA_SHIFT;
+	THDBG("get_phy_status<<<<<\n");
+exit_this_func:
+	return rtn_value;
+}
+#else
+int get_phy_status(struct instance_cfg *inst_context,
+			 struct ti81xxhdmi_phy_status *stat)
+{
+	return -EINVAL;
+}
+#endif
 void enable_hdmi_clocks(u32 prcm_base)
 {
 	u32 temp;
@@ -1268,7 +1468,7 @@ void enable_hdmi_clocks(u32 prcm_base)
 /*******************************************************************************
  *			Venc Configurations 				       *
  ******************************************************************************/
-
+#ifdef HDMI_TEST
 static void configure_venc_1080p30(u32 *venc_base, int useEmbeddedSync)
 {
 	THDBG("%s %d\n",  __func__, __LINE__);
@@ -1541,7 +1741,7 @@ void configure_venc_720p60(u32* venc_base, int useEmbeddedSync)
 	venc_base++;
 	*venc_base = 0x00000000;
 }
-
+#endif
 /* ========================================================================== */
 /*			  Global Functions				      */
 /* ========================================================================== */
@@ -1761,10 +1961,21 @@ exit_this_func:
 int ti81xx_hdmi_set_mode(enum ti81xxhdmi_mode hdmi_mode,
 	struct instance_cfg *cfg)
 {
+	int rtn_value = 0;
+	if (!cfg)
+	{
+		rtn_value = -EFAULT ;
+		goto exit_this_func;
+	}
 	if (hdmi_mode < hdmi_ntsc_mode || hdmi_mode >= hdmi_max_mode)
-		return -1;
+	{
+		rtn_value = -EINVAL;
+		goto exit_this_func;
+	}
 	ti81xx_hdmi_copy_mode_config(hdmi_mode, cfg);
-	return (ti81xx_hdmi_lib_config(&cfg->config));
+	rtn_value = ti81xx_hdmi_lib_config(&cfg->config);
+exit_this_func:
+	return rtn_value;
 
 }
 
@@ -1950,7 +2161,6 @@ int ti81xx_hdmi_lib_start(void *handle, void *args)
 	volatile u32 temp;
 
 	THDBG(">>>>ti81xx_hdmi_lib_start");
-	HDMI_ARGS_CHECK((args == NULL));
 
 	if (handle == NULL) {
 		rtn_value = -EFAULT ;
@@ -2061,7 +2271,6 @@ int ti81xx_hdmi_lib_stop(void *handle, void *args)
 	volatile u32 temp;
 
 	THDBG(">>>>ti81xx_hdmi_lib_stop");
-	HDMI_ARGS_CHECK((args == NULL));
 
 	if (handle == NULL) {
 		rtn_value = -EFAULT ;
@@ -2099,7 +2308,7 @@ int ti81xx_hdmi_lib_control(void *handle,
 
 	THDBG(">>>>ti81xx_hdmi_lib_control");
 	/* Validate the handle and execute the command. */
-	if ((handle == NULL) || (cmdArgs == NULL)) {
+	if (handle == NULL) {
 		rtn_value = -EFAULT ;
 		THDBG("Invalid handle/cmdArgs pointer");
 		goto exit_this_func;
@@ -2115,7 +2324,7 @@ int ti81xx_hdmi_lib_control(void *handle,
 		break;
 	case TI81XXHDMI_GET_STATUS:
 		rtn_value = -EFAULT ;
-		if (cmdArgs != NULL) {
+		if (cmdArgs) {
 			(*(u32 *) cmdArgs) = inst_context->is_streaming;
 			rtn_value = 0x0;
 		}
@@ -2178,8 +2387,18 @@ int ti81xx_hdmi_lib_control(void *handle,
 		rtn_value =  ti81xx_hdmi_set_mode((enum ti81xxhdmi_mode)cmdArgs,
 			inst_context);
 		break;
+	case TI81XXHDMI_GET_PHY_STAT:
+		if (cmdArgs)
+		{
+			get_phy_status(inst_context, cmdArgs);
+		}
+		else
+		{
+			rtn_value = -EFAULT;
+		}
+		break;
 	default:
-		rtn_value = -EFAULT ;
+		rtn_value = -EINVAL;
 		THDBG("Un-recoganized command");
 		break;
 	}
@@ -2201,7 +2420,6 @@ static int ti81xx_hdmi_lib_read_edid(void *handle,
 	struct instance_cfg *inst_context = NULL;
 
 	THDBG(">>>>ti81xx_hdmi_lib_read_edid");
-	HDMI_ARGS_CHECK((args == NULL));
 
 	if ((handle == NULL) || (r_params == NULL)) {
 		THDBG("Invalid params ");

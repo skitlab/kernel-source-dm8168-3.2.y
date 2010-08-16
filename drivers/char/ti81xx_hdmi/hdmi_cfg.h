@@ -7,17 +7,8 @@
 #ifndef _HDMI_CFG_H
 #define _HDMI_CFG_H
 
-
-//#define NULL	  0
 #define TRUE	1
 #define FALSE	0
-
-
-#define HDMI_GT_ENTER			0
-#define HDMI_GT_DEBUG			1
-#define HDMI_GT_LEAVE			2
-#define HDMI_GT_ERR 			3
-#define HDMI_GT_INFO			4
 
 /* ========================================================================== */
 /*			  HDMI Silicon dependecy Do Not Alter		      */
@@ -27,6 +18,15 @@
 #define HDMI_WP_0_REGS		(0x46c00000u)
 #define HDMI_PHY_0_REGS 	(0x48122000u)
 #define PRCM_0_REGS 		(0x48180000u)
+
+/* TODO Get the exact default value.  Will get from the IP Team.*/
+#define HDMI_PHY_DEF_DE_EMPHASIS_VAL	(0x5)
+
+/* TODO Get the exact values based on frequency from IP team */
+#define HDMI_PHY_DEF_LDO_VOLTAGE_VAL	(0xC)
+
+/* TODO Get the exact values for the threshold detection */
+#define HDMI_PHY_DEF_VTHRESHPU_CNTL_VAL  (0x0)
 
 /* Width of R/G/B or Y/Cb/Cr channels */
 enum hdmi_bits_per_chan {
@@ -300,7 +300,6 @@ int ti81xx_hdmi_lib_stop(void *handle, void *args);
 
 int ti81xx_hdmi_lib_control(void *handle, u32 cmd, void *cmdArgs,
 			void *additionalArgs);
-
 /* ========================================================================== */
 /*		   Defaults used to initialize different modes	 	      */
 /* ========================================================================== */
