@@ -33,6 +33,8 @@ struct cpsw_platform_data {
 	u32	mac_control;
 
 	u32	gigabit_en; /* Is gigabit capable AND enabled */
+	u32	rmii_en; /* Is RMII mode capable AND enabled */
+	u32	host_port_num; /* The port number for the host port */
 };
 
 #endif /* __CPSW_H__ */

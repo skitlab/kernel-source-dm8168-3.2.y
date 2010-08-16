@@ -1460,12 +1460,12 @@ struct cpsw_slave_data cpsw_slaves[] = {
 	{
 		.slave_reg_ofs  = 0x50,
 		.sliver_reg_ofs = 0x700,
-		.phy_id		= {"0:00"}, /* TODO : Fix the phy address */
+		.phy_id		= {"0:01"},
 	},
 	{
 		.slave_reg_ofs  = 0x90,
 		.sliver_reg_ofs = 0x740,
-		.phy_id		= {"0:01"},
+		.phy_id		= {"0:00"},
 	},
 };
 
@@ -1485,6 +1485,8 @@ static struct cpsw_platform_data ti814x_cpsw_pdata = {
 				  BIT(5)  | /* MIIEN      */
 				  BIT(4)  | /* TXFLOWEN   */
 				  BIT(3),   /* RXFLOWEN   */
+	.gigabit_en		= 1,
+	.host_port_num		= 0,
 };
 
 static struct mdio_platform_data cpsw_mdio_pdata = {
