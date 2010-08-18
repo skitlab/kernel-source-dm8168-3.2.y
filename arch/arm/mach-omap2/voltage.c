@@ -374,6 +374,23 @@ static struct omap_volt_data omap44xx_vdd_core_volt_data[] = {
 	VOLT_DATA_DEFINE(0, 0, 0, 0),
 };
 
+/* OMAP 3430 MPU Core VDD dependency table */
+static struct omap_vdd_dep_volt omap34xx_vdd1_vdd2_data[] = {
+	{.main_vdd_volt = 975000, .dep_vdd_volt = 1050000},
+	{.main_vdd_volt = 1075000, .dep_vdd_volt = 1050000},
+	{.main_vdd_volt = 1200000, .dep_vdd_volt = 1150000},
+	{.main_vdd_volt = 1270000, .dep_vdd_volt = 1150000},
+	{.main_vdd_volt = 1350000, .dep_vdd_volt = 1150000},
+	{.main_vdd_volt = 0, .dep_vdd_volt = 0},
+};
+
+static struct omap_vdd_dep_info omap34xx_vdd1_dep_info[] = {
+	{
+		.name	= "core",
+		.dep_table = omap34xx_vdd1_vdd2_data,
+	},
+};
+
 static struct dentry *voltage_dir;
 
 /* Init function pointers */
@@ -879,10 +896,13 @@ static int __init omap3_vdd_data_configure(struct omap_vdd_info *vdd)
 	}
 
 	if (!strcmp(vdd->voltdm.name, "mpu")) {
-		if (cpu_is_omap3630())
+		if (cpu_is_omap3630()) {
 			vdd->volt_data = omap36xx_vddmpu_volt_data;
-		else
+		} else {
 			vdd->volt_data = omap34xx_vddmpu_volt_data;
+			vdd->dep_vdd_info = omap34xx_vdd1_dep_info;
+			vdd->nr_dep_vdd = ARRAY_SIZE(omap34xx_vdd1_dep_info);
+		}
 
 		vdd->vp_reg.tranxdone_status = OMAP3430_VP1_TRANXDONE_ST_MASK;
 		vdd->vc_reg.cmdval_reg = OMAP3_PRM_VC_CMD_VAL_0_OFFSET;
