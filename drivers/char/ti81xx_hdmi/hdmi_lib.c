@@ -362,7 +362,7 @@ static int configure_phy(struct instance_cfg *inst_context)
 	temp |= 0x0 << 3;
 	/* Nominal current of 10ma used for signalling */
 	temp |= 0x0 << 1;
-	__raw_writel(temp, HDMI_PHY_TX_CTRL_OFF);
+	__raw_writel(temp, phy_base + HDMI_PHY_TX_CTRL_OFF);
 
 	/* Digital control */
 	temp = 0;
@@ -374,7 +374,7 @@ static int configure_phy(struct instance_cfg *inst_context)
 	temp |= 1  << 29;
 	/* Tx Valid enable TODO*/
 	temp |= 1 << 28;
-	__raw_writel(temp, HDMI_PHY_DIGITAL_CTRL_OFF);
+	__raw_writel(temp, phy_base + HDMI_PHY_DIGITAL_CTRL_OFF);
 
 	/* Power Control */
 	temp = 0;
@@ -394,7 +394,7 @@ static int configure_phy(struct instance_cfg *inst_context)
 	temp |= 0x0 << 4;
 	/* TODO Get the proper value for the LDO voltage based on the */
 	temp |= HDMI_PHY_DEF_LDO_VOLTAGE_VAL << 0;
-	__raw_writel(temp, HDMI_PHY_PWR_CTRL_OFF);
+	__raw_writel(temp, phy_base + HDMI_PHY_PWR_CTRL_OFF);
 
 	/* Pad configuration Control */
 	temp = 0;
@@ -411,7 +411,7 @@ static int configure_phy(struct instance_cfg *inst_context)
 	temp |= HDMI_PHY_DEF_VTHRESHPU_CNTL_VAL << 16;
 	/* Don't force the RX Detect to HI state*/
 	temp |= 0x0 << 15;
-	__raw_writel(temp, HDMI_PHY_PAD_CFG_CTRL_OFF);
+	__raw_writel(temp, phy_base + HDMI_PHY_PAD_CFG_CTRL_OFF);
 
 	/* Trim and Test Control */
 	/* TODO Don't use the Bandgap values */
@@ -421,7 +421,7 @@ static int configure_phy(struct instance_cfg *inst_context)
 	/* TODO Dont enable the bandgap and switched cap current */
 	temp |= 0x0 << 7;
 	temp |= 0x0 << 6;
-	__raw_writel(temp, HDMI_PHY_TRIM_TEST_CTRL_OFF);
+	__raw_writel(temp, phy_base + HDMI_PHY_TRIM_TEST_CTRL_OFF);
 
 	/* Analog Interface control */
 	temp = 0;
@@ -439,13 +439,13 @@ static int configure_phy(struct instance_cfg *inst_context)
 	temp |= 0x0 << 10;
 	/* TODO: Analog characterization For now putting it to 0*/
 	temp |= 0x0 << 0;
-	__raw_writel(temp, HDMI_PHY_ANG_INT_CTRL_OFF);
+	__raw_writel(temp, phy_base + HDMI_PHY_ANG_INT_CTRL_OFF);
 
 	/* Digital Interface Control */
 	temp = 0;
 	/* TODO: Don't use this register for data output */
 	temp |= 0x0 << 31;
-	__raw_writel(temp, HDMI_PHY_DATA_INT_CTRL_OFF);
+	__raw_writel(temp, phy_base + HDMI_PHY_DATA_INT_CTRL_OFF);
 
 	/* BIST register */
 	temp = 0;
@@ -455,7 +455,7 @@ static int configure_phy(struct instance_cfg *inst_context)
 	temp |= 0x0 << 27;
 	/* TODO: Don't use  the LB LANE SEL */
 	temp |= 0x0 << 24;
-	__raw_writel(temp, HDMI_PHY_BIST_OFF);
+	__raw_writel(temp, phy_base + HDMI_PHY_BIST_OFF);
 
 	return rtn_value;
 }
@@ -1396,7 +1396,7 @@ exit_this_func:
 	THDBG(">>>>determine_pixel_repeatation");
 	return (rtn_value);
 }
-#ifdef CONFIG_SND_TI816X_SOC
+#ifndef CONFIG_SND_TI816X_SOC
 int get_phy_status(struct instance_cfg *inst_context,
 			 struct ti81xxhdmi_phy_status *stat)
 {

@@ -14,6 +14,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/fs.h>           /*     everything... */
 #include <linux/errno.h>        /*     error codes     */
 #include <linux/types.h>        /*     size_t */
@@ -244,7 +245,15 @@ int __init ti81xx_hdmi_init(void)
 	} else {
 		THDBG("Core at address %x\n", hdmi_obj.core_v_addr);
 	}
-
+#if 0
+	hdmi_obj.phy_v_addr = kmalloc(512, GFP_KERNEL);
+	if (!hdmi_obj.phy_v_addr){
+		printk("TI81xx_hdmi: Could not ioremap for PHY\n");
+		goto err_remove_class;
+	} else {
+		THDBG("PHY at address %x\n", hdmi_obj.phy_v_addr);
+	}
+#else
 	hdmi_obj.phy_v_addr = (int) ioremap(HDMI_PHY_0_REGS, 64);
 	if (hdmi_obj.phy_v_addr == 0x0){
 		printk("TI81xx_hdmi: Could not ioremap for PHY\n");
@@ -252,7 +261,7 @@ int __init ti81xx_hdmi_init(void)
 	} else {
 		THDBG("PHY at address %x\n", hdmi_obj.phy_v_addr);
 	}
-
+#endif
 	hdmi_obj.venc_v_addr = (volatile u32) ioremap(0x48106000, 0x80);
 	if (hdmi_obj.venc_v_addr == 0x0){
 		printk("TI81xx_hdmi: Could not ioremap for Venc\n");
