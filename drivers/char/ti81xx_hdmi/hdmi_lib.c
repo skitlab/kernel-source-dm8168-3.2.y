@@ -115,7 +115,8 @@
 #define HDMI_VIDEO_STAND_1080P60		(2200 * 1125 * 60)
 #define HDMI_VIDEO_STAND_1080I60		(2200 * 1125 * 30)
 #define HDMI_VIDEO_STAND_1080P30		(2200 * 1125 * 30)
-#define HDMI_TEST				(1)
+/* Undef this to test HDMI */
+/*#define HDMI_TEST				(1)*/
 /* ========================================================================== */
 /*				Local Structure 			      */
 /* ========================================================================== */
