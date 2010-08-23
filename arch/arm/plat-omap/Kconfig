@@ -16,11 +16,11 @@ config ARCH_OMAP1
 	  "Systems based on omap7xx, omap15xx or omap16xx"
 
 config ARCH_OMAP2PLUS
-	bool "TI OMAP2/3/4/816X"
+	bool "TI OMAP2/3/4/81XX"
 	select COMMON_CLKDEV
 	select OMAP_DM_TIMER
 	help
-	  "Systems based on OMAP2, OMAP3, OMAP4 or TI816X"
+	  "Systems based on OMAP2, OMAP3, OMAP4 or TI81XX"
 
 endchoice
 

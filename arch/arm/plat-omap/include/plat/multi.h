@@ -98,12 +98,12 @@
 #  define OMAP_NAME omap4
 # endif
 #endif
-#ifdef CONFIG_ARCH_TI816X
+#ifdef CONFIG_ARCH_TI81XX
 # ifdef OMAP_NAME
 #  undef  MULTI_OMAP2
 #  define MULTI_OMAP2
 # else
-#  define OMAP_NAME ti816x
+#  define OMAP_NAME ti81xx
 # endif
 #endif
 
