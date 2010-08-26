@@ -80,24 +80,24 @@ static int __pm_runtime_idle(struct device *dev)
 	dev->power.idle_notification = true;
 
 	if (dev->bus && dev->bus->pm && dev->bus->pm->runtime_idle) {
-		spin_unlock_irq(&dev->power.lock);
+		spin_unlock_irqrestore(&dev->power.lock, dev->power.lock_flags);
 
 		dev->bus->pm->runtime_idle(dev);
 
-		spin_lock_irq(&dev->power.lock);
+		spin_lock_irqsave(&dev->power.lock, dev->power.lock_flags);
 	} else if (dev->type && dev->type->pm && dev->type->pm->runtime_idle) {
-		spin_unlock_irq(&dev->power.lock);
+		spin_unlock_irqrestore(&dev->power.lock, dev->power.lock_flags);
 
 		dev->type->pm->runtime_idle(dev);
 
-		spin_lock_irq(&dev->power.lock);
+		spin_lock_irqsave(&dev->power.lock, dev->power.lock_flags);
 	} else if (dev->class && dev->class->pm
 	    && dev->class->pm->runtime_idle) {
-		spin_unlock_irq(&dev->power.lock);
+		spin_unlock_irqrestore(&dev->power.lock, dev->power.lock_flags);
 
 		dev->class->pm->runtime_idle(dev);
 
-		spin_lock_irq(&dev->power.lock);
+		spin_lock_irqsave(&dev->power.lock, dev->power.lock_flags);
 	}
 
 	dev->power.idle_notification = false;
@@ -115,9 +115,9 @@ int pm_runtime_idle(struct device *dev)
 {
 	int retval;
 
-	spin_lock_irq(&dev->power.lock);
+	spin_lock_irqsave(&dev->power.lock, dev->power.lock_flags);
 	retval = __pm_runtime_idle(dev);
-	spin_unlock_irq(&dev->power.lock);
+	spin_unlock_irqrestore(&dev->power.lock, dev->power.lock_flags);
 
 	return retval;
 }
@@ -226,11 +226,13 @@ int __pm_runtime_suspend(struct device *dev, bool from_wq)
 			if (dev->power.runtime_status != RPM_SUSPENDING)
 				break;
 
-			spin_unlock_irq(&dev->power.lock);
+			spin_unlock_irqrestore(&dev->power.lock,
+					       dev->power.lock_flags);
 
 			schedule();
 
-			spin_lock_irq(&dev->power.lock);
+			spin_lock_irqsave(&dev->power.lock,
+					  dev->power.lock_flags);
 		}
 		finish_wait(&dev->power.wait_queue, &wait);
 		goto repeat;
@@ -240,27 +242,27 @@ int __pm_runtime_suspend(struct device *dev, bool from_wq)
 	dev->power.deferred_resume = false;
 
 	if (dev->bus && dev->bus->pm && dev->bus->pm->runtime_suspend) {
-		spin_unlock_irq(&dev->power.lock);
+		spin_unlock_irqrestore(&dev->power.lock, dev->power.lock_flags);
 
 		retval = dev->bus->pm->runtime_suspend(dev);
 
-		spin_lock_irq(&dev->power.lock);
+		spin_lock_irqsave(&dev->power.lock, dev->power.lock_flags);
 		dev->power.runtime_error = retval;
 	} else if (dev->type && dev->type->pm
 	    && dev->type->pm->runtime_suspend) {
-		spin_unlock_irq(&dev->power.lock);
+		spin_unlock_irqrestore(&dev->power.lock, dev->power.lock_flags);
 
 		retval = dev->type->pm->runtime_suspend(dev);
 
-		spin_lock_irq(&dev->power.lock);
+		spin_lock_irqsave(&dev->power.lock, dev->power.lock_flags);
 		dev->power.runtime_error = retval;
 	} else if (dev->class && dev->class->pm
 	    && dev->class->pm->runtime_suspend) {
-		spin_unlock_irq(&dev->power.lock);
+		spin_unlock_irqrestore(&dev->power.lock, dev->power.lock_flags);
 
 		retval = dev->class->pm->runtime_suspend(dev);
 
-		spin_lock_irq(&dev->power.lock);
+		spin_lock_irqsave(&dev->power.lock, dev->power.lock_flags);
 		dev->power.runtime_error = retval;
 	} else {
 		retval = -ENOSYS;
@@ -296,11 +298,11 @@ int __pm_runtime_suspend(struct device *dev, bool from_wq)
 		__pm_runtime_idle(dev);
 
 	if (parent && !parent->power.ignore_children) {
-		spin_unlock_irq(&dev->power.lock);
+		spin_unlock_irqrestore(&dev->power.lock, dev->power.lock_flags);
 
 		pm_request_idle(parent);
 
-		spin_lock_irq(&dev->power.lock);
+		spin_lock_irqsave(&dev->power.lock, dev->power.lock_flags);
 	}
 
  out:
@@ -317,9 +319,9 @@ int pm_runtime_suspend(struct device *dev)
 {
 	int retval;
 
-	spin_lock_irq(&dev->power.lock);
+	spin_lock_irqsave(&dev->power.lock, dev->power.lock_flags);
 	retval = __pm_runtime_suspend(dev, false);
-	spin_unlock_irq(&dev->power.lock);
+	spin_unlock_irqrestore(&dev->power.lock, dev->power.lock_flags);
 
 	return retval;
 }
@@ -381,11 +383,13 @@ int __pm_runtime_resume(struct device *dev, bool from_wq)
 			    && dev->power.runtime_status != RPM_SUSPENDING)
 				break;
 
-			spin_unlock_irq(&dev->power.lock);
+			spin_unlock_irqrestore(&dev->power.lock,
+					       dev->power.lock_flags);
 
 			schedule();
 
-			spin_lock_irq(&dev->power.lock);
+			spin_lock_irqsave(&dev->power.lock,
+					  dev->power.lock_flags);
 		}
 		finish_wait(&dev->power.wait_queue, &wait);
 		goto repeat;
@@ -423,27 +427,27 @@ int __pm_runtime_resume(struct device *dev, bool from_wq)
 	__update_runtime_status(dev, RPM_RESUMING);
 
 	if (dev->bus && dev->bus->pm && dev->bus->pm->runtime_resume) {
-		spin_unlock_irq(&dev->power.lock);
+		spin_unlock_irqrestore(&dev->power.lock, dev->power.lock_flags);
 
 		retval = dev->bus->pm->runtime_resume(dev);
 
-		spin_lock_irq(&dev->power.lock);
+		spin_lock_irqsave(&dev->power.lock, dev->power.lock_flags);
 		dev->power.runtime_error = retval;
 	} else if (dev->type && dev->type->pm
 	    && dev->type->pm->runtime_resume) {
-		spin_unlock_irq(&dev->power.lock);
+		spin_unlock_irqrestore(&dev->power.lock, dev->power.lock_flags);
 
 		retval = dev->type->pm->runtime_resume(dev);
 
-		spin_lock_irq(&dev->power.lock);
+		spin_lock_irqsave(&dev->power.lock, dev->power.lock_flags);
 		dev->power.runtime_error = retval;
 	} else if (dev->class && dev->class->pm
 	    && dev->class->pm->runtime_resume) {
-		spin_unlock_irq(&dev->power.lock);
+		spin_unlock_irqrestore(&dev->power.lock, dev->power.lock_flags);
 
 		retval = dev->class->pm->runtime_resume(dev);
 
-		spin_lock_irq(&dev->power.lock);
+		spin_lock_irqsave(&dev->power.lock, dev->power.lock_flags);
 		dev->power.runtime_error = retval;
 	} else {
 		retval = -ENOSYS;
@@ -464,11 +468,11 @@ int __pm_runtime_resume(struct device *dev, bool from_wq)
 
  out:
 	if (parent) {
-		spin_unlock_irq(&dev->power.lock);
+		spin_unlock_irqrestore(&dev->power.lock, dev->power.lock_flags);
 
 		pm_runtime_put(parent);
 
-		spin_lock_irq(&dev->power.lock);
+		spin_lock_irqsave(&dev->power.lock, dev->power.lock_flags);
 	}
 
 	dev_dbg(dev, "__pm_runtime_resume() returns %d!\n", retval);
@@ -484,9 +488,9 @@ int pm_runtime_resume(struct device *dev)
 {
 	int retval;
 
-	spin_lock_irq(&dev->power.lock);
+	spin_lock_irqsave(&dev->power.lock, dev->power.lock_flags);
 	retval = __pm_runtime_resume(dev, false);
-	spin_unlock_irq(&dev->power.lock);
+	spin_unlock_irqrestore(&dev->power.lock, dev->power.lock_flags);
 
 	return retval;
 }
