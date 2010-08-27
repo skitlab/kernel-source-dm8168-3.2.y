@@ -485,7 +485,7 @@ static inline void omap2_mcspi2_init(void)
 #endif
 
 #if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
-	defined(CONFIG_ARCH_OMAP4)
+	defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_ARCH_TI814X)
 static inline void omap2_mcspi3_init(void)
 {
 	platform_device_register(&omap2_mcspi3);
@@ -496,7 +496,8 @@ static inline void omap2_mcspi3_init(void)
 }
 #endif
 
-#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
+#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4) || \
+	defined(CONFIG_ARCH_TI814X)
 static inline void omap2_mcspi4_init(void)
 {
 	platform_device_register(&omap2_mcspi4);
@@ -520,10 +521,11 @@ static void omap_init_mcspi(void)
 	if (!cpu_is_ti816x())
 		omap2_mcspi2_init();
 
-	if (cpu_is_omap2430() || cpu_is_omap343x() || cpu_is_omap44xx())
+	if (cpu_is_omap2430() || cpu_is_omap343x() || cpu_is_omap44xx() ||
+		cpu_is_ti814x())
 		omap2_mcspi3_init();
 
-	if (cpu_is_omap343x() || cpu_is_omap44xx())
+	if (cpu_is_omap343x() || cpu_is_omap44xx() || cpu_is_ti814x())
 		omap2_mcspi4_init();
 }
 
