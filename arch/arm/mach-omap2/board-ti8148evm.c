@@ -15,6 +15,8 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/flash.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
@@ -24,6 +26,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
+#include <plat/mcspi.h>
 #include <plat/irqs.h>
 #include <plat/board.h>
 #include <plat/common.h>
@@ -82,6 +85,62 @@ static struct snd_platform_data ti8148_evm_snd_data = {
 	.rxnumevt	= 1,
 };
 
+/* SPI fLash information */
+struct mtd_partition ti8148_spi_partitions[] = {
+	/* All the partition sizes are listed in terms of erase size */
+	{
+		.name		= "U-Boot-min",
+		.offset		= 0,	/* Offset = 0x0 */
+		.size		= 32 * SZ_4K,
+		.mask_flags	= MTD_WRITEABLE, /* force read-only */
+	},
+	{
+		.name		= "U-Boot",
+		.offset		= MTDPART_OFS_APPEND, /* 0x0 + (32*4K) */
+		.size		= 64 * SZ_4K,
+		.mask_flags	= MTD_WRITEABLE, /* force read-only */
+	},
+	{
+		.name		= "U-Boot Env",
+		.offset		= MTDPART_OFS_APPEND, /* 0x40000 + (32*4K) */
+		.size		= 2 * SZ_4K,
+	},
+	{
+		.name		= "Kernel",
+		.offset		= MTDPART_OFS_APPEND, /* 0x42000 + (32*4K) */
+		.size		= 640 * SZ_4K,
+	},
+	{
+		.name		= "File System",
+		.offset		= MTDPART_OFS_APPEND, /* 0x2C2000 + (32*4K) */
+		.size		= MTDPART_SIZ_FULL, /* size ~= 1.1 MiB */
+	}
+};
+
+const struct flash_platform_data ti8148_spi_flash = {
+	.type		= "w25x32",
+	.name		= "spi_flash",
+	.parts		= ti8148_spi_partitions,
+	.nr_parts	= ARRAY_SIZE(ti8148_spi_partitions),
+};
+
+struct spi_board_info __initdata ti8148_spi_slave_info[] = {
+	{
+		.modalias	= "m25p80",
+		.platform_data	= &ti8148_spi_flash,
+		.irq		= -1,
+		.max_speed_hz	= 75000000,
+		.bus_num	= 1,
+		.chip_select	= 0,
+	},
+};
+
+void ti8148_spi_init(void)
+{
+	spi_register_board_info(ti8148_spi_slave_info,
+				ARRAY_SIZE(ti8148_spi_slave_info));
+}
+
 static struct omap_musb_board_data musb_board_data = {
 	.interface_type		= MUSB_INTERFACE_ULPI,
 #ifdef CONFIG_USB_MUSB_OTG
@@ -110,6 +169,8 @@ static void __init ti8148_evm_init(void)
 
 	/* initialize usb */
 	usb_musb_init(&musb_board_data);
+
+	ti8148_spi_init();
 }
 
 static void __init ti8148_evm_map_io(void)
