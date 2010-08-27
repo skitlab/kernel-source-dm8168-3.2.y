@@ -26,6 +26,8 @@ struct cpsw_platform_data {
 
 	u32	hw_stats_reg_ofs;  /* cpsw hardware statistics counters */
 
+	u8	mac_addr[ETH_ALEN];
+
 	int	rx_descs;
 
 	void	(*phy_control)(bool enabled);

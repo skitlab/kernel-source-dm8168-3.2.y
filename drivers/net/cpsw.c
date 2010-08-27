@@ -23,7 +23,7 @@
 #include <linux/netdevice.h>
 #include <linux/phy.h>
 
-#include <mach/cpsw.h>
+#include <linux/cpsw.h>
 
 #include "cpsw_ale.h"
 #include "davinci_cpdma.h"
@@ -454,7 +454,7 @@ static ssize_t cpsw_hw_stats_show(struct device *dev,
 
 DEVICE_ATTR(hw_stats, S_IRUGO, cpsw_hw_stats_show, NULL);
 
-static inline cpsw_get_slave_port(struct cpsw_priv *priv, u32 slave_num)
+static inline u32 cpsw_get_slave_port(struct cpsw_priv *priv, u32 slave_num)
 {
 	if (priv->host_port == 0)
 		return slave_num + 1;
@@ -527,7 +527,7 @@ static void cpsw_set_phy_config(struct cpsw_priv *priv)
 {
 	struct cpsw_platform_data *pdata = priv->pdev->dev.platform_data;
 	struct phy_device *phydev = NULL;
-	struct cpsw_slave *slave = NULL;
+	struct cpsw_slave slave;
 	struct mii_bus *miibus;
 	int phy_addr = 0;
 	u16 val = 0;
@@ -539,7 +539,7 @@ static void cpsw_set_phy_config(struct cpsw_priv *priv)
 
 	for (i = 0; i < pdata->slaves; i++) {
 		slave = priv->slaves[i];
-		phydev = slave->phy;
+		phydev = slave.phy;
 		if (!phydev)
 			continue;
 		miibus = phydev->bus;
@@ -765,6 +765,7 @@ static struct net_device_stats *cpsw_ndo_get_stats(struct net_device *ndev)
 	return &priv->stats;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
 static void cpsw_ndo_poll_controller(struct net_device *ndev)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
@@ -775,6 +776,7 @@ static void cpsw_ndo_poll_controller(struct net_device *ndev)
 	cpdma_ctlr_int_ctrl(priv->dma, true);
 	cpsw_intr_enable(priv);
 }
+#endif
 
 static const struct net_device_ops cpsw_netdev_ops = {
 	.ndo_open		= cpsw_ndo_open,
@@ -837,6 +839,7 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 	struct cpdma_params		dma_params;
 	struct cpsw_ale_params		ale_params;
 	void __iomem			*regs;
+	struct resource			*res;
 	int ret = 0, i, k = 0;
 
 	if (!data) {
@@ -966,7 +969,7 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 		goto clean_ale_ret;
 	}
 
-	while ((res = platform_get_irq(pdev, k))) {
+	while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, k))) {
 		for (i = res->start; i <= res->end; i++) {
 			if (request_irq(i, cpsw_interrupt, 0,
 					dev_name(&pdev->dev), priv)) {

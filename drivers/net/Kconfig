@@ -2077,7 +2077,7 @@ config TI_CPSW
 
 config TI_DAVINCI_MDIO
 	tristate "TI DaVinci MDIO Support"
-	depends on ARM && ( ARCH_DAVINCI || ARCH_OMAP3 || ARCH_TI816X )
+	depends on ARM && ( ARCH_DAVINCI || ARCH_OMAP3 || ARCH_TI81XX )
 	select PHYLIB
 	help
 	  This driver supports TI's DaVinci MDIO module.
@@ -2087,12 +2087,20 @@ config TI_DAVINCI_MDIO
 
 config TI_DAVINCI_CPDMA
 	tristate "TI DaVinci CPDMA Support"
-	depends on ARM && ( ARCH_DAVINCI || ARCH_OMAP3 || ARCH_TI816X )
+	depends on ARM && ( ARCH_DAVINCI || ARCH_OMAP3 || ARCH_TI81XX )
 	help
 	  This driver supports TI's DaVinci CPDMA dma engine.
 
-	  To compile this driver as a module, choose M here: the module
-	  will be called davinci_cpdma.  This is recommended.
+	To compile this driver as a module, choose M here: the module
+	will be called davinci_cpdma.  This is recommended.
+
+config TI_CPSW
+	tristate "TI CPSW Switch Support"
+	depends on ARM && (ARCH_DAVINCI || ARCH_TI814X)
+	select TI_DAVINCI_CPDMA
+	select TI_DAVINCI_MDIO
+	help
+	This driver supports TI's CPSW Ethernet Switch.
 
 
 config E1000
