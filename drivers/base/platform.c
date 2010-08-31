@@ -694,7 +694,7 @@ static void platform_pm_complete(struct device *dev)
 
 #ifdef CONFIG_SUSPEND
 
-int __weak platform_pm_suspend(struct device *dev)
+int  platform_pm_suspend(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -712,7 +712,7 @@ int __weak platform_pm_suspend(struct device *dev)
 	return ret;
 }
 
-int __weak platform_pm_suspend_noirq(struct device *dev)
+int  platform_pm_suspend_noirq(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -728,7 +728,7 @@ int __weak platform_pm_suspend_noirq(struct device *dev)
 	return ret;
 }
 
-int __weak platform_pm_resume(struct device *dev)
+int  platform_pm_resume(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -746,7 +746,7 @@ int __weak platform_pm_resume(struct device *dev)
 	return ret;
 }
 
-int __weak platform_pm_resume_noirq(struct device *dev)
+int  platform_pm_resume_noirq(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
 	int ret = 0;
@@ -924,17 +924,17 @@ static int platform_pm_restore_noirq(struct device *dev)
 
 #ifdef CONFIG_PM_RUNTIME
 
-int __weak platform_pm_runtime_suspend(struct device *dev)
+int  platform_pm_runtime_suspend(struct device *dev)
 {
 	return pm_generic_runtime_suspend(dev);
 };
 
-int __weak platform_pm_runtime_resume(struct device *dev)
+int  platform_pm_runtime_resume(struct device *dev)
 {
 	return pm_generic_runtime_resume(dev);
 };
 
-int __weak platform_pm_runtime_idle(struct device *dev)
+int  platform_pm_runtime_idle(struct device *dev)
 {
 	return pm_generic_runtime_idle(dev);
 };
@@ -975,6 +975,41 @@ struct bus_type platform_bus_type = {
 	.pm		= &platform_dev_pm_ops,
 };
 EXPORT_SYMBOL_GPL(platform_bus_type);
+
+/**
+ * platform_bus_get_pm_ops() - return pointer to busses dev_pm_ops
+ *
+ * This function can be used by platform code to get the current
+ * set of dev_pm_ops functions used by the platform_bus_type.
+ */
+const struct dev_pm_ops * __init platform_bus_get_pm_ops(void)
+{
+	return platform_bus_type.pm;
+}
+
+/**
+ * platform_bus_set_pm_ops() - update dev_pm_ops for the platform_bus_type
+ *
+ * @pm: pointer to new dev_pm_ops struct to be used for platform_bus_type
+ *
+ * Platform code can override the dev_pm_ops methods of
+ * platform_bus_type by using this function.  It is expected that
+ * platform code will first do a platform_bus_get_pm_ops(), then
+ * kmemdup it, then customize selected methods and pass a pointer to
+ * the new struct dev_pm_ops to this function.
+ *
+ * Since platform-specific code is customizing methods for *all*
+ * devices (not just platform-specific devices) it is expected that
+ * any custom overrides of these functions will keep existing behavior
+ * and simply extend it.  For example, any customization of the
+ * runtime PM methods should continue to call the pm_generic_*
+ * functions as the default ones do in addition to the
+ * platform-specific behavior.
+ */
+void __init platform_bus_set_pm_ops(const struct dev_pm_ops *pm)
+{
+	platform_bus_type.pm = pm;
+}
 
 int __init platform_bus_init(void)
 {
