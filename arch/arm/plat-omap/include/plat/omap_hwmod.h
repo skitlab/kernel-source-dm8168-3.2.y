@@ -35,6 +35,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/ioport.h>
+#include <linux/mutex.h>
 #include <plat/cpu.h>
 
 struct omap_device;
@@ -105,6 +106,19 @@ struct omap_hwmod_irq_info {
 struct omap_hwmod_dma_info {
 	const char	*name;
 	u16		dma_req;
+};
+
+/**
+ * struct omap_hwmod_rst_info - IPs reset lines use by hwmod
+ * @name: name of the reset line (module local name)
+ * @rst_shift: Offset of the reset bit
+ *
+ * @name should be something short, e.g., "cpu0" or "rst". It is defined
+ * locally to the hwmod.
+ */
+struct omap_hwmod_rst_info {
+	const char	*name;
+	u8		rst_shift;
 };
 
 /**
@@ -327,10 +341,12 @@ struct omap_hwmod_omap2_prcm {
 /**
  * struct omap_hwmod_omap4_prcm - OMAP4-specific PRCM data
  * @clkctrl_reg: PRCM address of the clock control register
+ * @rstctrl_reg: adress of the XXX_RSTCTRL register located in the PRM
  * @submodule_wkdep_bit: bit shift of the WKDEP range
  */
 struct omap_hwmod_omap4_prcm {
 	void __iomem	*clkctrl_reg;
+	void __iomem	*rstctrl_reg;
 	u8		submodule_wkdep_bit;
 };
 
@@ -379,7 +395,13 @@ struct omap_hwmod_omap4_prcm {
  * INITIALIZED: reset (optionally), initialized, enabled, disabled
  *              (optionally)
  *
- *
+ * _HWMOD_STATE_UNKNOWN
+ * _HWMOD_STATE_REGISTERED
+ * _HWMOD_STATE_CLKS_INITED
+ * _HWMOD_STATE_INITIALIZED
+ * _HWMOD_STATE_ENABLED
+ * _HWMOD_STATE_IDLE
+ * _HWMOD_STATE_DISABLED
  */
 #define _HWMOD_STATE_UNKNOWN			0
 #define _HWMOD_STATE_REGISTERED			1
@@ -388,6 +410,7 @@ struct omap_hwmod_omap4_prcm {
 #define _HWMOD_STATE_ENABLED			4
 #define _HWMOD_STATE_IDLE			5
 #define _HWMOD_STATE_DISABLED			6
+#define _HWMOD_STATE_LAST			_HWMOD_STATE_DISABLED
 
 /**
  * struct omap_hwmod_class - the type of an IP block
@@ -449,6 +472,7 @@ struct omap_hwmod {
 	struct omap_device		*od;
 	struct omap_hwmod_irq_info	*mpu_irqs;
 	struct omap_hwmod_dma_info	*sdma_reqs;
+	struct omap_hwmod_rst_info	*rst_lines;
 	union {
 		struct omap_hwmod_omap2_prcm omap2;
 		struct omap_hwmod_omap4_prcm omap4;
@@ -461,6 +485,7 @@ struct omap_hwmod {
 	void				*dev_attr;
 	u32				_sysc_cache;
 	void __iomem			*_mpu_rt_va;
+	struct mutex                    mutex;
 	struct list_head		node;
 	u16				flags;
 	u8				_mpu_port_index;
@@ -469,6 +494,7 @@ struct omap_hwmod {
 	u8				response_lat;
 	u8				mpu_irqs_cnt;
 	u8				sdma_reqs_cnt;
+	u8				rst_lines_cnt;
 	u8				opt_clks_cnt;
 	u8				masters_cnt;
 	u8				slaves_cnt;
@@ -494,6 +520,10 @@ int omap_hwmod_shutdown(struct omap_hwmod *oh);
 
 int omap_hwmod_enable_clocks(struct omap_hwmod *oh);
 int omap_hwmod_disable_clocks(struct omap_hwmod *oh);
+
+int omap_hwmod_hardreset_assert(struct omap_hwmod *oh, const char *name);
+int omap_hwmod_hardreset_deassert(struct omap_hwmod *oh, const char *name);
+int omap_hwmod_hardreset_state(struct omap_hwmod *oh, const char *name);
 
 int omap_hwmod_set_slave_idlemode(struct omap_hwmod *oh, u8 idlemode);
 
@@ -534,5 +564,6 @@ int omap_hwmod_for_each_by_class(const char *classname,
 extern int omap2420_hwmod_init(void);
 extern int omap2430_hwmod_init(void);
 extern int omap3xxx_hwmod_init(void);
+extern int omap44xx_hwmod_init(void);
 
 #endif
