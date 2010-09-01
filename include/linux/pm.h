@@ -465,6 +465,7 @@ struct dev_pm_info {
 	struct work_struct	work;
 	wait_queue_head_t	wait_queue;
 	spinlock_t		lock;
+	unsigned long           lock_flags;
 	atomic_t		usage_count;
 	atomic_t		child_count;
 	unsigned int		disable_depth:3;
