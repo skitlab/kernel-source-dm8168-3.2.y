@@ -127,3 +127,86 @@ implementation needs:
 10. (*pdata->cpu_set_freq)(unsigned long f)
 
 11. (*pdata->cpu_get_freq)(void)
+
+OMAP OPP Layer
+==============
+OMAP SOCs have a standard set of tuples consisting of frequency and
+voltage pairs that the device will support per voltage domain. This
+is called Operating Performance Point or OPP. The actual definitions
+of OMAP OPP varies over silicon within the same family of devices.
+For a specific domain, you can have a set of {frequency, voltage}
+pairs. As the kernel boots and more information is available, a set
+of these are activated based on the precise nature of device the kernel
+boots up on. It is interesting to remember that each IP which belongs
+to a voltage domain may define their own set of OPPs on top of this.
+
+OPP layer of its own depends on silicon specific implementation and
+board specific data to finalize on the final set of OPPs available
+in a system
+
+Initial list initialization:
+---------------------------
+The normal initialization sequence is for boardxyz_init_irq to call
+omap2_init_common_hw (for omap2+) and which in turn does the default
+setup required.
+
+Silicon specific initialization: First the OPP layer needs to be told
+to initialize the tables for OMAP3, there are two options here:
+a) If the desire is to use the default tables defined for that silicon,
+the board file does not need to call any initialization function, the
+defaults are setup as part of initialization flow when
+omap2_init_common_hw is called.
+
+b) board files would like to customize the default definition. In this
+case, board file needs to call explicitly prior to table operations.
+the sequence is:
+boardxyz_init_irq()
+{
+	... do things ..
+	omap3_pm_init_opp_table()
+	.. customizations and other things ..
+	omap2_init_common_hw()
+}
+1. omap3_pm_init_opp_table - this in turn calls opp_init_list for all
+OPP types. This is the generic silicon operating points, however, the
+system may have additional features or customizations required. This
+flexibility is provided by the following apis:
+
+Query functions:
+----------------
+Search for OPPs for various cases:
+2. opp_find_freq_exact - exact search function
+3. opp_find_freq_floor - round_up search function
+4. opp_find_freq_ceil - round_down search function
+
+OPP modifier functions:
+----------------------
+This allows opp layer users to add customized OPPs or change the table
+for any need they may have
+5. opp_add - add a new OPP - NOTE: use struct omap_opp_def and define
+the custom OPP with OMAP_OPP_DEF for usage.
+6. opp_enable - enable a disabled OPP
+7. opp_disable - disable an enabled OPP
+
+OPP Data retrieval functions:
+----------------------------
+The following sets of functions are useful for drivers to retrieve
+data stored in opp layer for various functions.
+8. opp_get_voltage - retrieve voltage for an opp
+9. opp_get_freq - get the frequency for an opp
+10. opp_get_opp_count - get number of opps enabled for a domain
+
+Cpufreq table generation:
+------------------------
+11. opp_init_cpufreq_table - this translates the OPP layer's internal
+OPP arrangement into a table understood and operated upon by the
+cpufreq layer.
+
+Data Structures:
+---------------
+struct omap_opp * is a handle structure whose internals are known only
+to the OPP layer and is meant to hide the complexity away from users of
+opp layer.
+
+struct omap_opp_def * is the definitions that users can interface with
+opp layer and is meant to define one OPP.
