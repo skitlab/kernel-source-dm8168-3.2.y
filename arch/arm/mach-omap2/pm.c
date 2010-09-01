@@ -70,7 +70,10 @@ static void omap2_init_processor_devices(void)
 {
 	_init_omap_device("mpu", &mpu_dev);
 	_init_omap_device("iva", &dsp_dev);
-	_init_omap_device("l3_main", &l3_dev);
+	if (cpu_is_omap44xx())
+		_init_omap_device("l3_main_1", &l3_dev);
+	else
+		_init_omap_device("l3_main", &l3_dev);
 }
 
 static int __init omap2_common_pm_init(void)
