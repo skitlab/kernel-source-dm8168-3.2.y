@@ -982,9 +982,13 @@ static int _shutdown(struct omap_hwmod *oh)
 
 	if (oh->class->sysc)
 		_sysc_shutdown(oh);
-	_del_initiator_dep(oh, mpu_oh);
-	/* XXX what about the other system initiators here? DMA, tesla, d2d */
-	_disable_clocks(oh);
+
+	/* clocks and deps are already disabled in idle */
+	if (oh->_state == _HWMOD_STATE_ENABLED) {
+		_del_initiator_dep(oh, mpu_oh);
+		/* XXX what about the other system initiators here? dma, dsp */
+		_disable_clocks(oh);
+	}
 	/* XXX Should this code also force-disable the optional clocks? */
 
 	/* XXX mux any associated balls to safe mode */
@@ -1468,7 +1472,7 @@ int omap_hwmod_count_resources(struct omap_hwmod *oh)
 {
 	int ret, i;
 
-	ret = oh->mpu_irqs_cnt + oh->sdma_chs_cnt;
+	ret = oh->mpu_irqs_cnt + oh->sdma_reqs_cnt;
 
 	for (i = 0; i < oh->slaves_cnt; i++)
 		ret += oh->slaves[i]->addr_cnt;
@@ -1501,10 +1505,10 @@ int omap_hwmod_fill_resources(struct omap_hwmod *oh, struct resource *res)
 		r++;
 	}
 
-	for (i = 0; i < oh->sdma_chs_cnt; i++) {
-		(res + r)->name = (oh->sdma_chs + i)->name;
-		(res + r)->start = (oh->sdma_chs + i)->dma_ch;
-		(res + r)->end = (oh->sdma_chs + i)->dma_ch;
+	for (i = 0; i < oh->sdma_reqs_cnt; i++) {
+		(res + r)->name = (oh->sdma_reqs + i)->name;
+		(res + r)->start = (oh->sdma_reqs + i)->dma_req;
+		(res + r)->end = (oh->sdma_reqs + i)->dma_req;
 		(res + r)->flags = IORESOURCE_DMA;
 		r++;
 	}
