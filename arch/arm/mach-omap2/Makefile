@@ -57,6 +57,8 @@ obj-$(CONFIG_PM_DEBUG)			+= pm-debug.o
 AFLAGS_sleep24xx.o			:=-Wa,-march=armv6
 AFLAGS_sleep34xx.o			:=-Wa,-march=armv7-a
 
+obj-$(CONFIG_ARCH_OMAP3)		+= opp3xxx_data.o
+
 endif
 
 # PRCM
