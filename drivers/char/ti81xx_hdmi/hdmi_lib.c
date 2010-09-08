@@ -28,6 +28,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
+#include <linux/delay.h>
 #include <linux/ti81xxhdmi.h>
 
 #include "hdmi_cfg.h"
@@ -194,6 +195,167 @@ struct hdmi_cfg_params config_1080p30 = TI81XX_HDMI_8BIT_1080p_30_16_9_HD;
 /*				Local Functions 			      */
 /* ========================================================================== */
 
+#ifndef CONFIG_SND_TI816X_SOC
+/* command
+ * 0x0: Command to change LDO to OFF state
+ * 0x1:	Command to change LDO to ON state
+ * 0x2:	Command to go to LDO TXON Power
+ */
+static int wp_phy_pwr_ctrl(int wp_pwr_ctrl_addr, int command)
+{
+	volatile u32 reg_value;
+	unsigned int cnt = 0;
+	unsigned int max_count = 10000;
+	int ret_val = 0;
+	switch (command)
+	{
+		case 0x0:
+		reg_value = __raw_readl(wp_pwr_ctrl_addr);
+		reg_value |= ~(HDMI_WP_PWR_CTRL_PHY_PWR_CMD_MASK);
+		__raw_writel(reg_value, wp_pwr_ctrl_addr);
+		cnt = 0;
+		do
+		{
+			reg_value = __raw_readl(wp_pwr_ctrl_addr);
+			reg_value &= HDMI_WP_PWR_CTRL_PHY_PWR_STATUS_MASK;
+			udelay(10);
+			cnt++;
+		}while(reg_value != 0 &&  (cnt < max_count));
+		if (reg_value != 0)
+		{
+			ret_val = -1;
+		}
+		break;
+		case 0x1:
+		reg_value = __raw_readl(wp_pwr_ctrl_addr);
+		reg_value |= 0x1 << HDMI_WP_PWR_CTRL_PHY_PWR_CMD_SHIFT;
+		__raw_writel(reg_value, wp_pwr_ctrl_addr);
+		cnt = 0;
+		do
+		{
+			reg_value = __raw_readl(wp_pwr_ctrl_addr);
+			reg_value &= HDMI_WP_PWR_CTRL_PHY_PWR_STATUS_MASK;
+			udelay(10);
+			cnt++;
+		}while(reg_value != 0x1 &&  (cnt < max_count));
+		if (reg_value != 0x1)
+		{
+			ret_val = -1;
+		}
+		break;
+		case  0x2:
+		reg_value = __raw_readl(wp_pwr_ctrl_addr);
+		reg_value |= 0x2 << HDMI_WP_PWR_CTRL_PHY_PWR_CMD_SHIFT;
+		__raw_writel(reg_value, wp_pwr_ctrl_addr);
+		cnt = 0;
+		do
+		{
+			reg_value = __raw_readl(wp_pwr_ctrl_addr);
+			reg_value &= HDMI_WP_PWR_CTRL_PHY_PWR_STATUS_MASK;
+			udelay(10);
+			cnt++;
+		}while(reg_value != 0x1 &&  (cnt < max_count));
+		if (reg_value != 0x1)
+		{
+			ret_val = -1;
+		}
+		break;
+		default:
+			ret_val = -1;
+	}
+	return ret_val;
+}
+
+/* Command
+ * 0x0: Command to change to OFF state
+ * 0x1: Command to change to ON state for  PLL only (HSDIVISER is OFF)
+ * 0x2: Command to change to ON state for both PLL and HSDIVISER
+ * 0x3: Command to change to ON state for both PLL and HSDIVISER
+	(no clock output to the DSI complex IO)
+ */
+static int wp_pll_pwr_ctrl(int wp_pwr_ctrl_addr, int command)
+{
+	volatile u32 reg_value;
+	unsigned int cnt = 0;
+	unsigned int max_count = 10000;
+	int ret_val = 0;
+	switch (command)
+	{
+		case 0x0:
+		reg_value = __raw_readl(wp_pwr_ctrl_addr);
+		reg_value |= ~(HDMI_WP_PWR_CTRL_PLL_PWR_CMD_MASK);
+		__raw_writel(reg_value, wp_pwr_ctrl_addr);
+		cnt = 0;
+		do
+		{
+			reg_value = __raw_readl(wp_pwr_ctrl_addr);
+			reg_value &= HDMI_WP_PWR_CTRL_PLL_PWR_STATUS_MASK;
+			udelay(10);
+			cnt++;
+		}while(reg_value != 0 &&  (cnt < max_count));
+		if (reg_value != 0)
+		{
+			ret_val = -1;
+		}
+		break;
+		case 0x1:
+		reg_value = __raw_readl(wp_pwr_ctrl_addr);
+		reg_value |= 0x1 << HDMI_WP_PWR_CTRL_PLL_PWR_CMD_SHIFT;
+		__raw_writel(reg_value, wp_pwr_ctrl_addr);
+		cnt = 0;
+		do
+		{
+			reg_value = __raw_readl(wp_pwr_ctrl_addr);
+			reg_value &= HDMI_WP_PWR_CTRL_PLL_PWR_STATUS_MASK;
+			udelay(10);
+			cnt++;
+		}while(reg_value != 0x1 &&  (cnt < max_count));
+		if (reg_value != 0x1)
+		{
+			ret_val = -1;
+		}
+		break;
+		case  0x2:
+		reg_value = __raw_readl(wp_pwr_ctrl_addr);
+		reg_value |= 0x2 << HDMI_WP_PWR_CTRL_PLL_PWR_CMD_SHIFT;
+		__raw_writel(reg_value, wp_pwr_ctrl_addr);
+		cnt = 0;
+		do
+		{
+			reg_value = __raw_readl(wp_pwr_ctrl_addr);
+			reg_value &= HDMI_WP_PWR_CTRL_PLL_PWR_STATUS_MASK;
+			udelay(10);
+			cnt++;
+		}while(reg_value != 0x2 &&  (cnt < max_count));
+		if (reg_value != 0x2)
+		{
+			ret_val = -1;
+		}
+		break;
+		case  0x3:
+		reg_value = __raw_readl(wp_pwr_ctrl_addr);
+		reg_value |= 0x3 << HDMI_WP_PWR_CTRL_PLL_PWR_CMD_SHIFT;
+		__raw_writel(reg_value, wp_pwr_ctrl_addr);
+		cnt = 0;
+		do
+		{
+			reg_value = __raw_readl(wp_pwr_ctrl_addr);
+			reg_value &= HDMI_WP_PWR_CTRL_PLL_PWR_STATUS_MASK;
+			udelay(10);
+			cnt++;
+		}while(reg_value != 0x3 &&  (cnt < max_count));
+		if (reg_value != 0x3)
+		{
+			ret_val = -1;
+		}
+		break;
+
+		default:
+			ret_val = -1;
+	}
+	return ret_val;
+}
+#endif
 
 #ifdef CONFIG_SND_TI816X_SOC
 /*
@@ -311,13 +473,14 @@ exit_this_func:
 static int configure_phy(struct instance_cfg *inst_context)
 {
 	int rtn_value = 0x0;
-	int phy_base;
+	int phy_base, wp_base;
 	volatile u32 temp;
+	int cmd, count;
 
 	THDBG(">>>>configure_phy\n");
 
-	phy_base = inst_context->phy_base_addr;
 	/* Steps
+	 * LDOOn and TX Power ON
 	 * Set the Transmit control register based on the pixel clock setting.
 	 * Set the digital control register
 	 * Set the power control
@@ -327,21 +490,45 @@ static int configure_phy(struct instance_cfg *inst_context)
 	 * Digital interface control
 	 * disable bist test.
 	 */
+	phy_base = inst_context->phy_base_addr;
+	wp_base = inst_context->wp_base_addr;
+	/* change LDO to on state */
+	cmd = 1;
+	rtn_value = wp_phy_pwr_ctrl(wp_base + HDMI_WP_PWR_CTRL_OFFSET, cmd);
+	if (rtn_value)
+	{
+		rtn_value = -1;
+		goto exit;
+	}
+	/* TXPower ON */
+	cmd = 2;
+	rtn_value = wp_phy_pwr_ctrl(wp_base + HDMI_WP_PWR_CTRL_OFFSET, cmd);
+	if (rtn_value)
+	{
+		rtn_value = -1;
+		goto exit;
+	}
+	/* read address 0 in order to get the SCPreset done completed */
+	/* Dummy access performed to solve resetdone issue */
+	__raw_readl(phy_base + HDMI_PHY_TX_CTRL_OFF);
+
 	/* TX Control */
-	temp = 0;
+	temp = __raw_readl(phy_base + HDMI_PHY_TX_CTRL_OFF);
 	switch (inst_context->config.display_mode)
 	{
 		case hdmi_1080P_30_mode:
 		case hdmi_720P_60_mode:
 		case hdmi_1080I_60_mode:
-		temp = 0x1 << 30;
+		temp |= 0x1 << 30;
 		break;
 		case hdmi_1080P_60_mode:
-		temp = 0x2 << 30;
+		temp |= 0x2 << 30;
 		break;
 		default:
 		return -1;
 	}
+/* Not programmed in OMA4 */
+#if 0
 	/* Enable de-emphasis on all the links D0, D1, D2 and CLK */
 	temp |= 0x1 << 27;
 	temp |= 0x1 << 26;
@@ -363,10 +550,12 @@ static int configure_phy(struct instance_cfg *inst_context)
 	temp |= 0x0 << 3;
 	/* Nominal current of 10ma used for signalling */
 	temp |= 0x0 << 1;
+#endif
 	__raw_writel(temp, phy_base + HDMI_PHY_TX_CTRL_OFF);
 
+/* Same as OMAP4 */
 	/* Digital control */
-	temp = 0;
+	temp = __raw_readl(phy_base + HDMI_PHY_DIGITAL_CTRL_OFF);;
 	/* Use bit 30 from this register as the enable signal for the TMDS */
 	temp |= 1 << 31;
 	/* Enable TMDS signal. TODO*/
@@ -377,43 +566,24 @@ static int configure_phy(struct instance_cfg *inst_context)
 	temp |= 1 << 28;
 	__raw_writel(temp, phy_base + HDMI_PHY_DIGITAL_CTRL_OFF);
 
+/* According to OMAP4 */
 	/* Power Control */
-	temp = 0;
-	/* Normal behaivour of LDO */
-	temp |= 0 << 31;
-	/* Set the LDO power up counter to default value of 21usec */
-	temp |= 0x3F << 24;
-	/* Set the BGON value to default of 1usec */
-	temp |= 0x3 << 19;
-	/* Set the TBIAS counter to default value */
-	temp |= 0x19 << 7;
-	/* Get the LDOs in then normal state TODO*/
-	temp |= 0x0 << 6;
-	/* Bandgap voltage internally TODO*/
-	temp |= 0x0 << 5;
-	/* Test disable TODO*/
-	temp |= 0x0 << 4;
-	/* TODO Get the proper value for the LDO voltage based on the */
+	temp = __raw_readl(phy_base + HDMI_PHY_PWR_CTRL_OFF);
+	/* setup max LDO voltage */
 	temp |= HDMI_PHY_DEF_LDO_VOLTAGE_VAL << 0;
 	__raw_writel(temp, phy_base + HDMI_PHY_PWR_CTRL_OFF);
 
 	/* Pad configuration Control */
-	temp = 0;
-	/* TODO What should be the value */
-	temp |= 0x0 << 31;
-	/* Normal polarity for all the links */
+	temp = __raw_readl(phy_base + HDMI_PHY_PAD_CFG_CTRL_OFF);
+	/* Normal polarity for all the links
+	 * TODO OMAP4 has changed polarity for the clk why??
+	 */
 	temp |= 0x0 << 30;
 	temp |= 0x0 << 29;
 	temp |= 0x0 << 28;
 	temp |= 0x0 << 27;
-	/* Normal channel assignment for all the channels */
-	temp |= 0x0 << 22;
-	/* TODO currently setting the default value to 0x0 */
-	temp |= HDMI_PHY_DEF_VTHRESHPU_CNTL_VAL << 16;
-	/* Don't force the RX Detect to HI state*/
-	temp |= 0x0 << 15;
 	__raw_writel(temp, phy_base + HDMI_PHY_PAD_CFG_CTRL_OFF);
-
+#if 0
 	/* Trim and Test Control */
 	/* TODO Don't use the Bandgap values */
 	temp |= 0x0 << 31;
@@ -457,7 +627,11 @@ static int configure_phy(struct instance_cfg *inst_context)
 	/* TODO: Don't use  the LB LANE SEL */
 	temp |= 0x0 << 24;
 	__raw_writel(temp, phy_base + HDMI_PHY_BIST_OFF);
-
+#endif
+exit:
+	count = 0;
+	while (count++ < 1000)
+	;
 	return rtn_value;
 }
 

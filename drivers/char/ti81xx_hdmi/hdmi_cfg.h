@@ -23,7 +23,7 @@
 #define HDMI_PHY_DEF_DE_EMPHASIS_VAL	(0x5)
 
 /* TODO Get the exact values based on frequency from IP team */
-#define HDMI_PHY_DEF_LDO_VOLTAGE_VAL	(0xC)
+#define HDMI_PHY_DEF_LDO_VOLTAGE_VAL	(0xB)
 
 /* TODO Get the exact values for the threshold detection */
 #define HDMI_PHY_DEF_VTHRESHPU_CNTL_VAL  (0x0)
