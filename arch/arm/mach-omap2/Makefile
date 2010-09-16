@@ -63,6 +63,8 @@ ifeq ($(CONFIG_PM_VERBOSE),y)
 CFLAGS_pm_bus.o				+= -DDEBUG
 endif
 
+obj-$(CONFIG_ARCH_OMAP3)		+= opp3xxx_data.o
+
 endif
 
 # PRCM
