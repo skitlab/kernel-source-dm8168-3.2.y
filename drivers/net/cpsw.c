@@ -22,11 +22,15 @@
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
 #include <linux/phy.h>
+#include <linux/workqueue.h>
+#include <linux/delay.h>
+
 
 #include <linux/cpsw.h>
 
 #include "cpsw_ale.h"
 #include "davinci_cpdma.h"
+
 
 #define CPSW_DEBUG	(NETIF_MSG_HW		| NETIF_MSG_WOL		| \
 			 NETIF_MSG_DRV		| NETIF_MSG_LINK	| \
@@ -217,6 +221,7 @@ struct cpsw_priv {
 	u32 irqs_table[4];
 	u32 num_irqs;
 #endif
+
 };
 
 static void cpsw_intr_enable(struct cpsw_priv *priv)
@@ -255,7 +260,7 @@ void cpsw_rx_handler(void *token, int len, int status)
 	struct sk_buff		*skb = token;
 	struct net_device	*ndev = skb->dev;
 	struct cpsw_priv	*priv = netdev_priv(ndev);
-	int			ret;
+	int			ret = 0;
 
 	if (likely(status >= 0)) {
 		skb_put(skb, len);
@@ -277,11 +282,13 @@ void cpsw_rx_handler(void *token, int len, int status)
 		skb = netdev_alloc_skb_ip_align(ndev, priv->rx_packet_max);
 		if (WARN_ON(!skb))
 			return;
+
+		ret = cpdma_chan_submit(priv->rxch, skb, skb->data,
+				skb_tailroom(skb), GFP_KERNEL);
 	}
 
-	ret = cpdma_chan_submit(priv->rxch, skb, skb->data,
-				skb_tailroom(skb), GFP_KERNEL);
 	WARN_ON(ret < 0);
+
 }
 
 static irqreturn_t cpsw_interrupt(int irq, void *dev_id)
@@ -290,10 +297,10 @@ static irqreturn_t cpsw_interrupt(int irq, void *dev_id)
 
 	if (likely(netif_running(priv->ndev))) {
 		cpsw_intr_disable(priv);
+		cpsw_disable_irq(priv);
 		napi_schedule(&priv->napi);
 	}
 
-	cpsw_disable_irq(priv);
 
 	return IRQ_HANDLED;
 }
@@ -303,16 +310,18 @@ static int cpsw_poll(struct napi_struct *napi, int budget)
 	struct cpsw_priv	*priv = napi_to_priv(napi);
 	int			num_tx, num_rx;
 
+
 	num_tx = cpdma_chan_process(priv->txch, 128);
 	num_rx = cpdma_chan_process(priv->rxch, budget);
 
 	if (num_rx || num_tx)
 		msg(dbg, intr, "poll %d rx, %d tx pkts\n", num_rx, num_tx);
 
+
 	if (num_rx < budget) {
 		napi_complete(napi);
-		cpsw_intr_enable(priv);
 		cpdma_ctlr_eoi(priv->dma);
+		cpsw_intr_enable(priv);
 		cpsw_enable_irq(priv);
 	}
 
@@ -347,6 +356,9 @@ static void _cpsw_adjust_link(struct cpsw_slave *slave,
 {
 	struct phy_device	*phy = slave->phy;
 	u32			mac_control = 0;
+
+	if (!phy)
+		return;
 
 	if (phy->link) {
 		mac_control = priv->data.mac_control;
@@ -467,7 +479,6 @@ static inline u32 cpsw_get_slave_port(struct cpsw_priv *priv, u32 slave_num)
 static void cpsw_set_phy_config(struct cpsw_priv *priv, struct phy_device *phy)
 {
 	struct cpsw_platform_data *pdata = priv->pdev->dev.platform_data;
-	struct phy_device *phydev = NULL;
 	struct mii_bus *miibus;
 	int phy_addr = 0;
 	u16 val = 0;
@@ -479,7 +490,7 @@ static void cpsw_set_phy_config(struct cpsw_priv *priv, struct phy_device *phy)
 	if (!phy)
 		return;
 
-	miibus = phydev->bus;
+	miibus = phy->bus;
 
 	if (!miibus)
 		return;
@@ -487,15 +498,10 @@ static void cpsw_set_phy_config(struct cpsw_priv *priv, struct phy_device *phy)
 	phy_addr = phy->addr;
 
 	/* TODO : This check is required. Make it graceful*/
-	if (phy->phy_id != 0x0282F013) {
-		/* This enables TX_CLK-ing in case of 10/100MBps operation */
-		val = miibus->read(miibus, phy_addr, PHY_CONFIG_REG);
-		val |= BIT(5);
-		miibus->write(miibus, phy_addr, PHY_CONFIG_REG, val);
-		tmp = miibus->read(miibus, phy_addr, PHY_CONFIG_REG);
+	if (phy->phy_id != 0x0282F014) {
+		printk(KERN_ERR"\nCPSW PHY CONFIG - ID MISMATCH\n");
 		return;
 	}
-
 	/* Following lines enable gigbit advertisement capability even in case
 	 * the advertisement is not enabled by default
 	 */
@@ -518,6 +524,12 @@ static void cpsw_set_phy_config(struct cpsw_priv *priv, struct phy_device *phy)
 	miibus->write(miibus, phy_addr, MII_ADVERTISE, val);
 	tmp = miibus->read(miibus, phy_addr, MII_ADVERTISE);
 
+	/* This enables TX_CLK-ing in case of 10/100MBps operation */
+	val = miibus->read(miibus, phy_addr, PHY_CONFIG_REG);
+	val |= BIT(5);
+	miibus->write(miibus, phy_addr, PHY_CONFIG_REG, val);
+	tmp = miibus->read(miibus, phy_addr, PHY_CONFIG_REG);
+
 	return;
 }
 
@@ -526,7 +538,6 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 	char name[32];
 	u32 slave_port;
 
-	printk(KERN_ERR"\nCPSW SLAVE OPEN\n");
 	sprintf(name, "slave-%d", slave->slave_num);
 
 	soft_reset(name, &slave->sliver->soft_reset);
@@ -556,12 +567,11 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 		    slave->data->phy_id, slave->slave_num);
 		slave->phy = NULL;
 	} else {
-		cpsw_set_phy_config(priv, slave->phy);
 		printk(KERN_ERR"\nCPSW phy found : id is : 0x%x\n",
 			slave->phy->phy_id);
+		cpsw_set_phy_config(priv, slave->phy);
 		phy_start(slave->phy);
 	}
-	printk(KERN_ERR"\nCPSW SLAVE OPEN END\n");
 }
 
 static void cpsw_init_host_port(struct cpsw_priv *priv)
@@ -581,7 +591,8 @@ static void cpsw_init_host_port(struct cpsw_priv *priv)
 			     ALE_PORT_STATE, ALE_PORT_STATE_FORWARD);
 
 	cpsw_ale_add_ucast(priv->ale, priv->mac_addr, priv->host_port,
-			   ALE_SECURE);
+			  0);
+			   /*ALE_SECURE);*/
 	cpsw_ale_add_mcast(priv->ale, priv->ndev->broadcast,
 			   1 << priv->host_port);
 }
@@ -592,36 +603,30 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	int i, ret;
 	u32 reg;
 
-	printk(KERN_ERR"\nCPSW OPEN\n");
 	cpsw_intr_disable(priv);
 	netif_carrier_off(ndev);
 
-	printk(KERN_ERR"\nCPSW CLK EN\n");
 	ret = clk_enable(priv->clk);
 	if (ret < 0) {
 		dev_err(priv->dev, "unable to turn on device clock\n");
 		return ret;
 	}
 
-	printk(KERN_ERR"\nCPSW DEV FILE\n");
 	ret = device_create_file(&ndev->dev, &dev_attr_hw_stats);
 	if (ret < 0) {
 		dev_err(priv->dev, "unable to add device attr\n");
 		return ret;
 	}
 
-	printk(KERN_ERR"\nCPSW PHY CTRL\n");
 	if (priv->data.phy_control)
 		(*priv->data.phy_control)(true);
 
-	printk(KERN_ERR"\nCPSW PHY INIT\n");
 	reg = __raw_readl(&priv->regs->id_ver);
 
 	msg(info, ifup, "initializing cpsw version %d.%d (%d)\n",
 	    (reg >> 8 & 0x7), reg & 0xff, (reg >> 11) & 0x1f);
 
 	/* initialize host and slave ports */
-	printk(KERN_ERR"\nCPSW PHY CONF\n");
 	cpsw_init_host_port(priv);
 	for_each_slave(priv, cpsw_slave_open, priv);
 
@@ -633,7 +638,8 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	__raw_writel(0, &priv->regs->ptype);
 
 	/* enable statistics collection only on the host port */
-	__raw_writel(BIT(priv->host_port), &priv->regs->stat_port_en);
+	/*__raw_writel(BIT(priv->host_port), &priv->regs->stat_port_en);*/
+	__raw_writel(0x7, &priv->regs->stat_port_en);
 
 	if (WARN_ON(!priv->data.rx_descs))
 		priv->data.rx_descs = 128;
@@ -654,11 +660,11 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	/* continue even if we didn't manage to submit all receive descs */
 	msg(info, ifup, "submitted %d rx descriptors\n", i);
 
-	cpsw_intr_enable(priv);
 	cpdma_ctlr_start(priv->dma);
+	cpsw_intr_enable(priv);
 	napi_enable(&priv->napi);
+	cpdma_ctlr_eoi(priv->dma);
 
-	printk(KERN_ERR"\nCPSW OPEN END\n");
 	return 0;
 }
 
@@ -749,7 +755,8 @@ static int cpsw_ndo_set_mac_address(struct net_device *ndev, void *addr)
 	cpsw_ale_del_ucast(priv->ale, priv->mac_addr, priv->host_port);
 	memcpy(priv->mac_addr, ndev->dev_addr, ETH_ALEN);
 	cpsw_ale_add_ucast(priv->ale, priv->mac_addr, priv->host_port,
-			   ALE_SECURE);
+			   0);
+			   /*ALE_SECURE);*/
 	for_each_slave(priv, cpsw_set_slave_mac, priv);
 	return 0;
 }
@@ -766,6 +773,7 @@ static void cpsw_ndo_tx_timeout(struct net_device *ndev)
 	cpdma_chan_start(priv->txch);
 	cpdma_ctlr_int_ctrl(priv->dma, true);
 	cpsw_intr_enable(priv);
+	cpdma_ctlr_eoi(priv->dma);
 }
 
 static struct net_device_stats *cpsw_ndo_get_stats(struct net_device *ndev)
@@ -784,6 +792,7 @@ static void cpsw_ndo_poll_controller(struct net_device *ndev)
 	cpsw_interrupt(ndev->irq, priv);
 	cpdma_ctlr_int_ctrl(priv->dma, true);
 	cpsw_intr_enable(priv);
+	cpdma_ctlr_eoi(priv->dma);
 }
 #endif
 
@@ -874,8 +883,13 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 
 	if (is_valid_ether_addr(data->mac_addr))
 		memcpy(priv->mac_addr, data->mac_addr, ETH_ALEN);
-	else
+	else {
+		printk(KERN_INFO"Detected MACID=%x:%x:%x:%x:%x:%x\n",
+			priv->mac_addr[0], priv->mac_addr[1],
+			priv->mac_addr[2], priv->mac_addr[3],
+			priv->mac_addr[4], priv->mac_addr[5]);
 		random_ether_addr(priv->mac_addr);
+	}
 
 	memcpy(ndev->dev_addr, priv->mac_addr, ETH_ALEN);
 
@@ -892,10 +906,6 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 	priv->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
 		dev_err(priv->dev, "failed to get device clock\n");
-#if 0
-		ret = -EBUSY;
-		goto clean_slaves_ret;
-#endif
 	}
 	priv->cpsw_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!priv->cpsw_res) {
@@ -948,19 +958,27 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 
 	memset(&dma_params, 0, sizeof(dma_params));
 	dma_params.dev			= &pdev->dev;
-	dma_params.dmaregs		= regs + data->cpdma_reg_ofs;
-	dma_params.rxthresh		= regs + data->cpdma_reg_ofs + 0x0c0;
-	dma_params.rxfree		= regs + data->cpdma_reg_ofs + 0x0e0;
-	dma_params.txhdp		= regs + data->cpdma_reg_ofs + 0x100;
-	dma_params.rxhdp		= regs + data->cpdma_reg_ofs + 0x120;
-	dma_params.txcp			= regs + data->cpdma_reg_ofs + 0x140;
-	dma_params.rxcp			= regs + data->cpdma_reg_ofs + 0x160;
+	dma_params.dmaregs		= (void __iomem *)(((u32)priv->regs) +
+						data->cpdma_reg_ofs);
+	dma_params.rxthresh		= (void __iomem *)(((u32)priv->regs) +
+						data->cpdma_reg_ofs + 0x0c0);
+	dma_params.rxfree		= (void __iomem *)(((u32)priv->regs) +
+						data->cpdma_reg_ofs + 0x0e0);
+	dma_params.txhdp		= (void __iomem *)(((u32)priv->regs) +
+						data->cpdma_reg_ofs + 0x100);
+	dma_params.rxhdp		= (void __iomem *)(((u32)priv->regs) +
+						data->cpdma_reg_ofs + 0x120);
+	dma_params.txcp			= (void __iomem *)(((u32)priv->regs) +
+						data->cpdma_reg_ofs + 0x140);
+	dma_params.rxcp			= (void __iomem *)(((u32)priv->regs) +
+						data->cpdma_reg_ofs + 0x160);
 	dma_params.num_chan		= data->channels;
 	dma_params.has_soft_reset	= true;
 	dma_params.min_packet_size	= CPSW_MIN_PACKET_SIZE;
-	dma_params.desc_mem_size	= SZ_64K;
+	dma_params.desc_mem_size	= 4096;
 	dma_params.desc_align		= 16;
 	dma_params.has_ext_regs		= true;
+	dma_params.desc_mem_phys	= 0x4A102000;
 
 	priv->dma = cpdma_ctlr_create(&dma_params);
 	if (!priv->dma) {
@@ -982,7 +1000,8 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 
 	memset(&ale_params, 0, sizeof(ale_params));
 	ale_params.dev			= &ndev->dev;
-	ale_params.ale_regs		= regs + data->ale_reg_ofs;
+	ale_params.ale_regs		= (void *)((u32)priv->regs) +
+						((u32)data->ale_reg_ofs);
 	ale_params.ale_ageout		= ale_ageout;
 	ale_params.ale_entries		= data->ale_entries;
 	ale_params.ale_ports		= data->slaves;
@@ -1003,7 +1022,7 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 
 	while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, k))) {
 		for (i = res->start; i <= res->end; i++) {
-			if (request_irq(i, cpsw_interrupt, 0,
+			if (request_irq(i, cpsw_interrupt, IRQF_DISABLED,
 					dev_name(&pdev->dev), priv)) {
 				dev_err(priv->dev, "error attaching irq\n");
 				goto clean_ale_ret;
@@ -1054,7 +1073,6 @@ clean_cpsw_iores_ret:
 				resource_size(priv->cpsw_res));
 clean_clk_ret:
 	clk_put(priv->clk);
-clean_slaves_ret:
 	kfree(priv->slaves);
 clean_ndev_ret:
 	free_netdev(ndev);

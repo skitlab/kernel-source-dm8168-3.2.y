@@ -72,6 +72,7 @@ struct cpdma_desc {
 	void			*sw_token;
 	u32			sw_buffer;
 	u32			sw_len;
+	u32			sw_next;
 };
 
 struct cpdma_desc_pool {
@@ -103,13 +104,13 @@ struct cpdma_ctlr {
 };
 
 struct cpdma_chan {
+	struct cpdma_desc __iomem	*head, *tail;
+	void __iomem			*hdp, *cp, *rxfree;
 	enum cpdma_state		state;
 	struct cpdma_ctlr		*ctlr;
 	int				chan_num;
 	spinlock_t			lock;
-	struct cpdma_desc __iomem	*head, *tail;
 	int				count;
-	void __iomem			*hdp, *cp, *rxfree;
 	u32				mask;
 	cpdma_handler_fn		handler;
 	enum dma_data_direction		dir;
@@ -212,16 +213,36 @@ desc_from_phys(struct cpdma_desc_pool *pool, dma_addr_t dma)
 }
 
 static struct cpdma_desc __iomem *
-cpdma_desc_alloc(struct cpdma_desc_pool *pool, int num_desc)
+cpdma_desc_alloc(struct cpdma_desc_pool *pool, int num_desc, bool is_rx)
 {
 	unsigned long flags;
 	int index;
 	struct cpdma_desc __iomem *desc = NULL;
+	static int last_index = 4096;
 
 	spin_lock_irqsave(&pool->lock, flags);
 
-	index = bitmap_find_next_zero_area(pool->bitmap, pool->num_desc, 0,
-					   num_desc, 0);
+	if (is_rx) {
+		index = bitmap_find_next_zero_area(pool->bitmap,
+				pool->num_desc/2, 0, num_desc, 0);
+	 } else {
+		if (last_index >= pool->num_desc)
+			last_index = pool->num_desc / 2;
+
+		index = bitmap_find_next_zero_area(pool->bitmap,
+				pool->num_desc, last_index, num_desc, 0);
+
+		if (!(index < pool->num_desc)) {
+			index = bitmap_find_next_zero_area(pool->bitmap,
+				pool->num_desc, pool->num_desc/2, num_desc, 0);
+		}
+
+		if (index < pool->num_desc)
+			last_index = index + 1;
+		else
+			last_index = pool->num_desc / 2;
+	}
+
 	if (index < pool->num_desc) {
 		bitmap_set(pool->bitmap, index, num_desc);
 		desc = pool->iomap + pool->desc_size * index;
@@ -465,7 +486,8 @@ int cpdma_ctlr_int_ctrl(struct cpdma_ctlr *ctlr, bool enable)
 
 void cpdma_ctlr_eoi(struct cpdma_ctlr *ctlr)
 {
-	dma_reg_write(ctlr, CPDMA_MACEOIVECTOR, 0);
+	dma_reg_write(ctlr, CPDMA_MACEOIVECTOR, 1);
+	dma_reg_write(ctlr, CPDMA_MACEOIVECTOR, 2);
 }
 
 struct cpdma_chan *cpdma_chan_create(struct cpdma_ctlr *ctlr, int chan_num,
@@ -624,6 +646,7 @@ static void __cpdma_chan_submit(struct cpdma_chan *chan,
 
 	/* first chain the descriptor at the tail of the list */
 	desc_write(prev, hw_next, desc_dma);
+	desc_write(prev, sw_next, desc_dma);
 	chan->tail = desc;
 	chan->stats.tail_enqueue++;
 
@@ -646,6 +669,7 @@ int cpdma_chan_submit(struct cpdma_chan *chan, void *token, void *data,
 	unsigned long			flags;
 	u32				mode;
 	int				ret = 0;
+	bool                            is_rx;
 
 	spin_lock_irqsave(&chan->lock, flags);
 
@@ -654,7 +678,8 @@ int cpdma_chan_submit(struct cpdma_chan *chan, void *token, void *data,
 		goto unlock_ret;
 	}
 
-	desc = cpdma_desc_alloc(ctlr->pool, 1);
+	is_rx = (chan->rxfree != 0);
+	desc = cpdma_desc_alloc(ctlr->pool, 1, is_rx);
 	if (!desc) {
 		chan->stats.desc_alloc_fail++;
 		ret = -ENOMEM;
@@ -670,6 +695,7 @@ int cpdma_chan_submit(struct cpdma_chan *chan, void *token, void *data,
 	mode = CPDMA_DESC_OWNER | CPDMA_DESC_SOP | CPDMA_DESC_EOP;
 
 	desc_write(desc, hw_next,   0);
+	desc_write(desc, sw_next,   0);
 	desc_write(desc, hw_buffer, buffer);
 	desc_write(desc, hw_len,    len);
 	desc_write(desc, hw_mode,   mode | len);
@@ -712,7 +738,7 @@ static int __cpdma_chan_process(struct cpdma_chan *chan)
 {
 	struct cpdma_ctlr		*ctlr = chan->ctlr;
 	struct cpdma_desc __iomem	*desc;
-	int				status, outlen;
+	u32				status, outlen;
 	struct cpdma_desc_pool		*pool = ctlr->pool;
 	dma_addr_t			desc_dma;
 	unsigned long			flags;
@@ -736,19 +762,20 @@ static int __cpdma_chan_process(struct cpdma_chan *chan)
 	}
 	status	= status & (CPDMA_DESC_EOQ | CPDMA_DESC_TD_COMPLETE);
 
-	chan->head = desc_from_phys(pool, desc_read(desc, hw_next));
+	chan->head = desc_from_phys(pool, desc_read(desc, sw_next));
 	chan_write(chan, cp, desc_dma);
 	chan->count--;
 	chan->stats.good_dequeue++;
 
-	if (status & CPDMA_DESC_EOQ) {
+	if ((status & CPDMA_DESC_EOQ) && (chan->head) &&
+			(!(status & CPDMA_DESC_TD_COMPLETE))) {
 		chan->stats.requeue++;
 		chan_write(chan, hdp, desc_phys(pool, chan->head));
 	}
 
 	spin_unlock_irqrestore(&chan->lock, flags);
 
-	__cpdma_chan_free(chan, desc, outlen, status);
+	__cpdma_chan_free(chan, desc, outlen, (int)status);
 	return status;
 
 unlock_ret:

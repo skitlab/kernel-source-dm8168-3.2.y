@@ -61,27 +61,23 @@
 
 static inline int cpsw_ale_get_field(u32 *ale_entry, u32 start, u32 bits)
 {
-	int idx, len = ALE_ENTRY_BITS;
+	int idx;
 
-	WARN_ON(bits > 30 || bits + start > len);
 	idx    = start / 32;
 	start -= idx * 32;
 	idx    = 2 - idx; /* flip */
-	WARN_ON(start + bits > 32); /* straddles word boundaries */
 	return (ale_entry[idx] >> start) & BITMASK(bits);
 }
 
 static inline void cpsw_ale_set_field(u32 *ale_entry, u32 start, u32 bits,
 				      u32 value)
 {
-	int idx, len = ALE_ENTRY_BITS;
+	int idx;
 
-	WARN_ON(bits > 30 || bits + start > len);
 	value &= BITMASK(bits);
 	idx    = start / 32;
 	start -= idx * 32;
 	idx    = 2 - idx; /* flip */
-	WARN_ON(start + bits > 32); /* straddles word boundaries */
 	ale_entry[idx] &= ~(BITMASK(bits) << start);
 	ale_entry[idx] |=  (value << start);
 }
@@ -483,6 +479,11 @@ int cpsw_ale_control_set(struct cpsw_ale *ale, int port, int control,
 	tmp = (tmp & ~(mask << shift)) | (value << shift);
 	__raw_writel(tmp, ale->ale_regs + offset);
 
+	{
+		volatile u32 dly = 10000;
+		while (dly)
+			dly--;
+	}
 	return 0;
 }
 
