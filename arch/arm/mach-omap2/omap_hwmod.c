@@ -767,10 +767,10 @@ static struct omap_hwmod *_lookup(const char *name)
  * @data: not used; pass NULL
  *
  * Called by omap_hwmod_late_init() (after omap2_clk_init()).
- * Resolves all clock names embedded in the hwmod.  Must be called
- * with omap_hwmod_mutex held.  Returns -EINVAL if the omap_hwmod
- * has not yet been registered or if the clocks have already been
- * initialized, 0 on success, or a non-zero error on failure.
+ * Resolves all clock names embedded in the hwmod.  Returns -EINVAL if
+ * the omap_hwmod has not yet been registered or if the clocks have
+ * already been initialized, 0 on success, or a non-zero error on
+ * failure.
  */
 static int _init_clocks(struct omap_hwmod *oh, void *data)
 {
@@ -838,10 +838,9 @@ static int _wait_target_ready(struct omap_hwmod *oh)
  * @oh: struct omap_hwmod *
  *
  * Resets an omap_hwmod @oh via the OCP_SYSCONFIG bit.  hwmod must be
- * enabled for this to work.  Must be called with omap_hwmod_mutex
- * held.  Returns -EINVAL if the hwmod cannot be reset this way or if
- * the hwmod is in the wrong state, -ETIMEDOUT if the module did not
- * reset in time, or 0 upon success.
+ * enabled for this to work.  Returns -EINVAL if the hwmod cannot be
+ * reset this way or if the hwmod is in the wrong state, -ETIMEDOUT if
+ * the module did not reset in time, or 0 upon success.
  */
 static int _reset(struct omap_hwmod *oh)
 {
@@ -891,9 +890,8 @@ static int _reset(struct omap_hwmod *oh)
  * @oh: struct omap_hwmod *
  *
  * Enables an omap_hwmod @oh such that the MPU can access the hwmod's
- * register target.  Must be called with omap_hwmod_mutex held.
- * Returns -EINVAL if the hwmod is in the wrong state or passes along
- * the return value of _wait_target_ready().
+ * register target.  Returns -EINVAL if the hwmod is in the wrong
+ * state or passes along the return value of _wait_target_ready().
  */
 int _omap_hwmod_enable(struct omap_hwmod *oh)
 {
@@ -982,9 +980,13 @@ static int _shutdown(struct omap_hwmod *oh)
 
 	if (oh->class->sysc)
 		_sysc_shutdown(oh);
-	_del_initiator_dep(oh, mpu_oh);
-	/* XXX what about the other system initiators here? DMA, tesla, d2d */
-	_disable_clocks(oh);
+
+	/* clocks and deps are already disabled in idle */
+	if (oh->_state == _HWMOD_STATE_ENABLED) {
+		_del_initiator_dep(oh, mpu_oh);
+		/* XXX what about the other system initiators here? dma, dsp */
+		_disable_clocks(oh);
+	}
 	/* XXX Should this code also force-disable the optional clocks? */
 
 	/* XXX mux any associated balls to safe mode */
@@ -1000,11 +1002,10 @@ static int _shutdown(struct omap_hwmod *oh)
  * @skip_setup_idle_p: do not idle hwmods at the end of the fn if 1
  *
  * Writes the CLOCKACTIVITY bits @clockact to the hwmod @oh
- * OCP_SYSCONFIG register.  Must be called with omap_hwmod_mutex held.
- * @skip_setup_idle is intended to be used on a system that will not
- * call omap_hwmod_enable() to enable devices (e.g., a system without
- * PM runtime).  Returns -EINVAL if the hwmod is in the wrong state or
- * returns 0.
+ * OCP_SYSCONFIG register.  @skip_setup_idle is intended to be used on
+ * a system that will not call omap_hwmod_enable() to enable devices
+ * (e.g., a system without PM runtime).  Returns -EINVAL if the hwmod
+ * is in the wrong state or returns 0.
  */
 static int _setup(struct omap_hwmod *oh, void *data)
 {
@@ -1034,6 +1035,7 @@ static int _setup(struct omap_hwmod *oh, void *data)
 		}
 	}
 
+	mutex_init(&oh->_mutex);
 	oh->_state = _HWMOD_STATE_INITIALIZED;
 
 	r = _omap_hwmod_enable(oh);
@@ -1319,9 +1321,9 @@ int omap_hwmod_enable(struct omap_hwmod *oh)
 	if (!oh)
 		return -EINVAL;
 
-	mutex_lock(&omap_hwmod_mutex);
+	mutex_lock(&oh->_mutex);
 	r = _omap_hwmod_enable(oh);
-	mutex_unlock(&omap_hwmod_mutex);
+	mutex_unlock(&oh->_mutex);
 
 	return r;
 }
@@ -1339,9 +1341,9 @@ int omap_hwmod_idle(struct omap_hwmod *oh)
 	if (!oh)
 		return -EINVAL;
 
-	mutex_lock(&omap_hwmod_mutex);
+	mutex_lock(&oh->_mutex);
 	_omap_hwmod_idle(oh);
-	mutex_unlock(&omap_hwmod_mutex);
+	mutex_unlock(&oh->_mutex);
 
 	return 0;
 }
@@ -1359,9 +1361,9 @@ int omap_hwmod_shutdown(struct omap_hwmod *oh)
 	if (!oh)
 		return -EINVAL;
 
-	mutex_lock(&omap_hwmod_mutex);
+	mutex_lock(&oh->_mutex);
 	_shutdown(oh);
-	mutex_unlock(&omap_hwmod_mutex);
+	mutex_unlock(&oh->_mutex);
 
 	return 0;
 }
@@ -1374,9 +1376,9 @@ int omap_hwmod_shutdown(struct omap_hwmod *oh)
  */
 int omap_hwmod_enable_clocks(struct omap_hwmod *oh)
 {
-	mutex_lock(&omap_hwmod_mutex);
+	mutex_lock(&oh->_mutex);
 	_enable_clocks(oh);
-	mutex_unlock(&omap_hwmod_mutex);
+	mutex_unlock(&oh->_mutex);
 
 	return 0;
 }
@@ -1389,9 +1391,9 @@ int omap_hwmod_enable_clocks(struct omap_hwmod *oh)
  */
 int omap_hwmod_disable_clocks(struct omap_hwmod *oh)
 {
-	mutex_lock(&omap_hwmod_mutex);
+	mutex_lock(&oh->_mutex);
 	_disable_clocks(oh);
-	mutex_unlock(&omap_hwmod_mutex);
+	mutex_unlock(&oh->_mutex);
 
 	return 0;
 }
@@ -1430,20 +1432,18 @@ void omap_hwmod_ocp_barrier(struct omap_hwmod *oh)
  *
  * Under some conditions, a driver may wish to reset the entire device.
  * Called from omap_device code.  Returns -EINVAL on error or passes along
- * the return value from _reset()/_enable().
+ * the return value from _reset().
  */
 int omap_hwmod_reset(struct omap_hwmod *oh)
 {
 	int r;
 
-	if (!oh || !(oh->_state & _HWMOD_STATE_ENABLED))
+	if (!oh)
 		return -EINVAL;
 
-	mutex_lock(&omap_hwmod_mutex);
+	mutex_lock(&oh->_mutex);
 	r = _reset(oh);
-	if (!r)
-		r = _omap_hwmod_enable(oh);
-	mutex_unlock(&omap_hwmod_mutex);
+	mutex_unlock(&oh->_mutex);
 
 	return r;
 }
@@ -1468,7 +1468,7 @@ int omap_hwmod_count_resources(struct omap_hwmod *oh)
 {
 	int ret, i;
 
-	ret = oh->mpu_irqs_cnt + oh->sdma_chs_cnt;
+	ret = oh->mpu_irqs_cnt + oh->sdma_reqs_cnt;
 
 	for (i = 0; i < oh->slaves_cnt; i++)
 		ret += oh->slaves[i]->addr_cnt;
@@ -1501,10 +1501,10 @@ int omap_hwmod_fill_resources(struct omap_hwmod *oh, struct resource *res)
 		r++;
 	}
 
-	for (i = 0; i < oh->sdma_chs_cnt; i++) {
-		(res + r)->name = (oh->sdma_chs + i)->name;
-		(res + r)->start = (oh->sdma_chs + i)->dma_ch;
-		(res + r)->end = (oh->sdma_chs + i)->dma_ch;
+	for (i = 0; i < oh->sdma_reqs_cnt; i++) {
+		(res + r)->name = (oh->sdma_reqs + i)->name;
+		(res + r)->start = (oh->sdma_reqs + i)->dma_req;
+		(res + r)->end = (oh->sdma_reqs + i)->dma_req;
 		(res + r)->flags = IORESOURCE_DMA;
 		r++;
 	}
@@ -1644,9 +1644,9 @@ int omap_hwmod_enable_wakeup(struct omap_hwmod *oh)
 	    !(oh->class->sysc->sysc_flags & SYSC_HAS_ENAWAKEUP))
 		return -EINVAL;
 
-	mutex_lock(&omap_hwmod_mutex);
+	mutex_lock(&oh->_mutex);
 	_enable_wakeup(oh);
-	mutex_unlock(&omap_hwmod_mutex);
+	mutex_unlock(&oh->_mutex);
 
 	return 0;
 }
@@ -1669,9 +1669,9 @@ int omap_hwmod_disable_wakeup(struct omap_hwmod *oh)
 	    !(oh->class->sysc->sysc_flags & SYSC_HAS_ENAWAKEUP))
 		return -EINVAL;
 
-	mutex_lock(&omap_hwmod_mutex);
+	mutex_lock(&oh->_mutex);
 	_disable_wakeup(oh);
-	mutex_unlock(&omap_hwmod_mutex);
+	mutex_unlock(&oh->_mutex);
 
 	return 0;
 }
