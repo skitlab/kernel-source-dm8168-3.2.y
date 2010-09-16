@@ -75,7 +75,7 @@ struct omap_opp *opp_find_freq_floor(struct device *dev, unsigned long *freq);
 
 struct omap_opp *opp_find_freq_ceil(struct device *dev, unsigned long *freq);
 
-int opp_add(const struct omap_opp_def *opp_def);
+int opp_add(struct device *dev, const struct omap_opp_def *opp_def);
 
 int opp_enable(struct omap_opp *opp);
 

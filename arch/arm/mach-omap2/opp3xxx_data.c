@@ -23,6 +23,7 @@
 
 #include <plat/opp.h>
 #include <plat/cpu.h>
+#include <plat/omap_device.h>
 
 static struct omap_opp_def __initdata omap34xx_opp_def_list[] = {
 	/* MPU OPP1 */
@@ -114,7 +115,22 @@ int __init omap3_pm_init_opp_table(void)
 
 	opp_def = omap3_opp_def_list;
 	for (i = 0; i < omap3_opp_def_size; i++) {
-		r = opp_add(opp_def++);
+		struct omap_hwmod *oh;
+		struct device *dev;
+
+		if (!opp_def->hwmod_name) {
+			pr_err("%s: missing name of omap_hwmod, ignoring.\n", __func__);
+			return -EINVAL;
+		}
+		oh = omap_hwmod_lookup(opp_def->hwmod_name);
+		if (!oh || !oh->od) {
+			pr_warn("%s: no hwmod or odev for %s, cannot add OPPs.\n",
+				__func__, opp_def->hwmod_name);
+			return -EINVAL;
+		}
+		dev = &oh->od->pdev.dev;
+
+		r = opp_add(dev, opp_def++);
 		if (r)
 			pr_err("unable to add OPP %ld Hz for %s\n",
 			       opp_def->freq, opp_def->hwmod_name);

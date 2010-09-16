@@ -21,7 +21,6 @@
 #include <linux/list.h>
 
 #include <plat/opp.h>
-#include <plat/omap_device.h>
 
 /**
  * struct omap_opp - OMAP OPP description structure
@@ -58,7 +57,6 @@ struct omap_opp {
 struct device_opp {
 	struct list_head node;
 
-	struct omap_hwmod *oh;
 	struct device *dev;
 
 	struct list_head opp_list;
@@ -291,28 +289,11 @@ static void omap_opp_populate(struct omap_opp *opp,
  *
  * This function adds an opp definition to the opp list and returns status.
  */
-int opp_add(const struct omap_opp_def *opp_def)
+int opp_add(struct device *dev, const struct omap_opp_def *opp_def)
 {
-	struct omap_hwmod *oh;
-	struct device *dev = NULL;
 	struct device_opp *tmp_dev_opp, *dev_opp = NULL;
 	struct omap_opp *opp, *new_opp;
-	struct platform_device *pdev;
 	struct list_head *head;
-
-	/* find the correct hwmod, and device */
-	if (!opp_def->hwmod_name) {
-		pr_err("%s: missing name of omap_hwmod, ignoring.\n", __func__);
-		return -EINVAL;
-	}
-	oh = omap_hwmod_lookup(opp_def->hwmod_name);
-	if (!oh || !oh->od) {
-		pr_warn("%s: no hwmod or odev for %s, cannot add OPPs.\n",
-			__func__, opp_def->hwmod_name);
-		return -EINVAL;
-	}
-	pdev = &oh->od->pdev;
-	dev = &oh->od->pdev.dev;
 
 	/* Check for existing list for 'dev' */
 	list_for_each_entry(tmp_dev_opp, &dev_opp_list, node) {
@@ -331,8 +312,7 @@ int opp_add(const struct omap_opp_def *opp_def)
 			return -ENOMEM;
 		}
 
-		dev_opp->oh = oh;
-		dev_opp->dev = &oh->od->pdev.dev;
+		dev_opp->dev = dev;
 		INIT_LIST_HEAD(&dev_opp->opp_list);
 
 		list_add(&dev_opp->node, &dev_opp_list);
