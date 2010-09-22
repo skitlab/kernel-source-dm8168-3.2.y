@@ -42,6 +42,7 @@ u32 enable_off_mode;
 u32 sleep_while_idle;
 u32 wakeup_timer_seconds;
 u32 wakeup_timer_milliseconds;
+struct dentry *pm_dbg_main_dir;
 
 #define DUMP_PRM_MOD_REG(mod, reg)    \
 	regs[reg_count].name = #mod "." #reg; \
@@ -641,6 +642,8 @@ static int __init pm_dbg_init(void)
 	(void) debugfs_create_file("wakeup_timer_milliseconds",
 			S_IRUGO | S_IWUGO, d, &wakeup_timer_milliseconds,
 			&pm_dbg_option_fops);
+
+	pm_dbg_main_dir = d;
 	pm_dbg_init_done = 1;
 
 	return 0;
