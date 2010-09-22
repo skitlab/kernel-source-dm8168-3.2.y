@@ -48,6 +48,7 @@
 #include "sdram-qimonda-hyb18m512160af-6.h"
 #include "hsmmc.h"
 #include "pm.h"
+#include "smartreflex-class3.h"
 
 #define CONFIG_DISABLE_HFCLK 1
 
@@ -814,6 +815,7 @@ static void __init omap_3430sdp_init(void)
 	sdp3430_display_init();
 	enable_board_wakeup_source();
 	usb_ehci_init(&ehci_pdata);
+	sr_class3_init();
 }
 
 MACHINE_START(OMAP_3430SDP, "OMAP3430 3430SDP board")
