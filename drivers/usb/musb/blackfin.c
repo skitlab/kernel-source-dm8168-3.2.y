@@ -362,7 +362,7 @@ static void musb_platform_reg_init(struct musb *musb)
 	SSYNC();
 }
 
-int __init musb_platform_init(struct musb *musb, void *board_data)
+int __init musb_platform_init(struct musb *musb)
 {
 
 	/*
