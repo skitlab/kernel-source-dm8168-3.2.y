@@ -208,6 +208,10 @@ static int __init omap2_common_pm_init(void)
 		omap3_pm_init_opp_table();
 		omap2_set_init_voltage("mpu", "dpll1_ck", mpu_dev);
 		omap2_set_init_voltage("core", "l3_ick", l3_dev);
+	} else if (cpu_is_omap44xx()) {
+		omap2_set_init_voltage("mpu", "dpll_mpu_ck", mpu_dev);
+		omap2_set_init_voltage("core", "l3_div_ck", l3_dev);
+		omap2_set_init_voltage("iva", "dpll_iva_m5x2_ck", iva_dev);
 	}
 
 	omap_pm_if_init();
