@@ -20,6 +20,7 @@
 
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <linux/io.h>
 
 #include <plat/control.h>
 #include <plat/omap_device.h>
@@ -98,9 +99,19 @@ static void __init sr_set_nvalues(struct omap_sr_dev_data *dev_data,
 				dev_data->senpenable_shift);
 	}
 
-	for (i = 0; i < dev_data->volts_supported; i++)
-		dev_data->volt_data[i].sr_nvalue = omap_ctrl_readl(
+	for (i = 0; i < dev_data->volts_supported; i++) {
+		if (cpu_is_omap44xx()) {
+			u16 offset = dev_data->efuse_nvalues_offs[i];
+
+			dev_data->volt_data[i].sr_nvalue =
+				omap_ctrl_readb(offset) |
+				omap_ctrl_readb(offset + 1) << 8 |
+				omap_ctrl_readb(offset + 2) << 16;
+		} else {
+			dev_data->volt_data[i].sr_nvalue = omap_ctrl_readl(
 				dev_data->efuse_nvalues_offs[i]);
+		}
+	}
 }
 #endif
 
