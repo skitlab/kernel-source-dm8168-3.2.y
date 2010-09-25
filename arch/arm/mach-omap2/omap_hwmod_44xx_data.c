@@ -22,6 +22,8 @@
 
 #include <plat/omap_hwmod.h>
 #include <plat/cpu.h>
+#include <plat/smartreflex.h>
+#include <plat/control.h>
 
 #include "omap_hwmod_common_data.h"
 
@@ -474,6 +476,7 @@ static struct omap_hwmod_class_sysconfig omap44xx_smartreflex_sysc = {
 static struct omap_hwmod_class omap44xx_smartreflex_hwmod_class = {
 	.name = "smartreflex",
 	.sysc = &omap44xx_smartreflex_sysc,
+	.rev  = 2,
 };
 
 /* smartreflex_core */
@@ -505,6 +508,22 @@ static struct omap_hwmod_ocp_if *omap44xx_smartreflex_core_slaves[] = {
 	&omap44xx_l4_cfg__smartreflex_core,
 };
 
+static u32 omap44xx_sr_core_efuse_offs[] = {
+	OMAP44XX_CONTROL_FUSE_CORE_OPP50, OMAP44XX_CONTROL_FUSE_CORE_OPP100,
+};
+
+static u32 omap44xx_sr_core_test_nvalues[] = {
+	0x0, 0x0
+};
+
+static struct omap_sr_dev_data omap44xx_sr_core_dev_attr = {
+	.efuse_nvalues_offs	= omap44xx_sr_core_efuse_offs,
+	.test_sennenable	= 0x1,
+	.test_senpenable	= 0x1,
+	.test_nvalues		= omap44xx_sr_core_test_nvalues,
+	.vdd_name		= "core"
+};
+
 static struct omap_hwmod omap44xx_smartreflex_core_hwmod = {
 	.name		= "smartreflex_core",
 	.class		= &omap44xx_smartreflex_hwmod_class,
@@ -518,6 +537,7 @@ static struct omap_hwmod omap44xx_smartreflex_core_hwmod = {
 	},
 	.slaves		= omap44xx_smartreflex_core_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap44xx_smartreflex_core_slaves),
+	.dev_attr	= &omap44xx_sr_core_dev_attr,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP4430),
 };
 
@@ -550,6 +570,23 @@ static struct omap_hwmod_ocp_if *omap44xx_smartreflex_iva_slaves[] = {
 	&omap44xx_l4_cfg__smartreflex_iva,
 };
 
+static u32 omap44xx_sr_iva_efuse_offs[] = {
+	OMAP44XX_CONTROL_FUSE_IVA_OPP50, OMAP44XX_CONTROL_FUSE_IVA_OPP100,
+	OMAP44XX_CONTROL_FUSE_IVA_OPPTURBO,
+};
+
+static u32 omap44xx_sr_iva_test_nvalues[] = {
+	0x0, 0x0, 0x0, 0x0
+};
+
+static struct omap_sr_dev_data omap44xx_sr_iva_dev_attr = {
+	.efuse_nvalues_offs	= omap44xx_sr_iva_efuse_offs,
+	.test_sennenable	= 0x1,
+	.test_senpenable	= 0x1,
+	.test_nvalues		= omap44xx_sr_iva_test_nvalues,
+	.vdd_name		= "iva"
+};
+
 static struct omap_hwmod omap44xx_smartreflex_iva_hwmod = {
 	.name		= "smartreflex_iva",
 	.class		= &omap44xx_smartreflex_hwmod_class,
@@ -563,6 +600,7 @@ static struct omap_hwmod omap44xx_smartreflex_iva_hwmod = {
 	},
 	.slaves		= omap44xx_smartreflex_iva_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap44xx_smartreflex_iva_slaves),
+	.dev_attr	= &omap44xx_sr_iva_dev_attr,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP4430),
 };
 
@@ -595,6 +633,23 @@ static struct omap_hwmod_ocp_if *omap44xx_smartreflex_mpu_slaves[] = {
 	&omap44xx_l4_cfg__smartreflex_mpu,
 };
 
+static u32 omap44xx_sr_mpu_efuse_offs[] = {
+	OMAP44XX_CONTROL_FUSE_MPU_OPP50, OMAP44XX_CONTROL_FUSE_MPU_OPP100,
+	OMAP44XX_CONTROL_FUSE_MPU_OPPTURBO, OMAP44XX_CONTROL_FUSE_MPU_OPPNITRO,
+};
+
+static u32 omap44xx_sr_mpu_test_nvalues[] = {
+	0x0, 0x0, 0x0, 0x0
+};
+
+static struct omap_sr_dev_data omap44xx_sr_mpu_dev_attr = {
+	.efuse_nvalues_offs	= omap44xx_sr_mpu_efuse_offs,
+	.test_sennenable	= 0x1,
+	.test_senpenable	= 0x1,
+	.test_nvalues		= omap44xx_sr_mpu_test_nvalues,
+	.vdd_name		= "mpu"
+};
+
 static struct omap_hwmod omap44xx_smartreflex_mpu_hwmod = {
 	.name		= "smartreflex_mpu",
 	.class		= &omap44xx_smartreflex_hwmod_class,
@@ -608,6 +663,7 @@ static struct omap_hwmod omap44xx_smartreflex_mpu_hwmod = {
 	},
 	.slaves		= omap44xx_smartreflex_mpu_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap44xx_smartreflex_mpu_slaves),
+	.dev_attr	= &omap44xx_sr_mpu_dev_attr,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP4430),
 };
 
