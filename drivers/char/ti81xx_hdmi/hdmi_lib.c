@@ -2011,12 +2011,12 @@ int ti81xx_hdmi_copy_mode_config(enum ti81xxhdmi_mode hdmi_mode,
 
 int ti81xx_hdmi_lib_deinit(void *args)
 {
+	ti81xx_hdmi_lib_stop(&hdmi_config, NULL);
 	hdmi_config.is_recvr_sensed = FALSE;
 	hdmi_config.is_streaming = FALSE;
 	hdmi_config.is_scl_clocked = FALSE;
 	hdmi_config.vSync_counter = 0x0;
 	hdmi_config.is_interlaced = FALSE;
-
 	hdmi_config.core_base_addr = 0;
 	hdmi_config.wp_base_addr = 0;
 	hdmi_config.phy_base_addr = 0;

@@ -307,6 +307,7 @@ err_exit:
  */
 void __exit ti81xx_hdmi_exit(void)
 {
+	ti81xx_hdmi_lib_deinit(NULL);
 	device_destroy(ti81xx_hdmi_class, ti81xx_hdmi_dev_id);
 	class_destroy(ti81xx_hdmi_class);
 	platform_device_unregister(&ti81xx_hdmi_plat_device);
