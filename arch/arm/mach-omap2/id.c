@@ -355,15 +355,28 @@ void __init ti81xx_check_revision(void)
 	u32 idcode;
 	u16 partnum;
 	u8 rev;
+	char cpu_rev[16];
 
 	idcode = read_tap_reg(TI81XX_CONTROL_DEVICE_ID);
 	partnum = (idcode >> 12) & 0xffff;
-	rev = (idcode >> 28) & 0xff;
+	rev = (idcode >> 28) & 0xf;
 
-	if ((partnum == 0xb81e) && (rev == 0x0)) {
-		omap_revision = TI8168_REV_ES1_0;
+	if (partnum == 0xb81e) {
 		omap_chip.oc |= CHIP_IS_TI816X;
-		pr_info("OMAP chip is TI8168\n");
+
+		switch (rev) {
+		case 0:
+			omap_revision = TI8168_REV_ES1_0;
+			strcpy(cpu_rev, "1.0");
+			break;
+		case 1:
+			/* FALLTHROUGH */
+		default:
+			omap_revision = TI8168_REV_ES1_1;
+			strcpy(cpu_rev, "1.1");
+		}
+
+		pr_info("OMAP chip is TI8168 %s\n", cpu_rev);
 		return;
 	} else if ((partnum == 0xb8f2)) {
 		omap_revision = TI8148_REV_ES1_0;
