@@ -439,12 +439,12 @@ static inline void ti81xx_mcspi_fixup(void)
 	omap2_mcspi1_resources[0].end	= TI81XX_MCSPI1_BASE + 0xff;
 
 	if (cpu_is_ti814x()) {
-		omap2_mcspi1_resources[1].start	= TI814X_MCSPI2_BASE;
-		omap2_mcspi1_resources[1].end	= TI814X_MCSPI2_BASE + 0xff;
-		omap2_mcspi1_resources[2].start	= TI814X_MCSPI3_BASE;
-		omap2_mcspi1_resources[2].end	= TI814X_MCSPI3_BASE + 0xff;
-		omap2_mcspi1_resources[3].start	= TI814X_MCSPI4_BASE;
-		omap2_mcspi1_resources[3].end	= TI814X_MCSPI4_BASE + 0xff;
+		omap2_mcspi2_resources[0].start	= TI814X_MCSPI2_BASE;
+		omap2_mcspi2_resources[0].end	= TI814X_MCSPI2_BASE + 0xff;
+		omap2_mcspi3_resources[0].start	= TI814X_MCSPI3_BASE;
+		omap2_mcspi3_resources[0].end	= TI814X_MCSPI3_BASE + 0xff;
+		omap2_mcspi4_resources[0].start	= TI814X_MCSPI4_BASE;
+		omap2_mcspi4_resources[0].end	= TI814X_MCSPI4_BASE + 0xff;
 	}
 }
 #else
