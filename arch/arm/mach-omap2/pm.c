@@ -21,6 +21,8 @@
 #include <plat/powerdomain.h>
 #include <plat/clockdomain.h>
 
+#include "pm.h"
+
 static struct omap_device_pm_latency *pm_lats;
 
 static struct device *mpu_dev;
@@ -139,6 +141,10 @@ err:
 static int __init omap2_common_pm_init(void)
 {
 	omap2_init_processor_devices();
+
+	if (cpu_is_omap34xx())
+		omap3_pm_init_opp_table();
+
 	omap_pm_if_init();
 
 	return 0;
