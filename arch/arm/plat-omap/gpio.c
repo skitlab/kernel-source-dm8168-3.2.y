@@ -1764,6 +1764,9 @@ static int __init omap3_gpio_pads_init(void)
 	int i, j, min, max, gpio_amt;
 	u16 offset;
 
+	if (!cpu_is_omap34xx())
+		return -ENODEV;
+
 	gpio_amt = 0;
 
 	for (i = 0; i < ARRAY_SIZE(gpio_pads_config); i++) {
