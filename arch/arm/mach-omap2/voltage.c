@@ -372,7 +372,7 @@ DEFINE_SIMPLE_ATTRIBUTE(vp_volt_debug_fops, vp_volt_debug_get, NULL, "%llu\n");
 DEFINE_SIMPLE_ATTRIBUTE(nom_volt_debug_fops, nom_volt_debug_get, NULL,
 								"%llu\n");
 
-static void vp_latch_vsel(struct omap_vdd_info *vdd)
+static int vp_latch_vsel(struct omap_vdd_info *vdd)
 {
 	u32 vpconfig;
 	unsigned long uvdc;
@@ -388,7 +388,7 @@ static void vp_latch_vsel(struct omap_vdd_info *vdd)
 	if (!volt_pmic_info.uv_to_vsel) {
 		pr_warning("%s: PMIC function to convert voltage in uV to"
 			" vsel not registered\n", __func__);
-		return;
+		return -EINVAL;
 	}
 
 	vsel = volt_pmic_info.uv_to_vsel(uvdc);
@@ -716,7 +716,10 @@ static void __init init_voltageprocessor(struct omap_vdd_info *vdd)
 			vdd->vp_reg.vlimitto_timeout_shift));
 
 	/* Set the init voltage */
-	vp_latch_vsel(vdd);
+	if (vp_latch_vsel(vdd)) {
+		pr_err("%s: vp_latch_vsel failed\n", __func__);
+		return;
+	}
 
 	vpconfig = voltage_read_reg(vdd->vp_offs.vpconfig);
 	/* Force update of voltage */
