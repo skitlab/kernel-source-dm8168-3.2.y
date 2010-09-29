@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/err.h>
+#include <linux/clk.h>
 
 #include <plat/omap-pm.h>
 #include <plat/omap_device.h>
@@ -20,6 +21,7 @@
 
 #include <plat/powerdomain.h>
 #include <plat/clockdomain.h>
+#include <plat/voltage.h>
 
 #include "pm.h"
 
@@ -138,12 +140,80 @@ err:
 	return ret;
 }
 
+/*
+ * This is to be called during init to put the various voltage
+ * domains to the voltage as per the opp table. Typically we boot up
+ * at the nominal voltage. So this function finds out the rate of
+ * the clock associated with the voltage domain, finds out the correct
+ * opp entry and puts the voltage domain to the voltage specifies
+ * in the opp entry
+ */
+static int __init omap2_set_init_voltage(char *vdd_name, char *clk_name,
+						struct device *dev)
+{
+	struct voltagedomain *voltdm;
+	struct clk *_clk;
+	struct omap_opp *opp;
+	unsigned long freq, bootup_volt;
+
+	if (!vdd_name || !clk_name || !dev) {
+		printk(KERN_ERR "%s: Invalid parameters!\n", __func__);
+		goto exit;
+	}
+
+	voltdm = omap_voltage_domain_get(vdd_name);
+	if (IS_ERR(voltdm)) {
+		printk(KERN_ERR "%s: Unable to get vdd pointer for vdd_%s\n",
+			__func__, vdd_name);
+		goto exit;
+	}
+
+	_clk =  clk_get(NULL, clk_name);
+	if (IS_ERR(_clk)) {
+		printk(KERN_ERR "%s: unable to get clk %s\n",
+			__func__, clk_name);
+		goto exit;
+	}
+
+	freq = _clk->rate;
+	opp = opp_find_freq_ceil(dev, &freq);
+	if (IS_ERR(opp)) {
+		printk(KERN_ERR "%s: unable to find boot up OPP for vdd_%s\n",
+			__func__, vdd_name);
+		goto exit;
+	}
+
+	bootup_volt = opp_get_voltage(opp);
+	if (!bootup_volt) {
+		printk(KERN_ERR "%s: unable to find voltage corresponding"
+			"to the bootup OPP for vdd_%s\n", __func__, vdd_name);
+		goto exit;
+	}
+
+	omap_voltage_scale_vdd(voltdm, bootup_volt);
+
+	return 0;
+
+exit:
+	printk(KERN_ERR "%s: Unable to put vdd_%s to its init voltage\n\n",
+		__func__, vdd_name);
+	return -EINVAL;
+}
+
 static int __init omap2_common_pm_init(void)
 {
 	omap2_init_processor_devices();
 
-	if (cpu_is_omap34xx())
+	if (cpu_is_omap34xx()) {
 		omap3_pm_init_opp_table();
+		omap2_set_init_voltage("mpu", "dpll1_ck", mpu_dev);
+		omap2_set_init_voltage("core", "l3_ick", l3_dev);
+	} else if (cpu_is_omap44xx()) {
+		omap4_pm_init_opp_table();
+		omap2_set_init_voltage("mpu", "dpll_mpu_ck", mpu_dev);
+		omap2_set_init_voltage("core", "l3_div_ck", l3_dev);
+		omap2_set_init_voltage("iva", "dpll_iva_m5x2_ck", iva_dev);
+	}
 
 	omap_pm_if_init();
 

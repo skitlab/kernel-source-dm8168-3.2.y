@@ -13,7 +13,17 @@
  * XXX This code should be part of some other TWL/TPS code.
  */
 
+#include <linux/module.h>
+
+#include <linux/i2c/twl.h>
+
 #include <plat/opp_twl_tps.h>
+#include <plat/voltage.h>
+
+static bool is_offset_valid;
+static u8 smps_offset;
+
+#define REG_SMPS_OFFSET         0xE0
 
 /**
  * omap_twl_vsel_to_vdc - convert TWL/TPS VSEL value to microvolts DC
@@ -24,6 +34,38 @@
  */
 unsigned long omap_twl_vsel_to_uv(const u8 vsel)
 {
+	if (twl_class_is_6030()) {
+		/*
+		 * In TWL6030 depending on the value of SMPS_OFFSET
+		 * efuse register the voltage range supported in
+		 * standard mode can be either between 0.6V - 1.3V or
+		 * 0.7V - 1.4V. In TWL6030 ES1.0 SMPS_OFFSET efuse
+		 * is programmed to all 0's where as starting from
+		 * TWL6030 ES1.1 the efuse is programmed to 1
+		 */
+		if (!is_offset_valid) {
+			twl_i2c_read_u8(TWL6030_MODULE_ID0, &smps_offset, 0xE0);
+			is_offset_valid = true;
+		}
+
+		if (smps_offset & 0x8) {
+			return ((((vsel - 1) * 125) + 7000)) * 100;
+		} else {
+			/*
+			 * In case of the supported voltage range being
+			 * between 0.6V - 1.3V, there is not specific
+			 * formula for voltage to vsel conversion above
+			 * 1.3V. There are special hardcoded values for
+			 * voltages above 1.3V. Currently we are hardcodig
+			 * only for 1.35 V which is used for 1GH OPP for
+			 * OMAP4430.
+			 */
+			if (vsel == 0x3A)
+				return 1350000;
+			return ((((vsel - 1) * 125) + 6000)) * 100;
+		}
+	}
+
 	return (((vsel * 125) + 6000)) * 100;
 }
 
@@ -37,5 +79,51 @@ unsigned long omap_twl_vsel_to_uv(const u8 vsel)
 u8 omap_twl_uv_to_vsel(unsigned long uv)
 {
 	/* Round up to higher voltage */
+	if (twl_class_is_6030()) {
+		/*
+		 * In TWL6030 depending on the value of SMPS_OFFSET
+		 * efuse register the voltage range supported in
+		 * standard mode can be either between 0.6V - 1.3V or
+		 * 0.7V - 1.4V. In TWL6030 ES1.0 SMPS_OFFSET efuse
+		 * is programmed to all 0's where as starting from
+		 * TWL6030 ES1.1 the efuse is programmed to 1
+		 */
+		if (!is_offset_valid) {
+			twl_i2c_read_u8(TWL6030_MODULE_ID0, &smps_offset, 0xE0);
+			is_offset_valid = true;
+		}
+
+		if (smps_offset & 0x8) {
+			return DIV_ROUND_UP(uv - 700000, 12500) + 1;
+		} else {
+			/*
+			 * In case of the supported voltage range being
+			 * between 0.6V - 1.3V, there is not specific
+			 * formula for voltage to vsel conversion above
+			 * 1.3V. There are special hardcoded values for
+			 * voltages above 1.3V. Currently we are hardcodig
+			 * only for 1.35 V which is used for 1GH OPP for
+			 * OMAP4430.
+			 */
+			if (uv == 1350000)
+				return 0x3A;
+			return DIV_ROUND_UP(uv - 600000, 12500) + 1;
+		}
+	}
+
 	return DIV_ROUND_UP(uv - 600000, 12500);
 }
+
+static struct omap_volt_pmic_info twl_volt_info = {
+	.slew_rate	= 4000,
+	.step_size	= 12500,
+	.vsel_to_uv	= omap_twl_vsel_to_uv,
+	.uv_to_vsel	= omap_twl_uv_to_vsel,
+};
+
+static int __init omap_twl_init(void)
+{
+	omap_voltage_register_pmic(&twl_volt_info);
+	return 0;
+}
+arch_initcall(omap_twl_init);

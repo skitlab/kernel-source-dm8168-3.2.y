@@ -23,6 +23,7 @@ extern int omap3_can_sleep(void);
 extern int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 state);
 extern int omap3_idle_init(void);
 extern int omap3_pm_init_opp_table(void);
+extern int omap4_pm_init_opp_table(void);
 
 struct cpuidle_params {
 	u8  valid;
@@ -55,6 +56,7 @@ extern int omap2_pm_debug;
 #define omap2_pm_dump(mode, resume, us)		do {} while (0);
 #define omap2_pm_wakeup_on_timer(seconds, milliseconds)	do {} while (0);
 #define omap2_pm_debug				0
+#define pm_dbg_main_dir				0
 #endif
 
 #if defined(CONFIG_CPU_IDLE)

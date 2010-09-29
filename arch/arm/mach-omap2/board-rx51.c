@@ -32,6 +32,7 @@
 
 #include "mux.h"
 #include "pm.h"
+#include "smartreflex-class3.h"
 
 #define RX51_GPIO_SLEEP_IND 162
 
@@ -133,6 +134,7 @@ static void __init rx51_init(void)
 	omap_serial_init();
 	usb_musb_init(&musb_board_data);
 	rx51_peripherals_init();
+	sr_class3_init();
 
 	/* Ensure SDRC pins are mux'd for self-refresh */
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);

@@ -27,6 +27,7 @@
 
 #include "mux.h"
 #include "hsmmc.h"
+#include "smartreflex-class3.h"
 
 /* Zoom2 has Qwerty keyboard*/
 static int board_keymap[] = {
@@ -284,4 +285,5 @@ void __init zoom_peripherals_init(void)
 	usb_musb_init(&musb_board_data);
 	enable_board_wakeup_source();
 	omap_serial_init();
+	sr_class3_init();
 }
