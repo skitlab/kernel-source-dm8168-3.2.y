@@ -32,6 +32,7 @@
 #include <plat/powerdomain.h>
 #include <plat/clockdomain.h>
 #include <plat/dmtimer.h>
+#include <plat/voltage.h>
 
 #include "prm.h"
 #include "cm.h"
@@ -42,6 +43,7 @@ u32 enable_off_mode;
 u32 sleep_while_idle;
 u32 wakeup_timer_seconds;
 u32 wakeup_timer_milliseconds;
+struct dentry *pm_dbg_main_dir;
 
 #define DUMP_PRM_MOD_REG(mod, reg)    \
 	regs[reg_count].name = #mod "." #reg; \
@@ -585,6 +587,18 @@ static int option_set(void *data, u64 val)
 			omap3_pm_off_mode_enable(val);
 	}
 
+	if (option == &enable_sr_vp_debug && val)
+		pr_notice("Beware that enabling this option will allow user "
+			"to override the system defined vp and sr parameters "
+			"All the updated parameters will take effect next "
+			"time smartreflex is enabled. Also this option "
+			"disables the automatic vp errorgain and sr errormin "
+			"limit changes as per the voltage. Users will have "
+			"to explicitly write values into the debug fs "
+			"entries corresponding to these if they want to see "
+			"them changing according to the VDD voltage\n");
+
+
 	return 0;
 }
 
@@ -601,7 +615,7 @@ static int __init pm_dbg_init(void)
 
 	if (cpu_is_omap34xx())
 		pm_dbg_reg_modules = omap3_pm_reg_modules;
-	else {
+	else if (!cpu_is_omap44xx()) {
 		printk(KERN_ERR "%s: only OMAP3 supported\n", __func__);
 		return -ENODEV;
 	}
@@ -617,20 +631,22 @@ static int __init pm_dbg_init(void)
 
 	pwrdm_for_each(pwrdms_setup, (void *)d);
 
-	pm_dbg_dir = debugfs_create_dir("registers", d);
-	if (IS_ERR(pm_dbg_dir))
-		return PTR_ERR(pm_dbg_dir);
+	if (cpu_is_omap34xx()) {
+		pm_dbg_dir = debugfs_create_dir("registers", d);
+		if (IS_ERR(pm_dbg_dir))
+			return PTR_ERR(pm_dbg_dir);
 
-	(void) debugfs_create_file("current", S_IRUGO,
-		pm_dbg_dir, (void *)0, &debug_reg_fops);
+		(void) debugfs_create_file("current", S_IRUGO,
+			pm_dbg_dir, (void *)0, &debug_reg_fops);
 
-	for (i = 0; i < PM_DBG_MAX_REG_SETS; i++)
-		if (pm_dbg_reg_set[i] != NULL) {
-			sprintf(name, "%d", i+1);
-			(void) debugfs_create_file(name, S_IRUGO,
-				pm_dbg_dir, (void *)(i+1), &debug_reg_fops);
-
-		}
+		for (i = 0; i < PM_DBG_MAX_REG_SETS; i++)
+			if (pm_dbg_reg_set[i] != NULL) {
+				sprintf(name, "%d", i+1);
+				(void) debugfs_create_file(name, S_IRUGO,
+					pm_dbg_dir, (void *)(i+1),
+					&debug_reg_fops);
+			}
+	}
 
 	(void) debugfs_create_file("enable_off_mode", S_IRUGO | S_IWUGO, d,
 				   &enable_off_mode, &pm_dbg_option_fops);
@@ -641,6 +657,10 @@ static int __init pm_dbg_init(void)
 	(void) debugfs_create_file("wakeup_timer_milliseconds",
 			S_IRUGO | S_IWUGO, d, &wakeup_timer_milliseconds,
 			&pm_dbg_option_fops);
+	(void) debugfs_create_file("enable_sr_vp_debug",  S_IRUGO | S_IWUGO, d,
+				&enable_sr_vp_debug, &pm_dbg_option_fops);
+
+	pm_dbg_main_dir = d;
 	pm_dbg_init_done = 1;
 
 	return 0;
