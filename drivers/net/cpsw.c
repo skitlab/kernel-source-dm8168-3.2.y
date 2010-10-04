@@ -184,7 +184,8 @@ struct cpsw_priv {
 	spinlock_t			lock;
 	struct platform_device		*pdev;
 	struct net_device		*ndev;
-	struct resource			*res;
+	struct resource			*cpsw_res;
+	struct resource			*cpsw_ss_res;
 	struct napi_struct		napi;
 #define napi_to_priv(napi)	container_of(napi, struct cpsw_priv, napi)
 	struct device			*dev;
@@ -462,11 +463,70 @@ static inline u32 cpsw_get_slave_port(struct cpsw_priv *priv, u32 slave_num)
 		return slave_num;
 }
 
+#define PHY_CONFIG_REG	22
+static void cpsw_set_phy_config(struct cpsw_priv *priv, struct phy_device *phy)
+{
+	struct cpsw_platform_data *pdata = priv->pdev->dev.platform_data;
+	struct phy_device *phydev = NULL;
+	struct mii_bus *miibus;
+	int phy_addr = 0;
+	u16 val = 0;
+	u16 tmp = 0;
+
+	if (!pdata->gigabit_en)
+		return;
+
+	if (!phy)
+		return;
+
+	miibus = phydev->bus;
+
+	if (!miibus)
+		return;
+
+	phy_addr = phy->addr;
+
+	/* TODO : This check is required. Make it graceful*/
+	if (phy->phy_id != 0x0282F013) {
+		/* This enables TX_CLK-ing in case of 10/100MBps operation */
+		val = miibus->read(miibus, phy_addr, PHY_CONFIG_REG);
+		val |= BIT(5);
+		miibus->write(miibus, phy_addr, PHY_CONFIG_REG, val);
+		tmp = miibus->read(miibus, phy_addr, PHY_CONFIG_REG);
+		return;
+	}
+
+	/* Following lines enable gigbit advertisement capability even in case
+	 * the advertisement is not enabled by default
+	 */
+	val = miibus->read(miibus, phy_addr, MII_BMCR);
+	val |= (BMCR_SPEED100 | BMCR_ANENABLE | BMCR_FULLDPLX);
+	miibus->write(miibus, phy_addr, MII_BMCR, val);
+	tmp = miibus->read(miibus, phy_addr, MII_BMCR);
+
+	tmp = miibus->read(miibus, phy_addr, MII_BMSR);
+	if (tmp & 0x1) {
+		val = miibus->read(miibus, phy_addr, MII_CTRL1000);
+		val |= BIT(9);
+		miibus->write(miibus, phy_addr, MII_CTRL1000, val);
+		tmp = miibus->read(miibus, phy_addr, MII_CTRL1000);
+	}
+
+	val = miibus->read(miibus, phy_addr, MII_ADVERTISE);
+	val |= (ADVERTISE_10HALF | ADVERTISE_10FULL | \
+		ADVERTISE_100HALF | ADVERTISE_100FULL);
+	miibus->write(miibus, phy_addr, MII_ADVERTISE, val);
+	tmp = miibus->read(miibus, phy_addr, MII_ADVERTISE);
+
+	return;
+}
+
 static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 {
 	char name[32];
 	u32 slave_port;
 
+	printk(KERN_ERR"\nCPSW SLAVE OPEN\n");
 	sprintf(name, "slave-%d", slave->slave_num);
 
 	soft_reset(name, &slave->sliver->soft_reset);
@@ -496,8 +556,12 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 		    slave->data->phy_id, slave->slave_num);
 		slave->phy = NULL;
 	} else {
+		cpsw_set_phy_config(priv, slave->phy);
+		printk(KERN_ERR"\nCPSW phy found : id is : 0x%x\n",
+			slave->phy->phy_id);
 		phy_start(slave->phy);
 	}
+	printk(KERN_ERR"\nCPSW SLAVE OPEN END\n");
 }
 
 static void cpsw_init_host_port(struct cpsw_priv *priv)
@@ -522,98 +586,42 @@ static void cpsw_init_host_port(struct cpsw_priv *priv)
 			   1 << priv->host_port);
 }
 
-#define PHY_CONFIG_REG	22
-static void cpsw_set_phy_config(struct cpsw_priv *priv)
-{
-	struct cpsw_platform_data *pdata = priv->pdev->dev.platform_data;
-	struct phy_device *phydev = NULL;
-	struct cpsw_slave slave;
-	struct mii_bus *miibus;
-	int phy_addr = 0;
-	u16 val = 0;
-	u16 tmp = 0;
-	u32 i = 0;
-
-	if (!pdata->gigabit_en)
-		return;
-
-	for (i = 0; i < pdata->slaves; i++) {
-		slave = priv->slaves[i];
-		phydev = slave.phy;
-		if (!phydev)
-			continue;
-		miibus = phydev->bus;
-		phy_addr = phydev->addr;
-
-		/* TODO : This check is required. Make it graceful*/
-		if (phydev->phy_id != 0x0282F013) {
-			/* This enabled TX_CLK-ing in case of
-			 * 10/100MBps operation
-			 */
-			val = miibus->read(miibus, phy_addr, PHY_CONFIG_REG);
-			val |= BIT(5);
-			miibus->write(miibus, phy_addr, PHY_CONFIG_REG, val);
-			tmp = miibus->read(miibus, phy_addr, PHY_CONFIG_REG);
-			return;
-		}
-	}
-
-	/* Following lines enable gigbit advertisement capability even in case
-	 * the advertisement is not enabled by default
-	 */
-	val = miibus->read(miibus, phy_addr, MII_BMCR);
-	val |= (BMCR_SPEED100 | BMCR_ANENABLE | BMCR_FULLDPLX);
-	miibus->write(miibus, phy_addr, MII_BMCR, val);
-	tmp = miibus->read(miibus, phy_addr, MII_BMCR);
-
-	tmp = miibus->read(miibus, phy_addr, MII_BMSR);
-	if (tmp & 0x1) {
-		val = miibus->read(miibus, phy_addr, MII_CTRL1000);
-		val |= BIT(9);
-		miibus->write(miibus, phy_addr, MII_CTRL1000, val);
-		tmp = miibus->read(miibus, phy_addr, MII_CTRL1000);
-	}
-
-	val = miibus->read(miibus, phy_addr, MII_ADVERTISE);
-	val |= (ADVERTISE_10HALF | ADVERTISE_10FULL | \
-		ADVERTISE_100HALF | ADVERTISE_100FULL);
-	miibus->write(miibus, phy_addr, MII_ADVERTISE, val);
-	tmp = miibus->read(miibus, phy_addr, MII_ADVERTISE);
-
-	return;
-}
-
 static int cpsw_ndo_open(struct net_device *ndev)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	int i, ret;
 	u32 reg;
 
+	printk(KERN_ERR"\nCPSW OPEN\n");
 	cpsw_intr_disable(priv);
 	netif_carrier_off(ndev);
 
+	printk(KERN_ERR"\nCPSW CLK EN\n");
 	ret = clk_enable(priv->clk);
 	if (ret < 0) {
 		dev_err(priv->dev, "unable to turn on device clock\n");
 		return ret;
 	}
 
+	printk(KERN_ERR"\nCPSW DEV FILE\n");
 	ret = device_create_file(&ndev->dev, &dev_attr_hw_stats);
 	if (ret < 0) {
 		dev_err(priv->dev, "unable to add device attr\n");
 		return ret;
 	}
 
+	printk(KERN_ERR"\nCPSW PHY CTRL\n");
 	if (priv->data.phy_control)
 		(*priv->data.phy_control)(true);
 
+	printk(KERN_ERR"\nCPSW PHY INIT\n");
 	reg = __raw_readl(&priv->regs->id_ver);
 
 	msg(info, ifup, "initializing cpsw version %d.%d (%d)\n",
 	    (reg >> 8 & 0x7), reg & 0xff, (reg >> 11) & 0x1f);
 
 	/* initialize host and slave ports */
-	cpsw_set_phy_config(priv);
+	printk(KERN_ERR"\nCPSW PHY CONF\n");
 	cpsw_init_host_port(priv);
 	for_each_slave(priv, cpsw_slave_open, priv);
 
@@ -650,6 +658,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	cpdma_ctlr_start(priv->dma);
 	napi_enable(&priv->napi);
 
+	printk(KERN_ERR"\nCPSW OPEN END\n");
 	return 0;
 }
 
@@ -883,34 +892,57 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 	priv->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
 		dev_err(priv->dev, "failed to get device clock\n");
+#if 0
 		ret = -EBUSY;
 		goto clean_slaves_ret;
+#endif
 	}
-
-	priv->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!priv->res) {
+	priv->cpsw_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!priv->cpsw_res) {
 		dev_err(priv->dev, "error getting i/o resource\n");
 		ret = -ENOENT;
 		goto clean_clk_ret;
 	}
 
-	if (!request_mem_region(priv->res->start, resource_size(priv->res),
-				ndev->name)) {
+	if (!request_mem_region(priv->cpsw_res->start,
+			resource_size(priv->cpsw_res), ndev->name)) {
 		dev_err(priv->dev, "failed request i/o region\n");
 		ret = -ENXIO;
 		goto clean_clk_ret;
 	}
 
-	regs = ioremap(priv->res->start, resource_size(priv->res));
+	regs = ioremap(priv->cpsw_res->start, resource_size(priv->cpsw_res));
 	if (!regs) {
 		dev_err(priv->dev, "unable to map i/o region\n");
-		goto clean_iores_ret;
+		goto clean_cpsw_iores_ret;
 	}
 	priv->regs = regs;
 	priv->host_port = data->host_port_num;
-	priv->ss_regs = regs + data->ss_reg_ofs;
 	priv->host_port_regs = regs + data->host_port_reg_ofs;
 	priv->hw_stats = regs + data->hw_stats_reg_ofs;
+
+	priv->cpsw_ss_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (!priv->cpsw_ss_res) {
+		dev_err(priv->dev, "error getting i/o resource\n");
+		ret = -ENOENT;
+		goto clean_clk_ret;
+	}
+
+	if (!request_mem_region(priv->cpsw_ss_res->start,
+			resource_size(priv->cpsw_ss_res), ndev->name)) {
+		dev_err(priv->dev, "failed request i/o region\n");
+		ret = -ENXIO;
+		goto clean_clk_ret;
+	}
+
+	regs = ioremap(priv->cpsw_ss_res->start,
+				resource_size(priv->cpsw_ss_res));
+	if (!regs) {
+		dev_err(priv->dev, "unable to map i/o region\n");
+		goto clean_cpsw_ss_iores_ret;
+	}
+	priv->ss_regs = regs;
+
 
 	for_each_slave(priv, cpsw_slave_init, priv);
 
@@ -1000,7 +1032,7 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 	}
 
 	msg(notice, probe, "initialized device (regs %x, irq %d)\n",
-	    priv->res->start, ndev->irq);
+	    priv->cpsw_res->start, ndev->irq);
 
 	return 0;
 
@@ -1014,8 +1046,12 @@ clean_dma_ret:
 	cpdma_ctlr_destroy(priv->dma);
 clean_iomap_ret:
 	iounmap(priv->regs);
-clean_iores_ret:
-	release_mem_region(priv->res->start, resource_size(priv->res));
+clean_cpsw_ss_iores_ret:
+	release_mem_region(priv->cpsw_ss_res->start,
+				resource_size(priv->cpsw_ss_res));
+clean_cpsw_iores_ret:
+	release_mem_region(priv->cpsw_res->start,
+				resource_size(priv->cpsw_res));
 clean_clk_ret:
 	clk_put(priv->clk);
 clean_slaves_ret:
@@ -1039,7 +1075,10 @@ static int __devexit cpsw_remove(struct platform_device *pdev)
 	cpdma_chan_destroy(priv->rxch);
 	cpdma_ctlr_destroy(priv->dma);
 	iounmap(priv->regs);
-	release_mem_region(priv->res->start, resource_size(priv->res));
+	release_mem_region(priv->cpsw_res->start,
+					resource_size(priv->cpsw_res));
+	release_mem_region(priv->cpsw_ss_res->start,
+					resource_size(priv->cpsw_ss_res));
 	clk_put(priv->clk);
 	kfree(priv->slaves);
 	free_netdev(ndev);

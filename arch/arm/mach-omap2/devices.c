@@ -1454,6 +1454,8 @@ static inline void ti81xx_register_edma(void) {}
 #ifdef CONFIG_ARCH_TI814X
 #define TI814X_CPSW_BASE		(0x4A100000)
 #define TI814X_CPSW_MDIO_BASE		(0x4A100800)
+#define	TI814X_CPSW_SS_BASE		(0x4A100900)
+#define TI814X_EMAC_MDIO_FREQ		(1000000)
 
 static u64 cpsw_dma_mask = DMA_BIT_MASK(32);
 /* TODO : Verify the offsets */
@@ -1481,11 +1483,7 @@ static struct cpsw_platform_data ti814x_cpsw_pdata = {
 	.host_port_reg_ofs      = 0x28,
 	.hw_stats_reg_ofs       = 0x400,
 	.rx_descs               = 512,
-	.mac_control            = /* BIT(18) |*/ /* IFCTLA *//* TODO:Need this*/
-				  BIT(15) | /* EXTEN      */
-				  BIT(5)  | /* MIIEN      */
-				  BIT(4)  | /* TXFLOWEN   */
-				  BIT(3),   /* RXFLOWEN   */
+	.mac_control            = BIT(5), /* MIIEN */
 	.gigabit_en		= 1,
 	.host_port_num		= 0,
 };
@@ -1497,7 +1495,7 @@ static struct mdio_platform_data cpsw_mdio_pdata = {
 static struct resource cpsw_mdio_resources[] = {
 	{
 		.start  = TI814X_CPSW_MDIO_BASE,
-		.end    = TI814X_CPSW_MDIO_BASE + SZ_4K - 1,
+		.end    = TI814X_CPSW_MDIO_BASE + SZ_256 - 1,
 		.flags  = IORESOURCE_MEM,
 	},
 };
@@ -1513,7 +1511,12 @@ static struct platform_device cpsw_mdio_device = {
 static struct resource ti814x_cpsw_resources[] = {
 	{
 		.start  = TI814X_CPSW_BASE,
-		.end    = TI814X_CPSW_BASE + SZ_4K - 1,
+		.end    = TI814X_CPSW_BASE + SZ_2K - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.start  = TI814X_CPSW_SS_BASE,
+		.end    = TI814X_CPSW_SS_BASE + SZ_256 - 1,
 		.flags  = IORESOURCE_MEM,
 	},
 	{
@@ -1606,6 +1609,8 @@ void ti814x_cpsw_init(void)
 #endif
 	platform_device_register(&cpsw_mdio_device);
 	platform_device_register(&ti814x_cpsw_device);
+	clk_add_alias(NULL, dev_name(&cpsw_mdio_device.dev),
+			NULL, &ti814x_cpsw_device.dev);
 }
 #else
 static inline void ti814x_cpsw_init(void) {}
