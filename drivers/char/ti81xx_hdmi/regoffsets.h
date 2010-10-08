@@ -1,3 +1,18 @@
+/*******************************************************************************
+ *                                                                             *
+ * Copyright (c) 2009 Texas Instruments Incorporated - http://www.ti.com/      *
+ *                        ALL RIGHTS RESERVED                                  *
+ *                                                                             *
+ ******************************************************************************/
+
+/**
+ *  \file regoffsets.h
+ *
+ *  \brief HDMI file containing the register offsets, masks and shifts for
+ * the register bit fields.
+ *
+ */
+
 /*********************************PHY Registers********************************/
 #define PHY_TMDS_CNTL1_OFFSET			(0x00000000)
 #define PHY_TMDS_CNTL2_OFFSET			(0x00000004)
