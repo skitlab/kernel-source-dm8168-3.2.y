@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/cdev.h>			/* struct cdev */
 #include <linux/kdev_t.h>		/* MKDEV() */
+#include <linux/sched.h>		/* current */
 #include <linux/fs.h>			/* register_chrdev_region() */
 #include <linux/device.h>		/* struct class */
 #include <linux/platform_device.h>	/* platform_device() */

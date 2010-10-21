@@ -1,7 +1,7 @@
 config HAVE_TI_TILER
         bool
         default y
-        depends on ARCH_OMAP4
+        depends on ARCH_OMAP4 || ARCH_TI816X
 
 menuconfig TI_TILER
 	tristate "TI TILER support"
@@ -10,7 +10,7 @@ menuconfig TI_TILER
 	help
            TILER and TILER-DMM driver for TI chips.  The TI TILER device
            enables video rotation on certain TI chips such as OMAP4 or
-           Netra.  Video rotation will be limited without TILER support.
+           TI816X.  Video rotation will be limited without TILER support.
 
 config TILER_GRANULARITY
         int "Allocation granularity (2^n)"
