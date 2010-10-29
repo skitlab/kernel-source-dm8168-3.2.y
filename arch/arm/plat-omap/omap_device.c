@@ -86,6 +86,7 @@
 
 #include <plat/omap_device.h>
 #include <plat/omap_hwmod.h>
+#include <plat/voltage.h>
 
 /* These parameters are passed to _omap_device_{de,}activate() */
 #define USE_WAKEUP_LAT			0
@@ -481,6 +482,17 @@ struct omap_device *omap_device_build_ss(const char *pdev_name, int pdev_id,
 	for (i = 0; i < oh_cnt; i++) {
 		hwmods[i]->od = od;
 		_add_optional_clock_alias(od, hwmods[i]);
+		if (hwmods[i]->vdd_name) {
+			struct omap_hwmod *oh = hwmods[i];
+			struct voltagedomain *voltdm;
+
+			if (is_early_device)
+				continue;
+
+			voltdm = omap_voltage_domain_lookup(oh->vdd_name);
+			if (!omap_voltage_add_dev(voltdm, &od->pdev.dev))
+				oh->voltdm = voltdm;
+		}
 	}
 
 	if (ret)
