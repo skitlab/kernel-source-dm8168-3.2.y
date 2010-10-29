@@ -354,6 +354,34 @@ struct opp *opp_find_freq_floor(struct device *dev, unsigned long *freq)
 }
 
 /**
+ * opp_find_voltage() - search for an exact voltage
+ * @dev:	device pointer associated with the opp type
+ * @volt:	voltage to search for
+ *
+ * Searches for exact match in the opp list and returns handle to the matching
+ * opp if found, else returns ERR_PTR in case of error and should be handled
+ * using IS_ERR.
+ */
+struct opp *opp_find_voltage(struct device *dev, unsigned long volt)
+{
+	struct device_opp *dev_opp;
+	struct opp *temp_opp, *opp = ERR_PTR(-ENODEV);
+
+	dev_opp = find_device_opp(dev);
+	if (IS_ERR(dev_opp))
+		return opp;
+
+	list_for_each_entry_rcu(temp_opp, &dev_opp->opp_list, node) {
+		if (temp_opp->available && temp_opp->u_volt == volt) {
+			opp = temp_opp;
+			break;
+		}
+	}
+
+	return opp;
+}
+
+/**
  * opp_add()  - Add an OPP table from a table definitions
  * @dev:	device for which we do this operation
  * @freq:	Frequency in Hz for this OPP

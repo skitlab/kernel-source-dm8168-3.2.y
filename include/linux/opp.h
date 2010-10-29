@@ -34,6 +34,8 @@ struct opp *opp_find_freq_floor(struct device *dev, unsigned long *freq);
 
 struct opp *opp_find_freq_ceil(struct device *dev, unsigned long *freq);
 
+struct opp *opp_find_voltage(struct device *dev, unsigned long volt);
+
 int opp_add(struct device *dev, unsigned long freq, unsigned long u_volt);
 
 int opp_enable(struct device *dev, unsigned long freq);
@@ -70,6 +72,12 @@ static inline struct opp *opp_find_freq_floor(struct device *dev,
 
 static inline struct opp *opp_find_freq_ceil(struct device *dev,
 					unsigned long *freq)
+{
+	return ERR_PTR(-EINVAL);
+}
+
+static inline struct opp *opp_find_voltage(struct device *dev,
+						unsigned long volt)
 {
 	return ERR_PTR(-EINVAL);
 }
