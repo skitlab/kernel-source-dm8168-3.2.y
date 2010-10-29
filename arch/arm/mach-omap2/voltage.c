@@ -27,9 +27,11 @@
 #include <linux/spinlock.h>
 #include <linux/plist.h>
 #include <linux/slab.h>
+#include <linux/opp.h>
 
 #include <plat/common.h>
 #include <plat/voltage.h>
+#include <plat/omap_device.h>
 
 #include "prm-regbits-34xx.h"
 #include "prm-regbits-44xx.h"
@@ -1653,6 +1655,73 @@ struct voltagedomain *omap_voltage_domain_lookup(char *name)
 	}
 
 	return ERR_PTR(-EINVAL);
+}
+
+/**
+ * omap_voltage_scale : API to scale the devices associated with a
+ *			voltage domain vdd voltage.
+ * @volt_domain : the voltage domain to be scaled
+ * @volt : the new voltage for the voltage domain
+ *
+ * This API runs through the list of devices associated with the
+ * voltage domain and scales the device rates to those corresponding
+ * to the new voltage of the voltage domain. This API also scales
+ * the voltage domain voltage to the new value. Returns 0 on success
+ * else the error value.
+ */
+int omap_voltage_scale(struct voltagedomain *voltdm, unsigned long volt)
+{
+	unsigned long curr_volt;
+	int is_volt_scaled = 0;
+	struct omap_vdd_info *vdd;
+	struct omap_vdd_dev_list *temp_dev;
+
+	if (!voltdm || IS_ERR(voltdm)) {
+		pr_warning("%s: VDD specified does not exist!\n", __func__);
+		return -EINVAL;
+	}
+
+	vdd = container_of(voltdm, struct omap_vdd_info, voltdm);
+
+	mutex_lock(&vdd->scaling_mutex);
+
+	curr_volt = omap_voltage_get_nom_volt(voltdm);
+
+	if (curr_volt == volt) {
+		is_volt_scaled = 1;
+	} else if (curr_volt < volt) {
+		omap_voltage_scale_vdd(voltdm, volt);
+		is_volt_scaled = 1;
+	}
+
+	list_for_each_entry(temp_dev, &vdd->dev_list, node) {
+		struct device *dev;
+		struct opp *opp;
+		unsigned long freq;
+
+		dev = temp_dev->dev;
+
+		opp = opp_find_voltage(dev, volt);
+		if (IS_ERR(opp))
+			continue;
+
+		freq = opp_get_freq(opp);
+
+		if (freq == omap_device_get_rate(dev)) {
+			dev_warn(dev, "%s: Already at the requested"
+				"rate %ld\n", __func__, freq);
+			continue;
+		}
+
+		omap_device_set_rate(dev, freq);
+	}
+
+	if (!is_volt_scaled)
+		omap_voltage_scale_vdd(voltdm, volt);
+
+	mutex_unlock(&vdd->scaling_mutex);
+
+	return 0;
 }
 
 /**
