@@ -88,6 +88,11 @@ enum {
 	OMAP_TIMER_TICK_COUNT_REG,		/* TCVR, 34xx only */
 	OMAP_TIMER_TICK_INT_MASK_SET_REG,	/* TOCR, 34xx only */
 	OMAP_TIMER_TICK_INT_MASK_COUNT_REG,	/* TOWR, 34xx only */
+	OMAP_TIMER_IRQ_EOI_REG,			/* ti816x only */
+	OMAP_TIMER_IRQSTATUS_RAW_REG,		/* ti816x only */
+	OMAP_TIMER_IRQSTATUS_REG,		/* ti816x only */
+	OMAP_TIMER_IRQSTATUS_SET_REG,		/* ti816x only */
+	OMAP_TIMER_IRQSTATUS_CLR_REG,		/* ti816x only */
 };
 
 /* register offsets with the write pending bit encoded */
@@ -116,6 +121,26 @@ static const u32 reg_map[] = {
 	[OMAP_TIMER_TICK_INT_MASK_COUNT_REG]	= 0x58 | (WP_TOWR << WPSHIFT),
 };
 
+/* Few register offsets in TI816X are different */
+static const u32 ti816x_reg_map[] = {
+	[OMAP_TIMER_ID_REG]			= 0x00 | (WP_NONE << WPSHIFT),
+	[OMAP_TIMER_OCP_CFG_REG]		= 0x10 | (WP_NONE << WPSHIFT),
+	[OMAP_TIMER_STAT_REG]			= 0x28 | (WP_NONE << WPSHIFT),
+	[OMAP_TIMER_INT_EN_REG]			= 0x2c | (WP_NONE << WPSHIFT),
+	[OMAP_TIMER_WAKEUP_EN_REG]		= 0x34 | (WP_NONE << WPSHIFT),
+	[OMAP_TIMER_CTRL_REG]			= 0x38 | (WP_TCLR << WPSHIFT),
+	[OMAP_TIMER_COUNTER_REG]		= 0x3c | (WP_TCRR << WPSHIFT),
+	[OMAP_TIMER_LOAD_REG]			= 0x40 | (WP_TLDR << WPSHIFT),
+	[OMAP_TIMER_TRIGGER_REG]		= 0x44 | (WP_TTGR << WPSHIFT),
+	[OMAP_TIMER_WRITE_PEND_REG]		= 0x48 | (WP_NONE << WPSHIFT),
+	[OMAP_TIMER_MATCH_REG]			= 0x4c | (WP_TMAR << WPSHIFT),
+	[OMAP_TIMER_CAPTURE_REG]		= 0x50 | (WP_NONE << WPSHIFT),
+	[OMAP_TIMER_IF_CTRL_REG]		= 0x54 | (WP_NONE << WPSHIFT),
+	[OMAP_TIMER_CAPTURE2_REG]		= 0x58 | (WP_NONE << WPSHIFT),
+	[OMAP_TIMER_IRQ_EOI_REG]		= 0x20 | (WP_NONE << WPSHIFT),
+	[OMAP_TIMER_IRQSTATUS_RAW_REG]		= 0x24 | (WP_NONE << WPSHIFT),
+	[OMAP_TIMER_IRQSTATUS_CLR_REG]		= 0x30 | (WP_NONE << WPSHIFT),
+};
 
 struct omap_dm_timer {
 	unsigned long phys_base;
@@ -245,6 +270,32 @@ static const int omap4_dm_timer_count = ARRAY_SIZE(omap4_dm_timers);
 #define omap4_dm_source_clocks		NULL
 #endif	/* CONFIG_ARCH_OMAP4 */
 
+#ifdef CONFIG_ARCH_TI816X
+static struct omap_dm_timer ti816x_dm_timers[] = {
+	{ .phys_base = 0x4802E000, .irq = TI816X_IRQ_GPT1 },
+	{ .phys_base = 0x48040000, .irq = TI816X_IRQ_GPT2 },
+	{ .phys_base = 0x48042000, .irq = TI816X_IRQ_GPT3 },
+	{ .phys_base = 0x48044000, .irq = TI816X_IRQ_GPT4 },
+	{ .phys_base = 0x48046000, .irq = TI816X_IRQ_GPT5 },
+	{ .phys_base = 0x48048000, .irq = TI816X_IRQ_GPT6 },
+	{ .phys_base = 0x4804A000, .irq = TI816X_IRQ_GPT7 },
+};
+static const char *ti816x_dm_source_names[] __initdata = {
+	"sys_clkin_ck",
+	"sysclk18_ck",
+	"tclkin_ck",
+	NULL
+};
+static struct clk *ti816x_dm_source_clocks[3];
+static const int ti816x_dm_timer_count = ARRAY_SIZE(ti816x_dm_timers);
+
+#else
+#define ti816x_dm_timers		NULL
+#define ti816x_dm_timer_count		0
+#define ti816x_dm_source_names		NULL
+#define ti816x_dm_source_clocks		NULL
+#endif	/* CONFIG_ARCH_TI816X */
+
 static struct omap_dm_timer *dm_timers;
 static const char **dm_source_names;
 static struct clk **dm_source_clocks;
@@ -284,12 +335,24 @@ static void omap_dm_timer_write_reg(struct omap_dm_timer *timer, u32 reg,
 	writel(value, timer->io_base + (dm_regs[reg] & 0xff));
 }
 
+static inline int omap_dm_timer_is_reset_done(struct omap_dm_timer *timer)
+{
+	/* TI816X timers do not have SYS_STAT register */
+	if (!cpu_is_ti816x())
+		return ((omap_dm_timer_read_reg(timer,
+					OMAP_TIMER_SYS_STAT_REG) & 1) == 1);
+	else
+		return ((omap_dm_timer_read_reg(timer,
+					OMAP_TIMER_OCP_CFG_REG) & 1) == 0);
+}
+
 static void omap_dm_timer_wait_for_reset(struct omap_dm_timer *timer)
 {
 	int c;
 
 	c = 0;
-	while (!(omap_dm_timer_read_reg(timer, OMAP_TIMER_SYS_STAT_REG) & 1)) {
+
+	while (!omap_dm_timer_is_reset_done(timer)) {
 		c++;
 		if (c > 100000) {
 			printk(KERN_ERR "Timer failed to reset\n");
@@ -734,6 +797,14 @@ int __init omap_dm_timer_init(void)
 		dm_timer_count = omap4_dm_timer_count;
 		dm_source_names = omap4_dm_source_names;
 		dm_source_clocks = omap4_dm_source_clocks;
+	} else if (cpu_is_ti816x()) {
+		dm_timers = ti816x_dm_timers;
+		dm_timer_count = ti816x_dm_timer_count;
+		dm_source_names = ti816x_dm_source_names;
+		dm_source_clocks = ti816x_dm_source_clocks;
+
+		/* Few registers/offsets are different */
+		dm_regs = (u32 *)ti816x_reg_map;
 	}
 
 	if (cpu_class_is_omap2())
