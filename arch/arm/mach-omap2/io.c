@@ -372,6 +372,7 @@ void __init omap2_init_common_infrastructure(void)
 	} else if (cpu_is_ti816x()) {
 		ti816x_powerdomains_init();
 		omap2_clockdomains_init();
+		ti816x_hwmod_init();
 	} else if (cpu_is_omap44xx()) {
 		omap44xx_powerdomains_init();
 		omap44xx_clockdomains_init();
@@ -427,8 +428,7 @@ void __init omap2_init_common_devices(struct omap_sdrc_params *sdrc_cs0,
 {
 	omap_serial_early_init();
 
-	if (!cpu_is_ti816x())
-		omap_hwmod_late_init();
+	omap_hwmod_late_init();
 
 	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
 		omap2_sdrc_init(sdrc_cs0, sdrc_cs1);

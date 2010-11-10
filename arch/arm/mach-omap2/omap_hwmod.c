@@ -964,6 +964,8 @@ static int _wait_target_ready(struct omap_hwmod *oh)
 						 oh->prcm.omap2.idlest_idle_bit);
 	} else if (cpu_is_omap44xx()) {
 		ret = omap4_cm_wait_module_ready(oh->prcm.omap4.clkctrl_reg);
+	} else if (cpu_is_ti816x()) {
+		ret = ti81xx_cm_wait_module_ready(oh->prcm.omap4.clkctrl_reg);
 	} else {
 		BUG();
 	};
