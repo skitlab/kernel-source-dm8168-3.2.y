@@ -5,6 +5,9 @@
  * Copyright (C) 2008-2010 Nokia Corporation
  * Paul Walmsley
  *
+ * Added TI86X PRM module offsets as most of the operations fit with OMAP3.
+ * Hemant Pedanekar (hemantp@ti.com)
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -226,6 +229,20 @@
 #define OMAP3430_PRM_IRQSTATUS_IVA2			0x00f8
 #define OMAP3430_PRM_IRQENABLE_IVA2			0x00fc
 
+/*
+ * TI816X PRM module offsets
+ */
+
+#define TI816X_PRM_DEVICE_MOD			0x0000	/* 256B */
+#define TI816X_PRM_OCP_SOCKET_MOD		0x0200	/* 256B */
+#define TI816X_PRM_ACTIVE_MOD			0x0a00	/* 256B */
+#define TI816X_PRM_DEFAULT_MOD			0x0b00	/* 256B */
+#define TI816X_PRM_IVAHD0_MOD			0x0c00	/* 256B */
+#define TI816X_PRM_IVAHD1_MOD			0x0d00	/* 256B */
+#define TI816X_PRM_IVAHD2_MOD			0x0e00	/* 256B */
+#define TI816X_PRM_SGX_MOD			0x0f00	/* 256B */
+#define TI816X_PRM_ALWON_MOD			0x1800	/* 1KB */
+
 
 #ifndef __ASSEMBLER__
 /*
@@ -233,7 +250,8 @@
  * continue to build when custom builds are used
  */
 #if defined(CONFIG_ARCH_OMAP4) && !(defined(CONFIG_ARCH_OMAP2) ||	\
-					defined(CONFIG_ARCH_OMAP3))
+					defined(CONFIG_ARCH_OMAP3) ||	\
+					defined(CONFIG_ARCH_TI816X))
 static inline u32 omap2_prm_read_mod_reg(s16 module, u16 idx)
 {
 	WARN_ONCE(1, "prm: omap2xxx/omap3xxx specific function and "
