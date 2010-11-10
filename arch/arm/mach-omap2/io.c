@@ -36,6 +36,7 @@
 #include "clock2xxx.h"
 #include "clock3xxx.h"
 #include "clock44xx.h"
+#include "clock816x.h"
 #include "io.h"
 
 #include <plat/omap-pm.h>
@@ -368,6 +369,9 @@ void __init omap2_init_common_infrastructure(void)
 		omap3xxx_powerdomains_init();
 		omap2_clockdomains_init();
 		omap3xxx_hwmod_init();
+	} else if (cpu_is_ti816x()) {
+		ti816x_powerdomains_init();
+		omap2_clockdomains_init();
 	} else if (cpu_is_omap44xx()) {
 		omap44xx_powerdomains_init();
 		omap44xx_clockdomains_init();
@@ -410,6 +414,8 @@ void __init omap2_init_common_infrastructure(void)
 		omap2430_clk_init();
 	else if (cpu_is_omap34xx())
 		omap3xxx_clk_init();
+	else if (cpu_is_ti816x())
+		ti816x_clk_init();
 	else if (cpu_is_omap44xx())
 		omap4xxx_clk_init();
 	else

@@ -16,6 +16,7 @@
 
 #include "powerdomain.h"
 #include "powerdomains2xxx_3xxx_data.h"
+#include "powerdomains816x.h"
 
 #include "prcm-common.h"
 #include "prm2xxx_3xxx.h"
@@ -254,10 +255,12 @@ static struct powerdomain dpll5_pwrdm = {
 	.prcm_offs	= PLL_MOD,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_GE_OMAP3430ES2),
 };
+#endif
 
 /* As powerdomains are added or removed above, this list must also be changed */
 static struct powerdomain *powerdomains_omap3xxx[] __initdata = {
 
+#ifdef CONFIG_ARCH_OMAP3
 	&wkup_omap2_pwrdm,
 	&gfx_omap2_pwrdm,
 	&iva2_pwrdm,
@@ -280,8 +283,27 @@ static struct powerdomain *powerdomains_omap3xxx[] __initdata = {
 	NULL
 };
 
+/* As powerdomains are added or removed above, this list must also be changed */
+static struct powerdomain *powerdomains_ti816x[] __initdata = {
+
+#ifdef CONFIG_ARCH_TI816X
+	&alwon_816x_pwrdm,
+	&active_816x_pwrdm,
+	&default_816x_pwrdm,
+	&ivahd0_816x_pwrdm,
+	&ivahd1_816x_pwrdm,
+	&ivahd2_816x_pwrdm,
+	&sgx_816x_pwrdm,
+#endif
+	NULL
+};
 
 void __init omap3xxx_powerdomains_init(void)
 {
 	pwrdm_init(powerdomains_omap3xxx, &omap3_pwrdm_operations);
+}
+
+void __init ti816x_powerdomains_init(void)
+{
+	pwrdm_init(powerdomains_ti816x, &ti816x_pwrdm_operations);
 }

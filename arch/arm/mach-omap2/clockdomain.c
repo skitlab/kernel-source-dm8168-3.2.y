@@ -249,8 +249,11 @@ static void _enable_hwsup(struct clockdomain *clkdm)
 	if (cpu_is_omap24xx())
 		omap2xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 					       clkdm->clktrctrl_mask);
-	else if (cpu_is_omap34xx() || cpu_is_ti816x())
+	else if (cpu_is_omap34xx())
 		omap3xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					       clkdm->clktrctrl_mask);
+	else if (cpu_is_ti816x())
+		ti816x_cm_clkdm_enable_hwsup(clkdm->cm_inst, clkdm->clkdm_offs,
 					       clkdm->clktrctrl_mask);
 	else if (cpu_is_omap44xx())
 		return omap4_cminst_clkdm_enable_hwsup(clkdm->prcm_partition,
@@ -275,8 +278,11 @@ static void _disable_hwsup(struct clockdomain *clkdm)
 	if (cpu_is_omap24xx())
 		omap2xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 						clkdm->clktrctrl_mask);
-	else if (cpu_is_omap34xx() || cpu_is_ti816x())
+	else if (cpu_is_omap34xx())
 		omap3xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+						clkdm->clktrctrl_mask);
+	else if (cpu_is_ti816x())
+		ti816x_cm_clkdm_disable_hwsup(clkdm->cm_inst, clkdm->clkdm_offs,
 						clkdm->clktrctrl_mask);
 	else if (cpu_is_omap44xx())
 		return omap4_cminst_clkdm_disable_hwsup(clkdm->prcm_partition,
@@ -738,10 +744,15 @@ int omap2_clkdm_sleep(struct clockdomain *clkdm)
 		omap2_cm_set_mod_reg_bits(OMAP24XX_FORCESTATE_MASK,
 			    clkdm->pwrdm.ptr->prcm_offs, OMAP2_PM_PWSTCTRL);
 
-	} else if (cpu_is_omap34xx() || cpu_is_ti816x()) {
+	} else if (cpu_is_omap34xx()) {
 
 		omap3xxx_cm_clkdm_force_sleep(clkdm->pwrdm.ptr->prcm_offs,
 					      clkdm->clktrctrl_mask);
+
+	} else if (cpu_is_ti816x()) {
+
+		ti816x_cm_clkdm_force_sleep(clkdm->cm_inst, clkdm->clkdm_offs,
+						clkdm->clktrctrl_mask);
 
 	} else if (cpu_is_omap44xx()) {
 
@@ -783,9 +794,14 @@ int omap2_clkdm_wakeup(struct clockdomain *clkdm)
 		omap2_cm_clear_mod_reg_bits(OMAP24XX_FORCESTATE_MASK,
 			      clkdm->pwrdm.ptr->prcm_offs, OMAP2_PM_PWSTCTRL);
 
-	} else if (cpu_is_omap34xx() || cpu_is_ti816x()) {
+	} else if (cpu_is_omap34xx()) {
 
 		omap3xxx_cm_clkdm_force_wakeup(clkdm->pwrdm.ptr->prcm_offs,
+					       clkdm->clktrctrl_mask);
+
+	} else if (cpu_is_ti816x()) {
+
+		ti816x_cm_clkdm_force_wakeup(clkdm->cm_inst, clkdm->clkdm_offs,
 					       clkdm->clktrctrl_mask);
 
 	} else if (cpu_is_omap44xx()) {

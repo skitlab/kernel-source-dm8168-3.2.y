@@ -806,6 +806,8 @@ static struct clkdm_autodep clkdm_autodeps[] = {
 	}
 };
 
+#include "clockdomains816x.h"
+
 static struct clockdomain *clockdomains_omap2[] __initdata = {
 	&wkup_clkdm,
 	&cm_clkdm,
@@ -851,6 +853,24 @@ static struct clockdomain *clockdomains_omap2[] __initdata = {
 	&dpll4_clkdm,
 	&dpll5_clkdm,
 #endif
+
+#ifdef CONFIG_ARCH_TI816X
+	&alwon_mpu_816x_clkdm,
+	&alwon_l3_slow_816x_clkdm,
+	&alwon_ethernet_816x_clkdm,
+	&mmu_816x_clkdm,
+	&mmu_cfg_816x_clkdm,
+	&active_gem_816x_clkdm,
+	&ivahd0_816x_clkdm,
+	&ivahd1_816x_clkdm,
+	&ivahd2_816x_clkdm,
+	&sgx_816x_clkdm,
+	&default_l3_med_816x_clkdm,
+	&default_ducati_816x_clkdm,
+	&default_pcie_816x_clkdm,
+	&default_usb_816x_clkdm,
+#endif
+
 	NULL,
 };
 

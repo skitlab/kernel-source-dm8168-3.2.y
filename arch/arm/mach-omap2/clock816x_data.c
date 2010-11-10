@@ -25,6 +25,7 @@
 #include "clock.h"
 #include "clock816x.h"
 #include "cm.h"
+#include "cm816x.h"
 #include "cm-regbits-816x.h"
 #include "prm.h"
 
