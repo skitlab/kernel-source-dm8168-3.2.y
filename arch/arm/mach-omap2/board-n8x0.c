@@ -639,7 +639,8 @@ static void __init n8x0_map_io(void)
 
 static void __init n8x0_init_irq(void)
 {
-	omap2_init_common_hw(NULL, NULL);
+	omap2_init_common_infrastructure();
+	omap2_init_common_devices(NULL, NULL);
 	omap_init_irq();
 	omap_gpio_init();
 }

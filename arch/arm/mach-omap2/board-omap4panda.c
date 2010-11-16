@@ -76,7 +76,8 @@ static struct platform_device *panda_devices[] __initdata = {
 
 static void __init omap4_panda_init_irq(void)
 {
-	omap2_init_common_hw(NULL, NULL);
+	omap2_init_common_infrastructure();
+	omap2_init_common_devices(NULL, NULL);
 	gic_init_irq();
 	omap_gpio_init();
 }
