@@ -63,7 +63,7 @@ int omap_type(void)
 	} else if (cpu_is_omap44xx()) {
 		val = omap_ctrl_readl(OMAP4_CTRL_MODULE_CORE_STATUS);
 	} else if (cpu_is_ti81xx()) {
-		val = omap_ctrl_readl(TI816X_CONTROL_STATUS);
+		val = omap_ctrl_readl(TI81XX_CONTROL_STATUS);
 	} else {
 		pr_err("Cannot detect omap type!\n");
 		goto out;
@@ -356,7 +356,7 @@ void __init ti81xx_check_revision(void)
 	u16 partnum;
 	u8 rev;
 
-	idcode = read_tap_reg(TI816X_CONTROL_DEVICE_ID);
+	idcode = read_tap_reg(TI81XX_CONTROL_DEVICE_ID);
 	partnum = (idcode >> 12) & 0xffff;
 	rev = (idcode >> 28) & 0xff;
 

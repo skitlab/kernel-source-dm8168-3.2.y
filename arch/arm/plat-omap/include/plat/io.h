@@ -82,8 +82,8 @@
 #define OMAP2_EMU_IO_OFFSET		0xaa800000	/* Emulation */
 #define OMAP2_EMU_IO_ADDRESS(pa)	IOMEM((pa) + OMAP2_EMU_IO_OFFSET)
 
-#define TI816X_L4_SLOW_IO_OFFSET	0xb2000000
-#define TI816X_L4_SLOW_IO_ADDRESS(pa)	IOMEM((pa) + TI816X_L4_SLOW_IO_OFFSET)
+#define TI81XX_L4_SLOW_IO_OFFSET	0xb2000000
+#define TI81XX_L4_SLOW_IO_ADDRESS(pa)	IOMEM((pa) + TI81XX_L4_SLOW_IO_OFFSET)
 
 /*
  * ----------------------------------------------------------------------------
@@ -240,12 +240,12 @@
 #define OMAP44XX_DMM_SIZE	SZ_1M
 
 /*
- * TI816X Specific I/O Mapping
+ * TI81XX Specific I/O Mapping
  */
-#define L4_SLOW_TI816X_PHYS	L4_SLOW_TI816X_BASE
+#define L4_SLOW_TI81XX_PHYS	L4_SLOW_TI81XX_BASE
 						/* 0x48000000 --> 0xd8000000 */
-#define L4_SLOW_TI816X_VIRT	(L4_SLOW_TI816X_PHYS + TI816X_L4_SLOW_IO_OFFSET)
-#define L4_SLOW_TI816X_SIZE	SZ_4M
+#define L4_SLOW_TI81XX_VIRT	(L4_SLOW_TI81XX_PHYS + TI81XX_L4_SLOW_IO_OFFSET)
+#define L4_SLOW_TI81XX_SIZE	SZ_4M
 
 /*
  * ----------------------------------------------------------------------------
@@ -303,10 +303,10 @@ static inline void omap44xx_map_common_io(void)
 }
 #endif
 
-#ifdef CONFIG_ARCH_TI816X
-extern void ti816x_map_common_io(void);
+#ifdef CONFIG_ARCH_TI81XX
+extern void ti81xx_map_common_io(void);
 #else
-static inline void ti816x_map_common_io(void)
+static inline void ti81xx_map_common_io(void)
 {
 }
 #endif

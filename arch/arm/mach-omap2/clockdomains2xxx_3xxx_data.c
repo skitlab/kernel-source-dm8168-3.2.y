@@ -806,7 +806,7 @@ static struct clkdm_autodep clkdm_autodeps[] = {
 	}
 };
 
-#include "clockdomains816x.h"
+#include "clockdomains81xx.h"
 
 static struct clockdomain *clockdomains_omap2[] __initdata = {
 	&wkup_clkdm,

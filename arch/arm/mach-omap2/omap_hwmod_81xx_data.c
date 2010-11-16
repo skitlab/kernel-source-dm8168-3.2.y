@@ -1,5 +1,5 @@
 /*
- * omap_hwmod_ti816x_data.c - hardware modules data for TI816X chips
+ * omap_hwmod_ti81xx_data.c - hardware modules data for TI81XX chips
  *
  * Copyright (C) 2010 Texas Instruments, Inc. - http://www.ti.com/
  *
@@ -19,13 +19,13 @@
 #include <plat/dma.h>
 #include <plat/serial.h>
 #include <plat/l4_3xxx.h>
-#include <plat/ti816x.h>
+#include <plat/ti81xx.h>
 
 #include "omap_hwmod_common_data.h"
 
 #include "control.h"
-#include "cm816x.h"
-#include "cm-regbits-816x.h"
+#include "cm81xx.h"
+#include "cm-regbits-81xx.h"
 
 /*
  * TI816X hardware modules integration data
@@ -35,7 +35,7 @@
  * TODO: Add EDMA in the 'user' field wherever applicable.
  */
 
-static struct omap_hwmod ti816xx_mpu_hwmod;
+static struct omap_hwmod ti816x_mpu_hwmod;
 static struct omap_hwmod ti816x_l3_slow_hwmod;
 static struct omap_hwmod ti816x_l4_slow_hwmod;
 
@@ -48,7 +48,7 @@ static struct omap_hwmod_ocp_if ti816x_l3_slow__l4_slow = {
 
 /* MPU -> L3 SLOW interface */
 static struct omap_hwmod_ocp_if ti816x_mpu__l3_slow = {
-	.master = &ti816xx_mpu_hwmod,
+	.master = &ti816x_mpu_hwmod,
 	.slave	= &ti816x_l3_slow_hwmod,
 	.user	= OCP_USER_MPU,
 };
@@ -82,8 +82,8 @@ static struct omap_hwmod ti816x_uart3_hwmod;
 /* L4 SLOW -> UART1 interface */
 static struct omap_hwmod_addr_space ti816x_uart1_addr_space[] = {
 	{
-		.pa_start	= TI816X_UART1_BASE,
-		.pa_end		= TI816X_UART1_BASE + SZ_8K - 1,
+		.pa_start	= TI81XX_UART1_BASE,
+		.pa_end		= TI81XX_UART1_BASE + SZ_8K - 1,
 		.flags		= ADDR_MAP_ON_INIT | ADDR_TYPE_RT,
 	},
 };
@@ -100,8 +100,8 @@ static struct omap_hwmod_ocp_if ti816x_l4_slow__uart1 = {
 /* L4 SLOW -> UART2 interface */
 static struct omap_hwmod_addr_space ti816x_uart2_addr_space[] = {
 	{
-		.pa_start	= TI816X_UART2_BASE,
-		.pa_end		= TI816X_UART2_BASE + SZ_8K - 1,
+		.pa_start	= TI81XX_UART2_BASE,
+		.pa_end		= TI81XX_UART2_BASE + SZ_8K - 1,
 		.flags		= ADDR_MAP_ON_INIT | ADDR_TYPE_RT,
 	},
 };
@@ -118,8 +118,8 @@ static struct omap_hwmod_ocp_if ti816x_l4_slow__uart2 = {
 /* L4 SLOW -> UART3 interface */
 static struct omap_hwmod_addr_space ti816x_uart3_addr_space[] = {
 	{
-		.pa_start	= TI816X_UART3_BASE,
-		.pa_end		= TI816X_UART3_BASE + SZ_8K - 1,
+		.pa_start	= TI81XX_UART3_BASE,
+		.pa_end		= TI81XX_UART3_BASE + SZ_8K - 1,
 		.flags		= ADDR_MAP_ON_INIT | ADDR_TYPE_RT,
 	},
 };
@@ -163,7 +163,7 @@ static struct omap_hwmod_ocp_if *ti816x_mpu_masters[] = {
 };
 
 /* MPU */
-static struct omap_hwmod ti816xx_mpu_hwmod = {
+static struct omap_hwmod ti816x_mpu_hwmod = {
 	.name		= "mpu",
 	.class		= &mpu_hwmod_class,
 	.main_clk	= "mpu_ck",
@@ -197,7 +197,7 @@ static struct omap_hwmod_irq_info uart1_mpu_irqs[] = {
 };
 
 /*
- * There is no SDMA on TI816X, instead we have EDMA. Presently using dummy
+ * There is no SDMA on TI81XX, instead we have EDMA. Presently using dummy
  * channel numbers as the omap UART driver (drivers/serial/omap-serial.c)
  * requires these values to be filled in even if we don't have DMA enabled. Same
  * applies for UART2 & 3 below.
@@ -295,17 +295,17 @@ static struct omap_hwmod ti816x_uart3_hwmod = {
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X),
 };
 
-static __initdata struct omap_hwmod *ti816x_hwmods[] = {
+static __initdata struct omap_hwmod *ti81xx_hwmods[] = {
 	&ti816x_l3_slow_hwmod,
 	&ti816x_l4_slow_hwmod,
-	&ti816xx_mpu_hwmod,
+	&ti816x_mpu_hwmod,
 	&ti816x_uart1_hwmod,
 	&ti816x_uart2_hwmod,
 	&ti816x_uart3_hwmod,
 	NULL,
 };
 
-int __init ti816x_hwmod_init(void)
+int __init ti81xx_hwmod_init(void)
 {
-	return omap_hwmod_init(ti816x_hwmods);
+	return omap_hwmod_init(ti81xx_hwmods);
 }

@@ -124,11 +124,11 @@ void __iomem *omap_ioremap(unsigned long p, size_t size, unsigned int type)
 			return XLATE(p, L4_EMU_44XX_PHYS, L4_EMU_44XX_VIRT);
 	}
 #endif
-#ifdef CONFIG_ARCH_TI816X
-	if (cpu_is_ti816x()) {
-		if (BETWEEN(p, L4_SLOW_TI816X_PHYS, L4_SLOW_TI816X_SIZE))
-			return XLATE(p, L4_SLOW_TI816X_PHYS,
-					L4_SLOW_TI816X_VIRT);
+#ifdef CONFIG_ARCH_TI81XX
+	if (cpu_is_ti81xx()) {
+		if (BETWEEN(p, L4_SLOW_TI81XX_PHYS, L4_SLOW_TI81XX_SIZE))
+			return XLATE(p, L4_SLOW_TI81XX_PHYS,
+					L4_SLOW_TI81XX_VIRT);
 	}
 #endif
 	return __arm_ioremap_caller(p, size, type, __builtin_return_address(0));

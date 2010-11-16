@@ -20,7 +20,7 @@
 #include <plat/common.h>
 
 #include "cm.h"
-#include "cm-regbits-816x.h"
+#include "cm-regbits-81xx.h"
 
 /**
  * ti81xx_cm_wait_module_ready - wait for a module to be in 'func' state
@@ -48,7 +48,7 @@ int ti81xx_cm_wait_module_ready(void __iomem *clkctrl_reg)
 		return 0;
 
 	omap_test_timeout((
-		((__raw_readl(clkctrl_reg) & TI816X_IDLEST_MASK) == 0)),
+		((__raw_readl(clkctrl_reg) & TI81XX_IDLEST_MASK) == 0)),
 		MAX_MODULE_READY_TIME, i);
 
 	return (i < MAX_MODULE_READY_TIME) ? 0 : -EBUSY;

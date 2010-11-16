@@ -16,7 +16,7 @@
 
 #include "powerdomain.h"
 #include "powerdomains2xxx_3xxx_data.h"
-#include "powerdomains816x.h"
+#include "powerdomains81xx.h"
 
 #include "prcm-common.h"
 #include "prm2xxx_3xxx.h"

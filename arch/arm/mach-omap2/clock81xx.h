@@ -13,8 +13,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef __ARCH_ARM_MACH_OMAP2_CLOCK816X_H
-#define __ARCH_ARM_MACH_OMAP2_CLOCK816X_H
+#ifndef __ARCH_ARM_MACH_OMAP2_CLOCK81XX_H
+#define __ARCH_ARM_MACH_OMAP2_CLOCK81XX_H
 
 int ti816x_clk_init(void);
 

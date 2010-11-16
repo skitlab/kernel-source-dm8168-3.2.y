@@ -40,7 +40,7 @@ static void __init ti8168_evm_init(void)
 static void __init ti8168_evm_map_io(void)
 {
 	omap2_set_globals_ti816x();
-	ti816x_map_common_io();
+	ti81xx_map_common_io();
 }
 
 MACHINE_START(TI8168EVM, "ti8168evm")

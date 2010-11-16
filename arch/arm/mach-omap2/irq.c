@@ -200,8 +200,8 @@ void __init omap_init_irq(void)
 			base = OMAP24XX_IC_BASE;
 		else if (cpu_is_omap34xx())
 			base = OMAP34XX_IC_BASE;
-		else if (cpu_is_ti816x()) {
-			base = TI816X_ARM_INTC_BASE;
+		else if (cpu_is_ti81xx()) {
+			base = TI81XX_ARM_INTC_BASE;
 			bank->nr_irqs = 128;
 		}
 

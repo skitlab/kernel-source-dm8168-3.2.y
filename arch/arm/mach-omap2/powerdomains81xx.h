@@ -13,8 +13,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef __ARCH_ARM_MACH_OMAP2_POWERDOMAINS816X_H
-#define __ARCH_ARM_MACH_OMAP2_POWERDOMAINS816X_H
+#ifndef __ARCH_ARM_MACH_OMAP2_POWERDOMAINS81XX_H
+#define __ARCH_ARM_MACH_OMAP2_POWERDOMAINS81XX_H
 
 #include "prcm-common.h"
 #include "prm2xxx_3xxx.h"

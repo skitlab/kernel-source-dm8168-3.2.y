@@ -1,5 +1,5 @@
 /*
- * ti816x family interrupts.
+ * ti81xx family interrupts.
  *
  * Copyright (C) 2010 Texas Instruments, Inc. - http://www.ti.com/
  *
