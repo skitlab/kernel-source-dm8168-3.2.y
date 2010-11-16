@@ -131,4 +131,5 @@ static int __init omap_init_opp_table(struct omap_opp_def *opp_def,
 
 /* omap3 opps */
 #include "opp3xxx_data.c"
-
+/* omap4 opps */
+#include "opp4xxx_data.c"
