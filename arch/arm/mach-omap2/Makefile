@@ -15,7 +15,7 @@ clock-common				= clock.o clock_common_data.o \
 obj-$(CONFIG_ARCH_OMAP2) += $(omap-2-3-common) $(hwmod-common)
 obj-$(CONFIG_ARCH_OMAP3) += $(omap-2-3-common) $(hwmod-common)
 obj-$(CONFIG_ARCH_OMAP4) += prm44xx.o $(hwmod-common)
-obj-$(CONFIG_ARCH_TI816X) += $(omap-2-3-common) $(hwmod-common)
+obj-$(CONFIG_ARCH_TI81XX) += $(omap-2-3-common) $(hwmod-common)
 
 obj-$(CONFIG_OMAP_MCBSP) += mcbsp.o
 
@@ -64,7 +64,7 @@ obj-$(CONFIG_ARCH_OMAP2)		+= sleep24xx.o pm_bus.o voltage.o
 obj-$(CONFIG_ARCH_OMAP3)		+= pm34xx.o sleep34xx.o voltage.o \
 					   cpuidle34xx.o pm_bus.o
 obj-$(CONFIG_ARCH_OMAP4)		+= pm44xx.o voltage.o pm_bus.o
-obj-$(CONFIG_ARCH_TI816X)		+= voltage.o
+obj-$(CONFIG_ARCH_TI81XX)		+= voltage.o
 obj-$(CONFIG_PM_DEBUG)			+= pm-debug.o
 obj-$(CONFIG_OMAP_SMARTREFLEX)          += sr_device.o smartreflex.o
 obj-$(CONFIG_OMAP_SMARTREFLEX_CLASS3)	+= smartreflex-class3.o
@@ -232,6 +232,7 @@ obj-$(CONFIG_MACH_CRANEBOARD)		+= board-am3517crane.o
 
 obj-$(CONFIG_MACH_SBC3530)		+= board-omap3stalker.o \
 					   hsmmc.o
+obj-$(CONFIG_MACH_TI8148EVM)		+= board-ti8148evm.o
 obj-$(CONFIG_MACH_TI8168EVM)		+= board-ti8168evm.o
 # Platform specific device init code
 usbfs-$(CONFIG_ARCH_OMAP_OTG)		:= usb-fs.o

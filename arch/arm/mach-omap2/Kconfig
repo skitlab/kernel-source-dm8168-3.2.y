@@ -319,8 +319,13 @@ config MACH_OMAP4_PANDA
 	select OMAP_PACKAGE_CBL
 	select OMAP_PACKAGE_CBS
 
-comment "TI816X Board Type"
-	depends on ARCH_TI816X
+comment "TI81XX Board Type"
+	depends on ARCH_TI81XX
+
+config MACH_TI8148EVM
+	bool "TI8148 Evaluation Module"
+	default y
+	depends on ARCH_TI814X
 
 config MACH_TI8168EVM
 	bool "TI8168 Evaluation Module"
