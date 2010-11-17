@@ -55,6 +55,9 @@
 #define TI81XX_UART1_BASE	0x48020000
 #define TI81XX_UART2_BASE	0x48022000
 #define TI81XX_UART3_BASE	0x48024000
+#define TI814X_UART4_BASE	0x481A6000
+#define TI814X_UART5_BASE	0x481A8000
+#define TI814X_UART6_BASE	0x481AA000
 
 /* External port on Zoom2/3 */
 #define ZOOM_UART_BASE		0x10000000
@@ -89,6 +92,9 @@
 #define TI81XXUART1		81
 #define TI81XXUART2		82
 #define TI81XXUART3		83
+#define TI814XUART4		84
+#define TI814XUART5		85
+#define TI814XUART6		86
 #define ZOOM_UART		95		/* Only on zoom2/3 */
 
 /* This is only used by 8250.c for omap1510 */

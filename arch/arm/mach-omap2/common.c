@@ -145,10 +145,24 @@ static struct omap_globals ti81xx_globals = {
 	.uart3_phys	= TI81XX_UART3_BASE,
 };
 
-void __init omap2_set_globals_ti816x(void)
+static void __init omap2_set_globals_ti81xx(void)
 {
 	omap2_set_globals_tap(&ti81xx_globals);
 	omap2_set_globals_control(&ti81xx_globals);
 	omap2_set_globals_prcm(&ti81xx_globals);
+}
+
+void __init omap2_set_globals_ti816x(void)
+{
+	omap2_set_globals_ti81xx();
+}
+
+void __init omap2_set_globals_ti814x(void)
+{
+	ti81xx_globals.uart4_phys = TI814X_UART4_BASE;
+	ti81xx_globals.uart5_phys = TI814X_UART5_BASE;
+	ti81xx_globals.uart6_phys = TI814X_UART6_BASE;
+
+	omap2_set_globals_ti81xx();
 }
 #endif
