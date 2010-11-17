@@ -365,9 +365,14 @@ void __init ti81xx_check_revision(void)
 		omap_chip.oc |= CHIP_IS_TI816X;
 		pr_info("OMAP chip is TI8168\n");
 		return;
+	} else if ((partnum == 0xb8f2)) {
+		omap_revision = TI8148_REV_ES1_0;
+		omap_chip.oc |= CHIP_IS_TI814X;
+		pr_info("OMAP chip is TI8148\n");
+		return;
 	}
 
-	pr_err("Unknown TI816X CPU id\n");
+	pr_err("Unknown TI81XX CPU id\n");
 }
 
 #define OMAP3_SHOW_FEATURE(feat)		\

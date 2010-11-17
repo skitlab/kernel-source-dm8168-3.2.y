@@ -76,7 +76,7 @@ static void _write_clktrctrl(u8 c, s16 module, u32 mask)
 	omap2_cm_write_mod_reg(v, module, OMAP2_CM_CLKSTCTRL);
 }
 
-static void _ti816x_write_clktrctrl(u8 c, s16 module, u16 idx, u32 mask)
+static void _ti81xx_write_clktrctrl(u8 c, s16 module, u16 idx, u32 mask)
 {
 	u32 v;
 
@@ -136,27 +136,27 @@ void omap3xxx_cm_clkdm_force_wakeup(s16 module, u32 mask)
 }
 
 
-void ti816x_cm_clkdm_enable_hwsup(s16 inst, u16 clkdm, u32 mask)
+void ti81xx_cm_clkdm_enable_hwsup(s16 inst, u16 clkdm, u32 mask)
 {
-	_ti816x_write_clktrctrl(OMAP34XX_CLKSTCTRL_ENABLE_AUTO, inst,
+	_ti81xx_write_clktrctrl(OMAP34XX_CLKSTCTRL_ENABLE_AUTO, inst,
 				clkdm, mask);
 }
 
-void ti816x_cm_clkdm_disable_hwsup(s16 inst, u16 clkdm, u32 mask)
+void ti81xx_cm_clkdm_disable_hwsup(s16 inst, u16 clkdm, u32 mask)
 {
-	_ti816x_write_clktrctrl(OMAP34XX_CLKSTCTRL_DISABLE_AUTO, inst,
+	_ti81xx_write_clktrctrl(OMAP34XX_CLKSTCTRL_DISABLE_AUTO, inst,
 				clkdm, mask);
 }
 
-void ti816x_cm_clkdm_force_sleep(s16 inst, u16 clkdm, u32 mask)
+void ti81xx_cm_clkdm_force_sleep(s16 inst, u16 clkdm, u32 mask)
 {
-	_ti816x_write_clktrctrl(OMAP34XX_CLKSTCTRL_FORCE_SLEEP, inst,
+	_ti81xx_write_clktrctrl(OMAP34XX_CLKSTCTRL_FORCE_SLEEP, inst,
 				clkdm, mask);
 }
 
-void ti816x_cm_clkdm_force_wakeup(s16 inst, u16 clkdm, u32 mask)
+void ti81xx_cm_clkdm_force_wakeup(s16 inst, u16 clkdm, u32 mask)
 {
-	_ti816x_write_clktrctrl(OMAP34XX_CLKSTCTRL_FORCE_WAKEUP, inst,
+	_ti81xx_write_clktrctrl(OMAP34XX_CLKSTCTRL_FORCE_WAKEUP, inst,
 				clkdm, mask);
 }
 

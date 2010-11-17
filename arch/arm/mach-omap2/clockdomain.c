@@ -1,5 +1,5 @@
 /*
- * OMAP2/3/4 and TI816X clockdomain framework functions
+ * OMAP2/3/4 and TI81XX clockdomain framework functions
  *
  * Copyright (C) 2008-2010 Texas Instruments, Inc.
  * Copyright (C) 2008-2010 Nokia Corporation
@@ -252,8 +252,8 @@ static void _enable_hwsup(struct clockdomain *clkdm)
 	else if (cpu_is_omap34xx())
 		omap3xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 					       clkdm->clktrctrl_mask);
-	else if (cpu_is_ti816x())
-		ti816x_cm_clkdm_enable_hwsup(clkdm->cm_inst, clkdm->clkdm_offs,
+	else if (cpu_is_ti81xx())
+		ti81xx_cm_clkdm_enable_hwsup(clkdm->cm_inst, clkdm->clkdm_offs,
 					       clkdm->clktrctrl_mask);
 	else if (cpu_is_omap44xx())
 		return omap4_cminst_clkdm_enable_hwsup(clkdm->prcm_partition,
@@ -281,8 +281,8 @@ static void _disable_hwsup(struct clockdomain *clkdm)
 	else if (cpu_is_omap34xx())
 		omap3xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 						clkdm->clktrctrl_mask);
-	else if (cpu_is_ti816x())
-		ti816x_cm_clkdm_disable_hwsup(clkdm->cm_inst, clkdm->clkdm_offs,
+	else if (cpu_is_ti81xx())
+		ti81xx_cm_clkdm_disable_hwsup(clkdm->cm_inst, clkdm->clkdm_offs,
 						clkdm->clktrctrl_mask);
 	else if (cpu_is_omap44xx())
 		return omap4_cminst_clkdm_disable_hwsup(clkdm->prcm_partition,
@@ -749,9 +749,9 @@ int omap2_clkdm_sleep(struct clockdomain *clkdm)
 		omap3xxx_cm_clkdm_force_sleep(clkdm->pwrdm.ptr->prcm_offs,
 					      clkdm->clktrctrl_mask);
 
-	} else if (cpu_is_ti816x()) {
+	} else if (cpu_is_ti81xx()) {
 
-		ti816x_cm_clkdm_force_sleep(clkdm->cm_inst, clkdm->clkdm_offs,
+		ti81xx_cm_clkdm_force_sleep(clkdm->cm_inst, clkdm->clkdm_offs,
 						clkdm->clktrctrl_mask);
 
 	} else if (cpu_is_omap44xx()) {
@@ -799,9 +799,9 @@ int omap2_clkdm_wakeup(struct clockdomain *clkdm)
 		omap3xxx_cm_clkdm_force_wakeup(clkdm->pwrdm.ptr->prcm_offs,
 					       clkdm->clktrctrl_mask);
 
-	} else if (cpu_is_ti816x()) {
+	} else if (cpu_is_ti81xx()) {
 
-		ti816x_cm_clkdm_force_wakeup(clkdm->cm_inst, clkdm->clkdm_offs,
+		ti81xx_cm_clkdm_force_wakeup(clkdm->cm_inst, clkdm->clkdm_offs,
 					       clkdm->clktrctrl_mask);
 
 	} else if (cpu_is_omap44xx()) {
@@ -843,9 +843,9 @@ void omap2_clkdm_allow_idle(struct clockdomain *clkdm)
 
 	/*
 	 * XXX This should be removed once TI adds wakeup/sleep
-	 * dependency code and data for OMAP4, TI816X
+	 * dependency code and data for OMAP4, TI81XX
 	 */
-	if (cpu_is_omap44xx() || cpu_is_ti816x()) {
+	if (cpu_is_omap44xx() || cpu_is_ti81xx()) {
 		WARN_ONCE(1, "clockdomain: wakeup/sleep dependency "
 			  "support is not yet implemented\n");
 	} else {
@@ -885,9 +885,9 @@ void omap2_clkdm_deny_idle(struct clockdomain *clkdm)
 
 	/*
 	 * XXX This should be removed once TI adds wakeup/sleep
-	 * dependency code and data for OMAP4, TI816X.
+	 * dependency code and data for OMAP4, TI81XX.
 	 */
-	if (cpu_is_omap44xx() || cpu_is_ti816x()) {
+	if (cpu_is_omap44xx() || cpu_is_ti81xx()) {
 		WARN_ONCE(1, "clockdomain: wakeup/sleep dependency "
 			  "support is not yet implemented\n");
 	} else {
