@@ -272,13 +272,13 @@ static const int omap4_dm_timer_count = ARRAY_SIZE(omap4_dm_timers);
 
 #ifdef CONFIG_ARCH_TI816X
 static struct omap_dm_timer ti816x_dm_timers[] = {
-	{ .phys_base = 0x4802E000, .irq = TI816X_IRQ_GPT1 },
-	{ .phys_base = 0x48040000, .irq = TI816X_IRQ_GPT2 },
-	{ .phys_base = 0x48042000, .irq = TI816X_IRQ_GPT3 },
-	{ .phys_base = 0x48044000, .irq = TI816X_IRQ_GPT4 },
-	{ .phys_base = 0x48046000, .irq = TI816X_IRQ_GPT5 },
-	{ .phys_base = 0x48048000, .irq = TI816X_IRQ_GPT6 },
-	{ .phys_base = 0x4804A000, .irq = TI816X_IRQ_GPT7 },
+	{ .phys_base = 0x4802E000, .irq = TI81XX_IRQ_GPT1 },
+	{ .phys_base = 0x48040000, .irq = TI81XX_IRQ_GPT2 },
+	{ .phys_base = 0x48042000, .irq = TI81XX_IRQ_GPT3 },
+	{ .phys_base = 0x48044000, .irq = TI81XX_IRQ_GPT4 },
+	{ .phys_base = 0x48046000, .irq = TI81XX_IRQ_GPT5 },
+	{ .phys_base = 0x48048000, .irq = TI81XX_IRQ_GPT6 },
+	{ .phys_base = 0x4804A000, .irq = TI81XX_IRQ_GPT7 },
 };
 static const char *ti816x_dm_source_names[] __initdata = {
 	"sys_clkin_ck",

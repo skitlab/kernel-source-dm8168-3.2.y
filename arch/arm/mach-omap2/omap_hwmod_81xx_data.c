@@ -193,7 +193,7 @@ static struct omap_hwmod_class uart_class = {
 /* UART1 */
 
 static struct omap_hwmod_irq_info uart1_mpu_irqs[] = {
-	{ .irq = TI816X_IRQ_UART0, },
+	{ .irq = TI81XX_IRQ_UART0, },
 };
 
 /*
@@ -232,7 +232,7 @@ static struct omap_hwmod ti816x_uart1_hwmod = {
 /* UART2 */
 
 static struct omap_hwmod_irq_info uart2_mpu_irqs[] = {
-	{ .irq = TI816X_IRQ_UART1, },
+	{ .irq = TI81XX_IRQ_UART1, },
 };
 
 static struct omap_hwmod_dma_info uart2_edma_reqs[] = {
@@ -265,7 +265,7 @@ static struct omap_hwmod ti816x_uart2_hwmod = {
 /* UART3 */
 
 static struct omap_hwmod_irq_info uart3_mpu_irqs[] = {
-	{ .irq = TI816X_IRQ_UART2, },
+	{ .irq = TI81XX_IRQ_UART2, },
 };
 
 static struct omap_hwmod_dma_info uart3_edma_reqs[] = {
