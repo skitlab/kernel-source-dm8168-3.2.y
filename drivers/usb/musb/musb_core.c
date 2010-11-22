@@ -1952,7 +1952,8 @@ static void musb_free(struct musb *musb)
  *	not yet corrected for platform-specific offsets
  */
 static int __devinit
-musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
+musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl,
+			phys_addr_t ctrl_phys_addr)
 {
 	int			status;
 	struct musb		*musb;
@@ -2000,6 +2001,7 @@ bad_config:
 	}
 
 	spin_lock_init(&musb->lock);
+	musb->ctrl_phys_base = ctrl_phys_addr;
 	musb->board_mode = plat->mode;
 	musb->board_set_power = plat->set_power;
 	musb->min_power = plat->min_power;
@@ -2229,7 +2231,7 @@ static int __devinit musb_probe(struct platform_device *pdev)
 	/* clobbered by use_dma=n */
 	orig_dma_mask = dev->dma_mask;
 #endif
-	status = musb_init_controller(dev, irq, base);
+	status = musb_init_controller(dev, irq, base, iomem->start);
 	if (status < 0)
 		iounmap(base);
 
