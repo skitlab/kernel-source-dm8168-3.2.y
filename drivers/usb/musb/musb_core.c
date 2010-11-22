@@ -2175,6 +2175,9 @@ bad_config:
 			? "DMA" : "PIO",
 			musb->nIrq);
 
+	if (status == 0)
+		musb_debug_create("driver/musb_hdrc", musb);
+
 	return 0;
 
 fail5:
@@ -2254,6 +2257,7 @@ static int __exit musb_remove(struct platform_device *pdev)
 	 */
 	musb_exit_debugfs(musb);
 	musb_shutdown(pdev);
+	musb_debug_delete("driver/musb_hdrc", musb);
 
 	musb_free(musb);
 	iounmap(ctrl_base);
