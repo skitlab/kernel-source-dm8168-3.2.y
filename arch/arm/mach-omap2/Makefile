@@ -65,6 +65,8 @@ endif
 
 endif
 
+obj-$(CONFIG_PM_OPP)		+= opp.o
+
 # PRCM
 obj-$(CONFIG_ARCH_OMAP2)		+= cm.o
 obj-$(CONFIG_ARCH_OMAP3)		+= cm.o
