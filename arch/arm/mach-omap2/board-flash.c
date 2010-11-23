@@ -53,7 +53,7 @@ static struct platform_device board_nor_device = {
 	.resource	= &board_nor_resource,
 };
 
-static void
+void
 __init board_nor_init(struct mtd_partition *nor_parts, u8 nr_parts, u8 cs)
 {
 	int err;
