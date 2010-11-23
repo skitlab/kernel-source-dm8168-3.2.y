@@ -571,6 +571,24 @@ static struct regulator_init_data omap3_evm_vusb = {
 	.consumer_supplies	= &omap3_evm_vusb_supply,
 };
 
+/* VIO_1V8 is required for diff modules: ads7846 on SPI, pull-ups, etc... */
+static struct regulator_consumer_supply omap3_evm_vio_supply =
+	REGULATOR_SUPPLY("vcc", "spi1.0");
+
+static struct regulator_init_data omap3_evm_vio = {
+	.constraints = {
+		.min_uV                 = 1800000,
+		.max_uV                 = 1800000,
+		.apply_uV               = true,
+		.valid_modes_mask       = REGULATOR_MODE_NORMAL
+			| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask         = REGULATOR_CHANGE_MODE
+			| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies  = 1,
+	.consumer_supplies      = &omap3_evm_vio_supply,
+};
+
 static struct twl4030_platform_data omap3evm_twldata = {
 	.irq_base	= TWL4030_IRQ_BASE,
 	.irq_end	= TWL4030_IRQ_END,
@@ -584,6 +602,7 @@ static struct twl4030_platform_data omap3evm_twldata = {
 	.vdac		= &omap3_evm_vdac,
 	.vpll2		= &omap3_evm_vpll2,
 	.vaux2          = &omap3evm_vaux2,
+	.vio		= &omap3_evm_vio,
 };
 
 static struct i2c_board_info __initdata omap3evm_i2c_boardinfo[] = {
