@@ -23,6 +23,7 @@
 
 #include "prm-regbits-34xx.h"
 #include "cm-regbits-34xx.h"
+#include "wd_timer.h"
 
 /*
  * OMAP3xxx hardware module integration data
@@ -316,8 +317,9 @@ static struct omap_hwmod_class_sysconfig omap3xxx_wd_timer_sysc = {
 };
 
 static struct omap_hwmod_class omap3xxx_wd_timer_hwmod_class = {
-	.name = "wd_timer",
-	.sysc = &omap3xxx_wd_timer_sysc,
+	.name		= "wd_timer",
+	.sysc		= &omap3xxx_wd_timer_sysc,
+	.pre_shutdown	= &omap2_wd_timer_disable
 };
 
 /* wd_timer2 */
