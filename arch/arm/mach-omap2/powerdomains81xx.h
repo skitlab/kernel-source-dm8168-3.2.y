@@ -23,7 +23,7 @@
 
 static struct powerdomain alwon_816x_pwrdm = {
 	.name		  = "alwon_pwrdm",
-	.prcm_offs	  = TI816X_PRM_ALWON_MOD,
+	.prcm_offs	  = TI81XX_PRM_ALWON_MOD,
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_TI816X),
 };
 

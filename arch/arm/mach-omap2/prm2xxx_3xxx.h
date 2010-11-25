@@ -237,10 +237,16 @@
 #define TI816X_PM_PWSTST				0x0004
 
 /*
+ * TI81XX common PRM module offsets
+ */
+
+#define TI81XX_PRM_DEVICE_MOD			0x0000	/* 256B */
+#define TI81XX_PRM_ALWON_MOD			0x1800	/* 1KB */
+
+/*
  * TI816X PRM module offsets
  */
 
-#define TI816X_PRM_DEVICE_MOD			0x0000	/* 256B */
 #define TI816X_PRM_OCP_SOCKET_MOD		0x0200	/* 256B */
 #define TI816X_PRM_ACTIVE_MOD			0x0a00	/* 256B */
 #define TI816X_PRM_DEFAULT_MOD			0x0b00	/* 256B */
@@ -248,8 +254,18 @@
 #define TI816X_PRM_IVAHD1_MOD			0x0d00	/* 256B */
 #define TI816X_PRM_IVAHD2_MOD			0x0e00	/* 256B */
 #define TI816X_PRM_SGX_MOD			0x0f00	/* 256B */
-#define TI816X_PRM_ALWON_MOD			0x1800	/* 1KB */
 
+/*
+ * TI814X PRM module offsets
+ */
+
+#define TI814X_REVISION_PRM_MOD			0x0200  /* 256B */
+#define TI814X_PRM_DSP_MOD			0x0a00  /* 256B */
+#define TI814X_PRM_ALWON2_MOD			0x0b00  /* 256B */
+#define TI814X_PRM_HDVICP_MOD			0x0c00  /* 256B */
+#define TI814X_PRM_ISP_MOD			0x0d00  /* 256B */
+#define TI814X_PRM_HDVPSS_MOD			0x0e00  /* 256B */
+#define TI814X_PRM_GFX_MOD			0x0f00  /* 256B */
 
 #ifndef __ASSEMBLER__
 /*

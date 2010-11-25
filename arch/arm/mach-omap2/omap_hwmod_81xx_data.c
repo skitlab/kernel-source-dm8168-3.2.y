@@ -220,7 +220,7 @@ static struct omap_hwmod ti816x_uart1_hwmod = {
 	.main_clk	= "uart1_fck",
 	.prcm		= {
 		.omap4 = {
-			.clkctrl_reg = TI816X_CM_ALWON_UART_0_CLKCTRL,
+			.clkctrl_reg = TI81XX_CM_ALWON_UART_0_CLKCTRL,
 		},
 	},
 	.slaves		= ti816x_uart1_slaves,
@@ -253,7 +253,7 @@ static struct omap_hwmod ti816x_uart2_hwmod = {
 	.main_clk	= "uart2_fck",
 	.prcm		= {
 		.omap4 = {
-			.clkctrl_reg = TI816X_CM_ALWON_UART_1_CLKCTRL,
+			.clkctrl_reg = TI81XX_CM_ALWON_UART_1_CLKCTRL,
 		},
 	},
 	.slaves		= ti816x_uart2_slaves,
@@ -286,7 +286,7 @@ static struct omap_hwmod ti816x_uart3_hwmod = {
 	.main_clk	= "uart3_fck",
 	.prcm		= {
 		.omap4 = {
-			.clkctrl_reg = TI816X_CM_ALWON_UART_2_CLKCTRL,
+			.clkctrl_reg = TI81XX_CM_ALWON_UART_2_CLKCTRL,
 		},
 	},
 	.slaves		= ti816x_uart3_slaves,
