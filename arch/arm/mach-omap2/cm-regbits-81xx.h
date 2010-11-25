@@ -39,6 +39,32 @@
 #define TI81XX_CLKTRCTRL_SHIFT					0
 #define TI81XX_CLKTRCTRL_MASK					(3 << 0)
 
+/* Select DMTIMER source */
+#define TI814X_DMTIMER1_CLKS_SHIFT				3
+#define TI814X_DMTIMER1_CLKS_MASK				(7 << 3)
+
+#define TI814X_DMTIMER2_CLKS_SHIFT				6
+#define TI814X_DMTIMER2_CLKS_MASK				(7 << 6)
+
+#define TI814X_DMTIMER3_CLKS_SHIFT				9
+#define TI814X_DMTIMER3_CLKS_MASK				(7 << 9)
+
+#define TI814X_DMTIMER4_CLKS_SHIFT				16
+#define TI814X_DMTIMER4_CLKS_MASK				(7 << 16)
+
+#define TI814X_DMTIMER5_CLKS_SHIFT				19
+#define TI814X_DMTIMER5_CLKS_MASK				(7 << 19)
+
+#define TI814X_DMTIMER6_CLKS_SHIFT				22
+#define TI814X_DMTIMER6_CLKS_MASK				(7 << 22)
+
+#define TI814X_DMTIMER7_CLKS_SHIFT				25
+#define TI814X_DMTIMER7_CLKS_MASK				(7 << 25)
+
+#define TI814X_DMTIMER8_CLKS_SHIFT				0
+#define TI814X_DMTIMER8_CLKS_MASK				(7 << 0)
+
+
 /* TODO: Add other specific CM register bits */
 
 #endif
