@@ -225,6 +225,25 @@ err_1:
 
 }
 
+static int omap3evm_set_bl_intensity(struct omap_dss_device *dssdev, int level)
+{
+	unsigned char c;
+
+	if (level > dssdev->max_backlight_level)
+		level = dssdev->max_backlight_level;
+
+	c = ((125 * (100 - level)) / 100);
+	c += get_omap3_evm_rev() >= OMAP3EVM_BOARD_GEN_2 ? 1 : 2;
+
+/*
+ * PWMA register offsets (TWL4030_MODULE_PWMA)
+ */
+#define TWL_LED_PWMON	0x0
+	twl_i2c_write_u8(TWL4030_MODULE_PWMA, c, TWL_LED_PWMON);
+
+	return 0;
+}
+
 static int omap3_evm_enable_lcd(struct omap_dss_device *dssdev)
 {
 	if (dvi_enabled) {
@@ -259,8 +278,10 @@ static struct omap_dss_device omap3_evm_lcd_device = {
 	.driver_name		= "sharp_ls_panel",
 	.type			= OMAP_DISPLAY_TYPE_DPI,
 	.phy.dpi.data_lines	= 18,
+	.max_backlight_level	= 100,
 	.platform_enable	= omap3_evm_enable_lcd,
 	.platform_disable	= omap3_evm_disable_lcd,
+	.set_backlight		= omap3evm_set_bl_intensity,
 };
 
 static int omap3_evm_enable_tv(struct omap_dss_device *dssdev)
