@@ -1620,7 +1620,7 @@ static int _dsi_reset(void)
 	REG_FLD_MOD(DSI_SYSCONFIG, 1, 1, 1);
 	return _dsi_wait_reset();
 }
-
+#if 0
 static void dsi_reset_tx_fifo(int channel)
 {
 	u32 mask;
@@ -1634,7 +1634,7 @@ static void dsi_reset_tx_fifo(int channel)
 
 	dsi_write_reg(DSI_TX_FIFO_VC_SIZE, l);
 }
-
+#endif
 static void dsi_config_tx_fifo(enum fifo_size size1, enum fifo_size size2,
 		enum fifo_size size3, enum fifo_size size4)
 {
