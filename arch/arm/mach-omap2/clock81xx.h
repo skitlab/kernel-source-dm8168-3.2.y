@@ -17,5 +17,6 @@
 #define __ARCH_ARM_MACH_OMAP2_CLOCK81XX_H
 
 int ti816x_clk_init(void);
+int ti814x_clk_init(void);
 
 #endif

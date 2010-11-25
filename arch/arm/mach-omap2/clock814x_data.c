@@ -23,6 +23,7 @@
 #include "clock.h"
 #include "clock81xx.h"
 #include "cm.h"
+#include "cm81xx.h"
 #include "cm-regbits-81xx.h"
 #include "prm.h"
 

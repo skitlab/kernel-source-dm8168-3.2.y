@@ -209,37 +209,37 @@ static int omap3_pwrdm_disable_hdwr_sar(struct powerdomain *pwrdm)
 					  OMAP2_PM_PWSTCTRL);
 }
 
-/* TI816X specific ops */
-static int ti816x_pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst)
+/* TI81XX specific ops */
+static int ti81xx_pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst)
 {
 	omap2_prm_rmw_mod_reg_bits(OMAP_POWERSTATE_MASK,
 				(pwrst << OMAP_POWERSTATE_SHIFT),
-				pwrdm->prcm_offs, TI816X_PM_PWSTCTRL);
+				pwrdm->prcm_offs, TI81XX_PM_PWSTCTRL);
 	return 0;
 }
 
-static int ti816x_pwrdm_read_next_pwrst(struct powerdomain *pwrdm)
+static int ti81xx_pwrdm_read_next_pwrst(struct powerdomain *pwrdm)
 {
 	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
-					     TI816X_PM_PWSTCTRL,
+					     TI81XX_PM_PWSTCTRL,
 					     OMAP_POWERSTATE_MASK);
 }
 
-static int ti816x_pwrdm_read_pwrst(struct powerdomain *pwrdm)
+static int ti81xx_pwrdm_read_pwrst(struct powerdomain *pwrdm)
 {
 	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
-					     TI816X_PM_PWSTST,
+					     TI81XX_PM_PWSTST,
 					     OMAP_POWERSTATEST_MASK);
 }
 
-static int ti816x_pwrdm_read_logic_pwrst(struct powerdomain *pwrdm)
+static int ti81xx_pwrdm_read_logic_pwrst(struct powerdomain *pwrdm)
 {
 	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
-					     TI816X_PM_PWSTST,
+					     TI81XX_PM_PWSTST,
 					     OMAP3430_LOGICSTATEST_MASK);
 }
 
-static int ti816x_pwrdm_wait_transition(struct powerdomain *pwrdm)
+static int ti81xx_pwrdm_wait_transition(struct powerdomain *pwrdm)
 {
 	u32 c = 0;
 
@@ -250,7 +250,7 @@ static int ti816x_pwrdm_wait_transition(struct powerdomain *pwrdm)
 	 */
 
 	/* XXX Is this udelay() value meaningful? */
-	while ((omap2_prm_read_mod_reg(pwrdm->prcm_offs, TI816X_PM_PWSTST) &
+	while ((omap2_prm_read_mod_reg(pwrdm->prcm_offs, TI81XX_PM_PWSTST) &
 		OMAP_INTRANSITION_MASK) &&
 		(c++ < PWRDM_TRANSITION_BAILOUT))
 			udelay(1);
@@ -298,10 +298,10 @@ struct pwrdm_ops omap3_pwrdm_operations = {
 	.pwrdm_wait_transition	= omap2_pwrdm_wait_transition,
 };
 
-struct pwrdm_ops ti816x_pwrdm_operations = {
-	.pwrdm_set_next_pwrst	= ti816x_pwrdm_set_next_pwrst,
-	.pwrdm_read_next_pwrst	= ti816x_pwrdm_read_next_pwrst,
-	.pwrdm_read_pwrst	= ti816x_pwrdm_read_pwrst,
-	.pwrdm_read_logic_pwrst	= ti816x_pwrdm_read_logic_pwrst,
-	.pwrdm_wait_transition	= ti816x_pwrdm_wait_transition,
+struct pwrdm_ops ti81xx_pwrdm_operations = {
+	.pwrdm_set_next_pwrst	= ti81xx_pwrdm_set_next_pwrst,
+	.pwrdm_read_next_pwrst	= ti81xx_pwrdm_read_next_pwrst,
+	.pwrdm_read_pwrst	= ti81xx_pwrdm_read_pwrst,
+	.pwrdm_read_logic_pwrst	= ti81xx_pwrdm_read_logic_pwrst,
+	.pwrdm_wait_transition	= ti81xx_pwrdm_wait_transition,
 };

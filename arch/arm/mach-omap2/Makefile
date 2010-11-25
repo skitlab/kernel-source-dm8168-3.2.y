@@ -87,7 +87,7 @@ obj-$(CONFIG_ARCH_OMAP3)		+= prcm.o cm2xxx_3xxx.o prm2xxx_3xxx.o
 obj-$(CONFIG_ARCH_OMAP4)		+= prcm.o cm2xxx_3xxx.o cminst44xx.o \
 					   cm44xx.o prcm_mpu44xx.o \
 					   prminst44xx.o
-obj-$(CONFIG_ARCH_TI816X)		+= prcm.o cm2xxx_3xxx.o prm2xxx_3xxx.o \
+obj-$(CONFIG_ARCH_TI81XX)		+= prcm.o cm2xxx_3xxx.o prm2xxx_3xxx.o \
 					   cm81xx.o
 
 # OMAP powerdomain framework
@@ -103,7 +103,7 @@ obj-$(CONFIG_ARCH_OMAP3)		+= $(powerdomain-common) \
 obj-$(CONFIG_ARCH_OMAP4)		+= $(powerdomain-common) \
 					   powerdomain44xx.o \
 					   powerdomains44xx_data.o
-obj-$(CONFIG_ARCH_TI816X)		+= $(powerdomain-common) \
+obj-$(CONFIG_ARCH_TI81XX)		+= $(powerdomain-common) \
 					   powerdomain2xxx_3xxx.o \
 					   powerdomains3xxx_data.o \
 					   powerdomains2xxx_3xxx_data.o
@@ -115,7 +115,7 @@ obj-$(CONFIG_ARCH_OMAP3)		+= clockdomain.o \
 					   clockdomains2xxx_3xxx_data.o
 obj-$(CONFIG_ARCH_OMAP4)		+= clockdomain.o \
 					   clockdomains44xx_data.o
-obj-$(CONFIG_ARCH_TI816X)		+= clockdomain.o \
+obj-$(CONFIG_ARCH_TI81XX)		+= clockdomain.o \
 					   clockdomains2xxx_3xxx_data.o
 # Clock framework
 obj-$(CONFIG_ARCH_OMAP2)		+= $(clock-common) clock2xxx.o \
@@ -131,7 +131,8 @@ obj-$(CONFIG_ARCH_OMAP3)		+= $(clock-common) clock3xxx.o \
 					   dpll3xxx.o clock3xxx_data.o
 obj-$(CONFIG_ARCH_OMAP4)		+= $(clock-common) clock44xx_data.o \
 					   dpll3xxx.o
-obj-$(CONFIG_ARCH_TI816X)		+= $(clock-common) clock816x_data.o
+obj-$(CONFIG_ARCH_TI81XX)		+= $(clock-common) clock816x_data.o \
+					   clock814x_data.o
 
 # OMAP2 clock rate set data (old "OPP" data)
 obj-$(CONFIG_ARCH_OMAP2420)		+= opp2420_data.o

@@ -232,9 +232,9 @@
 /* TI816X PRM DEVICE offsets */
 #define TI816X_PRM_DEVICE_RSTCTRL			0x00A0
 
-/* TI816X specific register offsets from each PRM module base */
-#define TI816X_PM_PWSTCTRL				0x0000
-#define TI816X_PM_PWSTST				0x0004
+/* TI81XX specific register offsets from each PRM module base */
+#define TI81XX_PM_PWSTCTRL				0x0000
+#define TI81XX_PM_PWSTST				0x0004
 
 /*
  * TI81XX common PRM module offsets

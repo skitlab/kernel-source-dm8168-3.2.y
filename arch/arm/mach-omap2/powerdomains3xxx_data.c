@@ -284,10 +284,16 @@ static struct powerdomain *powerdomains_omap3xxx[] __initdata = {
 };
 
 /* As powerdomains are added or removed above, this list must also be changed */
-static struct powerdomain *powerdomains_ti816x[] __initdata = {
+static struct powerdomain *powerdomains_ti81xx[] __initdata = {
 
-#ifdef CONFIG_ARCH_TI816X
+#ifdef CONFIG_ARCH_TI81XX
 	&alwon_81xx_pwrdm,
+	&dsp_814x_pwrdm,
+	&alwon2_814x_pwrdm,
+	&hdvicp_814x_pwrdm,
+	&hdvpss_814x_pwrdm,
+	&gfx_814x_pwrdm,
+	&isp_814x_pwrdm,
 	&active_816x_pwrdm,
 	&default_816x_pwrdm,
 	&ivahd0_816x_pwrdm,
@@ -303,7 +309,7 @@ void __init omap3xxx_powerdomains_init(void)
 	pwrdm_init(powerdomains_omap3xxx, &omap3_pwrdm_operations);
 }
 
-void __init ti816x_powerdomains_init(void)
+void __init ti81xx_powerdomains_init(void)
 {
-	pwrdm_init(powerdomains_ti816x, &ti816x_pwrdm_operations);
+	pwrdm_init(powerdomains_ti81xx, &ti81xx_pwrdm_operations);
 }
