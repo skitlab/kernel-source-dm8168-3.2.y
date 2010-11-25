@@ -1887,6 +1887,7 @@ allocate_instance(struct device *dev,
 	INIT_LIST_HEAD(&musb->control);
 	INIT_LIST_HEAD(&musb->in_bulk);
 	INIT_LIST_HEAD(&musb->out_bulk);
+	INIT_LIST_HEAD(&musb->gb_list);
 
 	hcd->uses_new_polling = 1;
 
@@ -1943,6 +1944,8 @@ static void musb_free(struct musb *musb)
 	}
 
 #ifdef CONFIG_USB_MUSB_HDRC_HCD
+	if (musb->gb_queue)
+		destroy_workqueue(musb->gb_queue);
 	usb_put_hcd(musb_to_hcd(musb));
 #else
 	kfree(musb);
@@ -2017,7 +2020,9 @@ bad_config:
 		status = -ENOMEM;
 		goto fail0;
 	}
-
+#ifdef CONFIG_USB_MUSB_HDRC_HCD
+	spin_lock_init(&musb->gb_lock);
+#endif
 	spin_lock_init(&musb->lock);
 	musb->ctrl_phys_base = ctrl_phys_addr;
 	musb->board_mode = plat->mode;
@@ -2192,7 +2197,21 @@ bad_config:
 	if (status == 0)
 		musb_debug_create("driver/musb_hdrc", musb);
 
+#ifdef CONFIG_USB_MUSB_HDRC_HCD
+	musb->gb_queue = create_singlethread_workqueue(dev_name(dev));
+	if (musb->gb_queue == NULL)
+		goto fail6;
+	/* Init giveback workqueue */
+	INIT_WORK(&musb->gb_work, musb_gb_work);
+
+#endif
+
 	return 0;
+
+#ifdef CONFIG_USB_MUSB_HDRC_HCD
+fail6:
+	destroy_workqueue(musb->gb_queue);
+#endif
 
 fail5:
 	musb_exit_debugfs(musb);
