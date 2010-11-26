@@ -71,7 +71,7 @@ static struct omap_hwmod ti816x_l3_slow_hwmod = {
 	.masters_cnt	= ARRAY_SIZE(ti816x_l3_slow_masters),
 	.slaves		= ti816x_l3_slow_slaves,
 	.slaves_cnt	= ARRAY_SIZE(ti816x_l3_slow_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
 	.flags		= HWMOD_NO_IDLEST,
 };
 
@@ -153,7 +153,7 @@ static struct omap_hwmod ti816x_l4_slow_hwmod = {
 	.masters_cnt	= ARRAY_SIZE(ti816x_l4_slow_masters),
 	.slaves		= ti816x_l4_slow_slaves,
 	.slaves_cnt	= ARRAY_SIZE(ti816x_l4_slow_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
 	.flags		= HWMOD_NO_IDLEST,
 };
 
@@ -169,7 +169,7 @@ static struct omap_hwmod ti816x_mpu_hwmod = {
 	.main_clk	= "mpu_ck",
 	.masters	= ti816x_mpu_masters,
 	.masters_cnt	= ARRAY_SIZE(ti816x_mpu_masters),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
 };
 
 /* UART common */
@@ -226,7 +226,7 @@ static struct omap_hwmod ti816x_uart1_hwmod = {
 	.slaves		= ti816x_uart1_slaves,
 	.slaves_cnt	= ARRAY_SIZE(ti816x_uart1_slaves),
 	.class		= &uart_class,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
 };
 
 /* UART2 */
@@ -259,7 +259,7 @@ static struct omap_hwmod ti816x_uart2_hwmod = {
 	.slaves		= ti816x_uart2_slaves,
 	.slaves_cnt	= ARRAY_SIZE(ti816x_uart2_slaves),
 	.class		= &uart_class,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
 };
 
 /* UART3 */
@@ -292,7 +292,7 @@ static struct omap_hwmod ti816x_uart3_hwmod = {
 	.slaves		= ti816x_uart3_slaves,
 	.slaves_cnt	= ARRAY_SIZE(ti816x_uart3_slaves),
 	.class		= &uart_class,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
 };
 
 static __initdata struct omap_hwmod *ti81xx_hwmods[] = {
