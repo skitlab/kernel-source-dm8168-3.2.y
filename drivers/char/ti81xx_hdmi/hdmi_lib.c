@@ -117,7 +117,7 @@
 #define HDMI_VIDEO_STAND_1080I60		(2200 * 1125 * 30)
 #define HDMI_VIDEO_STAND_1080P30		(2200 * 1125 * 30)
 /* Undef this to test HDMI */
-/*#define HDMI_TEST				(1)*/
+#define HDMI_TEST				(1)
 /* ========================================================================== */
 /*				Local Structure 			      */
 /* ========================================================================== */
@@ -1655,7 +1655,8 @@ void enable_hdmi_clocks(u32 prcm_base)
 void enable_hdmi_clocks(u32 prcm_base)
 {
 
-    return 0;
+    return;
+#if 0
 	u32 temp;
 	THDBG("HDMI Clk enable in progress\n");
 	temp = 2;
@@ -1671,7 +1672,7 @@ void enable_hdmi_clocks(u32 prcm_base)
 
 	/* Check to see module is functional */
 	while(((__raw_readl(prcm_base + CM_ACTIVE_HDMI_CLKCTRL_OFF) & 0x70000) >> 16) != 0) ;
-
+#endif
 	THDBG("HDMI Clocks enabled successfully\n");
 }
 
