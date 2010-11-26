@@ -164,7 +164,7 @@ static int __init omap_init_clocksource_32k(void)
 			return -ENODEV;
 
 		sync_32k_ick = clk_get(NULL, "omap_32ksync_ick");
-		if (sync_32k_ick)
+		if (!IS_ERR(sync_32k_ick))
 			clk_enable(sync_32k_ick);
 
 		clocksource_32k.mult = clocksource_hz2mult(32768,
