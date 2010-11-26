@@ -24,8 +24,13 @@
 #define HDMI_PER_CNT		(1u)
 #define HDMI_CORE_0_REGS	(0x46c00400u)
 #define HDMI_WP_0_REGS		(0x46c00000u)
+#ifndef CONFIG_SND_TI816X_SOC
+#define HDMI_PHY_0_REGS 	(0x46c00300u)
+#else
 #define HDMI_PHY_0_REGS 	(0x48122000u)
+#endif
 #define PRCM_0_REGS 		(0x48180000u)
+
 
 /* TODO Get the exact default value.  Will get from the IP Team.*/
 #define HDMI_PHY_DEF_DE_EMPHASIS_VAL	(0x5)

@@ -220,7 +220,7 @@ static int wp_phy_pwr_ctrl(int wp_pwr_ctrl_addr, int command)
 	{
 		case 0x0:
 		reg_value = __raw_readl(wp_pwr_ctrl_addr);
-		reg_value |= ~(HDMI_WP_PWR_CTRL_PHY_PWR_CMD_MASK);
+		reg_value &= ~(HDMI_WP_PWR_CTRL_PHY_PWR_CMD_MASK);
 		__raw_writel(reg_value, wp_pwr_ctrl_addr);
 		cnt = 0;
 		do
@@ -237,6 +237,7 @@ static int wp_phy_pwr_ctrl(int wp_pwr_ctrl_addr, int command)
 		break;
 		case 0x1:
 		reg_value = __raw_readl(wp_pwr_ctrl_addr);
+        reg_value &= ~(HDMI_WP_PWR_CTRL_PHY_PWR_CMD_MASK);
 		reg_value |= 0x1 << HDMI_WP_PWR_CTRL_PHY_PWR_CMD_SHIFT;
 		__raw_writel(reg_value, wp_pwr_ctrl_addr);
 		cnt = 0;
@@ -246,14 +247,16 @@ static int wp_phy_pwr_ctrl(int wp_pwr_ctrl_addr, int command)
 			reg_value &= HDMI_WP_PWR_CTRL_PHY_PWR_STATUS_MASK;
 			udelay(10);
 			cnt++;
-		}while(reg_value != 0x1 &&  (cnt < max_count));
-		if (reg_value != 0x1)
+		}while((reg_value >> HDMI_WP_PWR_CTRL_PHY_PWR_STATUS_SHIFT) != 0x1 &&
+			(cnt < max_count));
+		if ((reg_value  >> HDMI_WP_PWR_CTRL_PHY_PWR_STATUS_SHIFT) != 0x1)
 		{
 			ret_val = -1;
 		}
 		break;
 		case  0x2:
 		reg_value = __raw_readl(wp_pwr_ctrl_addr);
+        reg_value &= ~(HDMI_WP_PWR_CTRL_PHY_PWR_CMD_MASK);
 		reg_value |= 0x2 << HDMI_WP_PWR_CTRL_PHY_PWR_CMD_SHIFT;
 		__raw_writel(reg_value, wp_pwr_ctrl_addr);
 		cnt = 0;
@@ -263,8 +266,8 @@ static int wp_phy_pwr_ctrl(int wp_pwr_ctrl_addr, int command)
 			reg_value &= HDMI_WP_PWR_CTRL_PHY_PWR_STATUS_MASK;
 			udelay(10);
 			cnt++;
-		}while(reg_value != 0x1 &&  (cnt < max_count));
-		if (reg_value != 0x1)
+		}while((reg_value  >> HDMI_WP_PWR_CTRL_PHY_PWR_STATUS_SHIFT) != 0x2 &&  (cnt < max_count));
+		if ((reg_value >> HDMI_WP_PWR_CTRL_PHY_PWR_STATUS_SHIFT) != 0x2)
 		{
 			ret_val = -1;
 		}
@@ -292,7 +295,7 @@ static int wp_pll_pwr_ctrl(int wp_pwr_ctrl_addr, int command)
 	{
 		case 0x0:
 		reg_value = __raw_readl(wp_pwr_ctrl_addr);
-		reg_value |= ~(HDMI_WP_PWR_CTRL_PLL_PWR_CMD_MASK);
+		reg_value &= ~(HDMI_WP_PWR_CTRL_PLL_PWR_CMD_MASK);
 		__raw_writel(reg_value, wp_pwr_ctrl_addr);
 		cnt = 0;
 		do
@@ -309,6 +312,7 @@ static int wp_pll_pwr_ctrl(int wp_pwr_ctrl_addr, int command)
 		break;
 		case 0x1:
 		reg_value = __raw_readl(wp_pwr_ctrl_addr);
+        reg_value &= ~(HDMI_WP_PWR_CTRL_PLL_PWR_CMD_MASK);
 		reg_value |= 0x1 << HDMI_WP_PWR_CTRL_PLL_PWR_CMD_SHIFT;
 		__raw_writel(reg_value, wp_pwr_ctrl_addr);
 		cnt = 0;
@@ -326,6 +330,7 @@ static int wp_pll_pwr_ctrl(int wp_pwr_ctrl_addr, int command)
 		break;
 		case  0x2:
 		reg_value = __raw_readl(wp_pwr_ctrl_addr);
+        reg_value &= ~(HDMI_WP_PWR_CTRL_PLL_PWR_CMD_MASK);
 		reg_value |= 0x2 << HDMI_WP_PWR_CTRL_PLL_PWR_CMD_SHIFT;
 		__raw_writel(reg_value, wp_pwr_ctrl_addr);
 		cnt = 0;
@@ -343,6 +348,7 @@ static int wp_pll_pwr_ctrl(int wp_pwr_ctrl_addr, int command)
 		break;
 		case  0x3:
 		reg_value = __raw_readl(wp_pwr_ctrl_addr);
+        reg_value &= ~(HDMI_WP_PWR_CTRL_PLL_PWR_CMD_MASK);
 		reg_value |= 0x3 << HDMI_WP_PWR_CTRL_PLL_PWR_CMD_SHIFT;
 		__raw_writel(reg_value, wp_pwr_ctrl_addr);
 		cnt = 0;
@@ -501,6 +507,15 @@ static int configure_phy(struct instance_cfg *inst_context)
 	 */
 	phy_base = inst_context->phy_base_addr;
 	wp_base = inst_context->wp_base_addr;
+
+    /* Power on the PLL and HSDivider */
+    cmd = 0x2;
+    rtn_value = wp_pll_pwr_ctrl(wp_base + HDMI_WP_PWR_CTRL_OFFSET, cmd);
+    if (rtn_value)
+    {
+        rtn_value = -1;
+		goto exit;
+    }
 	/* change LDO to on state */
 	cmd = 1;
 	rtn_value = wp_phy_pwr_ctrl(wp_base + HDMI_WP_PWR_CTRL_OFFSET, cmd);
@@ -521,7 +536,7 @@ static int configure_phy(struct instance_cfg *inst_context)
 	/* Dummy access performed to solve resetdone issue */
 	__raw_readl(phy_base + HDMI_PHY_TX_CTRL_OFF);
 
-	/* TX Control */
+	/* TX Control bit 30 set according to pixel clock frequencies*/
 	temp = __raw_readl(phy_base + HDMI_PHY_TX_CTRL_OFF);
 	switch (inst_context->config.display_mode)
 	{
@@ -562,7 +577,26 @@ static int configure_phy(struct instance_cfg *inst_context)
 #endif
 	__raw_writel(temp, phy_base + HDMI_PHY_TX_CTRL_OFF);
 
-/* Same as OMAP4 */
+/* According to OMAP4 */
+	/* Power Control */
+	temp = __raw_readl(phy_base + HDMI_PHY_PWR_CTRL_OFF);
+	/* setup max LDO voltage */
+	temp |= HDMI_PHY_DEF_LDO_VOLTAGE_VAL << 0;
+	__raw_writel(temp, phy_base + HDMI_PHY_PWR_CTRL_OFF);
+
+	/* Pad configuration Control */
+	temp = __raw_readl(phy_base + HDMI_PHY_PAD_CFG_CTRL_OFF);
+	/* Normal polarity for all the links */
+    temp |= 0x1 << 31;
+	temp |= 0x0 << 30;
+	temp |= 0x0 << 29;
+	temp |= 0x0 << 28;
+	temp |= 0x0 << 27;
+
+    /* Channel assignement is 10101 – D2- D1 –D0-CLK */
+    temp |=  0x21 << 22;
+	__raw_writel(temp, phy_base + HDMI_PHY_PAD_CFG_CTRL_OFF);
+
 	/* Digital control */
 	temp = __raw_readl(phy_base + HDMI_PHY_DIGITAL_CTRL_OFF);;
 	/* Use bit 30 from this register as the enable signal for the TMDS */
@@ -574,24 +608,6 @@ static int configure_phy(struct instance_cfg *inst_context)
 	/* Tx Valid enable TODO*/
 	temp |= 1 << 28;
 	__raw_writel(temp, phy_base + HDMI_PHY_DIGITAL_CTRL_OFF);
-
-/* According to OMAP4 */
-	/* Power Control */
-	temp = __raw_readl(phy_base + HDMI_PHY_PWR_CTRL_OFF);
-	/* setup max LDO voltage */
-	temp |= HDMI_PHY_DEF_LDO_VOLTAGE_VAL << 0;
-	__raw_writel(temp, phy_base + HDMI_PHY_PWR_CTRL_OFF);
-
-	/* Pad configuration Control */
-	temp = __raw_readl(phy_base + HDMI_PHY_PAD_CFG_CTRL_OFF);
-	/* Normal polarity for all the links
-	 * TODO OMAP4 has changed polarity for the clk why??
-	 */
-	temp |= 0x0 << 30;
-	temp |= 0x0 << 29;
-	temp |= 0x0 << 28;
-	temp |= 0x0 << 27;
-	__raw_writel(temp, phy_base + HDMI_PHY_PAD_CFG_CTRL_OFF);
 #if 0
 	/* Trim and Test Control */
 	/* TODO Don't use the Bandgap values */
@@ -1623,6 +1639,7 @@ int get_phy_status(struct instance_cfg *inst_context,
 	return -EINVAL;
 }
 #endif
+#ifdef CONFIG_SND_TI816X_SOC
 void enable_hdmi_clocks(u32 prcm_base)
 {
 	u32 temp;
@@ -1643,7 +1660,31 @@ void enable_hdmi_clocks(u32 prcm_base)
 
 	THDBG("HDMI Clocks enabled successfully\n");
 }
+#else
+void enable_hdmi_clocks(u32 prcm_base)
+{
 
+    return 0;
+	u32 temp;
+	THDBG("HDMI Clk enable in progress\n");
+	temp = 2;
+	/*Enable Power Domain Transition for HDMI */
+	__raw_writel(temp, (prcm_base + CM_HDMI_CLKSTCTRL_OFF));
+	/*Enable HDMI Clocks*/
+	__raw_writel(temp, (prcm_base + CM_ACTIVE_HDMI_CLKCTRL_OFF));
+
+	/*Check clocks are active*/
+	while(((__raw_readl(prcm_base + CM_HDMI_CLKSTCTRL_OFF)) >> 8) != 0x3);
+
+	THDBG("HDMI Clk enanbled\n");
+
+	/* Check to see module is functional */
+	while(((__raw_readl(prcm_base + CM_ACTIVE_HDMI_CLKCTRL_OFF) & 0x70000) >> 16) != 0) ;
+
+	THDBG("HDMI Clocks enabled successfully\n");
+}
+
+#endif
 
 /* Ideally vencs should be configured from the HDVPSS drivers.	But in case
  * we want to test the HDMI this fuction can be used to generate the test
