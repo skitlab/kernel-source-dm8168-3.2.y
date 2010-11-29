@@ -287,8 +287,9 @@ int __init ti81xx_hdmi_init(void)
 	initParams.phy_base_addr      =   (u32) hdmi_obj.phy_v_addr;
 	initParams.prcm_base_addr     =   (u32) hdmi_obj.prcm_v_addr;
 	initParams.venc_base_addr     =   (u32) hdmi_obj.venc_v_addr;
+#ifndef CONFIG_SND_TI816X_SOC
     initParams.hdmi_pll_base_addr =   (u32) hdmi_obj.hdmi_pll_v_addr;
-
+#endif
 
 	/* Set the HDMI user to proper value if not set correctly */
 	if (hdmi_mode != -1 && (hdmi_mode < 0 || hdmi_mode >= hdmi_max_mode))
@@ -333,8 +334,9 @@ void __exit ti81xx_hdmi_exit(void)
 	iounmap((int *)hdmi_obj.phy_v_addr);
 	iounmap((int *)hdmi_obj.prcm_v_addr);
 	iounmap((int *)hdmi_obj.venc_v_addr);
+#ifndef CONFIG_SND_TI816X_SOC
     iounmap((int *)hdmi_obj.hdmi_pll_v_addr);
-
+#endif
 }
 module_param_named(hdmi_mode, hdmi_mode, int, 0664);
 
