@@ -42,6 +42,9 @@ struct ti81xx_hdmi_params
 	u32 phy_v_addr;
 	u32 prcm_v_addr;
 	u32 venc_v_addr;
+#ifndef CONFIG_SND_TI816X_SOC
+    u32 hdmi_pll_v_addr;
+#endif
 	int i;
 };
 
@@ -267,14 +270,25 @@ int __init ti81xx_hdmi_init(void)
 		printk("TI81xx_hdmi: Could not ioremap for Venc\n");
 		goto err_remove_class;
 	} else {
-		THDBG("PHY at address %x\n", hdmi_obj.venc_v_addr);
+		printk("PHY at address %x\n", hdmi_obj.venc_v_addr);
 	}
+#ifndef CONFIG_SND_TI816X_SOC
+    hdmi_obj.hdmi_pll_v_addr = (volatile u32) ioremap(0x481c5200, 0x80);
+	if (hdmi_obj.hdmi_pll_v_addr == 0x0){
+		printk("TI81xx_hdmi: Could not ioremap for HDMI PLL\n");
+		goto err_remove_class;
+	} else {
+		printk("HDMI PLL at address %x\n", hdmi_obj.hdmi_pll_v_addr);
+	}
+#endif
 	/* Initialize the HDMI library */
 	initParams.wp_base_addr       =   (u32) hdmi_obj.wp_v_addr;
 	initParams.core_base_addr     =   (u32) hdmi_obj.core_v_addr;
 	initParams.phy_base_addr      =   (u32) hdmi_obj.phy_v_addr;
 	initParams.prcm_base_addr     =   (u32) hdmi_obj.prcm_v_addr;
 	initParams.venc_base_addr     =   (u32) hdmi_obj.venc_v_addr;
+    initParams.hdmi_pll_base_addr =   (u32) hdmi_obj.hdmi_pll_v_addr;
+
 
 	/* Set the HDMI user to proper value if not set correctly */
 	if (hdmi_mode != -1 && (hdmi_mode < 0 || hdmi_mode >= hdmi_max_mode))
@@ -319,6 +333,8 @@ void __exit ti81xx_hdmi_exit(void)
 	iounmap((int *)hdmi_obj.phy_v_addr);
 	iounmap((int *)hdmi_obj.prcm_v_addr);
 	iounmap((int *)hdmi_obj.venc_v_addr);
+    iounmap((int *)hdmi_obj.hdmi_pll_v_addr);
+
 }
 module_param_named(hdmi_mode, hdmi_mode, int, 0664);
 

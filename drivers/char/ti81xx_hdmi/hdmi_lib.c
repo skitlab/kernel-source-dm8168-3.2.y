@@ -136,6 +136,7 @@ struct instance_cfg {
 	u32 vSync_counter;
 	bool is_interlaced;
 	enum ti81xxhdmi_mode hdmi_mode;
+    u32 hdmi_pll_base_addr;
 };
 
 /* ========================================================================== */
@@ -191,6 +192,11 @@ struct hdmi_cfg_params config_720p60 = TI81XX_HDMI_8BIT_720_60_16_9_HD;
 struct hdmi_cfg_params config_1080i60 = TI81XX_HDMI_8BIT_1080i_60_16_9_HD;
 struct hdmi_cfg_params config_1080p30 = TI81XX_HDMI_8BIT_1080p_30_16_9_HD;
 
+struct hdmi_pll_ctrl gpll_ctrl[] = {
+                                        {19, 1485, 10, 0x20021001},
+                                        {19, 745,   5, 0x20021001}
+                                  };
+
 /* ========================================================================== */
 /*				Local Functions 			      */
 /* ========================================================================== */
@@ -204,8 +210,8 @@ struct hdmi_cfg_params config_1080p30 = TI81XX_HDMI_8BIT_1080p_30_16_9_HD;
 static int wp_phy_pwr_ctrl(int wp_pwr_ctrl_addr, int command)
 {
 	volatile u32 reg_value;
-	unsigned int cnt = 0;
-	unsigned int max_count = 10000;
+	u32 cnt = 0;
+	u32 max_count = 10000;
 	int ret_val = 0;
 	switch (command)
 	{
@@ -279,8 +285,8 @@ static int wp_phy_pwr_ctrl(int wp_pwr_ctrl_addr, int command)
 static int wp_pll_pwr_ctrl(int wp_pwr_ctrl_addr, int command)
 {
 	volatile u32 reg_value;
-	unsigned int cnt = 0;
-	unsigned int max_count = 10000;
+	u32 cnt = 0;
+	u32 max_count = 10000;
 	int ret_val = 0;
 	switch (command)
 	{
@@ -1593,7 +1599,7 @@ int get_phy_status(struct instance_cfg *inst_context,
 {
 	int rtn_value = 0;
 	int phy_base;
-	unsigned int temp;
+	u32 temp;
 
 	THDBG(">>>>get_phy_status\n");
 	phy_base = inst_context->phy_base_addr;
@@ -1654,26 +1660,103 @@ void enable_hdmi_clocks(u32 prcm_base)
 #else
 void enable_hdmi_clocks(u32 prcm_base)
 {
-
-    return;
-#if 0
 	u32 temp;
-	THDBG("HDMI Clk enable in progress\n");
-	temp = 2;
+
+    THDBG("HDMI Clk enable in progress\n");
+    printk("HDMI Clk enable in progress\n");
+    temp = 2;
 	/*Enable Power Domain Transition for HDMI */
-	__raw_writel(temp, (prcm_base + CM_HDMI_CLKSTCTRL_OFF));
-	/*Enable HDMI Clocks*/
-	__raw_writel(temp, (prcm_base + CM_ACTIVE_HDMI_CLKCTRL_OFF));
+	__raw_writel(temp, (prcm_base + CM_ALWON_SDIO_CLKCTRL));
 
 	/*Check clocks are active*/
-	while(((__raw_readl(prcm_base + CM_HDMI_CLKSTCTRL_OFF)) >> 8) != 0x3);
+	while(((__raw_readl(prcm_base + CM_ALWON_SDIO_CLKCTRL)) >> 16) != 0x0);
 
-	THDBG("HDMI Clk enanbled\n");
+    printk("HDMI Clk enable in progress_1\n");
+	temp = 2;
+	/*Enable Power Domain Transition for HDMI */
+	__raw_writel(temp, (prcm_base + CM_HDMI_CLKCTRL_OFF));
 
-	/* Check to see module is functional */
-	while(((__raw_readl(prcm_base + CM_ACTIVE_HDMI_CLKCTRL_OFF) & 0x70000) >> 16) != 0) ;
-#endif
+	/*Check clocks are active*/
+	while(((__raw_readl(prcm_base + CM_HDMI_CLKCTRL_OFF)) >> 16) != 0x0);
+
+    printk("HDMI Clk enable in progress_2\n");
 	THDBG("HDMI Clocks enabled successfully\n");
+}
+
+#endif
+
+#ifndef CONFIG_SND_TI816X_SOC
+static void configure_hdmi_pll(volatile u32  b_addr,
+                                u32 __n,
+                                u32 __m,
+                                u32 __m2,
+                                u32 clkctrl_val)
+{
+    u32 m2nval, mn2val, read_clkctrl;
+    u32 read_m2nval, read_mn2val;
+    volatile u32 repeatCnt = 0;
+    m2nval = (__m2 << 16) | __n;
+    mn2val =  __m;
+    /*ref_clk     = OSC_FREQ/(__n+1);
+    clkout_dco  = ref_clk*__m;
+    clk_out     = clkout_dco/__m2;
+    */
+
+    printk("__n=%d __m=%d __m2 = %d\n", __n, __m,__m2);
+    printk("m2nval written at %x\n", (b_addr+HDMI_PLL_M2NDIV_OFF));
+    __raw_writel(m2nval, (b_addr+HDMI_PLL_M2NDIV_OFF));
+    read_m2nval = __raw_readl((b_addr+HDMI_PLL_M2NDIV_OFF));
+
+    printk("mn2Val written at %X\n", b_addr+HDMI_PLL_MN2DIV_OFF);
+    __raw_writel(mn2val, (b_addr+HDMI_PLL_MN2DIV_OFF));
+    read_mn2val = __raw_readl((b_addr+HDMI_PLL_MN2DIV_OFF));
+
+    printk("readValues = %x %x\n", read_m2nval, read_mn2val);
+
+
+
+
+    __raw_writel(0x1, (b_addr+HDMI_PLL_TENABLEDIV_OFF));
+
+    __raw_writel(0x0, (b_addr+HDMI_PLL_TENABLEDIV_OFF));
+
+    __raw_writel(0x1, (b_addr+HDMI_PLL_TENABLE_OFF));
+
+    __raw_writel(0x0, (b_addr+HDMI_PLL_TENABLE_OFF));
+
+    read_clkctrl = __raw_readl(b_addr+HDMI_PLL_CLKCTRL_OFF);
+
+    /*configure the TINITZ(bit0) and CLKDCO bits if required */
+    __raw_writel((read_clkctrl & 0xff7fe3ff) | clkctrl_val, b_addr+HDMI_PLL_CLKCTRL_OFF);
+
+    read_clkctrl = __raw_readl(b_addr+HDMI_PLL_CLKCTRL_OFF);
+
+
+    /* poll for the freq,phase lock to occur */
+    repeatCnt = 0u;
+
+    while (repeatCnt < VPS_PRCM_MAX_REP_CNT)
+    {
+        if (((__raw_readl(b_addr+HDMI_PLL_STATUS_OFF)) & 0x00000600) == 0x00000600)
+        {
+            break;
+        }
+        /* Wait for the 100 cycles */
+        udelay(100);
+        repeatCnt++;
+    }
+
+    if (((__raw_readl(b_addr+HDMI_PLL_STATUS_OFF)) & 0x00000600) == 0x00000600)
+    {
+        /*printk("PLL Locked\n");*/
+    }
+    else
+    {
+        printk("PLL Not Getting Locked!!!\n");
+    }
+
+    /*wait fot the clocks to get stabized */
+    udelay(100);
 }
 
 #endif
@@ -1983,6 +2066,8 @@ int ti81xx_hdmi_lib_init(struct ti81xx_hdmi_init_params *init_param,
 	hdmi_config.phy_base_addr = init_param->phy_base_addr;
 	hdmi_config.prcm_base_addr = init_param->prcm_base_addr;
 	hdmi_config.venc_base_addr = init_param->venc_base_addr;
+    hdmi_config.hdmi_pll_base_addr = init_param->hdmi_pll_base_addr;
+
 	enable_hdmi_clocks(hdmi_config.prcm_base_addr);
 
         if (-1 != hdmi_mode)
@@ -2178,7 +2263,11 @@ exit_this_func:
 int ti81xx_hdmi_set_mode(enum ti81xxhdmi_mode hdmi_mode,
 	struct instance_cfg *cfg)
 {
+    printk("%s %d\n", __func__, __LINE__);
 	int rtn_value = 0;
+#ifndef CONFIG_SND_TI816X_SOC
+    struct hdmi_pll_ctrl *pll_ctrl;
+#endif
 	if (!cfg)
 	{
 		rtn_value = -EFAULT ;
@@ -2190,6 +2279,31 @@ int ti81xx_hdmi_set_mode(enum ti81xxhdmi_mode hdmi_mode,
 		goto exit_this_func;
 	}
 	ti81xx_hdmi_copy_mode_config(hdmi_mode, cfg);
+#ifndef CONFIG_SND_TI816X_SOC
+    /* Set the PLL according to the mode selected */
+    switch (hdmi_mode)
+	{
+        case hdmi_1080P_30_mode:
+        case hdmi_1080I_60_mode:
+        case hdmi_720P_60_mode:
+            printk("%s %d\n", __func__, __LINE__);
+            pll_ctrl = &gpll_ctrl[1];
+            break;
+        case hdmi_1080P_60_mode:
+            printk("%s %d\n", __func__, __LINE__);
+            pll_ctrl = &gpll_ctrl[0];
+            break;
+        default:
+            printk("Mode passed is incorrect\n");
+            pll_ctrl = &gpll_ctrl[1];
+    }
+    printk("HDMI pll base address = %x\n", cfg->hdmi_pll_base_addr);
+    configure_hdmi_pll(cfg->hdmi_pll_base_addr, pll_ctrl->__n, pll_ctrl->__m,
+                pll_ctrl->__m2, pll_ctrl->clk_ctrl_value);
+#endif
+
+
+
 	rtn_value = ti81xx_hdmi_lib_config(&cfg->config);
 exit_this_func:
 	return rtn_value;

@@ -33,6 +33,8 @@
 /* TODO Get the exact values for the threshold detection */
 #define HDMI_PHY_DEF_VTHRESHPU_CNTL_VAL  (0x0)
 
+#define VPS_PRCM_MAX_REP_CNT                    (10u)
+
 /* Width of R/G/B or Y/Cb/Cr channels */
 enum hdmi_bits_per_chan {
 	hdmi_8_bits_chan_width = 0x0,
@@ -59,6 +61,19 @@ enum hdmi_wp_packmode {
 	hdmi_wp_20bit_YUV444,
 	hdmi_wp_16bit_YUV422,
 	hdmi_wp_no_pack = 0x7
+};
+
+/* \brief structure to keep track of pll configurations for a video mode */
+struct hdmi_pll_ctrl
+{
+    u32                  __n;
+    /**< Divider N for the PLL.*/
+    u32                  __m;
+    /**< Multiplier M for the PLL.*/
+    u32                  __m2;
+    /**< Divider M2 for the PLL.*/
+    u32                  clk_ctrl_value;
+    /**< For comparison based on the clkOut used */
 };
 
 /*	YCbCr to RGB CSC coefficients */
@@ -285,6 +300,7 @@ struct ti81xx_hdmi_init_params {
 	u32 phy_base_addr;
 	u32 prcm_base_addr;
 	u32 venc_base_addr;
+    u32 hdmi_pll_base_addr;
 };
 
 /* ========================================================================== */
