@@ -1,18 +1,3 @@
-/*******************************************************************************
- *                                                                             *
- * Copyright (c) 2009 Texas Instruments Incorporated - http://www.ti.com/      *
- *                        ALL RIGHTS RESERVED                                  *
- *                                                                             *
- ******************************************************************************/
-
-/**
- *  \file regoffsets.h
- *
- *  \brief HDMI file containing the register offsets, masks and shifts for
- * the register bit fields.
- *
- */
-
 /*********************************PHY Registers********************************/
 /* PHY registers for TI816x  */
 #ifdef CONFIG_SND_TI816X_SOC

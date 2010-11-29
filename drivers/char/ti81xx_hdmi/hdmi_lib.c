@@ -1,17 +1,8 @@
 /*******************************************************************************
- *                                                                             *
- * Copyright (c) 2009 Texas Instruments Incorporated - http://www.ti.com/      *
- *                        ALL RIGHTS RESERVED                                  *
- *                                                                             *
+ *									       *
+ * TODO GPL
+									       *
  ******************************************************************************/
-
-/**
- *  \file hdmi_lib.c
- *
- *  \brief HDMI library file. This library file interacts with the hardware
- *  directly setting the registers.
- *
- */
 
 /**
  * Key notes

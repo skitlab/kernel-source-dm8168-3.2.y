@@ -1,16 +1,16 @@
-/*******************************************************************************
- *                                                                             *
- * Copyright (c) 2009 Texas Instruments Incorporated - http://www.ti.com/      *
- *                        ALL RIGHTS RESERVED                                  *
- *                                                                             *
- ******************************************************************************/
-
-/**
- *  \file ti81xx_hdmi.c
+/*
+ * TI81XX HDMI Driver.
  *
- *  \brief HDMI driver file which interacts with the application and
- *  Linux device driver model.
+ * Copyright (C) 2010 Texas Instruments, Incorporated
  *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation version 2.
+ *
+ * This program is distributed "as is" WITHOUT ANY WARRANTY of any
+ * kind, whether express or implied; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -56,12 +56,12 @@ static int  hdmi_mode = -1;
 static int ti81xx_hdmi_major;
 static struct cdev ti81xx_hdmi_cdev;
 static dev_t ti81xx_hdmi_dev_id;
-//static struct device *ti81xx_hdmi_device;
-//static struct class *ti81xx_hdmi_class = NULL;
+static struct device *ti81xx_hdmi_device;
+static struct class *ti81xx_hdmi_class = NULL;
 
-//static void ti81xx_hdmi_platform_release(struct device *device);
-//static int __init ti81xx_hdmi_probe(struct device *device);
-//static int ti81xx_hdmi_remove(struct device *device);
+static void ti81xx_hdmi_platform_release(struct device *device);
+static int __init ti81xx_hdmi_probe(struct device *device);
+static int ti81xx_hdmi_remove(struct device *device);
 static int ti81xx_hdmi_open(struct inode *inode, struct file *filp);
 static int ti81xx_hdmi_release(struct inode *inode, struct file *filp);
 static int ti81xx_hdmi_ioctl(struct inode *inode, struct file *file,
@@ -73,15 +73,14 @@ static struct file_operations ti81xx_hdmi_fops = {
 	.release = ti81xx_hdmi_release,
 	.ioctl = ti81xx_hdmi_ioctl,
 };
-#if 0
+
 static struct device_driver ti81xx_hdmi_driver = {
 	.name = TI81XX_HDMI_DRIVER_NAME,
 	.bus = &platform_bus_type,
 	.probe = ti81xx_hdmi_probe,
 	.remove = ti81xx_hdmi_remove,
 };
-#endif
-#if 0
+
 static struct platform_device ti81xx_hdmi_plat_device = {
 	.name = TI81XX_HDMI_DRIVER_NAME,
 	.id = 2,
@@ -89,7 +88,7 @@ static struct platform_device ti81xx_hdmi_plat_device = {
 	   .release = ti81xx_hdmi_platform_release,
 	}
 };
-#endif
+
 /*
  * ti81xx_hdmi_open: This function opens hdmi driver.
  */
@@ -148,7 +147,7 @@ static int ti81xx_hdmi_ioctl(struct inode *inode, struct file *file,
 	THDBG("TI81xx_hdmi: Ioctl\n");
 	return (ti81xx_hdmi_lib_control(handle, cmd, (void *)arg, NULL));
 }
-#if 0
+
 static void ti81xx_hdmi_platform_release(struct device *device)
 {
 		/* this is called when the reference count goes to zero */
@@ -163,7 +162,6 @@ static int ti81xx_hdmi_remove(struct device *device)
 	THDBG("TI81xx_hdmi: remove\n");
 		return 0;
 }
-#endif
 
 /**
  * ti81xx_hdmi_init() - Initialize TI81XX HDMI Driver
@@ -180,7 +178,7 @@ int __init ti81xx_hdmi_init(void)
 	}
 
 	ti81xx_hdmi_major = MAJOR(ti81xx_hdmi_dev_id);
-     printk("Major Number %d MinorNumber %d\n",  MAJOR(ti81xx_hdmi_dev_id),  MINOR(ti81xx_hdmi_dev_id));
+/*     printk("Major Number %d MinorNumber %d\n",  MAJOR(ti81xx_hdmi_dev_id),  MINOR(ti81xx_hdmi_dev_id));*/
 
 	/* initialize character device */
 	cdev_init(&ti81xx_hdmi_cdev, &ti81xx_hdmi_fops);
@@ -193,7 +191,7 @@ int __init ti81xx_hdmi_init(void)
 		printk("TI81xx_hdmi: Could not add hdmi char driver\n");
 		goto err_remove_region;
 	}
-#if 0
+
 	/* register driver as a platform driver */
 	result = driver_register(&ti81xx_hdmi_driver);
 	if (result) {
@@ -207,8 +205,7 @@ int __init ti81xx_hdmi_init(void)
 		printk("TI81xx_hdmi: Cound register as platform device\n");
 		goto err_driver_unregister;
 	}
-#endif
-#if 0
+
 	ti81xx_hdmi_class = class_create(THIS_MODULE, TI81XX_HDMI_DRIVER_NAME);
 	if (IS_ERR(ti81xx_hdmi_class)) {
 		result = -EIO;
@@ -224,7 +221,7 @@ int __init ti81xx_hdmi_init(void)
 		printk("TI81xx_hdmi: Cound not create device file\n");
 		goto err_remove_class;
 	}
-#endif
+
 	hdmi_obj.prcm_v_addr = (int) ioremap(PRCM_0_REGS, 0x500);
 	if (hdmi_obj.prcm_v_addr == 0x0){
 		printk("TI81xx_hdmi: Could not ioremap for PRCM\n");
@@ -292,12 +289,12 @@ int __init ti81xx_hdmi_init(void)
 	return 0;
 
 err_remove_class:
-	//class_destroy(ti81xx_hdmi_class);
+	class_destroy(ti81xx_hdmi_class);
 err_remove_platform_device:
-	//platform_device_unregister(&ti81xx_hdmi_plat_device);
+	platform_device_unregister(&ti81xx_hdmi_plat_device);
 err_driver_unregister:
-	//driver_unregister(&ti81xx_hdmi_driver);
-//err_remove_cdev:
+	driver_unregister(&ti81xx_hdmi_driver);
+err_remove_cdev:
 	cdev_del(&ti81xx_hdmi_cdev);
 err_remove_region:
 	unregister_chrdev_region(ti81xx_hdmi_dev_id, 1);
@@ -311,10 +308,10 @@ err_exit:
 void __exit ti81xx_hdmi_exit(void)
 {
 	ti81xx_hdmi_lib_deinit(NULL);
-	//device_destroy(ti81xx_hdmi_class, ti81xx_hdmi_dev_id);
-	//class_destroy(ti81xx_hdmi_class);
-	//platform_device_unregister(&ti81xx_hdmi_plat_device);
-	//driver_unregister(&ti81xx_hdmi_driver);
+	device_destroy(ti81xx_hdmi_class, ti81xx_hdmi_dev_id);
+	class_destroy(ti81xx_hdmi_class);
+	platform_device_unregister(&ti81xx_hdmi_plat_device);
+	driver_unregister(&ti81xx_hdmi_driver);
 	cdev_del(&ti81xx_hdmi_cdev);
 	unregister_chrdev_region(ti81xx_hdmi_dev_id, 1);
 	iounmap((int *)hdmi_obj.wp_v_addr);
@@ -327,4 +324,5 @@ module_param_named(hdmi_mode, hdmi_mode, int, 0664);
 
 module_init(ti81xx_hdmi_init);
 module_exit(ti81xx_hdmi_exit);
-MODULE_LICENSE("BSD");
+MODULE_LICENSE("GPL");
+

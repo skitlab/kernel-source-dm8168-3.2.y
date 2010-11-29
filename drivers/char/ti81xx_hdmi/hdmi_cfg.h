@@ -1,16 +1,8 @@
 /*******************************************************************************
- *                                                                             *
- * Copyright (c) 2009 Texas Instruments Incorporated - http://www.ti.com/      *
- *                        ALL RIGHTS RESERVED                                  *
- *                                                                             *
+ *																			   *
+ * TODO GPL
+ *																			   *
  ******************************************************************************/
-
-/**
- *  \file hdmi_cfg.h
- *
- *  \brief Header file for the HDMI driver to communicate to HDMI library
- *
- */
 
 #ifndef _HDMI_CFG_H
 #define _HDMI_CFG_H
