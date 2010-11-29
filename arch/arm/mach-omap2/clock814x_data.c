@@ -2328,10 +2328,16 @@ static struct clk audio_dpll_clk5_ck = {
 	.recalc		= &followparent_recalc,
 };
 
+static const struct clksel sysclk18_a_div[] = {
+	{ .parent = &rtc_divider_out_ck, .rates = div8_default1_rates },
+	{ .parent = NULL },
+};
+
 /* Audio DPLL out Clock1 */
 static struct clk audio_dpll_clk1_ck = {
 	.name		= "audio_dpll_clk1_ck",
 	.parent		= &rtc_divider_out_ck,
+	.clksel		= sysclk18_a_div,
 	.ops		= &clkops_null,
 	.init		= &omap2_init_clksel_parent,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
@@ -2351,35 +2357,20 @@ static const struct clksel audio_prcm_mux_sel[] = {
 static struct clk audio_prcm_clkin_ck = {
 	.name		= "audio_prcm_clkin_ck",
 	.parent		= &rtc_divider_out_ck,
-	.clksel		= audio_prcm_mux_sel,
-	.ops		= &clkops_null,
-	.recalc		= &followparent_recalc,
-};
-
-static const struct clksel sysclk18_a_div[] = {
-	{ .parent = &audio_dpll_clk1_ck, .rates = div8_default1_rates },
-	{ .parent = NULL },
-};
-
-/* SYSCLK18 muxo input */
-static struct clk sysclk18_amux_ck = {
-	.name		= "sysclk18_amux_ck",
-	.parent		= &audio_dpll_clk1_ck,
-	.clksel		= sysclk18_a_div,
 	.ops		= &clkops_null,
 	.recalc		= &followparent_recalc,
 };
 
 static const struct clksel sysclk18_mux_sel[] = {
-	{ .parent = &sysclk18_amux_ck, .rates = div_1_0_rates },
-	{ .parent = &audio_prcm_clkin_ck, .rates = div_1_1_rates },
+	{ .parent = &audio_prcm_clkin_ck, .rates = div_1_0_rates },
+	{ .parent = &audio_dpll_clk1_ck, .rates = div_1_1_rates },
 	{ .parent = NULL}
 };
 
 /* SYSCLK18 */
 static struct clk sysclk18_ck = {
 	.name		= "sysclk18_ck",
-	.parent		= &audio_dpll_clk1_ck,
+	.parent		= &audio_prcm_clkin_ck,
 	.clksel		= sysclk18_mux_sel,
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= TI81XX_CM_DPLL_SYSCLK18_CLKSEL,
@@ -3347,8 +3338,7 @@ static struct omap_clk ti814x_clks[] = {
 	CLK(NULL,		"audio_dpll_clk3_ck",		&audio_dpll_clk3_ck,		CK_TI814X),
 	CLK(NULL,		"audio_dpll_clk5_ck",		&audio_dpll_clk5_ck,		CK_TI814X),
 	CLK(NULL,		"audio_dpll_clk1_ck",		&audio_dpll_clk1_ck,		CK_TI814X),
-	CLK(NULL,		"audio_dpll_clkin_ck",		&audio_dpll_clkin_ck,		CK_TI814X),
-	CLK(NULL,		"sysclk18_amux_ck",		&sysclk18_amux_ck,		CK_TI814X),
+	CLK(NULL,		"audio_prcm_clkin_ck",		&audio_prcm_clkin_ck,		CK_TI814X),
 	CLK(NULL,		"sysclk18_ck",			&sysclk18_ck,			CK_TI814X),
 	CLK(NULL,		"sysclk19_ck",			&sysclk19_ck,			CK_TI814X),
 	CLK(NULL,		"sysclk20_ck",			&sysclk20_ck,			CK_TI814X),
