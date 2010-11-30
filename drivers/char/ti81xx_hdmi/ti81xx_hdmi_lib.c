@@ -2288,11 +2288,14 @@ int ti81xx_hdmi_set_mode(enum ti81xxhdmi_mode hdmi_mode,
 		case hdmi_1080P_30_mode:
 		case hdmi_1080I_60_mode:
 		case hdmi_720P_60_mode:
+		case hdmi_1080P_60_mode:
 			pll_ctrl = &gpll_ctrl[1];
 			break;
+#if 0
 		case hdmi_1080P_60_mode:
 			pll_ctrl = &gpll_ctrl[0];
 			break;
+#endif
 		default:
 			printk("Mode passed is incorrect\n");
 			pll_ctrl = &gpll_ctrl[1];
