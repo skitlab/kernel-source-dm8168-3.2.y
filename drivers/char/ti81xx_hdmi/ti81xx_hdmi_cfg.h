@@ -79,14 +79,14 @@ enum hdmi_wp_packmode {
 /* \brief structure to keep track of pll configurations for a video mode */
 struct hdmi_pll_ctrl
 {
-    u32                  __n;
-    /**< Divider N for the PLL.*/
-    u32                  __m;
-    /**< Multiplier M for the PLL.*/
-    u32                  __m2;
-    /**< Divider M2 for the PLL.*/
-    u32                  clk_ctrl_value;
-    /**< For comparison based on the clkOut used */
+	u32                  __n;
+	/**< Divider N for the PLL.*/
+	u32                  __m;
+	/**< Multiplier M for the PLL.*/
+	u32                  __m2;
+	/**< Divider M2 for the PLL.*/
+	u32                  clk_ctrl_value;
+	/**< For comparison based on the clkOut used */
 };
 
 /*	YCbCr to RGB CSC coefficients */
@@ -313,7 +313,7 @@ struct ti81xx_hdmi_init_params {
 	u32 phy_base_addr;
 	u32 prcm_base_addr;
 	u32 venc_base_addr;
-    u32 hdmi_pll_base_addr;
+	u32 hdmi_pll_base_addr;
 };
 
 /* ========================================================================== */
@@ -321,7 +321,7 @@ struct ti81xx_hdmi_init_params {
 /* ========================================================================== */
 
 int ti81xx_hdmi_lib_init(struct ti81xx_hdmi_init_params *initParams,
-	enum ti81xxhdmi_mode hdmi_mode);
+		enum ti81xxhdmi_mode hdmi_mode);
 
 int ti81xx_hdmi_lib_deinit(void *args);
 
@@ -333,172 +333,172 @@ int ti81xx_hdmi_lib_start(void *handle, void *args);
 int ti81xx_hdmi_lib_stop(void *handle, void *args);
 
 int ti81xx_hdmi_lib_control(void *handle, u32 cmd, void *cmdArgs,
-			void *additionalArgs);
+		void *additionalArgs);
 /* ========================================================================== */
 /*		   Defaults used to initialize different modes	 	      */
 /* ========================================================================== */
 #define TI81xx_HDMIWPCONFIG_10BIT_IF_SALVE {\
-					0x14, \
-					0x14, \
-					TRUE, \
-					hdmi_wp_30bit_RGB_YUV444,\
-					FALSE, \
-					FALSE, \
-					\
-					hdmi_10_bits_chan_width, \
-					TRUE, TRUE, 0x0, 0x0, 0x0, 0x0, 0x0,\
-					 0x0 }
+	0x14, \
+	0x14, \
+	TRUE, \
+	hdmi_wp_30bit_RGB_YUV444,\
+	FALSE, \
+	FALSE, \
+	\
+	hdmi_10_bits_chan_width, \
+	TRUE, TRUE, 0x0, 0x0, 0x0, 0x0, 0x0,\
+	0x0 }
 #define TI81xx_HDMIWPCONFIG_8BIT_IF_SALVE {\
-					0x14, \
-					0x14, \
-					TRUE, \
-					hdmi_wp_24bit_RGB_YUV444_YUV422,\
-					FALSE, \
-					FALSE, \
-					\
-					hdmi_8_bits_chan_width, \
-					TRUE, TRUE, 0x0, 0x0, 0x0, 0x0, 0x0,\
-					0x0}
+	0x14, \
+	0x14, \
+	TRUE, \
+	hdmi_wp_24bit_RGB_YUV444_YUV422,\
+	FALSE, \
+	FALSE, \
+	\
+	hdmi_8_bits_chan_width, \
+	TRUE, TRUE, 0x0, 0x0, 0x0, 0x0, 0x0,\
+	0x0}
 
 #define TI81XX_HDMICORE_IPCFG_10BIT_IF_SRCD_SYNC {\
-					hdmi_10_bits_chan_width,\
-					hdmi_source_syncs,\
-					{0x0, 0x0, 0x0, 0x0, 0x0, 0x0},\
-					TRUE}
+	hdmi_10_bits_chan_width,\
+	hdmi_source_syncs,\
+	{0x0, 0x0, 0x0, 0x0, 0x0, 0x0},\
+	TRUE}
 #define TI81XX_HDMICORE_IPCFG_8BIT_IF_SRCD_SYNC {\
-					hdmi_8_bits_chan_width,\
-					hdmi_source_syncs,\
-					{0x0, 0x0, 0x0, 0x0, 0x0, 0x0},\
-					TRUE}
+	hdmi_8_bits_chan_width,\
+	hdmi_source_syncs,\
+	{0x0, 0x0, 0x0, 0x0, 0x0, 0x0},\
+	TRUE}
 #define TI81XX_HDMICSC_YCBCR2RGB_COEFF {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,\
-					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,\
-					0x0}
+	0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,\
+	0x0}
 #define TI81XX_HDMICSC_YCBCR2RGBCTRL_DISABLED {FALSE, \
-						FALSE, \
-						FALSE, \
-						FALSE, \
-						TI81XX_HDMICSC_YCBCR2RGB_COEFF}
+	FALSE, \
+	FALSE, \
+	FALSE, \
+	TI81XX_HDMICSC_YCBCR2RGB_COEFF}
 
 #define TI81XX_HDMIDITHERCONFIG {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}
 
 /*	 Defaults to initialize core - by pass all modules, sets outwidth
-			to 10 bits/channel and BT709 for TV */
+	 to 10 bits/channel and BT709 for TV */
 #define TI81XX_HDMICOREDATAPATHCONFIG_BYPS_ALL_10BIT_OUTPUT_BT709 {\
-					FALSE, \
-					FALSE, \
-					TI81XX_HDMICSC_YCBCR2RGBCTRL_DISABLED,\
-					FALSE, \
-					FALSE, \
-					TRUE, \
-					FALSE, \
-					FALSE, \
-					FALSE, \
-					FALSE, \
-					FALSE, \
-					TI81XX_HDMIDITHERCONFIG, \
-					hdmi_10_bits_chan_width}
+	FALSE, \
+	FALSE, \
+	TI81XX_HDMICSC_YCBCR2RGBCTRL_DISABLED,\
+	FALSE, \
+	FALSE, \
+	TRUE, \
+	FALSE, \
+	FALSE, \
+	FALSE, \
+	FALSE, \
+	FALSE, \
+	TI81XX_HDMIDITHERCONFIG, \
+	hdmi_10_bits_chan_width}
 
 
 #define TI81XX_HDMICOREDATAPATHCONFIG_BYPS_ALL_8BIT_OUTPUT_BT709 {\
-					FALSE, \
-					FALSE, \
-					TI81XX_HDMICSC_YCBCR2RGBCTRL_DISABLED,\
-					FALSE, \
-					FALSE, \
-					TRUE, \
-					FALSE, \
-					FALSE, \
-					FALSE, \
-					FALSE, \
-					FALSE, \
-					TI81XX_HDMIDITHERCONFIG, \
-					hdmi_8_bits_chan_width}
+	FALSE, \
+	FALSE, \
+	TI81XX_HDMICSC_YCBCR2RGBCTRL_DISABLED,\
+	FALSE, \
+	FALSE, \
+	TRUE, \
+	FALSE, \
+	FALSE, \
+	FALSE, \
+	FALSE, \
+	FALSE, \
+	TI81XX_HDMIDITHERCONFIG, \
+	hdmi_8_bits_chan_width}
 
 #define TI81XX_HDMI_AVI_INFOFRAME_BARINFO	{0x0, 0x0, 0x0, 0x0, 0x0}
 
 /*	 Configures HDMI AVI Info Frame with following configurations
-			output color space as RGB, Overscan - for TV, colorometry 709-HD TV
-			aspect ration as 16:9 */
+	 output color space as RGB, Overscan - for TV, colorometry 709-HD TV
+	 aspect ration as 16:9 */
 
 #define TI81XX_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT709_169  {\
-					hdmi_avi_RGB_op_cs, \
-					hdmi_avi_no_aspect_ratio, \
-					TI81XX_HDMI_AVI_INFOFRAME_BARINFO, \
-					hdmi_avi_over_scan, \
-					hdmi_avi_BT709_colorimetry, \
-					hdmi_avi_16_9_aspect_ratio, \
-					hdmi_avi_active_aspect_ratio_same, \
-					FALSE, \
-					0x0, \
-					0x0, \
-					hdmi_avi_non_uniform_scaling_none, \
-					0x0}
+	hdmi_avi_RGB_op_cs, \
+	hdmi_avi_no_aspect_ratio, \
+	TI81XX_HDMI_AVI_INFOFRAME_BARINFO, \
+	hdmi_avi_over_scan, \
+	hdmi_avi_BT709_colorimetry, \
+	hdmi_avi_16_9_aspect_ratio, \
+	hdmi_avi_active_aspect_ratio_same, \
+	FALSE, \
+	0x0, \
+	0x0, \
+	hdmi_avi_non_uniform_scaling_none, \
+	0x0}
 
 /*	 Configures HDMI AVI Info Frame with following configurations
-			output color space as RGB, Overscan - for TV, colorometry 709-HD TV
-			aspect ration as 4:3 */
+	 output color space as RGB, Overscan - for TV, colorometry 709-HD TV
+	 aspect ration as 4:3 */
 
 #define TI81XX_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT709_43  {\
-					hdmi_avi_RGB_op_cs, \
-					hdmi_avi_no_aspect_ratio, \
-					TI81XX_HDMI_AVI_INFOFRAME_BARINFO, \
-					hdmi_avi_over_scan, \
-					hdmi_avi_BT709_colorimetry, \
-					hdmi_avi_4_3_aspect_ratio, \
-					hdmi_avi_active_aspect_ratio_same, \
-					FALSE, \
-					0x0, \
-					0x0, \
-					hdmi_avi_non_uniform_scaling_none, \
-					0x0}
+	hdmi_avi_RGB_op_cs, \
+	hdmi_avi_no_aspect_ratio, \
+	TI81XX_HDMI_AVI_INFOFRAME_BARINFO, \
+	hdmi_avi_over_scan, \
+	hdmi_avi_BT709_colorimetry, \
+	hdmi_avi_4_3_aspect_ratio, \
+	hdmi_avi_active_aspect_ratio_same, \
+	FALSE, \
+	0x0, \
+	0x0, \
+	hdmi_avi_non_uniform_scaling_none, \
+	0x0}
 /*	 Configures HDMI AVI Info Frame with following configurations
-			output color space as RGB, Overscan - for TV, colorometry 601-SD TV
-			aspect ration as 4:3 */
+	 output color space as RGB, Overscan - for TV, colorometry 601-SD TV
+	 aspect ration as 4:3 */
 #define TI81XX_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT601_43  {\
-					hdmi_avi_RGB_op_cs, \
-					hdmi_avi_no_aspect_ratio, \
-					TI81XX_HDMI_AVI_INFOFRAME_BARINFO, \
-					hdmi_avi_over_scan, \
-					hdmi_avi_BT601_colorimetry, \
-					hdmi_avi_4_3_aspect_ratio, \
-					hdmi_avi_active_aspect_ratio_same, \
-					FALSE, \
-					0x0, \
-					0x0, \
-					hdmi_avi_non_uniform_scaling_none, \
-					0x0}
+	hdmi_avi_RGB_op_cs, \
+	hdmi_avi_no_aspect_ratio, \
+	TI81XX_HDMI_AVI_INFOFRAME_BARINFO, \
+	hdmi_avi_over_scan, \
+	hdmi_avi_BT601_colorimetry, \
+	hdmi_avi_4_3_aspect_ratio, \
+	hdmi_avi_active_aspect_ratio_same, \
+	FALSE, \
+	0x0, \
+	0x0, \
+	hdmi_avi_non_uniform_scaling_none, \
+	0x0}
 
 /*	 Configures HDMI AVI Info Frame with following configurations
-			output color space as RGB, Overscan - for TV, colorometry 601-SD TV
-			aspect ration as none */
+	 output color space as RGB, Overscan - for TV, colorometry 601-SD TV
+	 aspect ration as none */
 #define TI81XX_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT601_NO_ASPECT_RATIO  {\
-					hdmi_avi_RGB_op_cs, \
-					hdmi_avi_no_aspect_ratio, \
-					TI81XX_HDMI_AVI_INFOFRAME_BARINFO, \
-					hdmi_avi_over_scan, \
-					hdmi_avi_BT601_colorimetry, \
-					hdmi_avi_aspect_ratio_none, \
-					hdmi_avi_active_aspect_ratio_same, \
-					FALSE, \
-					0x0, \
-					0x0, \
-					hdmi_avi_non_uniform_scaling_none, \
-					0x0}
+	hdmi_avi_RGB_op_cs, \
+	hdmi_avi_no_aspect_ratio, \
+	TI81XX_HDMI_AVI_INFOFRAME_BARINFO, \
+	hdmi_avi_over_scan, \
+	hdmi_avi_BT601_colorimetry, \
+	hdmi_avi_aspect_ratio_none, \
+	hdmi_avi_active_aspect_ratio_same, \
+	FALSE, \
+	0x0, \
+	0x0, \
+	hdmi_avi_non_uniform_scaling_none, \
+	0x0}
 
 /*	 Configures HDMI Packets that would be sent during data island period
-			Right now, AVI Info packets are supported. For HD Display */
+	 Right now, AVI Info packets are supported. For HD Display */
 #define TI81XX_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_43	 {TRUE, \
-				TI81XX_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT709_43}
+	TI81XX_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT709_43}
 #define TI81XX_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169  {TRUE, \
-				TI81XX_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT709_169}
+	TI81XX_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT709_169}
 /*	 Configures HDMI Packets that would be sent during data island period
-			Right now, AVI Info packets are supported. For NTSC display*/
+	 Right now, AVI Info packets are supported. For NTSC display*/
 #define TI81XX_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_NTSC   {TRUE, \
 	TI81XX_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT601_NO_ASPECT_RATIO}
 /* Configures HDMI Packets that would be sent during data island period
    Right now, AVI Info packets are supported. For APL display */
 #define TI81XX_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_PAL   {TRUE, \
-				TI81XX_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT601_43}
+	TI81XX_HDMI_AVI_INFOFRAME_RGB_OVERSCAN_BT601_43}
 
 
 /* ========================================================================== */
@@ -516,18 +516,18 @@ int ti81xx_hdmi_lib_control(void *handle, u32 cmd, void *cmdArgs,
  *- In case color space converter is enabled - set to BT709.
  */
 #define TI81XX_HDMI_10BIT_1080p_60_16_9_HD {\
-		TRUE, hdmi_1080P_60_mode,\
-		TRUE, TI81xx_HDMIWPCONFIG_10BIT_IF_SALVE,\
-		TRUE, TI81XX_HDMICORE_IPCFG_10BIT_IF_SRCD_SYNC,\
-		TRUE, TI81XX_HDMICOREDATAPATHCONFIG_BYPS_ALL_10BIT_OUTPUT_BT709,\
-		TRUE, TI81XX_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
+	TRUE, hdmi_1080P_60_mode,\
+	TRUE, TI81xx_HDMIWPCONFIG_10BIT_IF_SALVE,\
+	TRUE, TI81XX_HDMICORE_IPCFG_10BIT_IF_SRCD_SYNC,\
+	TRUE, TI81XX_HDMICOREDATAPATHCONFIG_BYPS_ALL_10BIT_OUTPUT_BT709,\
+	TRUE, TI81XX_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
 
 #define TI81XX_HDMI_8BIT_1080p_60_16_9_HD {\
-		TRUE, hdmi_1080P_60_mode,\
-		TRUE, TI81xx_HDMIWPCONFIG_8BIT_IF_SALVE,\
-		TRUE, TI81XX_HDMICORE_IPCFG_8BIT_IF_SRCD_SYNC,\
-		TRUE, TI81XX_HDMICOREDATAPATHCONFIG_BYPS_ALL_8BIT_OUTPUT_BT709,\
-		TRUE, TI81XX_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
+	TRUE, hdmi_1080P_60_mode,\
+	TRUE, TI81xx_HDMIWPCONFIG_8BIT_IF_SALVE,\
+	TRUE, TI81XX_HDMICORE_IPCFG_8BIT_IF_SRCD_SYNC,\
+	TRUE, TI81XX_HDMICOREDATAPATHCONFIG_BYPS_ALL_8BIT_OUTPUT_BT709,\
+	TRUE, TI81XX_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
 
 /*
  * Defaults that could be used initialize HDMI HAL in 1080 P, 30 FPS,
@@ -539,18 +539,18 @@ int ti81xx_hdmi_lib_control(void *handle, u32 cmd, void *cmdArgs,
  *- In case color space converter is enabled - set to BT709.
  */
 #define TI81XX_HDMI_10BIT_1080p_30_16_9_HD {\
-		TRUE, hdmi_1080P_30_mode,\
-		TRUE, TI81xx_HDMIWPCONFIG_10BIT_IF_SALVE,\
-		TRUE, TI81XX_HDMICORE_IPCFG_10BIT_IF_SRCD_SYNC,\
-		TRUE, TI81XX_HDMICOREDATAPATHCONFIG_BYPS_ALL_10BIT_OUTPUT_BT709,\
-		TRUE, TI81XX_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
+	TRUE, hdmi_1080P_30_mode,\
+	TRUE, TI81xx_HDMIWPCONFIG_10BIT_IF_SALVE,\
+	TRUE, TI81XX_HDMICORE_IPCFG_10BIT_IF_SRCD_SYNC,\
+	TRUE, TI81XX_HDMICOREDATAPATHCONFIG_BYPS_ALL_10BIT_OUTPUT_BT709,\
+	TRUE, TI81XX_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
 
 #define TI81XX_HDMI_8BIT_1080p_30_16_9_HD {\
-		TRUE, hdmi_1080P_30_mode,\
-		TRUE, TI81xx_HDMIWPCONFIG_8BIT_IF_SALVE,\
-		TRUE, TI81XX_HDMICORE_IPCFG_8BIT_IF_SRCD_SYNC,\
-		TRUE, TI81XX_HDMICOREDATAPATHCONFIG_BYPS_ALL_8BIT_OUTPUT_BT709,\
-		TRUE, TI81XX_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
+	TRUE, hdmi_1080P_30_mode,\
+	TRUE, TI81xx_HDMIWPCONFIG_8BIT_IF_SALVE,\
+	TRUE, TI81XX_HDMICORE_IPCFG_8BIT_IF_SRCD_SYNC,\
+	TRUE, TI81XX_HDMICOREDATAPATHCONFIG_BYPS_ALL_8BIT_OUTPUT_BT709,\
+	TRUE, TI81XX_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
 
 /*
  * Defaults that could be used initialize HDMI HAL in 1080I P, 60 FPS,
@@ -562,18 +562,18 @@ int ti81xx_hdmi_lib_control(void *handle, u32 cmd, void *cmdArgs,
  *- In case color space converter is enabled - set to BT709.
  */
 #define TI81XX_HDMI_10BIT_1080i_60_16_9_HD {\
-		TRUE, hdmi_1080I_60_mode,\
-		TRUE, TI81xx_HDMIWPCONFIG_10BIT_IF_SALVE,\
-		TRUE, TI81XX_HDMICORE_IPCFG_10BIT_IF_SRCD_SYNC,\
-		TRUE, TI81XX_HDMICOREDATAPATHCONFIG_BYPS_ALL_10BIT_OUTPUT_BT709,\
-		TRUE, TI81XX_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
+	TRUE, hdmi_1080I_60_mode,\
+	TRUE, TI81xx_HDMIWPCONFIG_10BIT_IF_SALVE,\
+	TRUE, TI81XX_HDMICORE_IPCFG_10BIT_IF_SRCD_SYNC,\
+	TRUE, TI81XX_HDMICOREDATAPATHCONFIG_BYPS_ALL_10BIT_OUTPUT_BT709,\
+	TRUE, TI81XX_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
 
 #define TI81XX_HDMI_8BIT_1080i_60_16_9_HD {\
-		TRUE, hdmi_1080I_60_mode,\
-		TRUE, TI81xx_HDMIWPCONFIG_8BIT_IF_SALVE,\
-		TRUE, TI81XX_HDMICORE_IPCFG_8BIT_IF_SRCD_SYNC,\
-		TRUE, TI81XX_HDMICOREDATAPATHCONFIG_BYPS_ALL_8BIT_OUTPUT_BT709,\
-		TRUE, TI81XX_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
+	TRUE, hdmi_1080I_60_mode,\
+	TRUE, TI81xx_HDMIWPCONFIG_8BIT_IF_SALVE,\
+	TRUE, TI81XX_HDMICORE_IPCFG_8BIT_IF_SRCD_SYNC,\
+	TRUE, TI81XX_HDMICOREDATAPATHCONFIG_BYPS_ALL_8BIT_OUTPUT_BT709,\
+	TRUE, TI81XX_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_169}
 
 /*
  * Defaults that could be used initialize HDMI HAL in 720 P, 60 FPS,
@@ -585,26 +585,26 @@ int ti81xx_hdmi_lib_control(void *handle, u32 cmd, void *cmdArgs,
  *- In case color space converter is enabled - set to BT709.
  */
 #define TI81XX_HDMI_10BIT_720_60_16_9_HD {\
-		TRUE, hdmi_720P_60_mode,\
-		TRUE, TI81xx_HDMIWPCONFIG_10BIT_IF_SALVE,\
-		TRUE, TI81XX_HDMICORE_IPCFG_10BIT_IF_SRCD_SYNC,\
-		TRUE, TI81XX_HDMICOREDATAPATHCONFIG_BYPS_ALL_10BIT_OUTPUT_BT709,\
-		TRUE, TI81XX_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_43}
+	TRUE, hdmi_720P_60_mode,\
+	TRUE, TI81xx_HDMIWPCONFIG_10BIT_IF_SALVE,\
+	TRUE, TI81XX_HDMICORE_IPCFG_10BIT_IF_SRCD_SYNC,\
+	TRUE, TI81XX_HDMICOREDATAPATHCONFIG_BYPS_ALL_10BIT_OUTPUT_BT709,\
+	TRUE, TI81XX_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_43}
 
 #define TI81XX_HDMI_8BIT_720_60_16_9_HD {\
-		TRUE, hdmi_720P_60_mode,\
-		TRUE, TI81xx_HDMIWPCONFIG_8BIT_IF_SALVE,\
-		TRUE, TI81XX_HDMICORE_IPCFG_8BIT_IF_SRCD_SYNC,\
-		TRUE, TI81XX_HDMICOREDATAPATHCONFIG_BYPS_ALL_8BIT_OUTPUT_BT709,\
-		TRUE, TI81XX_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_43}
+	TRUE, hdmi_720P_60_mode,\
+	TRUE, TI81xx_HDMIWPCONFIG_8BIT_IF_SALVE,\
+	TRUE, TI81XX_HDMICORE_IPCFG_8BIT_IF_SRCD_SYNC,\
+	TRUE, TI81XX_HDMICOREDATAPATHCONFIG_BYPS_ALL_8BIT_OUTPUT_BT709,\
+	TRUE, TI81XX_HDMIINFOFRAME_CFG_RGB_OVERSCAN_BT709_43}
 
 
 
 #ifdef DEBUG
 #define THDBG(format, ...) \
 	do { \
-			printk(KERN_DEBUG "TI81XXFB  : " format, \
-				## __VA_ARGS__); \
+		printk(KERN_DEBUG "TI81XXFB  : " format, \
+## __VA_ARGS__); \
 	} while (0)
 #else
 #define THDBG(format, ...)

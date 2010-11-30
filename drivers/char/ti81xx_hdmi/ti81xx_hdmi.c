@@ -32,7 +32,7 @@
 #include <linux/string.h>
 #include <linux/ti81xxhdmi.h>
 
-#include "hdmi_cfg.h"
+#include "ti81xx_hdmi_cfg.h"
 
 #define TI81XX_HDMI_DRIVER_NAME     "TI81XX_HDMI"
 
@@ -47,7 +47,7 @@ struct ti81xx_hdmi_params
 	u32 prcm_v_addr;
 	u32 venc_v_addr;
 #ifndef CONFIG_SND_TI816X_SOC
-    u32 hdmi_pll_v_addr;
+	u32 hdmi_pll_v_addr;
 #endif
 	int i;
 };
@@ -72,7 +72,7 @@ static int ti81xx_hdmi_remove(struct device *device);
 static int ti81xx_hdmi_open(struct inode *inode, struct file *filp);
 static int ti81xx_hdmi_release(struct inode *inode, struct file *filp);
 static int ti81xx_hdmi_ioctl(struct inode *inode, struct file *file,
-					  u32 cmd, unsigned long arg);
+		u32 cmd, unsigned long arg);
 
 static struct file_operations ti81xx_hdmi_fops = {
 	.owner = THIS_MODULE,
@@ -92,7 +92,7 @@ static struct platform_device ti81xx_hdmi_plat_device = {
 	.name = TI81XX_HDMI_DRIVER_NAME,
 	.id = 2,
 	.dev = {
-	   .release = ti81xx_hdmi_platform_release,
+		.release = ti81xx_hdmi_platform_release,
 	}
 };
 
@@ -113,7 +113,7 @@ static int ti81xx_hdmi_open(struct inode *inode, struct file *filp)
 	}
 	else{
 		printk("TI81xx_hdmi: Could not open %d %p\n",
-			ret, hdmi_obj.hdmi_lib_handle);
+				ret, hdmi_obj.hdmi_lib_handle);
 	}
 
 	return ret;
@@ -146,7 +146,7 @@ static int ti81xx_hdmi_release(struct inode *inode, struct file *filp)
  * the application.
  */
 static int ti81xx_hdmi_ioctl(struct inode *inode, struct file *file,
-					  u32 cmd, unsigned long arg)
+		u32 cmd, unsigned long arg)
 {
 	struct ti81xx_hdmi_params *params =
 		(struct ti81xx_hdmi_params *)file->private_data;
@@ -157,17 +157,17 @@ static int ti81xx_hdmi_ioctl(struct inode *inode, struct file *file,
 
 static void ti81xx_hdmi_platform_release(struct device *device)
 {
-		/* this is called when the reference count goes to zero */
+	/* this is called when the reference count goes to zero */
 }
 static int __init ti81xx_hdmi_probe(struct device *device)
 {
 	THDBG("TI81xx_hdmi: probe\n");
-		return 0;
+	return 0;
 }
 static int ti81xx_hdmi_remove(struct device *device)
 {
 	THDBG("TI81xx_hdmi: remove\n");
-		return 0;
+	return 0;
 }
 
 /**
@@ -185,7 +185,7 @@ int __init ti81xx_hdmi_init(void)
 	}
 
 	ti81xx_hdmi_major = MAJOR(ti81xx_hdmi_dev_id);
-/*     printk("Major Number %d MinorNumber %d\n",  MAJOR(ti81xx_hdmi_dev_id),  MINOR(ti81xx_hdmi_dev_id));*/
+	/*     printk("Major Number %d MinorNumber %d\n",  MAJOR(ti81xx_hdmi_dev_id),  MINOR(ti81xx_hdmi_dev_id));*/
 
 	/* initialize character device */
 	cdev_init(&ti81xx_hdmi_cdev, &ti81xx_hdmi_fops);
@@ -221,8 +221,8 @@ int __init ti81xx_hdmi_init(void)
 	}
 
 	ti81xx_hdmi_device = device_create(ti81xx_hdmi_class, NULL,
-				ti81xx_hdmi_dev_id, NULL,
-				TI81XX_HDMI_DRIVER_NAME);
+			ti81xx_hdmi_dev_id, NULL,
+			TI81XX_HDMI_DRIVER_NAME);
 	if(IS_ERR(ti81xx_hdmi_device)) {
 		result = -EIO;
 		printk("TI81xx_hdmi: Cound not create device file\n");
@@ -277,7 +277,7 @@ int __init ti81xx_hdmi_init(void)
 		printk("PHY at address %x\n", hdmi_obj.venc_v_addr);
 	}
 #ifndef CONFIG_SND_TI816X_SOC
-    hdmi_obj.hdmi_pll_v_addr = (volatile u32) ioremap(0x481c5200, 0x80);
+	hdmi_obj.hdmi_pll_v_addr = (volatile u32) ioremap(0x481c5200, 0x80);
 	if (hdmi_obj.hdmi_pll_v_addr == 0x0){
 		printk("TI81xx_hdmi: Could not ioremap for HDMI PLL\n");
 		goto err_remove_class;
@@ -292,7 +292,7 @@ int __init ti81xx_hdmi_init(void)
 	initParams.prcm_base_addr     =   (u32) hdmi_obj.prcm_v_addr;
 	initParams.venc_base_addr     =   (u32) hdmi_obj.venc_v_addr;
 #ifndef CONFIG_SND_TI816X_SOC
-    initParams.hdmi_pll_base_addr =   (u32) hdmi_obj.hdmi_pll_v_addr;
+	initParams.hdmi_pll_base_addr =   (u32) hdmi_obj.hdmi_pll_v_addr;
 #endif
 
 	/* Set the HDMI user to proper value if not set correctly */
@@ -339,7 +339,7 @@ void __exit ti81xx_hdmi_exit(void)
 	iounmap((int *)hdmi_obj.prcm_v_addr);
 	iounmap((int *)hdmi_obj.venc_v_addr);
 #ifndef CONFIG_SND_TI816X_SOC
-    iounmap((int *)hdmi_obj.hdmi_pll_v_addr);
+	iounmap((int *)hdmi_obj.hdmi_pll_v_addr);
 #endif
 }
 module_param_named(hdmi_mode, hdmi_mode, int, 0664);
