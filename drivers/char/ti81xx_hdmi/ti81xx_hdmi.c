@@ -274,7 +274,7 @@ int __init ti81xx_hdmi_init(void)
 		printk("TI81xx_hdmi: Could not ioremap for Venc\n");
 		goto err_remove_class;
 	} else {
-		printk("PHY at address %x\n", hdmi_obj.venc_v_addr);
+		THDBG("PHY at address %x\n", hdmi_obj.venc_v_addr);
 	}
 #ifndef CONFIG_SND_TI816X_SOC
 	hdmi_obj.hdmi_pll_v_addr = (volatile u32) ioremap(0x481c5200, 0x80);
@@ -282,7 +282,7 @@ int __init ti81xx_hdmi_init(void)
 		printk("TI81xx_hdmi: Could not ioremap for HDMI PLL\n");
 		goto err_remove_class;
 	} else {
-		printk("HDMI PLL at address %x\n", hdmi_obj.hdmi_pll_v_addr);
+		THDBG("HDMI PLL at address %x\n", hdmi_obj.hdmi_pll_v_addr);
 	}
 #endif
 	/* Initialize the HDMI library */
