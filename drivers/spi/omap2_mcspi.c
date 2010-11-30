@@ -818,7 +818,11 @@ static int omap2_mcspi_setup(struct spi_device *spi)
 
 	if (mcspi_dma->dma_rx_channel == -1
 			|| mcspi_dma->dma_tx_channel == -1) {
-		ret = omap2_mcspi_request_dma(spi);
+		/* TI81XX has EDMA and not SDMA, hence overriding SDMA usage */
+		if (!cpu_is_ti81xx())
+			ret = omap2_mcspi_request_dma(spi);
+		else
+			ret = 0;
 		if (ret < 0)
 			return ret;
 	}
