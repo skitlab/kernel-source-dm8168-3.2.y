@@ -214,7 +214,7 @@ struct hdmi_pll_ctrl gpll_ctrl[] = {
 /*				Local Functions 			      */
 /* ========================================================================== */
 
-#ifndef CONFIG_SND_TI816X_SOC
+#ifndef CONFIG_ARCH_TI816X
 /* command
  * 0x0: Command to change LDO to OFF state
  * 0x1:	Command to change LDO to ON state
@@ -382,7 +382,7 @@ static int wp_pll_pwr_ctrl(int wp_pwr_ctrl_addr, int command)
 }
 #endif
 
-#ifdef CONFIG_SND_TI816X_SOC
+#ifdef CONFIG_ARCH_TI816X
 /*
  *	   This function is expected to be called when initializing or
  *	   when re-configuring. After re-configuration its recomended to reset the
@@ -1606,7 +1606,7 @@ exit_this_func:
 	THDBG(">>>>determine_pixel_repeatation");
 	return (rtn_value);
 }
-#ifndef CONFIG_SND_TI816X_SOC
+#ifndef CONFIG_ARCH_TI816X
 int get_phy_status(struct instance_cfg *inst_context,
 		struct ti81xxhdmi_phy_status *stat)
 {
@@ -1649,7 +1649,7 @@ int get_phy_status(struct instance_cfg *inst_context,
 	return -EINVAL;
 }
 #endif
-#ifdef CONFIG_SND_TI816X_SOC
+#ifdef CONFIG_ARCH_TI816X
 void enable_hdmi_clocks(u32 prcm_base)
 {
 	u32 temp;
@@ -1695,7 +1695,7 @@ void enable_hdmi_clocks(u32 prcm_base)
 
 #endif
 
-#ifndef CONFIG_SND_TI816X_SOC
+#ifndef CONFIG_ARCH_TI816X
 static void configure_hdmi_pll(volatile u32  b_addr,
 		u32 __n,
 		u32 __m,
@@ -2267,7 +2267,7 @@ int ti81xx_hdmi_set_mode(enum ti81xxhdmi_mode hdmi_mode,
 		struct instance_cfg *cfg)
 {
 	int rtn_value = 0;
-#ifndef CONFIG_SND_TI816X_SOC
+#ifndef CONFIG_ARCH_TI816X
 	struct hdmi_pll_ctrl *pll_ctrl;
 #endif
 	if (!cfg)
@@ -2281,7 +2281,7 @@ int ti81xx_hdmi_set_mode(enum ti81xxhdmi_mode hdmi_mode,
 		goto exit_this_func;
 	}
 	ti81xx_hdmi_copy_mode_config(hdmi_mode, cfg);
-#ifndef CONFIG_SND_TI816X_SOC
+#ifndef CONFIG_ARCH_TI816X
 	/* Set the PLL according to the mode selected */
 	switch (hdmi_mode)
 	{

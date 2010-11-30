@@ -18,7 +18,7 @@
  */
 /*********************************PHY Registers********************************/
 /* PHY registers for TI816x  */
-#ifdef CONFIG_SND_TI816X_SOC
+#ifdef CONFIG_ARCH_TI816X
 #define PHY_TMDS_CNTL1_OFFSET			(0x00000000)
 #define PHY_TMDS_CNTL2_OFFSET			(0x00000004)
 #define PHY_TMDS_CNTL3_OFFSET			(0x00000008)
@@ -215,7 +215,7 @@
 #define HDMI_PHY_LB_LANE_SEL_SHIFT			(22)
 #define HDMI_PHY_PRBS_EN_MASK				(0x003C0000u)
 #define HDMI_PHY_PRBS_EN_SHIFT				(18)
-#endif /* CONFIG_SND_TI816X_SOC */
+#endif /* CONFIG_ARCH_TI816X */
 /************************************WP****************************************/
 #define HDMI_WP_SYSCONFIG_OFFSET               (0x00000008)
 #define HDMI_WP_IRQSTATUS_RAW_OFFSET		(0x00000024)
@@ -573,7 +573,7 @@
 #define HDMI_CP_BYTE1_SETAVM_SHIFT		(0x00000004u)
 /************************************CORE**************************************/
 /************************************PRCM**************************************/
-#ifdef CONFIG_SND_TI816X_SOC
+#ifdef CONFIG_ARCH_TI816X
 #define CM_HDMI_CLKSTCTRL_OFF			(0x0408)
 #define CM_ACTIVE_HDMI_CLKCTRL_OFF		(0x0428)
 #else

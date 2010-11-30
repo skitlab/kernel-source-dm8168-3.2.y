@@ -29,7 +29,7 @@
 #define HDMI_PER_CNT		(1u)
 #define HDMI_CORE_0_REGS	(0x46c00400u)
 #define HDMI_WP_0_REGS		(0x46c00000u)
-#ifndef CONFIG_SND_TI816X_SOC
+#ifndef CONFIG_ARCH_TI816X
 #define HDMI_PHY_0_REGS 	(0x46c00300u)
 #else
 #define HDMI_PHY_0_REGS 	(0x48122000u)
