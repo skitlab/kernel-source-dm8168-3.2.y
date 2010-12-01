@@ -24,6 +24,8 @@
 #include <plat/board.h>
 #include <plat/common.h>
 
+#include "mux.h"
+
 static void __init ti8168_evm_init_irq(void)
 {
 	omap2_init_common_infrastructure();
@@ -31,8 +33,17 @@ static void __init ti8168_evm_init_irq(void)
 	omap_init_irq();
 }
 
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#else
+#define board_mux	NULL
+#endif
+
 static void __init ti8168_evm_init(void)
 {
+	ti81xx_mux_init(board_mux);
 	omap_serial_init();
 }
 

@@ -11,6 +11,7 @@
 #include "mux2430.h"
 #include "mux34xx.h"
 #include "mux44xx.h"
+#include "mux81xx.h"
 
 #define OMAP_MUX_TERMINATOR	0xffff
 
@@ -322,6 +323,12 @@ int omap3_mux_init(struct omap_board_mux *board_mux, int flags);
  * @flags:		OMAP package type used for the board
  */
 int omap4_mux_init(struct omap_board_mux *board_mux, int flags);
+
+/**
+ * ti81xx_mux_init() - initialize mux system along with board specific set
+ * @board_mux:		Board specific mux table
+ */
+int ti81xx_mux_init(struct omap_board_mux *board_mux);
 
 /**
  * omap_mux_init - private mux init function, do not call
