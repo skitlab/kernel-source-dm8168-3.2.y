@@ -206,8 +206,8 @@ struct hdmi_cfg_params config_1080i60 = TI81XX_HDMI_8BIT_1080i_60_16_9_HD;
 struct hdmi_cfg_params config_1080p30 = TI81XX_HDMI_8BIT_1080p_30_16_9_HD;
 
 struct hdmi_pll_ctrl gpll_ctrl[] = {
-	{19, 1485, 10, 0x20021001},
-	{19, 745,   5, 0x20021001}
+	{19, 745, 5, 0x20021001},
+	{19, 745,   10, 0x20021001}
 };
 
 /* ========================================================================== */
@@ -2288,14 +2288,11 @@ int ti81xx_hdmi_set_mode(enum ti81xxhdmi_mode hdmi_mode,
 		case hdmi_1080P_30_mode:
 		case hdmi_1080I_60_mode:
 		case hdmi_720P_60_mode:
-		case hdmi_1080P_60_mode:
 			pll_ctrl = &gpll_ctrl[1];
 			break;
-#if 0
 		case hdmi_1080P_60_mode:
 			pll_ctrl = &gpll_ctrl[0];
 			break;
-#endif
 		default:
 			printk("Mode passed is incorrect\n");
 			pll_ctrl = &gpll_ctrl[1];
