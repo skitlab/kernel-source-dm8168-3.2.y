@@ -19,4 +19,8 @@
 int ti816x_clk_init(void);
 int ti814x_clk_init(void);
 
+extern const struct clkops clkops_ti81xx_dflt_wait;
+extern const struct clkops clkops_ti81xx_pcie;
+extern const struct clkops clkops_ti81xx_usb;
+
 #endif
