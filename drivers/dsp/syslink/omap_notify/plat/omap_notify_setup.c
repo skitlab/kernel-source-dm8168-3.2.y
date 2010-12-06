@@ -1,7 +1,7 @@
 /*
- * omap4_notify_setup.c
+ * omap_notify_setup.c
  *
- * OMAP4 device-specific functions to setup the Notify module.
+ * omap device-specific functions to setup the Notify module.
  *
  * Copyright (C) 2008-2009 Texas Instruments, Inc.
  *
@@ -35,7 +35,7 @@
 
 
 /* Handle to the NotifyDriver for line 0 */
-static struct notify_ducatidrv_object *notify_setup_driver_handles[
+static struct notify_shm_drv_object *notify_setup_driver_handles[
 						MULTIPROC_MAXPROCESSORS];
 
 /* Handle to the Notify objects */
@@ -45,10 +45,10 @@ struct notify_object *notify_setup_notify_handles[MULTIPROC_MAXPROCESSORS];
 
 /* Function to perform device specific setup for Notify module.
  * This function creates the Notify drivers. */
-int notify_setup_omap4_attach(u16 proc_id, void *shared_addr)
+int notify_setup_omap_attach(u16 proc_id, void *shared_addr)
 {
 	s32 status = NOTIFY_S_SUCCESS;
-	struct notify_ducatidrv_params notify_shm_params;
+	struct notify_shm_drv_params notify_shm_params;
 
 	if (WARN_ON(unlikely(shared_addr == NULL))) {
 		status = NOTIFY_E_INVALIDARG;
@@ -59,7 +59,7 @@ int notify_setup_omap4_attach(u16 proc_id, void *shared_addr)
 		goto exit;
 	}
 
-	notify_ducatidrv_params_init(&notify_shm_params);
+	notify_shm_drv_params_init(&notify_shm_params);
 
 	/* Currently not supporting caching on host side. */
 	notify_shm_params.cache_enabled = false;
@@ -69,12 +69,12 @@ int notify_setup_omap4_attach(u16 proc_id, void *shared_addr)
 	notify_shm_params.remote_proc_id = proc_id;
 	notify_shm_params.shared_addr = shared_addr;
 
-	notify_setup_driver_handles[proc_id] = notify_ducatidrv_create(
+	notify_setup_driver_handles[proc_id] = notify_shm_drv_create(
 							&notify_shm_params);
 	if (notify_setup_driver_handles[proc_id] == NULL) {
 		status = NOTIFY_E_FAIL;
-		printk(KERN_ERR "notify_setup_omap4_attach: "
-			"notify_ducatidrv_create failed! status = 0x%x",
+		printk(KERN_ERR "notify_setup_omap_attach: "
+			"notify_shm_drv_create failed! status = 0x%x",
 			status);
 		goto exit;
 	}
@@ -84,14 +84,14 @@ int notify_setup_omap4_attach(u16 proc_id, void *shared_addr)
 					proc_id, 0u, NULL);
 	if (notify_setup_notify_handles[proc_id] == NULL) {
 		status = NOTIFY_E_FAIL;
-		printk(KERN_ERR "notify_setup_omap4_attach: notify_create "
+		printk(KERN_ERR "notify_setup_omap_attach: notify_create "
 			"failed!");
 		goto exit;
 	}
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_setup_omap4_attach failed! "
+		printk(KERN_ERR "notify_setup_omap_attach failed! "
 			"status = 0x%x", status);
 	}
 	return status;
@@ -100,7 +100,7 @@ exit:
 
 /* Function to perform device specific destroy for Notify module.
  * This function deletes the Notify drivers. */
-int notify_setup_omap4_detach(u16 proc_id)
+int notify_setup_omap_detach(u16 proc_id)
 {
 	s32 status = NOTIFY_S_SUCCESS;
 	s32 tmp_status = NOTIFY_S_SUCCESS;
@@ -113,21 +113,21 @@ int notify_setup_omap4_detach(u16 proc_id)
 	/* Delete the notify driver to the M3 (Line 0) */
 	status = notify_delete(&(notify_setup_notify_handles[proc_id]));
 	if (status < 0) {
-		printk(KERN_ERR "notify_setup_omap4_detach: notify_delete "
+		printk(KERN_ERR "notify_setup_omap_detach: notify_delete "
 			"failed for line 0!");
 	}
 
-	tmp_status = notify_ducatidrv_delete(
+	tmp_status = notify_shm_drv_delete(
 				&(notify_setup_driver_handles[proc_id]));
 	if ((tmp_status < 0) && (status >= 0)) {
 		status = tmp_status;
-		printk(KERN_ERR "notify_setup_omap4_detach: "
-			"notify_ducatidrv_delete failed for line 0!");
+		printk(KERN_ERR "notify_setup_omap_detach: "
+			"notify_shm_drv_delete failed for line 0!");
 	}
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_setup_omap4_detach failed! "
+		printk(KERN_ERR "notify_setup_omap_detach failed! "
 			"status = 0x%x", status);
 	}
 	return status;
@@ -135,31 +135,31 @@ exit:
 
 
 /* Return the amount of shared memory required  */
-uint notify_setup_omap4_shared_mem_req(u16 remote_proc_id, void *shared_addr)
+uint notify_setup_omap_shared_mem_req(u16 remote_proc_id, void *shared_addr)
 {
 	int status = NOTIFY_S_SUCCESS;
 	uint mem_req = 0x0;
-	struct notify_ducatidrv_params params;
+	struct notify_shm_drv_params params;
 
 	if (WARN_ON(unlikely(shared_addr == NULL))) {
 		status = NOTIFY_E_INVALIDARG;
 		goto exit;
 	}
 
-	notify_ducatidrv_params_init(&params);
+	notify_shm_drv_params_init(&params);
 	params.shared_addr = shared_addr;
 
-	mem_req = notify_ducatidrv_shared_mem_req(&params);
+	mem_req = notify_shm_drv_shared_mem_req(&params);
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_setup_omap4_shared_mem_req failed!"
+		printk(KERN_ERR "notify_setup_omap_shared_mem_req failed!"
 			" status = 0x%x", status);
 	}
 	return mem_req;
 }
 
-bool notify_setup_omap4_int_line_available(u16 remote_proc_id)
+bool notify_setup_omap_int_line_available(u16 remote_proc_id)
 {
 	return true;
 }

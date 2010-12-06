@@ -36,9 +36,9 @@
 
 
 
-#define NOTIFYDUCATIDRIVER_MEM_ALIGN	0
+#define NOTIFYSHMDRIVER_MEM_ALIGN	0
 
-#define NOTIFYDUCATIDRIVER_MAX_EVENTS	32
+#define NOTIFYSHMDRIVER_MAX_EVENTS	32
 
 #define NOTIFYNONSHMDRV_MAX_EVENTS	1
 
@@ -50,18 +50,18 @@
 
 /* Get address of event entry. */
 #define EVENTENTRY(event_chart, align, event_id)			\
-			((struct notify_ducatidrv_event_entry *)	\
+			((struct notify_shm_drv_event_entry *)	\
 			((u32)event_chart + (align * event_id)));
 
 /* Stamp indicating that the Notify Shared Memory driver on the
  * processor has been initialized. */
-#define NOTIFYDUCATIDRIVER_INIT_STAMP	0xA9C8B7D6
+#define NOTIFYSHMDRIVER_INIT_STAMP	0xA9C8B7D6
 
 /* Flag indicating event is set. */
-#define NOTIFYDUCATIDRIVER_UP		1
+#define NOTIFYSHMDRIVER_UP		1
 
 /* Flag indicating event is not set. */
-#define NOTIFYDUCATIDRIVER_DOWN		0
+#define NOTIFYSHMDRIVER_DOWN		0
 
 /*FIX ME: Make use of Multi Proc module */
 #define SELF_ID		0
@@ -76,8 +76,8 @@
 #define MAX_SUBPROC_EVENTS	15
 
 /* Macro to make a correct module magic number with refCount */
-#define NOTIFYDUCATIDRIVER_MAKE_MAGICSTAMP(x) \
-				((NOTIFY_DUCATIDRIVER_MODULEID << 12u) | (x))
+#define NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(x) \
+				((NOTIFY_SHMDRIVER_MODULEID << 12u) | (x))
 
 #define ROUND_UP(a, b)	(((a) + ((b) - 1)) & (~((b) - 1)))
 
@@ -87,20 +87,20 @@ static int notify_shmdrv_isr(struct notifier_block *, unsigned long, void *);
 static bool notify_shmdrv_isr_callback(void *ref_data, void* ntfy_msg);
 
 
-/* Defines the notify_ducatidrv state object, which contains all
+/* Defines the notify_shm_drv state object, which contains all
  * the module specific information. */
-struct notify_ducatidrv_module {
+struct notify_shm_drv_module {
 	atomic_t ref_count;
 	/* Reference count */
-	struct notify_ducatidrv_config cfg;
+	struct notify_shm_drv_config cfg;
 	/* NotifyDriverShm configuration structure */
-	struct notify_ducatidrv_config def_cfg;
+	struct notify_shm_drv_config def_cfg;
 	/* Default module configuration */
-	struct notify_ducatidrv_params def_inst_params;
+	struct notify_shm_drv_params def_inst_params;
 	/* Default instance parameters */
 	struct mutex *gate_handle;
 	/* Handle to the gate for local thread safety */
-	struct notify_ducatidrv_object *driver_handles
+	struct notify_shm_drv_object *driver_handles
 				[MULTIPROC_MAXPROCESSORS][NOTIFY_MAX_INTLINES];
 	/* Loader handle array. */
 	atomic_t mbox2_ref_count;
@@ -110,16 +110,16 @@ struct notify_ducatidrv_module {
 };
 
 /* Notify ducati driver instance object. */
-struct notify_ducatidrv_object {
-	struct notify_ducatidrv_params params;
+struct notify_shm_drv_object {
+	struct notify_shm_drv_params params;
 	/* Instance parameters (configuration values) */
-	VOLATILE struct notify_ducatidrv_proc_ctrl *self_proc_ctrl;
+	VOLATILE struct notify_shm_drv_proc_ctrl *self_proc_ctrl;
 	/* Pointer to control structure in shared memory for self processor. */
-	VOLATILE struct notify_ducatidrv_proc_ctrl *other_proc_ctrl;
+	VOLATILE struct notify_shm_drv_proc_ctrl *other_proc_ctrl;
 	/* Pointer to control structure in shared memory for remote processor.*/
-	VOLATILE struct notify_ducatidrv_event_entry *self_event_chart;
+	VOLATILE struct notify_shm_drv_event_entry *self_event_chart;
 	/* Pointer to event chart for local processor */
-	VOLATILE struct notify_ducatidrv_event_entry *other_event_chart;
+	VOLATILE struct notify_shm_drv_event_entry *other_event_chart;
 	/* Pointer to event chart for remote processor */
 	u32 reg_chart[NOTIFY_MAXEVENTS];
 	/* Local event registration chart for tracking registered events. */
@@ -143,7 +143,7 @@ struct notify_ducatidrv_object {
 };
 
 
-static struct notify_ducatidrv_module notify_ducatidriver_state = {
+static struct notify_shm_drv_module notify_shm_drv_state = {
 	.gate_handle = NULL,
 	.def_inst_params.shared_addr = NULL,
 	.def_inst_params.cache_enabled = false,
@@ -154,12 +154,12 @@ static struct notify_ducatidrv_module notify_ducatidriver_state = {
 	.def_inst_params.remote_int_id = (u32) -1
 };
 
-static struct notifier_block ducati_notify_nb = {
+static struct notifier_block omap_notify_nb = {
 	.notifier_call = notify_shmdrv_isr,
 };
 
-/* Get the default configuration for the notify_ducatidrv module. */
-void notify_ducatidrv_get_config(struct notify_ducatidrv_config *cfg)
+/* Get the default configuration for the notify_shm_drv module. */
+void notify_shm_drv_get_config(struct notify_shm_drv_config *cfg)
 {
 	int status = NOTIFY_S_SUCCESS;
 
@@ -168,68 +168,68 @@ void notify_ducatidrv_get_config(struct notify_ducatidrv_config *cfg)
 		goto exit;
 	}
 
-	if (atomic_cmpmask_and_lt(&(notify_ducatidriver_state.ref_count),
-					NOTIFYDUCATIDRIVER_MAKE_MAGICSTAMP(0),
-					NOTIFYDUCATIDRIVER_MAKE_MAGICSTAMP(1))
+	if (atomic_cmpmask_and_lt(&(notify_shm_drv_state.ref_count),
+					NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(0),
+					NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(1))
 					== true)
-		memcpy(cfg, &(notify_ducatidriver_state.def_cfg),
-			sizeof(struct notify_ducatidrv_config));
+		memcpy(cfg, &(notify_shm_drv_state.def_cfg),
+			sizeof(struct notify_shm_drv_config));
 	else
-		memcpy(cfg, &(notify_ducatidriver_state.cfg),
-			sizeof(struct notify_ducatidrv_config));
+		memcpy(cfg, &(notify_shm_drv_state.cfg),
+			sizeof(struct notify_shm_drv_config));
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_ducatidrv_get_config failed! "
+		printk(KERN_ERR "notify_shm_drv_get_config failed! "
 			"status = 0x%x", status);
 	}
 	return;
 }
-EXPORT_SYMBOL(notify_ducatidrv_get_config);
+EXPORT_SYMBOL(notify_shm_drv_get_config);
 
-/* Setup the notify_ducatidrv module. */
-int notify_ducatidrv_setup(struct notify_ducatidrv_config *cfg)
+/* Setup the notify_shm_drv module. */
+int notify_shm_drv_setup(struct notify_shm_drv_config *cfg)
 {
 	int status = 0;
-	struct notify_ducatidrv_config tmp_cfg;
+	struct notify_shm_drv_config tmp_cfg;
 	u16 i;
 	u16 j;
 
 	/* Init the ref_count to 0 */
-	atomic_cmpmask_and_set(&(notify_ducatidriver_state.ref_count),
-					NOTIFYDUCATIDRIVER_MAKE_MAGICSTAMP(0),
-					NOTIFYDUCATIDRIVER_MAKE_MAGICSTAMP(0));
-	if (atomic_inc_return(&(notify_ducatidriver_state.ref_count)) !=
-		NOTIFYDUCATIDRIVER_MAKE_MAGICSTAMP(1u)) {
+	atomic_cmpmask_and_set(&(notify_shm_drv_state.ref_count),
+					NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(0),
+					NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(0));
+	if (atomic_inc_return(&(notify_shm_drv_state.ref_count)) !=
+		NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(1u)) {
 		return NOTIFY_S_ALREADYSETUP;
 	}
-	atomic_set(&(notify_ducatidriver_state.mbox2_ref_count), 0);
-	atomic_set(&(notify_ducatidriver_state.mbox1_ref_count), 0);
+	atomic_set(&(notify_shm_drv_state.mbox2_ref_count), 0);
+	atomic_set(&(notify_shm_drv_state.mbox1_ref_count), 0);
 
 	if (cfg == NULL) {
-		notify_ducatidrv_get_config(&tmp_cfg);
+		notify_shm_drv_get_config(&tmp_cfg);
 		cfg = &tmp_cfg;
 	}
 
 	/* Create a default gate handle here */
-	notify_ducatidriver_state.gate_handle =
+	notify_shm_drv_state.gate_handle =
 			kmalloc(sizeof(struct mutex), GFP_KERNEL);
-	if (notify_ducatidriver_state.gate_handle == NULL) {
+	if (notify_shm_drv_state.gate_handle == NULL) {
 		status = NOTIFY_E_MEMORY;
 		goto error_exit;
 	}
-	mutex_init(notify_ducatidriver_state.gate_handle);
+	mutex_init(notify_shm_drv_state.gate_handle);
 
 	for (i = 0 ; i < MULTIPROC_MAXPROCESSORS; i++)
 		for (j = 0 ; j < NOTIFY_MAX_INTLINES; j++)
-			notify_ducatidriver_state.driver_handles[i][j] = NULL;
+			notify_shm_drv_state.driver_handles[i][j] = NULL;
 
-	memcpy(&notify_ducatidriver_state.cfg, cfg,
-			sizeof(struct notify_ducatidrv_config));
+	memcpy(&notify_shm_drv_state.cfg, cfg,
+			sizeof(struct notify_shm_drv_config));
 
 	/* Initialize the maibox module for Ducati */
 	if (ducati_mbox == NULL) {
-		ducati_mbox = omap_mbox_get("mailbox-2", &ducati_notify_nb);
+		ducati_mbox = omap_mbox_get("mailbox-2", &omap_notify_nb);
 		if (ducati_mbox == NULL) {
 			printk(KERN_ERR "Failed in omap_mbox_get(ducati)\n");
 			status = NOTIFY_E_INVALIDSTATE;
@@ -239,7 +239,7 @@ int notify_ducatidrv_setup(struct notify_ducatidrv_config *cfg)
 
 	/* Initialize the maibox module for Tesla */
 	if (!tesla_mbox) {
-		tesla_mbox = omap_mbox_get("mailbox-1", &ducati_notify_nb);
+		tesla_mbox = omap_mbox_get("mailbox-1", &omap_notify_nb);
 		if (!tesla_mbox) {
 			printk(KERN_ERR "Failed in omap_mbox_get(tesla)\n");
 			status = NOTIFY_E_INVALIDSTATE;
@@ -249,80 +249,80 @@ int notify_ducatidrv_setup(struct notify_ducatidrv_config *cfg)
 	return 0;
 
 error_mailbox_get_failed:
-	kfree(notify_ducatidriver_state.gate_handle);
+	kfree(notify_shm_drv_state.gate_handle);
 error_exit:
-	atomic_set(&(notify_ducatidriver_state.ref_count),
-			NOTIFYDUCATIDRIVER_MAKE_MAGICSTAMP(0));
-	printk(KERN_ERR "notify_ducatidrv_setup failed! status = 0x%x", status);
+	atomic_set(&(notify_shm_drv_state.ref_count),
+			NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(0));
+	printk(KERN_ERR "notify_shm_drv_setup failed! status = 0x%x", status);
 	return status;
 }
-EXPORT_SYMBOL(notify_ducatidrv_setup);
+EXPORT_SYMBOL(notify_shm_drv_setup);
 
-/* Destroy the notify_ducatidrv module. */
-int notify_ducatidrv_destroy(void)
+/* Destroy the notify_shm_drv module. */
+int notify_shm_drv_destroy(void)
 {
 	int status = NOTIFY_S_SUCCESS;
 	u16 i;
 	u16 j;
 
 	if (WARN_ON(unlikely(atomic_cmpmask_and_lt(
-			&(notify_ducatidriver_state.ref_count),
-			NOTIFYDUCATIDRIVER_MAKE_MAGICSTAMP(0),
-			NOTIFYDUCATIDRIVER_MAKE_MAGICSTAMP(1)) == true))) {
+			&(notify_shm_drv_state.ref_count),
+			NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(0),
+			NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(1)) == true))) {
 		status = NOTIFY_E_INVALIDSTATE;
 		goto exit;
 	}
-	if (!(atomic_dec_return(&notify_ducatidriver_state.ref_count) == \
-				NOTIFYDUCATIDRIVER_MAKE_MAGICSTAMP(0)))
+	if (!(atomic_dec_return(&notify_shm_drv_state.ref_count) == \
+				NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(0)))
 		return NOTIFY_S_ALREADYSETUP;
 
 	/* Temporarily increment the refcount */
-	atomic_set(&(notify_ducatidriver_state.ref_count),
-					NOTIFYDUCATIDRIVER_MAKE_MAGICSTAMP(1));
+	atomic_set(&(notify_shm_drv_state.ref_count),
+					NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(1));
 
 	for (i = 0 ; i < MULTIPROC_MAXPROCESSORS; i++) {
 		for (j = 0 ; j < NOTIFY_MAX_INTLINES; j++) {
-			if (notify_ducatidriver_state.driver_handles[i][j] != \
+			if (notify_shm_drv_state.driver_handles[i][j] != \
 				NULL) {
-				notify_ducatidrv_delete(
-					&notify_ducatidriver_state.\
+				notify_shm_drv_delete(
+					&notify_shm_drv_state.\
 						driver_handles[i][j]);
 			}
 		}
 	}
 
-	if (notify_ducatidriver_state.gate_handle != NULL)
-		kfree(notify_ducatidriver_state.gate_handle);
+	if (notify_shm_drv_state.gate_handle != NULL)
+		kfree(notify_shm_drv_state.gate_handle);
 
-	atomic_set(&(notify_ducatidriver_state.ref_count),
-		NOTIFYDUCATIDRIVER_MAKE_MAGICSTAMP(0));
+	atomic_set(&(notify_shm_drv_state.ref_count),
+		NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(0));
 
 	/* Finalize the maibox module for Ducati */
-	omap_mbox_put(ducati_mbox, &ducati_notify_nb);
+	omap_mbox_put(ducati_mbox, &omap_notify_nb);
 	ducati_mbox = NULL;
 
 	/* Finalize the maibox module for Tesla */
-	omap_mbox_put(tesla_mbox, &ducati_notify_nb);
+	omap_mbox_put(tesla_mbox, &omap_notify_nb);
 	tesla_mbox = NULL;
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_ducatidrv_destroy failed! "
+		printk(KERN_ERR "notify_shm_drv_destroy failed! "
 			"status = 0x%x", status);
 	}
 	return status;
 }
-EXPORT_SYMBOL(notify_ducatidrv_destroy);
+EXPORT_SYMBOL(notify_shm_drv_destroy);
 
-/* Function to initialize the parameters for this notify_ducatidrv instance. */
-void notify_ducatidrv_params_init(struct notify_ducatidrv_params *params)
+/* Function to initialize the parameters for this notify_shm_drv instance. */
+void notify_shm_drv_params_init(struct notify_shm_drv_params *params)
 {
 	int status = NOTIFY_S_SUCCESS;
 
 	if (WARN_ON(unlikely(atomic_cmpmask_and_lt(
-			&(notify_ducatidriver_state.ref_count),
-			NOTIFYDUCATIDRIVER_MAKE_MAGICSTAMP(0),
-			NOTIFYDUCATIDRIVER_MAKE_MAGICSTAMP(1)) == true))) {
+			&(notify_shm_drv_state.ref_count),
+			NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(0),
+			NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(1)) == true))) {
 		status = NOTIFY_E_INVALIDSTATE;
 		goto exit;
 	}
@@ -331,25 +331,25 @@ void notify_ducatidrv_params_init(struct notify_ducatidrv_params *params)
 		goto exit;
 	}
 
-	/*Return updated notify_ducatidrv instance specific parameters*/
-	memcpy(params, &(notify_ducatidriver_state.def_inst_params),
-		sizeof(struct notify_ducatidrv_params));
+	/*Return updated notify_shm_drv instance specific parameters*/
+	memcpy(params, &(notify_shm_drv_state.def_inst_params),
+		sizeof(struct notify_shm_drv_params));
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_ducatidrv_params_init failed! "
+		printk(KERN_ERR "notify_shm_drv_params_init failed! "
 			"status = 0x%x", status);
 	}
 	return;
 }
-EXPORT_SYMBOL(notify_ducatidrv_params_init);
+EXPORT_SYMBOL(notify_shm_drv_params_init);
 
 /* Function to create an instance of this Notify ducati driver. */
-struct notify_ducatidrv_object *notify_ducatidrv_create(
-				const struct notify_ducatidrv_params *params)
+struct notify_shm_drv_object *notify_shm_drv_create(
+				const struct notify_shm_drv_params *params)
 {
 	int status = NOTIFY_S_SUCCESS;
-	struct notify_ducatidrv_object *obj = NULL;
+	struct notify_shm_drv_object *obj = NULL;
 	struct notify_driver_object *drv_handle = NULL;
 	struct notify_driver_fxn_table fxn_table;
 	struct omap_mbox *mbox;
@@ -358,13 +358,13 @@ struct notify_ducatidrv_object *notify_ducatidrv_create(
 	u16 region_id;
 	uint region_cache_size;
 	uint min_align;
-	struct notify_ducatidrv_event_entry *event_entry;
+	struct notify_shm_drv_event_entry *event_entry;
 	u32 proc_ctrl_size;
 
 	if (WARN_ON(unlikely(atomic_cmpmask_and_lt(
-			&(notify_ducatidriver_state.ref_count),
-			NOTIFYDUCATIDRIVER_MAKE_MAGICSTAMP(0),
-			NOTIFYDUCATIDRIVER_MAKE_MAGICSTAMP(1)) == true))) {
+			&(notify_shm_drv_state.ref_count),
+			NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(0),
+			NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(1)) == true))) {
 		status = NOTIFY_E_INVALIDSTATE;
 		goto exit;
 	}
@@ -389,14 +389,14 @@ struct notify_ducatidrv_object *notify_ducatidrv_create(
 
 	if (params->remote_proc_id) {
 		mbox = ducati_mbox;
-		mbx_cnt = &notify_ducatidriver_state.mbox2_ref_count;
+		mbx_cnt = &notify_shm_drv_state.mbox2_ref_count;
 	} else {
 		mbox = tesla_mbox;
-		mbx_cnt = &notify_ducatidriver_state.mbox1_ref_count;
+		mbx_cnt = &notify_shm_drv_state.mbox1_ref_count;
 	}
 
 	status = mutex_lock_interruptible(
-				notify_ducatidriver_state.gate_handle);
+				notify_shm_drv_state.gate_handle);
 	if (status)
 		goto exit;
 
@@ -409,13 +409,13 @@ struct notify_ducatidrv_object *notify_ducatidrv_create(
 	}
 
 	/* Function table information */
-	fxn_table.register_event = (void *)&notify_ducatidrv_register_event;
-	fxn_table.unregister_event = (void *)&notify_ducatidrv_unregister_event;
-	fxn_table.send_event = (void *)&notify_ducatidrv_send_event;
-	fxn_table.disable = (void *)&notify_ducatidrv_disable;
-	fxn_table.enable = (void *)&notify_ducatidrv_enable;
-	fxn_table.disable_event = (void *)&notify_ducatidrv_disable_event;
-	fxn_table.enable_event = (void *)&notify_ducatidrv_enable_event;
+	fxn_table.register_event = (void *)&notify_shm_drv_register_event;
+	fxn_table.unregister_event = (void *)&notify_shm_drv_unregister_event;
+	fxn_table.send_event = (void *)&notify_shm_drv_send_event;
+	fxn_table.disable = (void *)&notify_shm_drv_disable;
+	fxn_table.enable = (void *)&notify_shm_drv_enable;
+	fxn_table.disable_event = (void *)&notify_shm_drv_disable_event;
+	fxn_table.enable_event = (void *)&notify_shm_drv_enable_event;
 
 	/* Register driver with the Notify module. */
 	status = notify_register_driver(params->remote_proc_id,
@@ -426,17 +426,17 @@ struct notify_ducatidrv_object *notify_ducatidrv_create(
 		goto error_clean_and_exit;
 	}
 
-	/* Allocate memory for the notify_ducatidrv_object object. */
-	obj = kzalloc(sizeof(struct notify_ducatidrv_object), GFP_ATOMIC);
+	/* Allocate memory for the notify_shm_drv_object object. */
+	obj = kzalloc(sizeof(struct notify_shm_drv_object), GFP_ATOMIC);
 	if (obj == NULL) {
 		status = NOTIFY_E_MEMORY;
 		goto error_clean_and_exit;
 	}
 	memcpy(&(obj->params), (void *) params,
-				sizeof(struct notify_ducatidrv_params));
+				sizeof(struct notify_shm_drv_params));
 	obj->num_events = notify_state.cfg.num_events;
 	/* Set the handle in the driverHandles array. */
-	notify_ducatidriver_state.driver_handles
+	notify_shm_drv_state.driver_handles
 		[params->remote_proc_id][params->line_id] = obj;
 	/* Point to the generic drvHandle object from this specific
 	 * NotifyDriverShm object. */
@@ -475,27 +475,27 @@ struct notify_ducatidrv_object *notify_ducatidrv_create(
 		obj->other_id = SELF_ID;
 	}
 
-	proc_ctrl_size = ROUND_UP(sizeof(struct notify_ducatidrv_proc_ctrl),
+	proc_ctrl_size = ROUND_UP(sizeof(struct notify_shm_drv_proc_ctrl),
 				min_align);
 
 	/* Save the eventEntrySize in obj since we will need it at runtime to
 	 * index the event charts */
 
 	obj->event_entry_size = ROUND_UP(
-				sizeof(struct notify_ducatidrv_event_entry),
+				sizeof(struct notify_shm_drv_event_entry),
 				min_align);
-	obj->self_proc_ctrl = (struct notify_ducatidrv_proc_ctrl *)
+	obj->self_proc_ctrl = (struct notify_shm_drv_proc_ctrl *)
 					((u32) params->shared_addr + \
 					(obj->self_id * proc_ctrl_size));
-	obj->other_proc_ctrl = (struct notify_ducatidrv_proc_ctrl *)
+	obj->other_proc_ctrl = (struct notify_shm_drv_proc_ctrl *)
 					((u32) params->shared_addr + \
 					(obj->other_id * proc_ctrl_size));
-	obj->self_event_chart = (struct notify_ducatidrv_event_entry *)
+	obj->self_event_chart = (struct notify_shm_drv_event_entry *)
 					((u32) params->shared_addr + \
 					(2 * proc_ctrl_size) + \
 					(obj->event_entry_size * \
 					obj->num_events * obj->self_id));
-	obj->other_event_chart  = (struct notify_ducatidrv_event_entry *)
+	obj->other_event_chart  = (struct notify_shm_drv_event_entry *)
 					((u32) params->shared_addr + \
 					(2 * proc_ctrl_size) + \
 					(obj->event_entry_size * \
@@ -517,24 +517,23 @@ struct notify_ducatidrv_object *notify_ducatidrv_create(
 	/* Enable all events initially.*/
 	obj->self_proc_ctrl->event_enable_mask = 0xFFFFFFFF;
 
-
 	/*Set up the ISR on the MPU-Ducati FIFO */
 	if (atomic_inc_return(mbx_cnt) == 1)
 		omap_mbox_enable_irq(mbox, IRQ_RX);
-	obj->self_proc_ctrl->recv_init_status = NOTIFYDUCATIDRIVER_INIT_STAMP;
-	obj->self_proc_ctrl->send_init_status = NOTIFYDUCATIDRIVER_INIT_STAMP;
+	obj->self_proc_ctrl->recv_init_status = NOTIFYSHMDRIVER_INIT_STAMP;;
+	obj->self_proc_ctrl->send_init_status = NOTIFYSHMDRIVER_INIT_STAMP;
 
 #if 0
 	/* Write back our own ProcCtrl */
 	if (obj->cache_enabled) {
 		Cache_wbInv((void *) obj->self_proc_ctrl,
-			sizeof(struct notify_ducatidrv_proc_ctrl),
+			sizeof(struct notify_shm_drv_proc_ctrl),
 			Cache_Type_ALL, true);
 	}
 #endif
 
 	drv_handle->is_init = NOTIFY_DRIVERINITSTATUS_DONE;
-	mutex_unlock(notify_ducatidriver_state.gate_handle);
+	mutex_unlock(notify_shm_drv_state.gate_handle);
 	return obj;
 
 error_clean_and_exit:
@@ -548,7 +547,7 @@ error_clean_and_exit:
 			/* Write back our own ProcCtrl */
 			if (obj->cache_enabled) {
 				Cache_wbInv((void *) obj->self_proc_ctrl,
-				sizeof(struct notify_ducatidrv_proc_ctrl),
+				sizeof(struct notify_shm_drv_proc_ctrl),
 				Cache_Type_ALL, true);
 			}
 #endif
@@ -559,33 +558,33 @@ error_clean_and_exit:
 	if (drv_handle != NULL) {
 		/* Unregister driver from the Notify module*/
 		notify_unregister_driver(drv_handle);
-		notify_ducatidriver_state.driver_handles
+		notify_shm_drv_state.driver_handles
 			[params->remote_proc_id][params->line_id] = NULL;
 		drv_handle = NULL;
 	}
 error_unlock_and_return:
 	/* Leave critical section protection. */
-	mutex_unlock(notify_ducatidriver_state.gate_handle);
+	mutex_unlock(notify_shm_drv_state.gate_handle);
 exit:
-	printk(KERN_ERR "notify_ducatidrv_create failed! status = 0x%x",
+	printk(KERN_ERR "notify_shm_drv_create failed! status = 0x%x",
 		status);
 	return NULL;
 }
-EXPORT_SYMBOL(notify_ducatidrv_create);
+EXPORT_SYMBOL(notify_shm_drv_create);
 
 /* Function to delete the instance of shared memory driver */
-int notify_ducatidrv_delete(struct notify_ducatidrv_object **handle_ptr)
+int notify_shm_drv_delete(struct notify_shm_drv_object **handle_ptr)
 {
 	int status = NOTIFY_S_SUCCESS;
 	int tmp_status = NOTIFY_S_SUCCESS;
-	struct notify_ducatidrv_object *obj = NULL;
+	struct notify_shm_drv_object *obj = NULL;
 	struct omap_mbox *mbox;
 	atomic_t *mbx_cnt;
 
 	if (WARN_ON(unlikely(atomic_cmpmask_and_lt(
-			&(notify_ducatidriver_state.ref_count),
-			NOTIFYDUCATIDRIVER_MAKE_MAGICSTAMP(0),
-			NOTIFYDUCATIDRIVER_MAKE_MAGICSTAMP(1)) == true))) {
+			&(notify_shm_drv_state.ref_count),
+			NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(0),
+			NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(1)) == true))) {
 		status = NOTIFY_E_INVALIDSTATE;
 		goto exit;
 	}
@@ -599,14 +598,14 @@ int notify_ducatidrv_delete(struct notify_ducatidrv_object **handle_ptr)
 		goto exit;
 	}
 
-	obj = (struct notify_ducatidrv_object *)(*handle_ptr);
+	obj = (struct notify_shm_drv_object *)(*handle_ptr);
 	if (obj != NULL) {
 		if (obj->remote_proc_id) {
 			mbox = ducati_mbox;
-			mbx_cnt = &notify_ducatidriver_state.mbox2_ref_count;
+			mbx_cnt = &notify_shm_drv_state.mbox2_ref_count;
 		} else {
 			mbox = tesla_mbox;
-			mbx_cnt = &notify_ducatidriver_state.mbox1_ref_count;
+			mbx_cnt = &notify_shm_drv_state.mbox1_ref_count;
 		}
 		/* Uninstall the ISRs & Disable the Mailbox interrupt.*/
 		if (atomic_dec_and_test(mbx_cnt))
@@ -621,7 +620,7 @@ int notify_ducatidrv_delete(struct notify_ducatidrv_object **handle_ptr)
 			/* Write back our own ProcCtrl */
 			if (obj->cache_enabled) {
 				Cache_wbInv((void *) obj->self_proc_ctrl,
-				sizeof(struct notify_ducatidrv_proc_ctrl),
+				sizeof(struct notify_shm_drv_proc_ctrl),
 				Cache_Type_ALL, true);
 			}
 #endif
@@ -631,7 +630,7 @@ int notify_ducatidrv_delete(struct notify_ducatidrv_object **handle_ptr)
 		if (status >= 0 && tmp_status < 0)
 			status = tmp_status;
 
-		notify_ducatidriver_state.driver_handles
+		notify_shm_drv_state.driver_handles
 			[obj->params.remote_proc_id][obj->params.line_id] = \
 									NULL;
 
@@ -641,20 +640,20 @@ int notify_ducatidrv_delete(struct notify_ducatidrv_object **handle_ptr)
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_ducatidrv_delete failed! "
+		printk(KERN_ERR "notify_shm_drv_delete failed! "
 			"status = 0x%x", status);
 	}
 	return status;
 }
-EXPORT_SYMBOL(notify_ducatidrv_delete);
+EXPORT_SYMBOL(notify_shm_drv_delete);
 
 /* Register a callback for an event with the Notify driver. */
-int notify_ducatidrv_register_event(struct notify_driver_object *handle,
+int notify_shm_drv_register_event(struct notify_driver_object *handle,
 					u32 event_id)
 {
 	int status = NOTIFY_S_SUCCESS;
-	struct notify_ducatidrv_object *obj;
-	VOLATILE struct notify_ducatidrv_event_entry *event_entry;
+	struct notify_shm_drv_object *obj;
+	VOLATILE struct notify_shm_drv_event_entry *event_entry;
 	int i;
 	int j;
 
@@ -676,7 +675,7 @@ int notify_ducatidrv_register_event(struct notify_driver_object *handle,
 		goto exit;
 	}
 
-	obj = (struct notify_ducatidrv_object *)
+	obj = (struct notify_shm_drv_object *)
 				handle->notify_handle->driver_handle;
 	if (WARN_ON(unlikely(obj->reg_chart == NULL))) {
 		status = NOTIFY_E_FAIL;
@@ -712,7 +711,7 @@ int notify_ducatidrv_register_event(struct notify_driver_object *handle,
 	 * for the pending event */
 	event_entry = EVENTENTRY(obj->self_event_chart, obj->event_entry_size,
 					event_id);
-	event_entry->flag = NOTIFYDUCATIDRIVER_DOWN;
+	event_entry->flag = NOTIFYSHMDRIVER_DOWN;
 
 	/* Set the registered bit in shared memory and write back */
 	set_bit(event_id, (unsigned long *)
@@ -723,30 +722,30 @@ int notify_ducatidrv_register_event(struct notify_driver_object *handle,
 	if (obj->cache_enabled) {
 		/* Writeback eventRegMask */
 		Cache_wbInv((void *) obj->self_proc_ctrl,
-			sizeof(struct notify_ducatidrv_proc_ctrl),
+			sizeof(struct notify_shm_drv_proc_ctrl),
 			Cache_Type_ALL, true);
 		/* Writeback event entry */
 		Cache_wbInv((void *) event_entry,
-			sizeof(struct notify_ducatidrv_event_entry),
+			sizeof(struct notify_shm_drv_event_entry),
 			Cache_Type_ALL, true);
 	}
 #endif
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_ducatidrv_register_event failed! "
+		printk(KERN_ERR "notify_shm_drv_register_event failed! "
 			"status = 0x%x", status);
 	}
 	return status;
 }
 
 /* Unregister a callback for an event with the Notify driver. */
-int notify_ducatidrv_unregister_event(struct notify_driver_object *handle,
+int notify_shm_drv_unregister_event(struct notify_driver_object *handle,
 					u32 event_id)
 {
 	int status = NOTIFY_S_SUCCESS;
-	struct notify_ducatidrv_object *obj;
-	VOLATILE struct notify_ducatidrv_event_entry *event_entry;
+	struct notify_shm_drv_object *obj;
+	VOLATILE struct notify_shm_drv_event_entry *event_entry;
 	int i;
 	int j;
 
@@ -768,7 +767,7 @@ int notify_ducatidrv_unregister_event(struct notify_driver_object *handle,
 		goto exit;
 	}
 
-	obj = (struct notify_ducatidrv_object *)
+	obj = (struct notify_shm_drv_object *)
 				handle->notify_handle->driver_handle;
 	if (WARN_ON(unlikely(obj->reg_chart == NULL))) {
 		status = NOTIFY_E_FAIL;
@@ -788,18 +787,18 @@ int notify_ducatidrv_unregister_event(struct notify_driver_object *handle,
 	 * event. */
 	event_entry = EVENTENTRY(obj->self_event_chart, obj->event_entry_size,
 					event_id);
-	event_entry->flag = NOTIFYDUCATIDRIVER_DOWN;
+	event_entry->flag = NOTIFYSHMDRIVER_DOWN;
 
 #if 0
 	/* Write back both the flag and the reg mask */
 	if (obj->cache_enabled) {
 		/* Writeback event entry */
 		Cache_wbInv((void *) event_entry,
-			sizeof(struct notify_ducatidrv_event_entry),
+			sizeof(struct notify_shm_drv_event_entry),
 			Cache_Type_ALL, true);
 		/* Writeback eventRegMask */
 		Cache_wbInv((void *) obj->self_proc_ctrl,
-			sizeof(struct notify_ducatidrv_proc_ctrl),
+			sizeof(struct notify_shm_drv_proc_ctrl),
 			Cache_Type_ALL, true);
 	}
 #endif
@@ -827,7 +826,7 @@ int notify_ducatidrv_unregister_event(struct notify_driver_object *handle,
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_ducatidrv_unregister_event failed! "
+		printk(KERN_ERR "notify_shm_drv_unregister_event failed! "
 			"status = 0x%x", status);
 	}
 	return status;
@@ -835,13 +834,13 @@ exit:
 
 /* Send a notification event to the registered users for this
  * notification on the specified processor. */
-int notify_ducatidrv_send_event(struct notify_driver_object *handle,
+int notify_shm_drv_send_event(struct notify_driver_object *handle,
 				u32 event_id, u32 payload, bool wait_clear)
 {
 	int status = NOTIFY_S_SUCCESS;
-	struct notify_ducatidrv_object *obj;
+	struct notify_shm_drv_object *obj;
 	struct omap_mbox *mbox;
-	VOLATILE struct notify_ducatidrv_event_entry *event_entry;
+	VOLATILE struct notify_shm_drv_event_entry *event_entry;
 	int max_poll_count;
 	int i = 0;
 	mbox_msg_t msg;
@@ -864,7 +863,7 @@ int notify_ducatidrv_send_event(struct notify_driver_object *handle,
 		goto exit;
 	}
 
-	obj = (struct notify_ducatidrv_object *)
+	obj = (struct notify_shm_drv_object *)
 				handle->notify_handle->driver_handle;
 
 	mbox = (obj->remote_proc_id) ? ducati_mbox : tesla_mbox;
@@ -880,7 +879,7 @@ int notify_ducatidrv_send_event(struct notify_driver_object *handle,
 	/* Invalidate cache for the other processor's procCtrl. */
 	if (obj->cache_enabled) {
 		Cache_wbInv((void *) obj->other_proc_ctrl,
-			sizeof(struct notify_ducatidrv_proc_ctrl),
+			sizeof(struct notify_shm_drv_proc_ctrl),
 			Cache_Type_ALL, true);
 	}
 #endif
@@ -888,7 +887,7 @@ int notify_ducatidrv_send_event(struct notify_driver_object *handle,
 
 	/* Check whether driver on other processor is initialized */
 	if (obj->other_proc_ctrl->recv_init_status != \
-					NOTIFYDUCATIDRIVER_INIT_STAMP) {
+					NOTIFYSHMDRIVER_INIT_STAMP) {
 		/* This may be used for polling till other-side driver is ready,
 		 * so do not set failure reason. */
 		status = NOTIFY_E_NOTINITIALIZED;
@@ -912,24 +911,24 @@ int notify_ducatidrv_send_event(struct notify_driver_object *handle,
 #if 0
 	if (obj->cache_enabled) {
 		Cache_inv((void *)event_entry,
-			sizeof(struct notify_ducatidrv_event_entry),
+			sizeof(struct notify_shm_drv_event_entry),
 			Cache_Type_ALL, TRUE);
 	}
 #endif
 	dsb();
 	status = mutex_lock_interruptible(
-				notify_ducatidriver_state.gate_handle);
+				notify_shm_drv_state.gate_handle);
 	if (status)
 		goto exit;
 
 	if (wait_clear == true) {
 		/*Wait for completion of prev
 		event from other side*/
-		while ((event_entry->flag != NOTIFYDUCATIDRIVER_DOWN) && \
+		while ((event_entry->flag != NOTIFYSHMDRIVER_DOWN) && \
 			(status >= 0)) {
 			/* Leave critical section protection. Create a window
 			 * of opportunity for other interrupts to be handled.*/
-			mutex_unlock(notify_ducatidriver_state.gate_handle);
+			mutex_unlock(notify_shm_drv_state.gate_handle);
 			i++;
 			if ((max_poll_count != (u32)-1) && \
 				(i == max_poll_count)) {
@@ -940,7 +939,7 @@ int notify_ducatidrv_send_event(struct notify_driver_object *handle,
 #if 0
 			if (obj->cache_enabled) {
 				Cache_inv((void *)event_entry,
-				sizeof(struct notify_ducatidrv_event_entry),
+				sizeof(struct notify_shm_drv_event_entry),
 				Cache_Type_ALL, TRUE);
 			}
 #endif
@@ -948,19 +947,19 @@ int notify_ducatidrv_send_event(struct notify_driver_object *handle,
 
 			/* Enter critical section protection. */
 			status = mutex_lock_interruptible(
-					notify_ducatidriver_state.gate_handle);
+					notify_shm_drv_state.gate_handle);
 		}
 	}
 
 	if (status >= 0) {
 		/* Set the event bit field and payload. */
 		event_entry->payload = payload;
-		event_entry->flag = NOTIFYDUCATIDRIVER_UP;
+		event_entry->flag = NOTIFYSHMDRIVER_UP;
 
 #if 0
 		if (obj->cache_enabled) {
 			Cache_inv((void *)event_entry,
-			sizeof(struct notify_ducatidrv_event_entry),
+			sizeof(struct notify_shm_drv_event_entry),
 			Cache_Type_ALL, TRUE);
 		}
 #endif
@@ -972,22 +971,22 @@ int notify_ducatidrv_send_event(struct notify_driver_object *handle,
 		status = omap_mbox_msg_send(mbox, msg);
 
 		/* Leave critical section protection. */
-		mutex_unlock(notify_ducatidriver_state.gate_handle);
+		mutex_unlock(notify_shm_drv_state.gate_handle);
 	}
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_ducatidrv_sendevent failed! "
+		printk(KERN_ERR "notify_shm_drv_sendevent failed! "
 			"status = 0x%x", status);
 	}
 	return status;
 }
 
 /* Disable all events for this Notify driver.*/
-int notify_ducatidrv_disable(struct notify_driver_object *handle)
+int notify_shm_drv_disable(struct notify_driver_object *handle)
 {
 	int status = NOTIFY_S_SUCCESS;
-	struct notify_ducatidrv_object *obj;
+	struct notify_shm_drv_object *obj;
 	struct omap_mbox *mbox;
 
 	/* All the below parameter checking is unnecessary, but added to
@@ -1010,7 +1009,7 @@ int notify_ducatidrv_disable(struct notify_driver_object *handle)
 		goto exit;
 	}
 
-	obj = (struct notify_ducatidrv_object *)
+	obj = (struct notify_shm_drv_object *)
 				handle->notify_handle->driver_handle;
 
 	mbox = (obj->remote_proc_id) ? ducati_mbox : tesla_mbox;
@@ -1019,24 +1018,23 @@ int notify_ducatidrv_disable(struct notify_driver_object *handle)
 		goto exit;
 	}
 
-	/* Disable the mailbox interrupt associated with ducati mailbox */
 	omap_mbox_disable_irq(mbox, IRQ_RX);
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_ducatidrv_disable failed! "
+		printk(KERN_ERR "notify_shm_drv_disable failed! "
 			"status = 0x%x", status);
 	}
 	/*No flags to be returned. */
 	return 0;
 }
 
-/* Restore the notify_ducatidrv to the state before the last disable was
+/* Restore the notify_shm_drv to the state before the last disable was
  * called. */
-void notify_ducatidrv_enable(struct notify_driver_object *handle)
+void notify_shm_drv_enable(struct notify_driver_object *handle)
 {
 	int status = NOTIFY_S_SUCCESS;
-	struct notify_ducatidrv_object *obj;
+	struct notify_shm_drv_object *obj;
 	struct omap_mbox *mbox;
 
 	/* All the below parameter checking is unnecessary, but added to
@@ -1059,7 +1057,7 @@ void notify_ducatidrv_enable(struct notify_driver_object *handle)
 		goto exit;
 	}
 
-	obj = (struct notify_ducatidrv_object *)
+	obj = (struct notify_shm_drv_object *)
 				handle->notify_handle->driver_handle;
 
 	mbox = (obj->remote_proc_id) ? ducati_mbox : tesla_mbox;
@@ -1073,19 +1071,19 @@ void notify_ducatidrv_enable(struct notify_driver_object *handle)
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_ducatidrv_enable failed! "
+		printk(KERN_ERR "notify_shm_drv_enable failed! "
 			"status = 0x%x", status);
 	}
 	return;
 }
 
 /* Disable a specific event for this Notify ducati driver */
-void notify_ducatidrv_disable_event(struct notify_driver_object *handle,
+void notify_shm_drv_disable_event(struct notify_driver_object *handle,
 					u32 event_id)
 {
 	int status = NOTIFY_S_SUCCESS;
-	struct notify_ducatidrv_object *obj;
-	VOLATILE struct notify_ducatidrv_event_entry *event_entry;
+	struct notify_shm_drv_object *obj;
+	VOLATILE struct notify_shm_drv_event_entry *event_entry;
 
 	if (WARN_ON(unlikely(handle == NULL))) {
 		status = NOTIFY_E_INVALIDARG;
@@ -1105,7 +1103,7 @@ void notify_ducatidrv_disable_event(struct notify_driver_object *handle,
 		goto exit;
 	}
 
-	obj = (struct notify_ducatidrv_object *)
+	obj = (struct notify_shm_drv_object *)
 		handle->notify_handle->driver_handle;
 	if (event_id > obj->num_events) {
 		status = NOTIFY_E_FAIL;
@@ -1114,18 +1112,18 @@ void notify_ducatidrv_disable_event(struct notify_driver_object *handle,
 
 	/* Enter critical section protection. */
 	status = mutex_lock_interruptible(
-					notify_ducatidriver_state.gate_handle);
+					notify_shm_drv_state.gate_handle);
 	if (status)
 		goto exit;
 	clear_bit(event_id, (unsigned long *)
 			&(obj->self_proc_ctrl->event_enable_mask));
 	/* Leave critical section protection. */
-	mutex_unlock(notify_ducatidriver_state.gate_handle);
+	mutex_unlock(notify_shm_drv_state.gate_handle);
 #if 0
 	if (obj->cache_enabled) {
 		/* Writeback event_enable_mask */
 		Cache_wbInv((void *) obj->self_proc_ctrl,
-			sizeof(struct notify_ducatidrv_proc_ctrl),
+			sizeof(struct notify_shm_drv_proc_ctrl),
 			Cache_Type_ALL, true);
 	}
 #endif
@@ -1136,7 +1134,7 @@ void notify_ducatidrv_disable_event(struct notify_driver_object *handle,
 	if (obj->cache_enabled) {
 		/* Writeback event entry */
 		Cache_wbInv((void *) event_entry,
-			sizeof(struct notify_ducatidrv_event_entry),
+			sizeof(struct notify_shm_drv_event_entry),
 			Cache_Type_ALL, true);
 	}
 #endif
@@ -1144,28 +1142,28 @@ void notify_ducatidrv_disable_event(struct notify_driver_object *handle,
 	/* Disable incoming Notify interrupts.  This is done to ensure that the
 	 * eventEntry->flag is read atomically with any write back to shared
 	 * memory */
-	notify_ducatidrv_disable(handle);
+	notify_shm_drv_disable(handle);
 
-	/* Is the local notify_ducatidrv_disable_event happening between the
-	 * following two notify_ducatidrv_send_event operations on the remote
+	/* Is the local notify_shm_drv_disable_event happening between the
+	 * following two notify_shm_drv_send_event operations on the remote
 	 * processor?
-	 * 1. Writing notify_ducatidrv_UP to shared memory
+	 * 1. Writing notify_shm_drv_UP to shared memory
 	 * 2. Sending the interrupt across
 	 * If so, we should handle this event so the other core isn't left
 	 * spinning until the event is re-enabled and the next
-	 * notify_ducatidrv_isr executes This race condition is very rare but we
+	 * notify_shmdrv_isr executes This race condition is very rare but we
 	 * need to account for it: */
-	if (event_entry->flag == NOTIFYDUCATIDRIVER_UP) {
+	if (event_entry->flag == NOTIFYSHMDRIVER_UP) {
 		/* Acknowledge the event. No need to store the payload. The
 		 * other side will not send this event again even though flag is
 		 * down, because the event is now disabled. So the payload
 		 * within the eventChart will not get overwritten. */
-		event_entry->flag = NOTIFYDUCATIDRIVER_DOWN;
+		event_entry->flag = NOTIFYSHMDRIVER_DOWN;
 #if 0
 		/* Write back acknowledgement */
 		if (obj->cache_enabled) {
 			Cache_wbInv(event_entry,
-				sizeof(struct notify_ducatidrv_event_entry),
+				sizeof(struct notify_shm_drv_event_entry),
 				Cache_Type_ALL, TRUE);
 		}
 #endif
@@ -1176,22 +1174,22 @@ void notify_ducatidrv_disable_event(struct notify_driver_object *handle,
 	}
 
 	/* Re-enable incoming Notify interrupts */
-	notify_ducatidrv_enable(handle);
+	notify_shm_drv_enable(handle);
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_ducatidrv_disable_event failed! "
+		printk(KERN_ERR "notify_shm_drv_disable_event failed! "
 			"status = 0x%x", status);
 	}
 	return;
 }
 
 /* Enable a specific event for this Notify ducati driver */
-void notify_ducatidrv_enable_event(struct notify_driver_object *handle,
+void notify_shm_drv_enable_event(struct notify_driver_object *handle,
 								u32 event_id)
 {
 	int status = 0;
-	struct notify_ducatidrv_object *obj;
+	struct notify_shm_drv_object *obj;
 
 	if (WARN_ON(unlikely(handle == NULL))) {
 		status = NOTIFY_E_INVALIDARG;
@@ -1211,7 +1209,7 @@ void notify_ducatidrv_enable_event(struct notify_driver_object *handle,
 		goto exit;
 	}
 
-	obj = (struct notify_ducatidrv_object *)
+	obj = (struct notify_shm_drv_object *)
 		handle->notify_handle->driver_handle;
 	if (event_id > obj->num_events) {
 		status = NOTIFY_E_FAIL;
@@ -1220,33 +1218,33 @@ void notify_ducatidrv_enable_event(struct notify_driver_object *handle,
 
 	/* Enter critical section protection. */
 	status = mutex_lock_interruptible(
-					notify_ducatidriver_state.gate_handle);
+					notify_shm_drv_state.gate_handle);
 	if (status)
 		goto exit;
 	set_bit(event_id, (unsigned long *)
 			&(obj->self_proc_ctrl->event_enable_mask));
 	/* Leave critical section protection. */
-	mutex_unlock(notify_ducatidriver_state.gate_handle);
+	mutex_unlock(notify_shm_drv_state.gate_handle);
 #if 0
 	if (obj->cache_enabled) {
 		/* Writeback event_enable_mask */
 		Cache_wbInv((void *) obj->self_proc_ctrl,
-			sizeof(struct notify_ducatidrv_proc_ctrl),
+			sizeof(struct notify_shm_drv_proc_ctrl),
 			Cache_Type_ALL, true);
 	}
 #endif
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_ducatidrv_enable_event failed! "
+		printk(KERN_ERR "notify_shm_drv_enable_event failed! "
 			"status = 0x%x", status);
 	}
 	return;
 }
 
-/* Get the shared memory requirements for the notify_ducatidrv. */
-uint notify_ducatidrv_shared_mem_req(
-				const struct notify_ducatidrv_params *params)
+/* Get the shared memory requirements for the notify_shm_drv. */
+uint notify_shm_drv_shared_mem_req(
+				const struct notify_shm_drv_params *params)
 {
 	uint mem_req = 0;
 	u16 region_id;
@@ -1255,9 +1253,9 @@ uint notify_ducatidrv_shared_mem_req(
 	s32 status = NOTIFY_S_SUCCESS;
 
 	if (WARN_ON(unlikely(atomic_cmpmask_and_lt(
-			&(notify_ducatidriver_state.ref_count),
-			NOTIFYDUCATIDRIVER_MAKE_MAGICSTAMP(0),
-			NOTIFYDUCATIDRIVER_MAKE_MAGICSTAMP(1)) == true))) {
+			&(notify_shm_drv_state.ref_count),
+			NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(0),
+			NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(1)) == true))) {
 		status = NOTIFY_E_INVALIDSTATE;
 		goto exit;
 	}
@@ -1281,14 +1279,14 @@ uint notify_ducatidrv_shared_mem_req(
 
 	/* Determine obj->eventEntrySize which will be used to ROUND_UP
 	 * addresses */
-	mem_req = ((ROUND_UP(sizeof(struct notify_ducatidrv_proc_ctrl),
+	mem_req = ((ROUND_UP(sizeof(struct notify_shm_drv_proc_ctrl),
 			min_align)) * 2) + \
-			((ROUND_UP(sizeof(struct notify_ducatidrv_event_entry),
+			((ROUND_UP(sizeof(struct notify_shm_drv_event_entry),
 			min_align) * 2 * notify_state.cfg.num_events));
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_ducatidrv_shared_mem_req failed!"
+		printk(KERN_ERR "notify_shm_drv_shared_mem_req failed!"
 			" status = 0x%x", status);
 	}
 	return mem_req;
@@ -1303,7 +1301,7 @@ static int notify_shmdrv_isr(struct notifier_block *nb, unsigned long val,
 	u32 proc_id = (u32)ntfy_msg;
 
 	/* Call the corresponding prpc_id callback */
-	notify_shmdrv_isr_callback(notify_ducatidriver_state.driver_handles
+	notify_shmdrv_isr_callback(notify_shm_drv_state.driver_handles
 		[proc_id][0], ntfy_msg);
 
 	return 0;
@@ -1314,11 +1312,11 @@ static bool notify_shmdrv_isr_callback(void *ref_data, void *notify_msg)
 {
 	u32 payload = 0;
 	u32 i = 0;
-	VOLATILE struct notify_ducatidrv_event_entry  *event_entry;
-	struct notify_ducatidrv_object *obj;
+	VOLATILE struct notify_shm_drv_event_entry  *event_entry;
+	struct notify_shm_drv_object *obj;
 	u32 event_id;
 
-	obj = (struct notify_ducatidrv_object *) ref_data;
+	obj = (struct notify_shm_drv_object *) ref_data;
 
 	dsb();
 	/* Execute the loop till no asserted event is found for one complete
@@ -1334,7 +1332,7 @@ static bool notify_shmdrv_isr_callback(void *ref_data, void *notify_msg)
 #if 0
 		if (obj->cache_enabled) {
 			Cache_inv((void *)event_entry,
-			sizeof(struct notify_ducatidrv_event_entry),
+			sizeof(struct notify_shm_drv_event_entry),
 			Cache_Type_ALL, TRUE);
 		}
 #endif
@@ -1342,19 +1340,19 @@ static bool notify_shmdrv_isr_callback(void *ref_data, void *notify_msg)
 
 		/* Determine the current high priority event.*/
 		/* Check if the event is set and enabled.*/
-		if (event_entry->flag == NOTIFYDUCATIDRIVER_UP &&
+		if (event_entry->flag == NOTIFYSHMDRIVER_UP &&
 			test_bit(event_id, (unsigned long *)
 				&obj->self_proc_ctrl->event_enable_mask)) {
 			payload = event_entry->payload;
 
 			/* Acknowledge the event. */
-			event_entry->flag = NOTIFYDUCATIDRIVER_DOWN;
+			event_entry->flag = NOTIFYSHMDRIVER_DOWN;
 
 			/* Write back acknowledgement */
 #if 0
 			if (obj->cache_enabled) {
 				Cache_inv((void *)event_entry,
-				sizeof(struct notify_ducatidrv_event_entry),
+				sizeof(struct notify_shm_drv_event_entry),
 				Cache_Type_ALL, TRUE);
 			}
 #endif
