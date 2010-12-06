@@ -68,21 +68,13 @@
 
 #define OTHER_ID	1
 
-#define PROC_TESLA	0
-#define PROC_DUCATI	1
-#define PROC_GPP	2
-#define PROCSYSM3	2
-#define PROCAPPM3	3
-#define MAX_SUBPROC_EVENTS	15
-
 /* Macro to make a correct module magic number with refCount */
 #define NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(x) \
 				((NOTIFY_SHMDRIVER_MODULEID << 12u) | (x))
 
 #define ROUND_UP(a, b)	(((a) + ((b) - 1)) & (~((b) - 1)))
 
-static struct omap_mbox *ducati_mbox;
-static struct omap_mbox *tesla_mbox;
+
 static int notify_shmdrv_isr(struct notifier_block *, unsigned long, void *);
 static bool notify_shmdrv_isr_callback(void *ref_data, void* ntfy_msg);
 
@@ -103,10 +95,10 @@ struct notify_shm_drv_module {
 	struct notify_shm_drv_object *driver_handles
 				[MULTIPROC_MAXPROCESSORS][NOTIFY_MAX_INTLINES];
 	/* Loader handle array. */
-	atomic_t mbox2_ref_count;
-	/* Reference count for enabling/disabling ducati mailbox interrupt */
-	atomic_t mbox1_ref_count;
-	/* Reference count for enabling/disabling tesla mailbox interrupt */
+	void *mbox_handle[MULTIPROC_MAXPROCESSORS];
+	/* To get the mailbox handles dynamically */
+	atomic_t mbox_ref_count[MULTIPROC_MAXPROCESSORS];
+	/* Reference count for enabling/disabling mailbox interrupt */
 };
 
 /* Notify ducati driver instance object. */
@@ -194,6 +186,7 @@ int notify_shm_drv_setup(struct notify_shm_drv_config *cfg)
 	struct notify_shm_drv_config tmp_cfg;
 	u16 i;
 	u16 j;
+	u16 rproc_id;
 
 	/* Init the ref_count to 0 */
 	atomic_cmpmask_and_set(&(notify_shm_drv_state.ref_count),
@@ -203,8 +196,8 @@ int notify_shm_drv_setup(struct notify_shm_drv_config *cfg)
 		NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(1u)) {
 		return NOTIFY_S_ALREADYSETUP;
 	}
-	atomic_set(&(notify_shm_drv_state.mbox2_ref_count), 0);
-	atomic_set(&(notify_shm_drv_state.mbox1_ref_count), 0);
+	for (i = 0 ; i < MULTIPROC_MAXPROCESSORS; i++)
+		atomic_set(&(notify_shm_drv_state.mbox_ref_count[i]), 0);
 
 	if (cfg == NULL) {
 		notify_shm_drv_get_config(&tmp_cfg);
@@ -218,6 +211,10 @@ int notify_shm_drv_setup(struct notify_shm_drv_config *cfg)
 		status = NOTIFY_E_MEMORY;
 		goto error_exit;
 	}
+
+	for (i = 0 ; i < MULTIPROC_MAXPROCESSORS; i++)
+		notify_shm_drv_state.mbox_handle[i] = NULL;
+
 	mutex_init(notify_shm_drv_state.gate_handle);
 
 	for (i = 0 ; i < MULTIPROC_MAXPROCESSORS; i++)
@@ -227,25 +224,72 @@ int notify_shm_drv_setup(struct notify_shm_drv_config *cfg)
 	memcpy(&notify_shm_drv_state.cfg, cfg,
 			sizeof(struct notify_shm_drv_config));
 
-	/* Initialize the maibox module for Ducati */
-	if (ducati_mbox == NULL) {
-		ducati_mbox = omap_mbox_get("mailbox-2", &omap_notify_nb);
-		if (ducati_mbox == NULL) {
-			printk(KERN_ERR "Failed in omap_mbox_get(ducati)\n");
-			status = NOTIFY_E_INVALIDSTATE;
-			goto error_mailbox_get_failed;
+	if (cpu_is_omap343x()) {
+		/* Initialize the maibox module for DSP */
+		rproc_id = multiproc_get_id("DSP");
+		if ((notify_shm_drv_state.mbox_handle[rproc_id] == NULL)) {
+			notify_shm_drv_state.mbox_handle[rproc_id] =
+				omap_mbox_get("dsp", &omap_notify_nb);
+			if ((notify_shm_drv_state.mbox_handle[rproc_id] == \
+				NULL)) {
+				printk(KERN_ERR \
+					"Failed in omap_mbox_get(dsp)\n");
+				status = NOTIFY_E_INVALIDSTATE;
+				goto error_mailbox_get_failed;
+			}
+			/*Set callback functions to receive notifications from
+			 *dsp */
+			((struct omap_mbox *)notify_shm_drv_state. \
+				mbox_handle[rproc_id])->rxq->callback = \
+				(int (*)(void *))notify_shmdrv_isr;
+		}
+	} else if (cpu_is_omap443x()) {
+		u16 appm3_proc_id = multiproc_get_id("AppM3");
+		rproc_id = multiproc_get_id("SysM3");
+		/* Initialize the maibox module for Ducati(APPM3/SYSM3) */
+		if ((notify_shm_drv_state.mbox_handle[appm3_proc_id] == NULL) \
+			|| (notify_shm_drv_state.mbox_handle[rproc_id] \
+				== NULL)) {
+			notify_shm_drv_state.mbox_handle[appm3_proc_id] = \
+			notify_shm_drv_state.mbox_handle[rproc_id] = \
+				omap_mbox_get("mailbox-2", &omap_notify_nb);
+
+			if ((notify_shm_drv_state.mbox_handle[appm3_proc_id] \
+				== NULL)  \
+			    || (notify_shm_drv_state.mbox_handle[rproc_id] \
+				== NULL)) {
+				printk(KERN_ERR  \
+					"Failed in omap_mbox_get(ducati)\n");
+				status = NOTIFY_E_INVALIDSTATE;
+				goto error_mailbox_get_failed;
+			}
+
+			((struct omap_mbox *)notify_shm_drv_state. \
+				mbox_handle[appm3_proc_id])->rxq->callback = \
+			((struct omap_mbox *)notify_shm_drv_state. \
+				mbox_handle[rproc_id])->rxq->callback = \
+				(int (*)(void *))notify_shmdrv_isr;
+		}
+		/* Initialize the maibox module for Tesla */
+		rproc_id = multiproc_get_id("Tesla");
+		if (!notify_shm_drv_state.mbox_handle[rproc_id]) {
+			notify_shm_drv_state.mbox_handle[rproc_id] = \
+				omap_mbox_get("mailbox-1", &omap_notify_nb);
+
+			if (!notify_shm_drv_state.mbox_handle[rproc_id]) {
+				printk(KERN_ERR \
+					"Failed in omap_mbox_get(tesla)\n");
+				status = NOTIFY_E_INVALIDSTATE;
+				goto error_mailbox_get_failed;
+			}
+
+			((struct omap_mbox *)notify_shm_drv_state. \
+				mbox_handle[rproc_id])->rxq->callback = \
+				(int (*)(void *))notify_shmdrv_isr;
 		}
 	}
 
-	/* Initialize the maibox module for Tesla */
-	if (!tesla_mbox) {
-		tesla_mbox = omap_mbox_get("mailbox-1", &omap_notify_nb);
-		if (!tesla_mbox) {
-			printk(KERN_ERR "Failed in omap_mbox_get(tesla)\n");
-			status = NOTIFY_E_INVALIDSTATE;
-			goto error_mailbox_get_failed;
-		}
-	}
+	pr_debug("Leaving notify_shm_drv_setup status 0x%x\n", 0);
 	return 0;
 
 error_mailbox_get_failed:
@@ -264,6 +308,7 @@ int notify_shm_drv_destroy(void)
 	int status = NOTIFY_S_SUCCESS;
 	u16 i;
 	u16 j;
+	u16 rproc_id;
 
 	if (WARN_ON(unlikely(atomic_cmpmask_and_lt(
 			&(notify_shm_drv_state.ref_count),
@@ -297,14 +342,30 @@ int notify_shm_drv_destroy(void)
 	atomic_set(&(notify_shm_drv_state.ref_count),
 		NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(0));
 
-	/* Finalize the maibox module for Ducati */
-	omap_mbox_put(ducati_mbox, &omap_notify_nb);
-	ducati_mbox = NULL;
+	if (cpu_is_omap343x()) {
+		/* Finalize the maibox module for dsp */
+		rproc_id = multiproc_get_id("DSP");
+		omap_mbox_put(((struct omap_mbox *)notify_shm_drv_state. \
+			mbox_handle[rproc_id]), &omap_notify_nb);
+		notify_shm_drv_state.mbox_handle[rproc_id] = NULL;
+	} else if (cpu_is_omap443x()) {
+		/* Finalize the maibox module for Ducati.Either SYSM3 or APPM3*/
+		rproc_id =  multiproc_get_id("AppM3");
+		omap_mbox_put(((struct omap_mbox *)notify_shm_drv_state. \
+			mbox_handle[rproc_id]), &omap_notify_nb);
+		notify_shm_drv_state.mbox_handle[rproc_id] = NULL;
 
-	/* Finalize the maibox module for Tesla */
-	omap_mbox_put(tesla_mbox, &omap_notify_nb);
-	tesla_mbox = NULL;
+		/* Finalize the maibox module for Tesla */
+		rproc_id =  multiproc_get_id("Tesla");
+		omap_mbox_put(((struct omap_mbox *)notify_shm_drv_state. \
+			mbox_handle[rproc_id]), &omap_notify_nb);
+		notify_shm_drv_state.mbox_handle[rproc_id] = NULL;
+	}
 
+	for (i = 0 ; i < MULTIPROC_MAXPROCESSORS; i++) {
+		if (notify_shm_drv_state.mbox_handle[i] != NULL)
+			notify_shm_drv_state.mbox_handle[i] = NULL;
+	}
 exit:
 	if (status < 0) {
 		printk(KERN_ERR "notify_shm_drv_destroy failed! "
@@ -386,14 +447,9 @@ struct notify_shm_drv_object *notify_shm_drv_create(
 		status = NOTIFY_E_INVALIDARG;
 		goto exit;
 	}
+	mbox = notify_shm_drv_state.mbox_handle[params->remote_proc_id];
 
-	if (params->remote_proc_id) {
-		mbox = ducati_mbox;
-		mbx_cnt = &notify_shm_drv_state.mbox2_ref_count;
-	} else {
-		mbox = tesla_mbox;
-		mbx_cnt = &notify_shm_drv_state.mbox1_ref_count;
-	}
+	mbx_cnt = &notify_shm_drv_state.mbox_ref_count[params->remote_proc_id];
 
 	status = mutex_lock_interruptible(
 				notify_shm_drv_state.gate_handle);
@@ -519,8 +575,9 @@ struct notify_shm_drv_object *notify_shm_drv_create(
 
 	/*Set up the ISR on the MPU-Ducati FIFO */
 	if (atomic_inc_return(mbx_cnt) == 1)
-		omap_mbox_enable_irq(mbox, IRQ_RX);
-	obj->self_proc_ctrl->recv_init_status = NOTIFYSHMDRIVER_INIT_STAMP;;
+		omap_mbox_enable_irq((struct omap_mbox *)mbox, IRQ_RX);
+
+	obj->self_proc_ctrl->recv_init_status = NOTIFYSHMDRIVER_INIT_STAMP;
 	obj->self_proc_ctrl->send_init_status = NOTIFYSHMDRIVER_INIT_STAMP;
 
 #if 0
@@ -580,6 +637,7 @@ int notify_shm_drv_delete(struct notify_shm_drv_object **handle_ptr)
 	struct notify_shm_drv_object *obj = NULL;
 	struct omap_mbox *mbox;
 	atomic_t *mbx_cnt;
+	u16 rproc_id;
 
 	if (WARN_ON(unlikely(atomic_cmpmask_and_lt(
 			&(notify_shm_drv_state.ref_count),
@@ -600,17 +658,13 @@ int notify_shm_drv_delete(struct notify_shm_drv_object **handle_ptr)
 
 	obj = (struct notify_shm_drv_object *)(*handle_ptr);
 	if (obj != NULL) {
-		if (obj->remote_proc_id) {
-			mbox = ducati_mbox;
-			mbx_cnt = &notify_shm_drv_state.mbox2_ref_count;
-		} else {
-			mbox = tesla_mbox;
-			mbx_cnt = &notify_shm_drv_state.mbox1_ref_count;
-		}
+		rproc_id = obj->remote_proc_id;
+		mbox = notify_shm_drv_state.mbox_handle[rproc_id];
+		mbx_cnt = &notify_shm_drv_state.mbox_ref_count[rproc_id];
 		/* Uninstall the ISRs & Disable the Mailbox interrupt.*/
-		if (atomic_dec_and_test(mbx_cnt))
-			omap_mbox_disable_irq(mbox, IRQ_RX);
-
+		if (atomic_dec_and_test(mbx_cnt)) {
+			omap_mbox_disable_irq((struct omap_mbox *)mbox, IRQ_RX);
+		}
 		if (obj->self_proc_ctrl != NULL) {
 			/* Clear initialization status in shared memory. */
 			obj->self_proc_ctrl->recv_init_status = 0x0;
@@ -866,7 +920,8 @@ int notify_shm_drv_send_event(struct notify_driver_object *handle,
 	obj = (struct notify_shm_drv_object *)
 				handle->notify_handle->driver_handle;
 
-	mbox = (obj->remote_proc_id) ? ducati_mbox : tesla_mbox;
+	mbox = notify_shm_drv_state.mbox_handle[obj->remote_proc_id];
+
 	if (WARN_ON(unlikely(obj->reg_chart == NULL))) {
 		status = NOTIFY_E_FAIL;
 		goto exit;
@@ -968,8 +1023,7 @@ int notify_shm_drv_send_event(struct notify_driver_object *handle,
 		/* Send an interrupt with the event information to the
 		 * remote processor */
 		msg = ((obj->remote_proc_id << 16) | event_id);
-		status = omap_mbox_msg_send(mbox, msg);
-
+		status = omap_mbox_msg_send((struct omap_mbox *)mbox, msg);
 		/* Leave critical section protection. */
 		mutex_unlock(notify_shm_drv_state.gate_handle);
 	}
@@ -1012,13 +1066,14 @@ int notify_shm_drv_disable(struct notify_driver_object *handle)
 	obj = (struct notify_shm_drv_object *)
 				handle->notify_handle->driver_handle;
 
-	mbox = (obj->remote_proc_id) ? ducati_mbox : tesla_mbox;
+	mbox = notify_shm_drv_state.mbox_handle[obj->remote_proc_id];
 	if (WARN_ON(unlikely(obj->reg_chart == NULL))) {
 		status = NOTIFY_E_FAIL;
 		goto exit;
 	}
 
-	omap_mbox_disable_irq(mbox, IRQ_RX);
+	/* Disable the mailbox interrupt associated with remote proc id */
+	omap_mbox_disable_irq((struct omap_mbox *)mbox, IRQ_RX);
 
 exit:
 	if (status < 0) {
@@ -1060,7 +1115,7 @@ void notify_shm_drv_enable(struct notify_driver_object *handle)
 	obj = (struct notify_shm_drv_object *)
 				handle->notify_handle->driver_handle;
 
-	mbox = (obj->remote_proc_id) ? ducati_mbox : tesla_mbox;
+	mbox = notify_shm_drv_state.mbox_handle[obj->remote_proc_id];
 	if (WARN_ON(unlikely(obj->reg_chart == NULL))) {
 		status = NOTIFY_E_FAIL;
 		goto exit;
@@ -1298,12 +1353,22 @@ static int notify_shmdrv_isr(struct notifier_block *nb, unsigned long val,
 								void *ntfy_msg)
 {
 	/* Decode the msg to identify the processor that has sent the message */
-	u32 proc_id = (u32)ntfy_msg;
+	u32 proc_id;
+	if (cpu_is_omap343x()) {
+		proc_id = 0;
+		/* Call the corresponding prpc_id callback */
+		notify_shmdrv_isr_callback(notify_shm_drv_state.driver_handles
+			[proc_id][0], ntfy_msg);
 
-	/* Call the corresponding prpc_id callback */
-	notify_shmdrv_isr_callback(notify_shm_drv_state.driver_handles
-		[proc_id][0], ntfy_msg);
+	} else if (cpu_is_omap443x()) {
+		/* Decode the msg to identify the processor that has sent the
+		 * message */
+		proc_id = (u32)ntfy_msg;
 
+		/* Call the corresponding prpc_id callback */
+		notify_shmdrv_isr_callback(notify_shm_drv_state.driver_handles
+			[proc_id][0], ntfy_msg);
+	}
 	return 0;
 }
 EXPORT_SYMBOL(notify_shmdrv_isr);
