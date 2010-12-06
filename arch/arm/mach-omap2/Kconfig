@@ -54,6 +54,7 @@ config ARCH_TI81XX
 	depends on ARCH_OMAP2PLUS
 	default y
 	select CPU_V7
+	select ARM_L1_CACHE_SHIFT_6 if !ARCH_OMAP4
 
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2
