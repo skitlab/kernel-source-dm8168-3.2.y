@@ -35,12 +35,13 @@
 
 static void __init omap_zoom_init_irq(void)
 {
+	omap2_init_common_infrastructure();
 	if (machine_is_omap_zoom2())
-		omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
-				mt46h32m32lf6_sdrc_params);
+		omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
+					  mt46h32m32lf6_sdrc_params);
 	else if (machine_is_omap_zoom3())
-		omap2_init_common_hw(h8mbx00u0mer0em_sdrc_params,
-				h8mbx00u0mer0em_sdrc_params);
+		omap2_init_common_devices(h8mbx00u0mer0em_sdrc_params,
+					  h8mbx00u0mer0em_sdrc_params);
 
 	omap_init_irq();
 }
@@ -62,6 +63,8 @@ static struct omap_board_mux board_mux[] __initdata = {
 	OMAP3_MUX(ETK_D6, OMAP_MUX_MODE2 | OMAP_PIN_INPUT_PULLUP),
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
+#else
+#define board_mux	NULL
 #endif
 
 static struct mtd_partition zoom_nand_partitions[] = {
