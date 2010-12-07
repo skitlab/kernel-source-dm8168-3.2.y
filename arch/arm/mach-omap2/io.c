@@ -315,16 +315,23 @@ void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 {
 	u8 skip_setup_idle = 0;
 
-	pwrdm_fw_init();
-	clkdm_init(clockdomains_omap, clkdm_autodeps);
-	if (cpu_is_omap242x())
+	if (cpu_is_omap242x()) {
+		omap2xxx_powerdomains_init();
+		clkdm_init(clockdomains_omap, clkdm_autodeps);
 		omap2420_hwmod_init();
-	else if (cpu_is_omap243x())
+	} else if (cpu_is_omap243x()) {
+		omap2xxx_powerdomains_init();
+		clkdm_init(clockdomains_omap, clkdm_autodeps);
 		omap2430_hwmod_init();
-	else if (cpu_is_omap34xx())
+	} else if (cpu_is_omap34xx()) {
+		omap3xxx_powerdomains_init();
+		clkdm_init(clockdomains_omap, clkdm_autodeps);
 		omap3xxx_hwmod_init();
-	else if (cpu_is_omap44xx())
+	} else if (cpu_is_omap44xx()) {
+		omap44xx_powerdomains_init();
+		clkdm_init(clockdomains_omap, clkdm_autodeps);
 		omap44xx_hwmod_init();
+	}
 
 	/* The OPP tables have to be registered before a clk init */
 	omap_pm_if_early_init(mpu_opps, dsp_opps, l3_opps);
