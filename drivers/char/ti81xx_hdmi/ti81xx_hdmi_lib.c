@@ -2222,24 +2222,15 @@ int ti81xx_hdmi_lib_config(struct hdmi_cfg_params *config)
 	__raw_writel(0x0, (inst_context->wp_base_addr +
 				HDMI_WP_AUDIO_CFG_OFFSET));
 
-	if (inst_context->is_recvr_sensed == FALSE) {
-		if (((__raw_readl(inst_context->core_base_addr +
-							HDMI_CORE_INTR1_OFFSET)) & HDMI_INTR1_HPD_MASK) ==
-				HDMI_INTR1_HPD_MASK) {
-			if (inst_context->is_recvr_sensed != TRUE) {
-				inst_context->is_recvr_sensed =
-					TRUE;
-				THDBG("Dected a sink");
-			}
-		} else {
-			/* Check for un-plug */
-			if (inst_context->is_recvr_sensed == TRUE) {
-				/* Why was this not sensed by wrappers interrupt ? */
-				inst_context->is_recvr_sensed =
-					FALSE;
-				THDBG("Attached sink is removed\n");
-			}
-		}
+	temp = __raw_readl(inst_context->core_base_addr +
+			HDMI_CORE_SYS_STAT_OFFSET);
+	temp = (temp & HDMI_SYS_STAT_HPD_MASK) >>
+		HDMI_SYS_STAT_HPD_SHIFT;
+	if (temp){
+			inst_context->is_recvr_sensed = TRUE;
+			THDBG("Detected a sink");
+	} else {
+			THDBG("Sink not detected\n");
 	}
 	temp = __raw_readl(inst_context->core_base_addr +
 			HDMI_CORE_SRST_OFFSET);
@@ -2490,6 +2481,8 @@ int ti81xx_hdmi_lib_start(void *handle, void *args)
 	struct instance_cfg *inst_context = NULL;
 	volatile u32 temp;
 
+
+
 	THDBG(">>>>ti81xx_hdmi_lib_start");
 
 	if (handle == NULL) {
@@ -2498,8 +2491,16 @@ int ti81xx_hdmi_lib_start(void *handle, void *args)
 		goto exit_this_func;
 	}
 	inst_context = (struct instance_cfg *) handle;
-	if ((inst_context->is_streaming == FALSE) &&
-			(inst_context->is_recvr_sensed == TRUE)){
+	if (inst_context->is_streaming == FALSE){
+
+		temp  = __raw_readl(inst_context->core_base_addr
+				+ HDMI_CORE_SYS_STAT_OFFSET);
+		temp &= HDMI_SYS_STAT_HPD_MASK;
+		if (!temp)
+		{
+			THDBG("Sink not detected\n");
+		}
+
 		THDBG("Trying to start the port");
 
 		temp = __raw_readl(inst_context->core_base_addr +
@@ -2635,6 +2636,8 @@ int ti81xx_hdmi_lib_control(void *handle,
 {
 	int rtn_value = 0x0;
 	struct instance_cfg *inst_context = NULL;
+	volatile unsigned int temp;
+	struct ti81xxhdmi_status  *status;
 
 	THDBG(">>>>ti81xx_hdmi_lib_control");
 	/* Validate the handle and execute the command. */
@@ -2655,7 +2658,14 @@ int ti81xx_hdmi_lib_control(void *handle,
 		case TI81XXHDMI_GET_STATUS:
 			rtn_value = -EFAULT ;
 			if (cmdArgs) {
-				(*(u32 *) cmdArgs) = inst_context->is_streaming;
+				status = (struct ti81xxhdmi_status *)cmdArgs;
+				status->is_hdmi_streaming =
+						inst_context->is_streaming;
+				temp  = __raw_readl(inst_context->core_base_addr
+					+ HDMI_CORE_SYS_STAT_OFFSET);
+				temp &= HDMI_SYS_STAT_HPD_MASK;
+				status->is_hpd_detected =
+					temp >> HDMI_SYS_STAT_HPD_SHIFT;
 				rtn_value = 0x0;
 			}
 			break;

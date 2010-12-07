@@ -77,6 +77,9 @@ struct ti81xxhdmi_phy_status {
 	unsigned int rx_detect;
 	unsigned int dct_5v_short_data;
 };
+struct ti81xxhdmi_status {
+	unsigned int is_hpd_detected;
+	unsigned int is_hdmi_streaming;
+};
 #endif /* End of #ifndef __TI81XXHDMI_H__ */
-
 
