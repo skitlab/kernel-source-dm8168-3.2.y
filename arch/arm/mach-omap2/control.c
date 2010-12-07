@@ -20,8 +20,8 @@
 
 #include "cm-regbits-34xx.h"
 #include "prm-regbits-34xx.h"
-#include "cm.h"
-#include "prm.h"
+#include "prm2xxx_3xxx.h"
+#include "cm2xxx_3xxx.h"
 #include "sdrc.h"
 #include "pm.h"
 #include "control.h"
@@ -134,6 +134,7 @@ struct omap3_control_regs {
 	u32 sramldo4;
 	u32 sramldo5;
 	u32 csi;
+	u32 padconf_sys_nirq;
 };
 
 static struct omap3_control_regs control_context;
@@ -208,6 +209,37 @@ void omap4_ctrl_pad_writel(u32 val, u16 offset)
 {
 	__raw_writel(val, OMAP4_CTRL_PAD_REGADDR(offset));
 }
+
+#ifdef CONFIG_ARCH_OMAP3
+
+/**
+ * omap3_ctrl_write_boot_mode - set scratchpad boot mode for the next boot
+ * @bootmode: 8-bit value to pass to some boot code
+ *
+ * Set the bootmode in the scratchpad RAM.  This is used after the
+ * system restarts.  Not sure what actually uses this - it may be the
+ * bootloader, rather than the boot ROM - contrary to the preserved
+ * comment below.  No return value.
+ */
+void omap3_ctrl_write_boot_mode(u8 bootmode)
+{
+	u32 l;
+
+	l = ('B' << 24) | ('M' << 16) | bootmode;
+
+	/*
+	 * Reserve the first word in scratchpad for communicating
+	 * with the boot ROM. A pointer to a data structure
+	 * describing the boot process can be stored there,
+	 * cf. OMAP34xx TRM, Initialization / Software Booting
+	 * Configuration.
+	 *
+	 * XXX This should use some omap_ctrl_writel()-type function
+	 */
+	__raw_writel(l, OMAP2_L4_IO_ADDRESS(OMAP343X_SCRATCHPAD + 4));
+}
+
+#endif
 
 #if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
 /*
@@ -416,6 +448,8 @@ void omap3_control_save_context(void)
 	control_context.sramldo4 = omap_ctrl_readl(OMAP343X_CONTROL_SRAMLDO4);
 	control_context.sramldo5 = omap_ctrl_readl(OMAP343X_CONTROL_SRAMLDO5);
 	control_context.csi = omap_ctrl_readl(OMAP343X_CONTROL_CSI);
+	control_context.padconf_sys_nirq =
+		omap_ctrl_readl(OMAP343X_CONTROL_PADCONF_SYSNIRQ);
 	return;
 }
 
@@ -472,6 +506,8 @@ void omap3_control_restore_context(void)
 	omap_ctrl_writel(control_context.sramldo4, OMAP343X_CONTROL_SRAMLDO4);
 	omap_ctrl_writel(control_context.sramldo5, OMAP343X_CONTROL_SRAMLDO5);
 	omap_ctrl_writel(control_context.csi, OMAP343X_CONTROL_CSI);
+	omap_ctrl_writel(control_context.padconf_sys_nirq,
+			 OMAP343X_CONTROL_PADCONF_SYSNIRQ);
 	return;
 }
 #endif /* CONFIG_ARCH_OMAP3 && CONFIG_PM */

@@ -40,11 +40,8 @@
 
 #include <plat/omap-pm.h>
 #include <plat/powerdomain.h>
-#include "powerdomains.h"
 
 #include <plat/clockdomain.h>
-#include "clockdomains.h"
-
 #include <plat/omap_hwmod.h>
 
 /*
@@ -320,17 +317,23 @@ void __init omap2_init_common_infrastructure(void)
 {
 	u8 postsetup_state;
 
-	pwrdm_init(powerdomains_omap);
-	clkdm_init(clockdomains_omap, clkdm_autodeps);
-	if (cpu_is_omap242x())
+	if (cpu_is_omap242x()) {
+		omap2xxx_powerdomains_init();
+		omap2_clockdomains_init();
 		omap2420_hwmod_init();
-	else if (cpu_is_omap243x())
+	} else if (cpu_is_omap243x()) {
+		omap2xxx_powerdomains_init();
+		omap2_clockdomains_init();
 		omap2430_hwmod_init();
-	else if (cpu_is_omap34xx())
+	} else if (cpu_is_omap34xx()) {
+		omap3xxx_powerdomains_init();
+		omap2_clockdomains_init();
 		omap3xxx_hwmod_init();
-	else if (cpu_is_omap44xx())
+	} else if (cpu_is_omap44xx()) {
+		omap44xx_powerdomains_init();
+		omap44xx_clockdomains_init();
 		omap44xx_hwmod_init();
-	else
+	} else
 		pr_err("Could not init hwmod data - unknown SoC\n");
 
 	/* Set the default postsetup state for all hwmods */
