@@ -40,7 +40,6 @@
 
 #include <plat/omap-pm.h>
 #include <plat/powerdomain.h>
-#include "powerdomains.h"
 
 #include <plat/clockdomain.h>
 #include "clockdomains.h"
@@ -316,7 +315,7 @@ void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 {
 	u8 skip_setup_idle = 0;
 
-	pwrdm_init(powerdomains_omap);
+	pwrdm_fw_init();
 	clkdm_init(clockdomains_omap, clkdm_autodeps);
 	if (cpu_is_omap242x())
 		omap2420_hwmod_init();
