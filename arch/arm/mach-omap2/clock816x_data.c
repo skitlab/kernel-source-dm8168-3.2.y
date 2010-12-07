@@ -463,6 +463,14 @@ static struct clk uart3_ick = {
 	.recalc		= &followparent_recalc,
 };
 
+static struct clk wdt2_ick = {
+	.name		= "wdt2_ick",
+	.parent		= &sysclk6_ck,
+	.ops		= &clkops_null,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
 static struct clk mcspi1_ick = {
 	.name		= "mcspi1_ick",
 	.parent		= &sysclk6_ck,
@@ -1054,6 +1062,16 @@ static struct clk gpt7_fck = {
 	.recalc		= &omap2_clksel_recalc,
 };
 
+static struct clk wdt2_fck = {
+	.name		= "wdt2_fck",
+	.parent		= &sysclk18_ck,
+	.ops		= &clkops_ti81xx_dflt_wait,
+	.enable_reg	= TI81XX_CM_ALWON_WDTIMER_CLKCTRL,
+	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
 static struct clk mmchsdb1_fck = {
 	.name		= "mmchsdb1_fck",
 	.parent		= &sysclk18_ck,
@@ -1149,6 +1167,7 @@ static struct omap_clk ti816x_clks[] = {
 	CLK(NULL,		"uart2_ick",		&uart2_ick,		CK_TI816X),
 	CLK(NULL,		"uart3_ick",		&uart3_ick,		CK_TI816X),
 	CLK("omap2_mcspi.1",	"ick",			&mcspi1_ick,		CK_TI816X),
+	CLK(NULL,		"wdt2_ick",		&wdt2_ick,		CK_TI816X),
 	CLK(NULL,		"gpt1_ick",		&gpt1_ick,		CK_TI816X),
 	CLK(NULL,		"gpt2_ick",		&gpt2_ick,		CK_TI816X),
 	CLK(NULL,		"gpt3_ick",		&gpt3_ick,		CK_TI816X),
@@ -1190,6 +1209,7 @@ static struct omap_clk ti816x_clks[] = {
 	CLK(NULL,		"gpt5_fck",		&gpt5_fck,		CK_TI816X),
 	CLK(NULL,		"gpt6_fck",		&gpt6_fck,		CK_TI816X),
 	CLK(NULL,		"gpt7_fck",		&gpt7_fck,		CK_TI816X),
+	CLK(NULL,		"wdt2_fck",		&wdt2_fck,		CK_TI816X),
 	CLK("mmci-omap-hs.0",	"mmchsdb_fck",		&mmchsdb1_fck,		CK_TI816X),
 	CLK(NULL,		"audio_pll_clk3_ck",	&audio_pll_clk3_ck,	CK_TI816X),
 	CLK(NULL,		"sysclk20_ck",		&sysclk20_ck,		CK_TI816X),

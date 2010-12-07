@@ -78,6 +78,7 @@ static struct omap_hwmod ti816x_l3_slow_hwmod = {
 static struct omap_hwmod ti816x_uart1_hwmod;
 static struct omap_hwmod ti816x_uart2_hwmod;
 static struct omap_hwmod ti816x_uart3_hwmod;
+static struct omap_hwmod ti816x_wd_timer2_hwmod;
 
 /* L4 SLOW -> UART1 interface */
 static struct omap_hwmod_addr_space ti816x_uart1_addr_space[] = {
@@ -133,6 +134,24 @@ static struct omap_hwmod_ocp_if ti816x_l4_slow__uart3 = {
 	.user		= OCP_USER_MPU,
 };
 
+/* L4 SLOW -> Watchdog */
+static struct omap_hwmod_addr_space ti816x_wd_timer2_addrs[] = {
+	{
+		.pa_start	= 0x480C2000,
+		.pa_end		= 0x480C2FFF,
+		.flags		= ADDR_TYPE_RT,
+	},
+};
+
+static struct omap_hwmod_ocp_if ti816x_l4_slow__wd_timer2 = {
+	.master		= &ti816x_l4_slow_hwmod,
+	.slave		= &ti816x_wd_timer2_hwmod,
+	.clk		= "wdt2_ick",
+	.addr		= ti816x_wd_timer2_addrs,
+	.addr_cnt	= ARRAY_SIZE(ti816x_wd_timer2_addrs),
+	.user		= OCP_USER_MPU,
+};
+
 /* Slave interfaces on the L4_SLOW interconnect */
 static struct omap_hwmod_ocp_if *ti816x_l4_slow_slaves[] = {
 	&ti816x_l3_slow__l4_slow,
@@ -143,6 +162,7 @@ static struct omap_hwmod_ocp_if *ti816x_l4_slow_masters[] = {
 	&ti816x_l4_slow__uart1,
 	&ti816x_l4_slow__uart2,
 	&ti816x_l4_slow__uart3,
+	&ti816x_l4_slow__wd_timer2,
 };
 
 /* L4 SLOW */
@@ -188,6 +208,28 @@ static struct omap_hwmod_class_sysconfig uart_sysc = {
 static struct omap_hwmod_class uart_class = {
 	.name = "uart",
 	.sysc = &uart_sysc,
+};
+
+/*
+ * 'wd_timer' class
+ * 32-bit watchdog upward counter that generates a pulse on the reset pin on
+ * overflow condition
+ */
+
+static struct omap_hwmod_class_sysconfig wd_timer_sysc = {
+	.rev_offs       = 0x0000,
+	.sysc_offs      = 0x0010,
+	.syss_offs      = 0x0014,
+	.sysc_flags     = (SYSC_HAS_SIDLEMODE | SYSC_HAS_EMUFREE |
+				SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
+				SYSC_HAS_AUTOIDLE | SYSC_HAS_CLOCKACTIVITY),
+	.idlemodes      = (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.sysc_fields    = &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class wd_timer_class = {
+	.name = "wd_timer",
+	.sysc = &wd_timer_sysc,
 };
 
 /* UART1 */
@@ -295,6 +337,26 @@ static struct omap_hwmod ti816x_uart3_hwmod = {
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
 };
 
+/* Watchdog */
+
+static struct omap_hwmod_ocp_if *ti816x_wd_timer2_slaves[] = {
+	&ti816x_l4_slow__wd_timer2,
+};
+
+static struct omap_hwmod ti816x_wd_timer2_hwmod = {
+	.name		= "wd_timer2",
+	.main_clk	= "wdt2_fck",
+	.prcm		= {
+		.omap4 = {
+			.clkctrl_reg = TI81XX_CM_ALWON_WDTIMER_CLKCTRL,
+		},
+	},
+	.slaves		= ti816x_wd_timer2_slaves,
+	.slaves_cnt	= ARRAY_SIZE(ti816x_wd_timer2_slaves),
+	.class		= &wd_timer_class,
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X),
+};
+
 static __initdata struct omap_hwmod *ti81xx_hwmods[] = {
 	&ti816x_l3_slow_hwmod,
 	&ti816x_l4_slow_hwmod,
@@ -302,6 +364,7 @@ static __initdata struct omap_hwmod *ti81xx_hwmods[] = {
 	&ti816x_uart1_hwmod,
 	&ti816x_uart2_hwmod,
 	&ti816x_uart3_hwmod,
+	&ti816x_wd_timer2_hwmod,
 	NULL,
 };
 
