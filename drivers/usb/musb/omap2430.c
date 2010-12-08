@@ -412,12 +412,13 @@ static int __init omap2430_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	musb = platform_device_alloc("musb-hdrc", -1);
+	musb = platform_device_alloc("musb-hdrc", pdev->id);
 	if (!musb) {
 		dev_err(&pdev->dev, "failed to allocate musb device\n");
 		goto err1;
 	}
 
+	dev_set_name(&pdev->dev, "musb-omap2430");
 	clk = clk_get(&pdev->dev, "ick");
 	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "failed to get clock\n");
