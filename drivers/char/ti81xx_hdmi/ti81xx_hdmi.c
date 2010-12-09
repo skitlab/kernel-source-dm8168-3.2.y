@@ -78,7 +78,7 @@ static struct file_operations ti81xx_hdmi_fops = {
 	.owner = THIS_MODULE,
 	.open = ti81xx_hdmi_open,
 	.release = ti81xx_hdmi_release,
-	.ioctl = ti81xx_hdmi_ioctl,
+	.unlocked_ioctl = ti81xx_hdmi_ioctl,
 };
 
 static struct device_driver ti81xx_hdmi_driver = {
