@@ -28,6 +28,7 @@
 #include <linux/i2c/tsc2004.h>
 #include <linux/input.h>
 #include <linux/tca6416_keypad.h>
+#include <linux/mmc/host.h>
 
 #include <mach/hardware.h>
 #include <mach/am35xx.h>
@@ -45,6 +46,7 @@
 
 #include "mux.h"
 #include "control.h"
+#include "hsmmc.h"
 
 #define AM35XX_EVM_MDIO_FREQUENCY	(1000000)
 
@@ -742,6 +744,23 @@ static void am3517_evm_hecc_init(struct ti_hecc_platform_data *pdata)
 	platform_device_register(&am3517_hecc_device);
 }
 
+static struct omap2_hsmmc_info mmc[] = {
+	{
+		.mmc		= 1,
+		.caps		= MMC_CAP_4_BIT_DATA,
+		.gpio_cd	= 127,
+		.gpio_wp	= 126,
+	},
+	{
+		.mmc		= 2,
+		.caps		= MMC_CAP_4_BIT_DATA,
+		.gpio_cd	= 128,
+		.gpio_wp	= 129,
+	},
+	{}      /* Terminator */
+};
+
+
 static void __init am3517_evm_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
@@ -784,6 +803,9 @@ static void __init am3517_evm_init(void)
 
 	/* Init TCA6416 keypad */
 	tca6416_keypad_init_irq();
+
+	/* MMC init function */
+	omap2_hsmmc_init(mmc);
 }
 
 MACHINE_START(OMAP3517EVM, "OMAP3517/AM3517 EVM")
