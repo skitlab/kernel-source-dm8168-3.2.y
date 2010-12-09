@@ -24,8 +24,6 @@
 /* Interface documentation is in mach/omap-pm.h */
 #include <plat/omap-pm.h>
 
-#include <plat/powerdomain.h>
-
 struct omap_opp *dsp_opps;
 struct omap_opp *mpu_opps;
 struct omap_opp *l3_opps;
