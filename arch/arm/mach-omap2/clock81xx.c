@@ -53,6 +53,9 @@ int ti81xx_pcie_clk_enable(struct clk *clk)
 			TI81XX_PRM_DEFAULT_MOD,
 			TI81XX_RM_RSTCTRL);
 
+	omap2_cm_wait_idlest(clk->enable_reg, TI81XX_IDLEST_MASK,
+			TI81XX_IDLEST_VAL, clk->name);
+
 	return 0;
 }
 
@@ -75,6 +78,9 @@ int ti81xx_usb_clk_enable(struct clk *clk)
 			| TI81XX_USB2_LRST_MASK,
 			TI81XX_PRM_DEFAULT_MOD,
 			TI81XX_RM_RSTCTRL);
+
+	omap2_cm_wait_idlest(clk->enable_reg, TI81XX_IDLEST_MASK,
+			TI81XX_IDLEST_VAL, clk->name);
 
 	return 0;
 }
