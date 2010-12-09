@@ -706,6 +706,9 @@ void __init gpmc_init(void)
 	} else if (cpu_is_omap44xx()) {
 		ck = "gpmc_ck";
 		l = OMAP44XX_GPMC_BASE;
+	} else if (cpu_is_ti81xx()) {
+		ck = "gpmc_fck";
+		l = OMAP44XX_GPMC_BASE;
 	}
 
 	if (WARN_ON(!ck))
