@@ -56,6 +56,21 @@
 #define OMAP4430_PRM_DEVICE_INST		0x1b00
 #define OMAP4430_PRM_INSTR_INST		0x1f00
 
+/* PRM clockdomain register offsets (from instance start) */
+#define OMAP4430_PRM_MPU_MPU_CDOFFS		0x0000
+#define OMAP4430_PRM_TESLA_TESLA_CDOFFS		0x0000
+#define OMAP4430_PRM_ABE_ABE_CDOFFS		0x0000
+#define OMAP4430_PRM_CORE_CORE_CDOFFS		0x0000
+#define OMAP4430_PRM_IVAHD_IVAHD_CDOFFS		0x0000
+#define OMAP4430_PRM_CAM_CAM_CDOFFS		0x0000
+#define OMAP4430_PRM_DSS_DSS_CDOFFS		0x0000
+#define OMAP4430_PRM_GFX_GFX_CDOFFS		0x0000
+#define OMAP4430_PRM_L3INIT_L3INIT_CDOFFS	0x0000
+#define OMAP4430_PRM_L4PER_L4PER_CDOFFS		0x0000
+#define OMAP4430_PRM_CEFUSE_CEFUSE_CDOFFS	0x0000
+#define OMAP4430_PRM_WKUP_CM_WKUP_CDOFFS	0x0000
+#define OMAP4430_PRM_EMU_EMU_CDOFFS		0x0000
+#define OMAP4430_PRM_EMU_CM_EMU_CDOFFS		0x0000
 
 /* OMAP4 specific register offsets */
 #define OMAP4_RM_RSTCTRL				0x0000
@@ -744,11 +759,19 @@
 /* Function prototypes */
 # ifndef __ASSEMBLER__
 
+extern u32 omap4_prm_read_inst_reg(s16 inst, u16 idx);
+extern void omap4_prm_write_inst_reg(u32 val, s16 inst, u16 idx);
+extern u32 omap4_prm_rmw_inst_reg_bits(u32 mask, u32 bits, s16 inst, s16 idx);
+extern u32 omap4_prm_rmw_reg_bits(u32 mask, u32 bits, void __iomem *reg);
+extern u32 omap4_prm_set_inst_reg_bits(u32 bits, s16 inst, s16 idx);
+extern u32 omap4_prm_clear_inst_reg_bits(u32 bits, s16 inst, s16 idx);
 extern u32 omap4_prm_read_bits_shift(void __iomem *reg, u32 mask);
 
 extern int omap4_prm_is_hardreset_asserted(void __iomem *rstctrl_reg, u8 shift);
 extern int omap4_prm_assert_hardreset(void __iomem *rstctrl_reg, u8 shift);
 extern int omap4_prm_deassert_hardreset(void __iomem *rstctrl_reg, u8 shift);
+
+extern void omap4_prm_global_warm_sw_reset(void);
 
 # endif
 
