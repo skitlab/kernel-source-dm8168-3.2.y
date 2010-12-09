@@ -701,6 +701,12 @@ static void __init am3517_evm_init(void)
 	omap_mux_init_gpio(57, OMAP_PIN_OUTPUT);
 	usb_ehci_init(&ehci_pdata);
 	am3517_evm_hecc_init(&am3517_evm_hecc_pdata);
+
+	clk_add_alias("master", "dm644x_ccdc", "master",
+			&vpfe_capture_dev.dev);
+	clk_add_alias("slave", "dm644x_ccdc", "slave",
+			&vpfe_capture_dev.dev);
+
 	/* DSS */
 	am3517_evm_display_init();
 
