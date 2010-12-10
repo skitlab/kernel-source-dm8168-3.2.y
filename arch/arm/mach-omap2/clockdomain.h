@@ -11,16 +11,14 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * XXX This should be moved to mach-omap2/ at the earliest opportunity.
  */
 
-#ifndef __ASM_ARM_ARCH_OMAP_CLOCKDOMAIN_H
-#define __ASM_ARM_ARCH_OMAP_CLOCKDOMAIN_H
+#ifndef __ARCH_ARM_MACH_OMAP2_CLOCKDOMAIN_H
+#define __ARCH_ARM_MACH_OMAP2_CLOCKDOMAIN_H
 
 #include <linux/init.h>
 
-#include <plat/powerdomain.h>
+#include "powerdomain.h"
 #include <plat/clock.h>
 #include <plat/cpu.h>
 
@@ -33,16 +31,6 @@
 #define CLKDM_CAN_HWSUP		(CLKDM_CAN_ENABLE_AUTO | CLKDM_CAN_DISABLE_AUTO)
 #define CLKDM_CAN_SWSUP		(CLKDM_CAN_FORCE_SLEEP | CLKDM_CAN_FORCE_WAKEUP)
 #define CLKDM_CAN_HWSUP_SWSUP	(CLKDM_CAN_SWSUP | CLKDM_CAN_HWSUP)
-
-/* OMAP24XX CM_CLKSTCTRL_*.AUTOSTATE_* register bit values */
-#define OMAP24XX_CLKSTCTRL_DISABLE_AUTO		0x0
-#define OMAP24XX_CLKSTCTRL_ENABLE_AUTO		0x1
-
-/* OMAP3XXX CM_CLKSTCTRL_*.CLKTRCTRL_* register bit values */
-#define OMAP34XX_CLKSTCTRL_DISABLE_AUTO		0x0
-#define OMAP34XX_CLKSTCTRL_FORCE_SLEEP		0x1
-#define OMAP34XX_CLKSTCTRL_FORCE_WAKEUP		0x2
-#define OMAP34XX_CLKSTCTRL_ENABLE_AUTO		0x3
 
 /**
  * struct clkdm_autodep - clkdm deps to add when entering/exiting hwsup mode
@@ -94,11 +82,20 @@ struct clkdm_dep {
  * @clktrctrl_mask: CLKTRCTRL/AUTOSTATE field mask in CM_CLKSTCTRL reg
  * @flags: Clockdomain capability flags
  * @dep_bit: Bit shift of this clockdomain's PM_WKDEP/CM_SLEEPDEP bit
+ * @prcm_partition: (OMAP4 only) PRCM partition ID for this clkdm's registers
+ * @cm_inst: (OMAP4 only) CM instance register offset
+ * @clkdm_offs: (OMAP4 only) CM clockdomain register offset
  * @wkdep_srcs: Clockdomains that can be told to wake this powerdomain up
  * @sleepdep_srcs: Clockdomains that can be told to keep this clkdm from inact
  * @omap_chip: OMAP chip types that this clockdomain is valid on
  * @usecount: Usecount tracking
  * @node: list_head to link all clockdomains together
+ *
+ * @prcm_partition should be a macro from mach-omap2/prcm44xx.h (OMAP4 only)
+ * @cm_inst should be a macro ending in _INST from the OMAP4 CM instance
+ *     definitions (OMAP4 only)
+ * @clkdm_offs should be a macro ending in _CDOFFS from the OMAP4 CM instance
+ *     definitions (OMAP4 only)
  */
 struct clockdomain {
 	const char *name;
@@ -106,10 +103,14 @@ struct clockdomain {
 		const char *name;
 		struct powerdomain *ptr;
 	} pwrdm;
-	void __iomem *clkstctrl_reg;
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 	const u16 clktrctrl_mask;
+#endif
 	const u8 flags;
 	const u8 dep_bit;
+	const u8 prcm_partition;
+	const s16 cm_inst;
+	const u16 clkdm_offs;
 	struct clkdm_dep *wkdep_srcs;
 	struct clkdm_dep *sleepdep_srcs;
 	const struct omap_chip_id omap_chip;

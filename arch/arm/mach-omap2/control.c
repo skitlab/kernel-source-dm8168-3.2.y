@@ -26,6 +26,10 @@
 #include "pm.h"
 #include "control.h"
 
+/* Used by omap3_ctrl_save_padconf() */
+#define START_PADCONF_SAVE		0x2
+#define PADCONF_SAVE_DONE		0x1
+
 static void __iomem *omap2_ctrl_base;
 static void __iomem *omap4_ctrl_pad_base;
 
@@ -252,13 +256,13 @@ void omap3_clear_scratchpad_contents(void)
 	void __iomem *v_addr;
 	u32 offset = 0;
 	v_addr = OMAP2_L4_IO_ADDRESS(OMAP343X_SCRATCHPAD_ROM);
-	if (prm_read_mod_reg(OMAP3430_GR_MOD, OMAP3_PRM_RSTST_OFFSET) &
+	if (omap2_prm_read_mod_reg(OMAP3430_GR_MOD, OMAP3_PRM_RSTST_OFFSET) &
 	    OMAP3430_GLOBAL_COLD_RST_MASK) {
 		for ( ; offset <= max_offset; offset += 0x4)
 			__raw_writel(0x0, (v_addr + offset));
-		prm_set_mod_reg_bits(OMAP3430_GLOBAL_COLD_RST_MASK,
-				     OMAP3430_GR_MOD,
-				     OMAP3_PRM_RSTST_OFFSET);
+		omap2_prm_set_mod_reg_bits(OMAP3430_GLOBAL_COLD_RST_MASK,
+					   OMAP3430_GR_MOD,
+					   OMAP3_PRM_RSTST_OFFSET);
 	}
 }
 
@@ -290,32 +294,34 @@ void omap3_save_scratchpad_contents(void)
 	scratchpad_contents.sdrc_block_offset = 0x64;
 
 	/* Populate the PRCM block contents */
-	prcm_block_contents.prm_clksrc_ctrl = prm_read_mod_reg(OMAP3430_GR_MOD,
-			OMAP3_PRM_CLKSRC_CTRL_OFFSET);
-	prcm_block_contents.prm_clksel = prm_read_mod_reg(OMAP3430_CCR_MOD,
-			OMAP3_PRM_CLKSEL_OFFSET);
+	prcm_block_contents.prm_clksrc_ctrl =
+		omap2_prm_read_mod_reg(OMAP3430_GR_MOD,
+				       OMAP3_PRM_CLKSRC_CTRL_OFFSET);
+	prcm_block_contents.prm_clksel =
+		omap2_prm_read_mod_reg(OMAP3430_CCR_MOD,
+				       OMAP3_PRM_CLKSEL_OFFSET);
 	prcm_block_contents.cm_clksel_core =
-			cm_read_mod_reg(CORE_MOD, CM_CLKSEL);
+			omap2_cm_read_mod_reg(CORE_MOD, CM_CLKSEL);
 	prcm_block_contents.cm_clksel_wkup =
-			cm_read_mod_reg(WKUP_MOD, CM_CLKSEL);
+			omap2_cm_read_mod_reg(WKUP_MOD, CM_CLKSEL);
 	prcm_block_contents.cm_clken_pll =
-			cm_read_mod_reg(PLL_MOD, CM_CLKEN);
+			omap2_cm_read_mod_reg(PLL_MOD, CM_CLKEN);
 	prcm_block_contents.cm_autoidle_pll =
-			cm_read_mod_reg(PLL_MOD, OMAP3430_CM_AUTOIDLE_PLL);
+			omap2_cm_read_mod_reg(PLL_MOD, OMAP3430_CM_AUTOIDLE_PLL);
 	prcm_block_contents.cm_clksel1_pll =
-			cm_read_mod_reg(PLL_MOD, OMAP3430_CM_CLKSEL1_PLL);
+			omap2_cm_read_mod_reg(PLL_MOD, OMAP3430_CM_CLKSEL1_PLL);
 	prcm_block_contents.cm_clksel2_pll =
-			cm_read_mod_reg(PLL_MOD, OMAP3430_CM_CLKSEL2_PLL);
+			omap2_cm_read_mod_reg(PLL_MOD, OMAP3430_CM_CLKSEL2_PLL);
 	prcm_block_contents.cm_clksel3_pll =
-			cm_read_mod_reg(PLL_MOD, OMAP3430_CM_CLKSEL3);
+			omap2_cm_read_mod_reg(PLL_MOD, OMAP3430_CM_CLKSEL3);
 	prcm_block_contents.cm_clken_pll_mpu =
-			cm_read_mod_reg(MPU_MOD, OMAP3430_CM_CLKEN_PLL);
+			omap2_cm_read_mod_reg(MPU_MOD, OMAP3430_CM_CLKEN_PLL);
 	prcm_block_contents.cm_autoidle_pll_mpu =
-			cm_read_mod_reg(MPU_MOD, OMAP3430_CM_AUTOIDLE_PLL);
+			omap2_cm_read_mod_reg(MPU_MOD, OMAP3430_CM_AUTOIDLE_PLL);
 	prcm_block_contents.cm_clksel1_pll_mpu =
-			cm_read_mod_reg(MPU_MOD, OMAP3430_CM_CLKSEL1_PLL);
+			omap2_cm_read_mod_reg(MPU_MOD, OMAP3430_CM_CLKSEL1_PLL);
 	prcm_block_contents.cm_clksel2_pll_mpu =
-			cm_read_mod_reg(MPU_MOD, OMAP3430_CM_CLKSEL2_PLL);
+			omap2_cm_read_mod_reg(MPU_MOD, OMAP3430_CM_CLKSEL2_PLL);
 	prcm_block_contents.prcm_block_size = 0x0;
 
 	/* Populate the SDRC block contents */
@@ -510,4 +516,32 @@ void omap3_control_restore_context(void)
 			 OMAP343X_CONTROL_PADCONF_SYSNIRQ);
 	return;
 }
+
+/**
+ * omap3_ctrl_save_padconf - save padconf registers to scratchpad RAM
+ *
+ * Tell the SCM to start saving the padconf registers, then wait for
+ * the process to complete.  Returns 0 unconditionally, although it
+ * should also eventually be able to return -ETIMEDOUT, if the save
+ * does not complete.
+ *
+ * XXX This function is missing a timeout.  What should it be?
+ */
+int omap3_ctrl_save_padconf(void)
+{
+	u32 cpo;
+
+	/* Save the padconf registers */
+	cpo = omap_ctrl_readl(OMAP343X_CONTROL_PADCONF_OFF);
+	cpo |= START_PADCONF_SAVE;
+	omap_ctrl_writel(cpo, OMAP343X_CONTROL_PADCONF_OFF);
+
+	/* wait for the save to complete */
+	while (!(omap_ctrl_readl(OMAP343X_CONTROL_GENERAL_PURPOSE_STATUS)
+		 & PADCONF_SAVE_DONE))
+		udelay(1);
+
+	return 0;
+}
+
 #endif /* CONFIG_ARCH_OMAP3 && CONFIG_PM */
