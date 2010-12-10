@@ -72,7 +72,7 @@ static void generic_panel_power_off(struct omap_dss_device *dssdev)
 
 static int generic_panel_probe(struct omap_dss_device *dssdev)
 {
-	dssdev->panel.config = OMAP_DSS_LCD_TFT;
+	dssdev->panel.config |= OMAP_DSS_LCD_TFT;
 	dssdev->panel.timings = generic_panel_timings;
 
 	return 0;
