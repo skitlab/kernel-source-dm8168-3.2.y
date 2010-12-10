@@ -2242,7 +2242,7 @@ static int __devinit musb_probe(struct platform_device *pdev)
 	void __iomem	*base;
 
 	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!iomem || irq == 0)
+	if (!iomem || irq <= 0)
 		return -ENODEV;
 
 	base = ioremap(iomem->start, resource_size(iomem));
