@@ -738,6 +738,39 @@ static struct ehci_hcd_omap_platform_data ehci_pdata __initdata = {
 };
 
 /*
+ * OneNAND
+ */
+static struct mtd_partition omap3_evm_onenand_partitions[] = {
+	{
+		.name		= "X-Loader-OneNAND",
+		.offset		= 0,
+		.size		= 4 * (64 * 2048),
+		.mask_flags	= MTD_WRITEABLE  /* force read-only */
+	},
+	{
+		.name		= "U-Boot-OneNAND",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 2 * (64 * 2048),
+		.mask_flags	= MTD_WRITEABLE  /* force read-only */
+	},
+	{
+		.name		= "U-Boot Environment-OneNAND",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 1 * (64 * 2048),
+	},
+	{
+		.name		= "Kernel-OneNAND",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 16 * (64 * 2048),
+	},
+	{
+		.name		= "File System-OneNAND",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= MTDPART_SIZ_FULL,
+	},
+};
+
+/*
  * NAND
  */
 static struct mtd_partition omap3_evm_nand_partitions[] = {
@@ -876,6 +909,8 @@ static void __init omap3_evm_init(void)
 	/* NAND */
 	board_nand_init(omap3_evm_nand_partitions,
 			ARRAY_SIZE(omap3_evm_nand_partitions), 0);
+	board_onenand_init(omap3_evm_onenand_partitions,
+			ARRAY_SIZE(omap3_evm_onenand_partitions), 0);
 }
 
 MACHINE_START(OMAP3EVM, "OMAP3 EVM")
