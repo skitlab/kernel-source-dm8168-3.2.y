@@ -1652,7 +1652,7 @@ int get_phy_status(struct instance_cfg *inst_context,
 #ifdef CONFIG_ARCH_TI816X
 void enable_hdmi_clocks(u32 prcm_base)
 {
-	u32 temp;
+	u32 temp, repeatCnt;
 	THDBG("HDMI Clk enable in progress\n");
 	temp = 2;
 	/*Enable Power Domain Transition for HDMI */
@@ -1661,19 +1661,29 @@ void enable_hdmi_clocks(u32 prcm_base)
 	__raw_writel(temp, (prcm_base + CM_ACTIVE_HDMI_CLKCTRL_OFF));
 
 	/*Check clocks are active*/
-	while(((__raw_readl(prcm_base + CM_HDMI_CLKSTCTRL_OFF)) >> 8) != 0x3);
-
-	THDBG("HDMI Clk enanbled\n");
+	repeatCnt = 0;
+	do
+	{
+		temp = (__raw_readl(prcm_base + CM_HDMI_CLKSTCTRL_OFF)) >> 8;
+		repeatCnt++;
+	}
+	while((temp != 0x3) &&(repeatCnt < VPS_PRCM_MAX_REP_CNT));
 
 	/* Check to see module is functional */
-	while(((__raw_readl(prcm_base + CM_ACTIVE_HDMI_CLKCTRL_OFF) & 0x70000) >> 16) != 0) ;
-
+	repeatCnt = 0;
+	do
+	{
+		temp = ((__raw_readl(prcm_base + CM_ACTIVE_HDMI_CLKCTRL_OFF) &
+					0x70000)) >> 16;
+		repeatCnt++;
+	}
+	while((temp != 0) && (repeatCnt < VPS_PRCM_MAX_REP_CNT));
 	THDBG("HDMI Clocks enabled successfully\n");
 }
 #else
 void enable_hdmi_clocks(u32 prcm_base)
 {
-	u32 temp;
+	u32 temp, repeatCnt;
 
 	THDBG("HDMI Clk enable in progress\n");
 	temp = 2;
@@ -1681,14 +1691,23 @@ void enable_hdmi_clocks(u32 prcm_base)
 	__raw_writel(temp, (prcm_base + CM_ALWON_SDIO_CLKCTRL));
 
 	/*Check clocks are active*/
-	while(((__raw_readl(prcm_base + CM_ALWON_SDIO_CLKCTRL)) >> 16) != 0x0);
+	repeatCnt = 0;
+	do
+	{
+		temp = (__raw_readl(prcm_base + CM_ALWON_SDIO_CLKCTRL)) >> 16;
+		repeatCnt++;
+	}
+	while((temp != 0) && (repeatCnt < VPS_PRCM_MAX_REP_CNT));
 
 	temp = 2;
-	/*Enable Power Domain Transition for HDMI */
 	__raw_writel(temp, (prcm_base + CM_HDMI_CLKCTRL_OFF));
-
-	/*Check clocks are active*/
-	while(((__raw_readl(prcm_base + CM_HDMI_CLKCTRL_OFF)) >> 16) != 0x0);
+	repeatCnt = 0;
+	do
+	{
+		temp = (__raw_readl(prcm_base + CM_HDMI_CLKCTRL_OFF)) >> 16;
+		repeatCnt++;
+	}
+	while((temp != 0) && (repeatCnt < VPS_PRCM_MAX_REP_CNT));
 
 	THDBG("HDMI Clocks enabled successfully\n");
 }
