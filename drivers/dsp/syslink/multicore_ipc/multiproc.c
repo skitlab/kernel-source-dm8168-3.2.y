@@ -159,6 +159,12 @@ s32 multiproc_setup(struct multiproc_config *cfg)
 			return -EPERM;
 		}
 	}
+
+	if (cfg == NULL) {
+		multiproc_get_config(&tmp_cfg);
+		cfg = &tmp_cfg;
+	}
+
 	/* This	sets the ref_count variable is not initialized,	upper 16 bits is
 	* written with module Id to ensure correctness of ref_count variable.
 	*/
@@ -170,11 +176,6 @@ s32 multiproc_setup(struct multiproc_config *cfg)
 					!= MULTIPROC_MAKE_MAGICSTAMP(1u)) {
 		status = 1;
 	} else {
-		if (cfg == NULL) {
-			multiproc_get_config(&tmp_cfg);
-			cfg = &tmp_cfg;
-		}
-
 		memcpy(&multiproc_module->cfg, cfg,
 				sizeof(struct multiproc_config));
 		multiproc_module->id = cfg->id;
