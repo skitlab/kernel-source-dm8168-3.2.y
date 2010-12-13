@@ -514,6 +514,7 @@ static struct omap_hwmod ti816x_wd_timer2_hwmod = {
 	.slaves_cnt	= ARRAY_SIZE(ti816x_wd_timer2_slaves),
 	.class		= &wd_timer_class,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X),
+	.flags          = HWMOD_INIT_NO_RESET,
 };
 
 static __initdata struct omap_hwmod *ti81xx_hwmods[] = {
