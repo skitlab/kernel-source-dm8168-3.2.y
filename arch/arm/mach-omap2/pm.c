@@ -18,8 +18,8 @@
 #include <plat/omap_device.h>
 #include <plat/common.h>
 
-#include <plat/powerdomain.h>
-#include <plat/clockdomain.h>
+#include "powerdomain.h"
+#include "clockdomain.h"
 
 static struct omap_device_pm_latency *pm_lats;
 

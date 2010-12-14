@@ -16,52 +16,73 @@
 #include <linux/errno.h>
 #include <linux/delay.h>
 
-#include <plat/powerdomain.h>
+#include "powerdomain.h"
 #include <plat/prcm.h>
 #include "prm2xxx_3xxx.h"
 #include "prm44xx.h"
+#include "prminst44xx.h"
 #include "prm-regbits-44xx.h"
-#include "powerdomains.h"
 
 static int omap4_pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst)
 {
-	prm_rmw_mod_reg_bits(OMAP_POWERSTATE_MASK,
-				(pwrst << OMAP_POWERSTATE_SHIFT),
-				pwrdm->prcm_offs, OMAP4_PM_PWSTCTRL);
+	omap4_prminst_rmw_inst_reg_bits(OMAP_POWERSTATE_MASK,
+					(pwrst << OMAP_POWERSTATE_SHIFT),
+					pwrdm->prcm_partition,
+					pwrdm->prcm_offs, OMAP4_PM_PWSTCTRL);
 	return 0;
 }
 
 static int omap4_pwrdm_read_next_pwrst(struct powerdomain *pwrdm)
 {
-	return prm_read_mod_bits_shift(pwrdm->prcm_offs,
-				OMAP4_PM_PWSTCTRL, OMAP_POWERSTATE_MASK);
+	u32 v;
+
+	v = omap4_prminst_read_inst_reg(pwrdm->prcm_partition, pwrdm->prcm_offs,
+					OMAP4_PM_PWSTCTRL);
+	v &= OMAP_POWERSTATE_MASK;
+	v >>= OMAP_POWERSTATE_SHIFT;
+
+	return v;
 }
 
 static int omap4_pwrdm_read_pwrst(struct powerdomain *pwrdm)
 {
-	return prm_read_mod_bits_shift(pwrdm->prcm_offs,
-				OMAP4_PM_PWSTST, OMAP_POWERSTATEST_MASK);
+	u32 v;
+
+	v = omap4_prminst_read_inst_reg(pwrdm->prcm_partition, pwrdm->prcm_offs,
+					OMAP4_PM_PWSTST);
+	v &= OMAP_POWERSTATEST_MASK;
+	v >>= OMAP_POWERSTATEST_SHIFT;
+
+	return v;
 }
 
 static int omap4_pwrdm_read_prev_pwrst(struct powerdomain *pwrdm)
 {
-	return prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP4_PM_PWSTST,
-				OMAP4430_LASTPOWERSTATEENTERED_MASK);
+	u32 v;
+
+	v = omap4_prminst_read_inst_reg(pwrdm->prcm_partition, pwrdm->prcm_offs,
+					OMAP4_PM_PWSTST);
+	v &= OMAP4430_LASTPOWERSTATEENTERED_MASK;
+	v >>= OMAP4430_LASTPOWERSTATEENTERED_SHIFT;
+
+	return v;
 }
 
 static int omap4_pwrdm_set_lowpwrstchange(struct powerdomain *pwrdm)
 {
-	prm_rmw_mod_reg_bits(OMAP4430_LOWPOWERSTATECHANGE_MASK,
-				(1 << OMAP4430_LOWPOWERSTATECHANGE_SHIFT),
-				pwrdm->prcm_offs, OMAP4_PM_PWSTCTRL);
+	omap4_prminst_rmw_inst_reg_bits(OMAP4430_LOWPOWERSTATECHANGE_MASK,
+					(1 << OMAP4430_LOWPOWERSTATECHANGE_SHIFT),
+					pwrdm->prcm_partition,
+					pwrdm->prcm_offs, OMAP4_PM_PWSTCTRL);
 	return 0;
 }
 
 static int omap4_pwrdm_clear_all_prev_pwrst(struct powerdomain *pwrdm)
 {
-	prm_rmw_mod_reg_bits(OMAP4430_LASTPOWERSTATEENTERED_MASK,
-				OMAP4430_LASTPOWERSTATEENTERED_MASK,
-				pwrdm->prcm_offs, OMAP4_PM_PWSTST);
+	omap4_prminst_rmw_inst_reg_bits(OMAP4430_LASTPOWERSTATEENTERED_MASK,
+					OMAP4430_LASTPOWERSTATEENTERED_MASK,
+					pwrdm->prcm_partition,
+					pwrdm->prcm_offs, OMAP4_PM_PWSTST);
 	return 0;
 }
 
@@ -70,66 +91,91 @@ static int omap4_pwrdm_set_logic_retst(struct powerdomain *pwrdm, u8 pwrst)
 	u32 v;
 
 	v = pwrst << __ffs(OMAP4430_LOGICRETSTATE_MASK);
-	prm_rmw_mod_reg_bits(OMAP4430_LOGICRETSTATE_MASK, v,
-				pwrdm->prcm_offs, OMAP4_PM_PWSTCTRL);
+	omap4_prminst_rmw_inst_reg_bits(OMAP4430_LOGICRETSTATE_MASK, v,
+					pwrdm->prcm_partition, pwrdm->prcm_offs,
+					OMAP4_PM_PWSTCTRL);
 
 	return 0;
 }
 
 static int omap4_pwrdm_set_mem_onst(struct powerdomain *pwrdm, u8 bank,
-								u8 pwrst)
+				    u8 pwrst)
 {
 	u32 m;
 
 	m = omap2_pwrdm_get_mem_bank_onstate_mask(bank);
 
-	prm_rmw_mod_reg_bits(m, (pwrst << __ffs(m)), pwrdm->prcm_offs,
-				OMAP4_PM_PWSTCTRL);
+	omap4_prminst_rmw_inst_reg_bits(m, (pwrst << __ffs(m)),
+					pwrdm->prcm_partition, pwrdm->prcm_offs,
+					OMAP4_PM_PWSTCTRL);
 
 	return 0;
 }
 
 static int omap4_pwrdm_set_mem_retst(struct powerdomain *pwrdm, u8 bank,
-								u8 pwrst)
+				     u8 pwrst)
 {
 	u32 m;
 
 	m = omap2_pwrdm_get_mem_bank_retst_mask(bank);
 
-	prm_rmw_mod_reg_bits(m, (pwrst << __ffs(m)), pwrdm->prcm_offs,
-				OMAP4_PM_PWSTCTRL);
+	omap4_prminst_rmw_inst_reg_bits(m, (pwrst << __ffs(m)),
+					pwrdm->prcm_partition, pwrdm->prcm_offs,
+					OMAP4_PM_PWSTCTRL);
 
 	return 0;
 }
 
 static int omap4_pwrdm_read_logic_pwrst(struct powerdomain *pwrdm)
 {
-	return prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP4_PM_PWSTST,
-				OMAP4430_LOGICSTATEST_MASK);
+	u32 v;
+
+	v = omap4_prminst_read_inst_reg(pwrdm->prcm_partition, pwrdm->prcm_offs,
+					OMAP4_PM_PWSTST);
+	v &= OMAP4430_LOGICSTATEST_MASK;
+	v >>= OMAP4430_LOGICSTATEST_SHIFT;
+
+	return v;
 }
 
 static int omap4_pwrdm_read_logic_retst(struct powerdomain *pwrdm)
 {
-	return prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP4_PM_PWSTCTRL,
-				OMAP4430_LOGICRETSTATE_MASK);
+	u32 v;
+
+	v = omap4_prminst_read_inst_reg(pwrdm->prcm_partition, pwrdm->prcm_offs,
+					OMAP4_PM_PWSTCTRL);
+	v &= OMAP4430_LOGICRETSTATE_MASK;
+	v >>= OMAP4430_LOGICRETSTATE_SHIFT;
+
+	return v;
 }
 
 static int omap4_pwrdm_read_mem_pwrst(struct powerdomain *pwrdm, u8 bank)
 {
-	u32 m;
+	u32 m, v;
 
 	m = omap2_pwrdm_get_mem_bank_stst_mask(bank);
 
-	return prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP4_PM_PWSTST, m);
+	v = omap4_prminst_read_inst_reg(pwrdm->prcm_partition, pwrdm->prcm_offs,
+					OMAP4_PM_PWSTST);
+	v &= m;
+	v >>= __ffs(m);
+
+	return v;
 }
 
 static int omap4_pwrdm_read_mem_retst(struct powerdomain *pwrdm, u8 bank)
 {
-	u32 m;
+	u32 m, v;
 
 	m = omap2_pwrdm_get_mem_bank_retst_mask(bank);
 
-	return prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP4_PM_PWSTCTRL, m);
+	v = omap4_prminst_read_inst_reg(pwrdm->prcm_partition, pwrdm->prcm_offs,
+					OMAP4_PM_PWSTCTRL);
+	v &= m;
+	v >>= __ffs(m);
+
+	return v;
 }
 
 static int omap4_pwrdm_wait_transition(struct powerdomain *pwrdm)
@@ -143,14 +189,16 @@ static int omap4_pwrdm_wait_transition(struct powerdomain *pwrdm)
 	 */
 
 	/* XXX Is this udelay() value meaningful? */
-	while ((prm_read_mod_reg(pwrdm->prcm_offs, OMAP4_PM_PWSTST) &
+	while ((omap4_prminst_read_inst_reg(pwrdm->prcm_partition,
+					    pwrdm->prcm_offs,
+					    OMAP4_PM_PWSTST) &
 		OMAP_INTRANSITION_MASK) &&
-		(c++ < PWRDM_TRANSITION_BAILOUT))
-			udelay(1);
+	       (c++ < PWRDM_TRANSITION_BAILOUT))
+		udelay(1);
 
 	if (c > PWRDM_TRANSITION_BAILOUT) {
 		printk(KERN_ERR "powerdomain: waited too long for "
-			"powerdomain %s to complete transition\n", pwrdm->name);
+		       "powerdomain %s to complete transition\n", pwrdm->name);
 		return -EAGAIN;
 	}
 

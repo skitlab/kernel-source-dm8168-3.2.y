@@ -39,9 +39,9 @@
 #include "io.h"
 
 #include <plat/omap-pm.h>
-#include <plat/powerdomain.h>
+#include "powerdomain.h"
 
-#include <plat/clockdomain.h>
+#include "clockdomain.h"
 #include <plat/omap_hwmod.h>
 #include <plat/multi.h>
 
