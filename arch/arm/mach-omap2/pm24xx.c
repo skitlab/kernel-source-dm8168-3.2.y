@@ -51,7 +51,7 @@
 #include "control.h"
 
 #include <plat/powerdomain.h>
-#include <plat/clockdomain.h>
+#include "clockdomain.h"
 
 static void (*omap2_sram_idle)(void);
 static void (*omap2_sram_suspend)(u32 dllctrl, void __iomem *sdrc_dlla_ctrl,
