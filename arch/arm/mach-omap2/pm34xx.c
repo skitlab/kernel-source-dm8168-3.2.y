@@ -41,11 +41,11 @@
 
 #include <asm/tlbflush.h>
 
-#include "cm.h"
+#include "cm2xxx_3xxx.h"
 #include "cm-regbits-34xx.h"
 #include "prm-regbits-34xx.h"
 
-#include "prm.h"
+#include "prm2xxx_3xxx.h"
 #include "pm.h"
 #include "sdrc.h"
 #include "control.h"
@@ -407,7 +407,7 @@ void omap_sram_idle(void)
 		omap_uart_prepare_idle(1);
 		if (core_next_state == PWRDM_POWER_OFF) {
 			omap3_core_save_context();
-			omap3_prcm_save_context();
+			omap3_cm_save_context();
 		}
 	}
 
@@ -447,7 +447,7 @@ void omap_sram_idle(void)
 		core_prev_state = pwrdm_read_prev_pwrst(core_pwrdm);
 		if (core_prev_state == PWRDM_POWER_OFF) {
 			omap3_core_restore_context();
-			omap3_prcm_restore_context();
+			omap3_cm_restore_context();
 			omap3_sram_restore_context();
 			omap2_sms_restore_context();
 		}
