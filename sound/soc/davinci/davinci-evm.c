@@ -23,9 +23,14 @@
 #include <asm/dma.h>
 #include <asm/mach-types.h>
 
+#ifndef CONFIG_ARCH_TI81XX
 #include <mach/asp.h>
 #include <mach/edma.h>
 #include <mach/mux.h>
+#else
+#include <plat/asp.h>
+#include <asm/hardware/edma.h>
+#endif
 
 #include "../codecs/tlv320aic3x.h"
 #include "davinci-pcm.h"

@@ -23,8 +23,14 @@
 #include <sound/soc.h>
 
 #include <asm/dma.h>
+
+#ifndef CONFIG_ARCH_TI81XX
 #include <mach/edma.h>
 #include <mach/sram.h>
+#else
+#include <asm/hardware/edma.h>
+#endif
+
 
 #include "davinci-pcm.h"
 
