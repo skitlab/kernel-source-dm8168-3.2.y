@@ -17,7 +17,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/module.h>
+
+#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/io.h>
@@ -30,9 +31,9 @@
 #include "clock.h"
 #include "clock2xxx.h"
 #include "cm2xxx_3xxx.h"
-#include "cm44xx.h"
 #include "prm2xxx_3xxx.h"
 #include "prm44xx.h"
+#include "prminst44xx.h"
 #include "prm-regbits-24xx.h"
 #include "prm-regbits-44xx.h"
 #include "control.h"
@@ -47,9 +48,9 @@ u32 omap_prcm_get_reset_sources(void)
 {
 	/* XXX This presumably needs modification for 34XX */
 	if (cpu_is_omap24xx() || cpu_is_omap34xx())
-		return prm_read_mod_reg(WKUP_MOD, OMAP2_RM_RSTST) & 0x7f;
+		return omap2_prm_read_mod_reg(WKUP_MOD, OMAP2_RM_RSTST) & 0x7f;
 	if (cpu_is_omap44xx())
-		return prm_read_mod_reg(WKUP_MOD, OMAP4_RM_RSTST) & 0x7f;
+		return omap2_prm_read_mod_reg(WKUP_MOD, OMAP4_RM_RSTST) & 0x7f;
 
 	return 0;
 }
@@ -67,42 +68,16 @@ void omap_prcm_arch_reset(char mode, const char *cmd)
 	} else if (cpu_is_omap34xx()) {
 		prcm_offs = OMAP3430_GR_MOD;
 		omap3_ctrl_write_boot_mode((cmd ? (u8)*cmd : 0));
-	} else if (cpu_is_omap44xx())
-		prcm_offs = OMAP4430_PRM_DEVICE_INST;
-	else
+	} else if (cpu_is_omap44xx()) {
+		omap4_prm_global_warm_sw_reset(); /* never returns */
+	} else {
 		WARN_ON(1);
+	}
 
-	if (cpu_is_omap24xx() || cpu_is_omap34xx())
-		prm_set_mod_reg_bits(OMAP_RST_DPLL3_MASK, prcm_offs,
-						 OMAP2_RM_RSTCTRL);
-	if (cpu_is_omap44xx())
-		prm_set_mod_reg_bits(OMAP4430_RST_GLOBAL_WARM_SW_MASK,
-				     prcm_offs, OMAP4_RM_RSTCTRL);
-}
-
-/* Read a PRM register, AND it, and shift the result down to bit 0 */
-u32 omap4_prm_read_bits_shift(void __iomem *reg, u32 mask)
-{
-	u32 v;
-
-	v = __raw_readl(reg);
-	v &= mask;
-	v >>= __ffs(mask);
-
-	return v;
-}
-
-/* Read-modify-write a register in a PRM module. Caller must lock */
-u32 omap4_prm_rmw_reg_bits(u32 mask, u32 bits, void __iomem *reg)
-{
-	u32 v;
-
-	v = __raw_readl(reg);
-	v &= ~mask;
-	v |= bits;
-	__raw_writel(v, reg);
-
-	return v;
+	/* XXX should be moved to some OMAP2/3 specific code */
+	omap2_prm_set_mod_reg_bits(OMAP_RST_DPLL3_MASK, prcm_offs,
+				   OMAP2_RM_RSTCTRL);
+	omap2_prm_read_mod_reg(prcm_offs, OMAP2_RM_RSTCTRL); /* OCP barrier */
 }
 
 /**

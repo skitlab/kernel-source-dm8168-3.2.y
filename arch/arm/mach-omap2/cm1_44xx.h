@@ -40,6 +40,11 @@
 #define OMAP4430_CM1_RESTORE_INST	0x0e00
 #define OMAP4430_CM1_INSTR_INST		0x0f00
 
+/* CM1 clockdomain register offsets (from instance start) */
+#define OMAP4430_CM1_ABE_ABE_CDOFFS		0x0000
+#define OMAP4430_CM1_MPU_MPU_CDOFFS		0x0000
+#define OMAP4430_CM1_TESLA_TESLA_CDOFFS		0x0000
+
 /* CM1 */
 
 /* CM1.OCP_SOCKET_CM1 register offsets */
@@ -247,5 +252,10 @@
 #define OMAP4430_CM_CM1_PROFILING_CLKCTRL_RESTORE	OMAP44XX_CM1_REGADDR(OMAP4430_CM1_RESTORE_INST, 0x003c)
 #define OMAP4_CM_DYN_DEP_PRESCAL_RESTORE_OFFSET		0x0040
 #define OMAP4430_CM_DYN_DEP_PRESCAL_RESTORE		OMAP44XX_CM1_REGADDR(OMAP4430_CM1_RESTORE_INST, 0x0040)
+
+/* Function prototypes */
+extern u32 omap4_cm1_read_inst_reg(s16 inst, u16 idx);
+extern void omap4_cm1_write_inst_reg(u32 val, s16 inst, u16 idx);
+extern u32 omap4_cm1_rmw_inst_reg_bits(u32 mask, u32 bits, s16 inst, s16 idx);
 
 #endif

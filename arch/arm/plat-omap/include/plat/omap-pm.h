@@ -18,8 +18,6 @@
 #include <linux/cpufreq.h>
 #include <linux/clk.h>
 
-#include "powerdomain.h"
-
 /**
  * struct omap_opp - clock frequency-to-OPP ID table for DSP, MPU
  * @rate: target clock rate
