@@ -29,7 +29,7 @@
 
 #include <syslink/notify.h>
 #include <syslink/notify_setup_proxy.h>
-#include <syslink/notify_ducatidriver.h>
+#include <syslink/notify_shm_drv.h>
 #include <syslink/notify_driver.h>
 #include <syslink/notifydefs.h>
 
