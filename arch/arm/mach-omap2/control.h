@@ -350,6 +350,8 @@ extern u32 *get_es3_restore_pointer(void);
 extern u32 omap3_arm_context[128];
 extern void omap3_control_save_context(void);
 extern void omap3_control_restore_context(void);
+extern void omap3_ctrl_write_boot_mode(u8 bootmode);
+extern int omap3_ctrl_save_padconf(void);
 
 #else
 #define omap_ctrl_base_get()		0
