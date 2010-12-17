@@ -67,12 +67,12 @@ static struct device *ti81xx_hdmi_device;
 static struct class *ti81xx_hdmi_class = NULL;
 
 static void ti81xx_hdmi_platform_release(struct device *device);
-static int __init ti81xx_hdmi_probe(struct device *device);
+static int ti81xx_hdmi_probe(struct device *device);
 static int ti81xx_hdmi_remove(struct device *device);
 static int ti81xx_hdmi_open(struct inode *inode, struct file *filp);
 static int ti81xx_hdmi_release(struct inode *inode, struct file *filp);
-static int ti81xx_hdmi_ioctl(struct inode *inode, struct file *file,
-		u32 cmd, unsigned long arg);
+static long ti81xx_hdmi_ioctl(struct file *file, unsigned int cmd,
+				unsigned long arg);
 
 static struct file_operations ti81xx_hdmi_fops = {
 	.owner = THIS_MODULE,
@@ -145,21 +145,21 @@ static int ti81xx_hdmi_release(struct inode *inode, struct file *filp)
  * ti81xx_hdmi_ioctl: This function will process IOCTL commands sent by
  * the application.
  */
-static int ti81xx_hdmi_ioctl(struct inode *inode, struct file *file,
-		u32 cmd, unsigned long arg)
+static long ti81xx_hdmi_ioctl(struct file *file, unsigned int cmd,
+			unsigned long arg)
 {
 	struct ti81xx_hdmi_params *params =
 		(struct ti81xx_hdmi_params *)file->private_data;
 	void * handle = params->hdmi_lib_handle;
 	THDBG("TI81xx_hdmi: Ioctl\n");
-	return (ti81xx_hdmi_lib_control(handle, cmd, (void *)arg, NULL));
+	return (long)(ti81xx_hdmi_lib_control(handle, cmd, (void *)arg, NULL));
 }
 
 static void ti81xx_hdmi_platform_release(struct device *device)
 {
 	/* this is called when the reference count goes to zero */
 }
-static int __init ti81xx_hdmi_probe(struct device *device)
+static int ti81xx_hdmi_probe(struct device *device)
 {
 	THDBG("TI81xx_hdmi: probe\n");
 	return 0;

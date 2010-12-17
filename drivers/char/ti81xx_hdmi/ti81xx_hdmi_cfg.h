@@ -603,7 +603,7 @@ int ti81xx_hdmi_lib_control(void *handle, u32 cmd, void *cmdArgs,
 #ifdef DEBUG
 #define THDBG(format, ...) \
 	do { \
-		printk(KERN_DEBUG "TI81XXFB  : " format, \
+		printk(KERN_DEBUG "TI81XXHDMI : " format, \
 ## __VA_ARGS__); \
 	} while (0)
 #else
