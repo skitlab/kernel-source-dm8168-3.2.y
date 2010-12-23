@@ -256,6 +256,7 @@ enum musb_g_ep0_state {
 /**
  * struct musb_platform_ops - Operations passed to musb_core by HW glue layer
  * @fifo_mode: which fifo_mode is taken by me
+ * @flags:	each hw glue difference information will be here
  * @init:	turns on clocks, sets up platform-specific registers, etc
  * @exit:	undoes @init
  * @set_mode:	forcefully changes operating mode
@@ -268,6 +269,7 @@ enum musb_g_ep0_state {
  */
 struct musb_platform_ops {
 	short	fifo_mode;
+	unsigned short	flags;
 	int	(*init)(struct musb *musb);
 	int	(*exit)(struct musb *musb);
 
