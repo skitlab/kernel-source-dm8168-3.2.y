@@ -1056,17 +1056,10 @@ static void musb_shutdown(struct platform_device *pdev)
  * We don't currently use dynamic fifo setup capability to do anything
  * more than selecting one of a bunch of predefined configurations.
  */
-#if defined(CONFIG_USB_MUSB_TUSB6010) || defined(CONFIG_USB_MUSB_OMAP2PLUS) \
-	|| defined(CONFIG_USB_MUSB_AM35X)
-static ushort __devinitdata fifo_mode = 4;
-#elif defined(CONFIG_USB_MUSB_UX500)
-static ushort __devinitdata fifo_mode = 5;
-#else
-static ushort __devinitdata fifo_mode = 2;
-#endif
+static short __devinitdata fifo_mode = -1;
 
 /* "modprobe ... fifo_mode=1" etc */
-module_param(fifo_mode, ushort, 0);
+module_param(fifo_mode, short, 0);
 MODULE_PARM_DESC(fifo_mode, "initial endpoint configuration");
 
 /*
@@ -1988,6 +1981,8 @@ bad_config:
 	musb->board_set_power = plat->set_power;
 	musb->min_power = plat->min_power;
 	musb->ops = plat->platform_ops;
+	if (fifo_mode == -1)
+		fifo_mode = musb->ops->fifo_mode;
 
 	/* The musb_platform_init() call:
 	 *   - adjusts musb->mregs and musb->isr if needed,

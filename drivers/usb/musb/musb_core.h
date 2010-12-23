@@ -255,6 +255,7 @@ enum musb_g_ep0_state {
 
 /**
  * struct musb_platform_ops - Operations passed to musb_core by HW glue layer
+ * @fifo_mode: which fifo_mode is taken by me
  * @init:	turns on clocks, sets up platform-specific registers, etc
  * @exit:	undoes @init
  * @set_mode:	forcefully changes operating mode
@@ -266,6 +267,7 @@ enum musb_g_ep0_state {
  * @write_fifo: write data into musb fifo in PIO
  */
 struct musb_platform_ops {
+	short	fifo_mode;
 	int	(*init)(struct musb *musb);
 	int	(*exit)(struct musb *musb);
 
