@@ -262,6 +262,8 @@ enum musb_g_ep0_state {
  * @get_hw_revision: get hardware revision
  * @vbus_status: returns vbus status if possible
  * @set_vbus:	forces vbus status
+ * @read_fifo: read data from musb fifo in PIO
+ * @write_fifo: write data into musb fifo in PIO
  */
 struct musb_platform_ops {
 	int	(*init)(struct musb *musb);
@@ -277,6 +279,8 @@ struct musb_platform_ops {
 
 	int	(*vbus_status)(struct musb *musb);
 	void	(*set_vbus)(struct musb *musb, int on);
+	void (*read_fifo)(struct musb_hw_ep *hw_ep, u16 len, u8 *buf);
+	void (*write_fifo)(struct musb_hw_ep *hw_ep, u16 len, const u8 *buf);
 };
 
 /*
