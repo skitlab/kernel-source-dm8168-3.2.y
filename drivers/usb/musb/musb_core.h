@@ -239,6 +239,10 @@ enum musb_g_ep0_state {
 #define     MUSB_GLUE_TUSB_STYLE   0x0001
 #define     MUSB_GLUE_EP_ADDR_FLAT_MAPPING	0x0002
 #define     MUSB_GLUE_EP_ADDR_INDEXED_MAPPING	0x0004
+#define		MUSB_GLUE_DMA_INVENTRA				0x0008
+#define		MUSB_GLUE_DMA_CPPI					0x0010
+#define		MUSB_GLUE_DMA_TUSB					0x0020
+
 
 /**
  * struct musb_platform_ops - Operations passed to musb_core by HW glue layer
@@ -253,6 +257,8 @@ enum musb_g_ep0_state {
  * @set_vbus:	forces vbus status
  * @read_fifo: read data from musb fifo in PIO
  * @write_fifo: write data into musb fifo in PIO
+ * @dma_controller_create: create dma controller for me
+ * @dma_controller_destroy: destroy dma controller
  */
 struct musb_platform_ops {
 	short	fifo_mode;
@@ -272,6 +278,9 @@ struct musb_platform_ops {
 	void	(*set_vbus)(struct musb *musb, int on);
 	void (*read_fifo)(struct musb_hw_ep *hw_ep, u16 len, u8 *buf);
 	void (*write_fifo)(struct musb_hw_ep *hw_ep, u16 len, const u8 *buf);
+	struct dma_controller* (*dma_controller_create)(struct musb *,
+		void __iomem *);
+	void (*dma_controller_destroy)(struct dma_controller *);
 };
 
 /*
