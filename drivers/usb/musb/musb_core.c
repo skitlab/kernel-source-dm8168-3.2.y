@@ -105,6 +105,7 @@
 
 
 unsigned musb_debug;
+EXPORT_SYMBOL_GPL(musb_debug);
 module_param_named(debug, musb_debug, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug message level. Default = 0");
 
@@ -260,6 +261,7 @@ void musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *src)
 		writesb(fifo, src, len);
 	}
 }
+EXPORT_SYMBOL_GPL(musb_write_fifo);
 
 #if !defined(CONFIG_USB_MUSB_AM35X)
 /*
@@ -299,6 +301,7 @@ void musb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
 		readsb(fifo, dst, len);
 	}
 }
+EXPORT_SYMBOL_GPL(musb_read_fifo);
 #endif
 
 #endif	/* normal PIO */
@@ -357,6 +360,7 @@ const char *otg_state_string(struct musb *musb)
 	default:			return "UNDEFINED";
 	}
 }
+EXPORT_SYMBOL_GPL(otg_state_string);
 
 #ifdef	CONFIG_USB_MUSB_OTG
 
@@ -1652,7 +1656,7 @@ irqreturn_t musb_interrupt(struct musb *musb)
 
 	return retval;
 }
-
+EXPORT_SYMBOL_GPL(musb_interrupt);
 
 #ifndef CONFIG_MUSB_PIO_ONLY
 static int __initdata use_dma = 1;
@@ -1699,6 +1703,7 @@ void musb_dma_completion(struct musb *musb, u8 epnum, u8 transmit)
 		}
 	}
 }
+EXPORT_SYMBOL_GPL(musb_dma_completion);
 
 #else
 #define use_dma			0
