@@ -2045,6 +2045,8 @@ bad_config:
 		musb_writeb = __musb_writeb;
 	}
 
+	dev_info(dev, "dma type: %s\n", get_dma_name(musb));
+
 	/* The musb_platform_init() call:
 	 *   - adjusts musb->mregs and musb->isr if needed,
 	 *   - may initialize an integrated tranceiver
@@ -2498,18 +2500,6 @@ static int __init musb_init(void)
 #endif
 
 	pr_info("%s: version " MUSB_VERSION ", "
-#ifdef CONFIG_MUSB_PIO_ONLY
-		"pio"
-#elif defined(CONFIG_USB_TI_CPPI_DMA)
-		"cppi-dma"
-#elif defined(CONFIG_USB_INVENTRA_DMA)
-		"musb-dma"
-#elif defined(CONFIG_USB_TUSB_OMAP_DMA)
-		"tusb-omap-dma"
-#else
-		"?dma?"
-#endif
-		", "
 #ifdef CONFIG_USB_MUSB_OTG
 		"otg (peripheral+host)"
 #elif defined(CONFIG_USB_GADGET_MUSB_HDRC)
