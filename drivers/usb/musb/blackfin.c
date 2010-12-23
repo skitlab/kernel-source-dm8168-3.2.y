@@ -32,7 +32,8 @@ struct bfin_glue {
 /*
  * Load an endpoint's FIFO
  */
-void musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *src)
+static void bfin_musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len,
+				const u8 *src)
 {
 	void __iomem *fifo = hw_ep->fifo;
 	void __iomem *epio = hw_ep->regs;
@@ -95,7 +96,7 @@ void musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *src)
 /*
  * Unload an endpoint's FIFO
  */
-void musb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
+static void bfin_musb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
 {
 	void __iomem *fifo = hw_ep->fifo;
 	u8 epnum = hw_ep->epnum;
@@ -429,6 +430,9 @@ static const struct musb_platform_ops bfin_ops = {
 
 	.vbus_status	= bfin_musb_vbus_status,
 	.set_vbus	= bfin_musb_set_vbus,
+
+	.read_fifo	= bfin_musb_read_fifo,
+	.write_fifo	= bfin_musb_write_fifo,
 };
 
 static u64 bfin_dmamask = DMA_BIT_MASK(32);

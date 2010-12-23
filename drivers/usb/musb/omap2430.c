@@ -376,6 +376,9 @@ static const struct musb_platform_ops omap2430_ops = {
 	.try_idle	= omap2430_musb_try_idle,
 
 	.set_vbus	= omap2430_musb_set_vbus,
+
+	.read_fifo	= musb_read_fifo,
+	.write_fifo	= musb_write_fifo,
 };
 
 static u64 omap2430_dmamask = DMA_BIT_MASK(32);
