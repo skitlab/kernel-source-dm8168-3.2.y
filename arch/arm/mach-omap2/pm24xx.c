@@ -350,14 +350,14 @@ static void omap2_pm_end(void)
 	enable_hlt();
 }
 
-static struct platform_suspend_ops omap_pm_ops = {
-	.begin		= omap2_pm_begin,
-	.enter		= omap2_pm_enter,
-	.end		= omap2_pm_end,
-	.valid		= suspend_valid_only_mem,
+static const struct platform_suspend_ops omap_pm_ops[] = {
+	{
+		.begin		= omap2_pm_begin,
+		.enter		= omap2_pm_enter,
+		.end		= omap2_pm_end,
+		.valid		= suspend_valid_only_mem,
+	}
 };
-#else
-static const struct platform_suspend_ops __initdata omap_pm_ops;
 #endif /* CONFIG_SUSPEND */
 
 /* XXX This function should be shareable between OMAP2xxx and OMAP3 */
@@ -582,7 +582,7 @@ static int __init omap2_pm_init(void)
 						    omap24xx_cpu_suspend_sz);
 	}
 
-	suspend_set_ops(&omap_pm_ops);
+	suspend_set_ops(omap_pm_ops);
 	pm_idle = omap2_pm_idle;
 
 	return 0;

@@ -138,4 +138,8 @@ static inline int omap4_twl_init(void)
 }
 #endif
 
+#ifndef CONFIG_SUSPEND
+#define omap_pm_ops NULL
+#endif
+
 #endif
