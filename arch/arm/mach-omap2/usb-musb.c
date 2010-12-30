@@ -52,7 +52,7 @@ static void __init usb_musb_pm_init(void)
 {
 	struct device *dev = &dummy_pdev.dev;
 
-	if (!cpu_is_omap34xx())
+	if (!cpu_is_omap34xx() || cpu_is_omap3517() || cpu_is_omap3505())
 		return;
 
 	otg_base = ioremap(OMAP34XX_HSUSB_OTG_BASE, SZ_4K);
