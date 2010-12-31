@@ -65,6 +65,8 @@
 
 static const char	hcd_name [] = "ehci_hcd";
 
+static void ehci_hcd_cleanup(void);
+static int ehci_hcd_init(void);
 
 #undef VERBOSE_DEBUG
 #undef EHCI_URB_TRACE
@@ -1145,6 +1147,11 @@ static int ehci_get_frame (struct usb_hcd *hcd)
 		ehci->periodic_size;
 }
 
+static void ehci_omap_recover_work(struct work_struct *data)
+{
+	ehci_hcd_cleanup();
+	ehci_hcd_init();
+}
 /*-------------------------------------------------------------------------*/
 
 MODULE_DESCRIPTION(DRIVER_DESC);
@@ -1222,7 +1229,7 @@ MODULE_LICENSE ("GPL");
 #error "missing bus glue for ehci-hcd"
 #endif
 
-static int __init ehci_hcd_init(void)
+static int ehci_hcd_init(void)
 {
 	int retval = 0;
 
@@ -1310,7 +1317,7 @@ err_debug:
 }
 module_init(ehci_hcd_init);
 
-static void __exit ehci_hcd_cleanup(void)
+static void ehci_hcd_cleanup(void)
 {
 #ifdef XILINX_OF_PLATFORM_DRIVER
 	of_unregister_platform_driver(&XILINX_OF_PLATFORM_DRIVER);

@@ -1152,6 +1152,7 @@ static const struct hc_driver ehci_omap_hc_driver = {
 	.relinquish_port        = NULL,
 	.port_handed_over       = ehci_omap_port_handed_over,
 	.clear_tt_buffer_complete = ehci_clear_tt_buffer_complete,
+	.recover_hcd		= ehci_omap_recover_work,
 };
 
 MODULE_ALIAS("platform:omap-ehci");
