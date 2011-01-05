@@ -1,5 +1,5 @@
 /*
- * notify_ducati.c
+ * notify_shm_drv.c
  *
  * Syslink driver support functions for TI OMAP processors.
  *
@@ -28,7 +28,6 @@
 
 #include <syslink/multiproc.h>
 #include <syslink/atomic_linux.h>
-#include <syslink/sharedregion.h>
 #include <syslink/notify_driver.h>
 #include <syslink/notifydefs.h>
 #include <syslink/notify_driverdefs.h>
@@ -43,10 +42,6 @@
 #define NOTIFYNONSHMDRV_MAX_EVENTS	1
 
 #define NOTIFYNONSHMDRV_RESERVED_EVENTS	1
-
-#define NOTIFYDRV_DUCATI_RECV_MBX	2
-
-#define NOTIFYDRV_DUCATI_SEND_MBX	3
 
 /* Get address of event entry. */
 #define EVENTENTRY(event_chart, align, event_id)			\
