@@ -163,3 +163,8 @@ bool notify_setup_omap_int_line_available(u16 remote_proc_id)
 {
 	return true;
 }
+
+u16 notify_setup_omap_numintlines(u16 remote_proc_Id)
+{
+	return 1;
+}

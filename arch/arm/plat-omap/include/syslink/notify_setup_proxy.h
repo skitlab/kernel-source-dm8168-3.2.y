@@ -36,5 +36,9 @@ extern uint notify_setup_omap_shared_mem_req(u16 proc_id, void *shared_addr);
 extern bool notify_setup_omap_int_line_available(u16 remote_proc_id);
 #define notify_setup_proxy_int_line_available(remote_proc_id)	\
 	notify_setup_omap_int_line_available(remote_proc_id)
+/* Is interrupt line available? */
+extern u16 notify_setup_omap_numintlines(u16 remote_proc_id);
+#define notify_setup_proxy_numintlines(remote_proc_id)	\
+	notify_setup_omap_numintlines(remote_proc_id)
 
 #endif  /* !defined(_NOTIFYSETUPPROXY_H_0x5f84) */
