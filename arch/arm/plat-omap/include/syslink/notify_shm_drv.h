@@ -27,8 +27,6 @@
 
 #define VOLATILE volatile
 
-extern u32 get_ducati_virt_mem();
-extern void unmap_ducati_virt_mem(u32 shm_virt_addr);
 
 
 /* module configuration structure */
