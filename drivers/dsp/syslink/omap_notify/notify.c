@@ -24,8 +24,6 @@
 #include <linux/slab.h>
 #include <asm/pgtable.h>
 
-#include "../ipu_pm/ipu_pm.h"
-
 #include <syslink/atomic_linux.h>
 #include <syslink/multiproc.h>
 #include <syslink/notify.h>
