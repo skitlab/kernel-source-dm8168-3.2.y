@@ -21,6 +21,7 @@
 #include "clock.h"
 #include "clock81xx.h"
 #include "prm.h"
+#include "prm2xxx_3xxx.h"
 #include "prm-regbits-81xx.h"
 #include "cm.h"
 #include "cm-regbits-81xx.h"
@@ -48,9 +49,9 @@ int ti81xx_pcie_clk_enable(struct clk *clk)
 	omap2_dflt_clk_enable(clk);
 
 	/* De-assert local reset after module enable */
-	prm_clear_mod_reg_bits(TI81XX_PCI_LRST_MASK,
-			TI816X_PRM_DEFAULT_MOD,
-			TI816X_RM_DEFAULT_RSTCTRL);
+	omap2_prm_clear_mod_reg_bits(TI81XX_PCI_LRST_MASK,
+			TI81XX_PRM_DEFAULT_MOD,
+			TI81XX_RM_RSTCTRL);
 
 	return 0;
 }
@@ -58,9 +59,9 @@ int ti81xx_pcie_clk_enable(struct clk *clk)
 void ti81xx_pcie_clk_disable(struct clk *clk)
 {
 	/* Assert local reset */
-	prm_set_mod_reg_bits(TI81XX_PCI_LRST_MASK,
-			TI816X_PRM_DEFAULT_MOD,
-			TI816X_RM_DEFAULT_RSTCTRL);
+	omap2_prm_set_mod_reg_bits(TI81XX_PCI_LRST_MASK,
+			TI81XX_PRM_DEFAULT_MOD,
+			TI81XX_RM_RSTCTRL);
 
 	omap2_dflt_clk_disable(clk);
 }
@@ -70,10 +71,10 @@ int ti81xx_usb_clk_enable(struct clk *clk)
 	omap2_dflt_clk_enable(clk);
 
 	/* De-assert local reset after module enable */
-	prm_clear_mod_reg_bits(TI81XX_USB1_LRST_MASK
+	omap2_prm_clear_mod_reg_bits(TI81XX_USB1_LRST_MASK
 			| TI81XX_USB2_LRST_MASK,
-			TI816X_PRM_DEFAULT_MOD,
-			TI816X_RM_DEFAULT_RSTCTRL);
+			TI81XX_PRM_DEFAULT_MOD,
+			TI81XX_RM_RSTCTRL);
 
 	return 0;
 }
@@ -81,10 +82,10 @@ int ti81xx_usb_clk_enable(struct clk *clk)
 void ti81xx_usb_clk_disable(struct clk *clk)
 {
 	/* Assert local reset */
-	prm_set_mod_reg_bits(TI81XX_USB1_LRST_MASK
+	omap2_prm_set_mod_reg_bits(TI81XX_USB1_LRST_MASK
 			| TI81XX_USB2_LRST_MASK,
-			TI816X_PRM_DEFAULT_MOD,
-			TI816X_RM_DEFAULT_RSTCTRL);
+			TI81XX_PRM_DEFAULT_MOD,
+			TI81XX_RM_RSTCTRL);
 
 	omap2_dflt_clk_disable(clk);
 }

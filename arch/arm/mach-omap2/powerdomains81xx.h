@@ -90,7 +90,7 @@ static struct powerdomain active_816x_pwrdm = {
 
 static struct powerdomain default_816x_pwrdm = {
 	.name		  = "default_pwrdm",
-	.prcm_offs	  = TI816X_PRM_DEFAULT_MOD,
+	.prcm_offs	  = TI81XX_PRM_DEFAULT_MOD,
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_TI816X),
 	.pwrsts		  = PWRSTS_OFF_ON,
 };

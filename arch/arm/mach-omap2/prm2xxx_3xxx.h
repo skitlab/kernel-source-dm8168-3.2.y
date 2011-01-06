@@ -229,12 +229,14 @@
 #define OMAP3430_PRM_IRQSTATUS_IVA2			0x00f8
 #define OMAP3430_PRM_IRQENABLE_IVA2			0x00fc
 
-/* TI816X PRM DEVICE offsets */
-#define TI816X_PRM_DEVICE_RSTCTRL			0x00A0
+/* TI81XX PRM DEVICE offsets */
+#define TI81XX_PRM_DEVICE_RSTCTRL			0x00A0
 
 /* TI81XX specific register offsets from each PRM module base */
 #define TI81XX_PM_PWSTCTRL				0x0000
 #define TI81XX_PM_PWSTST				0x0004
+#define TI81XX_RM_RSTCTRL				0x0010
+#define TI81XX_RM_RSTST					0x0014
 
 /*
  * TI81XX common PRM module offsets
@@ -243,13 +245,15 @@
 #define TI81XX_PRM_DEVICE_MOD			0x0000	/* 256B */
 #define TI81XX_PRM_ALWON_MOD			0x1800	/* 1KB */
 
+/* FIXME: TI814X: Same as ALWON2, older doc called this DEFAULT */
+#define TI81XX_PRM_DEFAULT_MOD			0x0b00	/* 256B */
+
 /*
  * TI816X PRM module offsets
  */
 
 #define TI816X_PRM_OCP_SOCKET_MOD		0x0200	/* 256B */
 #define TI816X_PRM_ACTIVE_MOD			0x0a00	/* 256B */
-#define TI816X_PRM_DEFAULT_MOD			0x0b00	/* 256B */
 #define TI816X_PRM_IVAHD0_MOD			0x0c00	/* 256B */
 #define TI816X_PRM_IVAHD1_MOD			0x0d00	/* 256B */
 #define TI816X_PRM_IVAHD2_MOD			0x0e00	/* 256B */
@@ -459,9 +463,9 @@ extern int omap2_prm_deassert_hardreset(s16 prm_mod, u8 shift);
 #define OMAP_LOGICRETSTATE_MASK				(1 << 2)
 
 /*
- * TI816X PRM_DEVICE
+ * TI81XX PRM_DEVICE
  */
-#define TI816X_GLOBAL_RST_COLD				(1 << 1)
+#define TI81XX_GLOBAL_RST_COLD				(1 << 1)
 
 /*
  * MAX_MODULE_HARDRESET_WAIT: Maximum microseconds to wait for an OMAP
