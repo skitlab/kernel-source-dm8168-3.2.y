@@ -85,17 +85,18 @@ int notify_setup(struct notify_config *cfg)
 	int status = NOTIFY_S_SUCCESS;
 	struct notify_config tmp_cfg;
 
+	if (cfg == NULL) {
+		notify_get_config(&tmp_cfg);
+		cfg = &tmp_cfg;
+	}
+
+
 	atomic_cmpmask_and_set(&notify_state.ref_count,
 				NOTIFY_MAKE_MAGICSTAMP(0),
 				NOTIFY_MAKE_MAGICSTAMP(0));
 	if (atomic_inc_return(&notify_state.ref_count)
 				!= NOTIFY_MAKE_MAGICSTAMP(1u)) {
 		return NOTIFY_S_ALREADYSETUP;
-	}
-
-	if (cfg == NULL) {
-		notify_get_config(&tmp_cfg);
-		cfg = &tmp_cfg;
 	}
 
 	if (cfg->num_events > NOTIFY_MAXEVENTS) {
@@ -1097,6 +1098,7 @@ uint notify_shared_mem_req(u16 proc_id, void *shared_addr)
 
 	return mem_req;
 }
+EXPORT_SYMBOL(notify_shared_mem_req);
 
 /* Indicates whether notify_start is completed. */
 inline bool _notify_start_complete(void)
