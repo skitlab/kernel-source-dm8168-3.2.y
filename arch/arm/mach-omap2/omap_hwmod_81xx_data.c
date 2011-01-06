@@ -78,6 +78,9 @@ static struct omap_hwmod ti816x_l3_slow_hwmod = {
 static struct omap_hwmod ti816x_uart1_hwmod;
 static struct omap_hwmod ti816x_uart2_hwmod;
 static struct omap_hwmod ti816x_uart3_hwmod;
+static struct omap_hwmod ti814x_uart4_hwmod;
+static struct omap_hwmod ti814x_uart5_hwmod;
+static struct omap_hwmod ti814x_uart6_hwmod;
 static struct omap_hwmod ti816x_wd_timer2_hwmod;
 
 /* L4 SLOW -> UART1 interface */
@@ -134,6 +137,60 @@ static struct omap_hwmod_ocp_if ti816x_l4_slow__uart3 = {
 	.user		= OCP_USER_MPU,
 };
 
+/* L4 SLOW -> UART4 interface */
+static struct omap_hwmod_addr_space ti814x_uart4_addr_space[] = {
+	{
+		.pa_start	= TI814X_UART4_BASE,
+		.pa_end		= TI814X_UART4_BASE + SZ_8K - 1,
+		.flags		= ADDR_MAP_ON_INIT | ADDR_TYPE_RT,
+	},
+};
+
+static struct omap_hwmod_ocp_if ti814x_l4_slow__uart4 = {
+	.master		= &ti816x_l4_slow_hwmod,
+	.slave		= &ti814x_uart4_hwmod,
+	.clk		= "uart4_ick",
+	.addr		= ti814x_uart4_addr_space,
+	.addr_cnt	= ARRAY_SIZE(ti814x_uart4_addr_space),
+	.user		= OCP_USER_MPU,
+};
+
+/* L4 SLOW -> UART5 interface */
+static struct omap_hwmod_addr_space ti814x_uart5_addr_space[] = {
+	{
+		.pa_start	= TI814X_UART5_BASE,
+		.pa_end		= TI814X_UART5_BASE + SZ_8K - 1,
+		.flags		= ADDR_MAP_ON_INIT | ADDR_TYPE_RT,
+	},
+};
+
+static struct omap_hwmod_ocp_if ti814x_l4_slow__uart5 = {
+	.master		= &ti816x_l4_slow_hwmod,
+	.slave		= &ti814x_uart5_hwmod,
+	.clk		= "uart5_ick",
+	.addr		= ti814x_uart5_addr_space,
+	.addr_cnt	= ARRAY_SIZE(ti814x_uart5_addr_space),
+	.user		= OCP_USER_MPU,
+};
+
+/* L4 SLOW -> UART6 interface */
+static struct omap_hwmod_addr_space ti814x_uart6_addr_space[] = {
+	{
+		.pa_start	= TI814X_UART6_BASE,
+		.pa_end		= TI814X_UART6_BASE + SZ_8K - 1,
+		.flags		= ADDR_MAP_ON_INIT | ADDR_TYPE_RT,
+	},
+};
+
+static struct omap_hwmod_ocp_if ti814x_l4_slow__uart6 = {
+	.master		= &ti816x_l4_slow_hwmod,
+	.slave		= &ti814x_uart6_hwmod,
+	.clk		= "uart6_ick",
+	.addr		= ti814x_uart6_addr_space,
+	.addr_cnt	= ARRAY_SIZE(ti814x_uart6_addr_space),
+	.user		= OCP_USER_MPU,
+};
+
 /* L4 SLOW -> Watchdog */
 static struct omap_hwmod_addr_space ti816x_wd_timer2_addrs[] = {
 	{
@@ -162,6 +219,9 @@ static struct omap_hwmod_ocp_if *ti816x_l4_slow_masters[] = {
 	&ti816x_l4_slow__uart1,
 	&ti816x_l4_slow__uart2,
 	&ti816x_l4_slow__uart3,
+	&ti814x_l4_slow__uart4,
+	&ti814x_l4_slow__uart5,
+	&ti814x_l4_slow__uart6,
 	&ti816x_l4_slow__wd_timer2,
 };
 
@@ -242,7 +302,7 @@ static struct omap_hwmod_irq_info uart1_mpu_irqs[] = {
  * There is no SDMA on TI81XX, instead we have EDMA. Presently using dummy
  * channel numbers as the omap UART driver (drivers/serial/omap-serial.c)
  * requires these values to be filled in even if we don't have DMA enabled. Same
- * applies for UART2 & 3 below.
+ * applies for other UARTs below.
  */
 static struct omap_hwmod_dma_info uart1_edma_reqs[] = {
 	{ .name = "tx",	.dma_req = 0, },
@@ -337,6 +397,105 @@ static struct omap_hwmod ti816x_uart3_hwmod = {
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
 };
 
+/* UART4 */
+
+static struct omap_hwmod_irq_info uart4_mpu_irqs[] = {
+	{ .irq = TI814X_IRQ_UART3, },
+};
+
+static struct omap_hwmod_dma_info uart4_edma_reqs[] = {
+	{ .name = "tx",	.dma_req = 0, },
+	{ .name = "rx",	.dma_req = 0, },
+};
+
+static struct omap_hwmod_ocp_if *ti814x_uart4_slaves[] = {
+	&ti814x_l4_slow__uart4,
+};
+
+static struct omap_hwmod ti814x_uart4_hwmod = {
+	.name		= "uart4",
+	.mpu_irqs	= uart4_mpu_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(uart4_mpu_irqs),
+	.sdma_reqs	= uart4_edma_reqs,
+	.sdma_reqs_cnt	= ARRAY_SIZE(uart4_edma_reqs),
+	.main_clk	= "uart4_fck",
+	.prcm		= {
+		.omap4 = {
+			.clkctrl_reg = TI814X_CM_ALWON_UART_3_CLKCTRL,
+		},
+	},
+	.slaves		= ti814x_uart4_slaves,
+	.slaves_cnt	= ARRAY_SIZE(ti814x_uart4_slaves),
+	.class		= &uart_class,
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X),
+};
+
+/* UART5 */
+
+static struct omap_hwmod_irq_info uart5_mpu_irqs[] = {
+	{ .irq = TI814X_IRQ_UART4, },
+};
+
+static struct omap_hwmod_dma_info uart5_edma_reqs[] = {
+	{ .name = "tx",	.dma_req = 0, },
+	{ .name = "rx",	.dma_req = 0, },
+};
+
+static struct omap_hwmod_ocp_if *ti814x_uart5_slaves[] = {
+	&ti814x_l4_slow__uart5,
+};
+
+static struct omap_hwmod ti814x_uart5_hwmod = {
+	.name		= "uart5",
+	.mpu_irqs	= uart5_mpu_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(uart5_mpu_irqs),
+	.sdma_reqs	= uart5_edma_reqs,
+	.sdma_reqs_cnt	= ARRAY_SIZE(uart5_edma_reqs),
+	.main_clk	= "uart5_fck",
+	.prcm		= {
+		.omap4 = {
+			.clkctrl_reg = TI814X_CM_ALWON_UART_4_CLKCTRL,
+		},
+	},
+	.slaves		= ti814x_uart5_slaves,
+	.slaves_cnt	= ARRAY_SIZE(ti814x_uart5_slaves),
+	.class		= &uart_class,
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X),
+};
+
+/* UART6 */
+
+static struct omap_hwmod_irq_info uart6_mpu_irqs[] = {
+	{ .irq = TI814X_IRQ_UART5, },
+};
+
+static struct omap_hwmod_dma_info uart6_edma_reqs[] = {
+	{ .name = "tx",	.dma_req = 0, },
+	{ .name = "rx",	.dma_req = 0, },
+};
+
+static struct omap_hwmod_ocp_if *ti814x_uart6_slaves[] = {
+	&ti814x_l4_slow__uart6,
+};
+
+static struct omap_hwmod ti814x_uart6_hwmod = {
+	.name		= "uart6",
+	.mpu_irqs	= uart6_mpu_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(uart6_mpu_irqs),
+	.sdma_reqs	= uart6_edma_reqs,
+	.sdma_reqs_cnt	= ARRAY_SIZE(uart6_edma_reqs),
+	.main_clk	= "uart6_fck",
+	.prcm		= {
+		.omap4 = {
+			.clkctrl_reg = TI814X_CM_ALWON_UART_5_CLKCTRL,
+		},
+	},
+	.slaves		= ti814x_uart6_slaves,
+	.slaves_cnt	= ARRAY_SIZE(ti814x_uart6_slaves),
+	.class		= &uart_class,
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X),
+};
+
 /* Watchdog */
 
 static struct omap_hwmod_ocp_if *ti816x_wd_timer2_slaves[] = {
@@ -364,6 +523,9 @@ static __initdata struct omap_hwmod *ti81xx_hwmods[] = {
 	&ti816x_uart1_hwmod,
 	&ti816x_uart2_hwmod,
 	&ti816x_uart3_hwmod,
+	&ti814x_uart4_hwmod,
+	&ti814x_uart5_hwmod,
+	&ti814x_uart6_hwmod,
 	&ti816x_wd_timer2_hwmod,
 	NULL,
 };
