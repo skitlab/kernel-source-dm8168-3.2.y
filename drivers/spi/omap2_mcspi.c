@@ -1125,7 +1125,7 @@ static u8 __initdata spi2_txdma_id[] = {
 };
 
 #if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) \
-	|| defined(CONFIG_ARCH_OMAP4)
+	|| defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_ARCH_TI814X)
 static u8 __initdata spi3_rxdma_id[] = {
 	OMAP24XX_DMA_SPI3_RX0,
 	OMAP24XX_DMA_SPI3_RX1,
@@ -1137,7 +1137,8 @@ static u8 __initdata spi3_txdma_id[] = {
 };
 #endif
 
-#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
+#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4) \
+	|| defined(CONFIG_ARCH_TI814X)
 static u8 __initdata spi4_rxdma_id[] = {
 	OMAP34XX_DMA_SPI4_RX0,
 };
@@ -1169,14 +1170,15 @@ static int __init omap2_mcspi_probe(struct platform_device *pdev)
 		break;
 
 #if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) \
-	|| defined(CONFIG_ARCH_OMAP4)
+	|| defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_ARCH_TI814X)
 	case 3:
 		rxdma_id = spi3_rxdma_id;
 		txdma_id = spi3_txdma_id;
 		num_chipselect = 2;
 		break;
 #endif
-#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
+#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4) \
+	|| defined(CONFIG_ARCH_TI814X)
 	case 4:
 		rxdma_id = spi4_rxdma_id;
 		txdma_id = spi4_txdma_id;

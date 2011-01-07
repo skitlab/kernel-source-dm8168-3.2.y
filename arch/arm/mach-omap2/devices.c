@@ -332,9 +332,9 @@ static inline void ti81xx_init_pcm(void) {}
 #define OMAP4_MCSPI4_BASE		0x480ba100
 
 #define TI81XX_MCSPI1_BASE		0x48030100
-#define TI814X_MCSPI2_BASE		0x481A0000
-#define TI814X_MCSPI3_BASE		0x481A2000
-#define TI814X_MCSPI4_BASE		0x481A4000
+#define TI814X_MCSPI2_BASE		0x481A0100
+#define TI814X_MCSPI3_BASE		0x481A2100
+#define TI814X_MCSPI4_BASE		0x481A4100
 
 static struct omap2_mcspi_platform_config omap2_mcspi1_config = {
 	.num_cs		= 4,
