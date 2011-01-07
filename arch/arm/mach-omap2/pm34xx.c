@@ -605,11 +605,13 @@ static void omap3_pm_end(void)
 	return;
 }
 
-static const struct platform_suspend_ops omap_pm_ops = {
-	.begin		= omap3_pm_begin,
-	.end		= omap3_pm_end,
-	.enter		= omap3_pm_enter,
-	.valid		= suspend_valid_only_mem,
+static const struct platform_suspend_ops omap_pm_ops[] = {
+	{
+		.begin		= omap3_pm_begin,
+		.end		= omap3_pm_end,
+		.enter		= omap3_pm_enter,
+		.valid		= suspend_valid_only_mem,
+	}
 };
 #endif /* CONFIG_SUSPEND */
 
@@ -1067,9 +1069,7 @@ static int __init omap3_pm_init(void)
 	core_clkdm = clkdm_lookup("core_clkdm");
 
 	omap_push_sram_idle();
-#ifdef CONFIG_SUSPEND
-	suspend_set_ops(&omap_pm_ops);
-#endif /* CONFIG_SUSPEND */
+	suspend_set_ops(omap_pm_ops);
 
 	pm_idle = omap3_pm_idle;
 	omap3_idle_init();
