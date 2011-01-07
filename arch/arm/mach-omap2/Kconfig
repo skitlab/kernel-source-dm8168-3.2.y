@@ -242,9 +242,7 @@ config MACH_OMAP_ZOOM2
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBB
-	select SERIAL_8250
 	select SERIAL_CORE_CONSOLE
-	select SERIAL_8250_CONSOLE
 	select REGULATOR_FIXED_VOLTAGE
 
 config MACH_OMAP_ZOOM3
@@ -252,9 +250,7 @@ config MACH_OMAP_ZOOM3
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBP
-	select SERIAL_8250
 	select SERIAL_CORE_CONSOLE
-	select SERIAL_8250_CONSOLE
 	select REGULATOR_FIXED_VOLTAGE
 
 config MACH_CM_T35
