@@ -191,6 +191,10 @@ static void __init omap3_check_features(void)
 	if (!cpu_is_omap3505() && !cpu_is_omap3517())
 		omap3_features |= OMAP3_HAS_IO_WAKEUP;
 
+	status = (OMAP3_SKUID_MASK & read_tap_reg(OMAP3_PRODID));
+	if (status & OMAP3_SKUID_720MHZ)
+		omap3_features |= OMAP3_HAS_720MHZ;
+
 	/*
 	 * TODO: Get additional info (where applicable)
 	 *       e.g. Size of L2 cache.
@@ -445,6 +449,7 @@ static void __init omap3_cpuinfo(void)
 	OMAP3_SHOW_FEATURE(neon);
 	OMAP3_SHOW_FEATURE(isp);
 	OMAP3_SHOW_FEATURE(192mhz_clk);
+	OMAP3_SHOW_FEATURE(720mhz);
 
 	printk(")\n");
 }

@@ -365,6 +365,12 @@
 #define		FEAT_NEON		0
 #define		FEAT_NEON_NONE		1
 
+/* Product ID register */
+#define OMAP3_PRODID			0x020C
+
+/* Mask to extract SKU ID from Product ID */
+#define OMAP3_SKUID_MASK		0x0f
+#define		OMAP3_SKUID_720MHZ	0x08
 
 #ifndef __ASSEMBLY__
 #ifdef CONFIG_ARCH_OMAP2PLUS
