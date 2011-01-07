@@ -472,10 +472,20 @@ void omap_sram_idle(void)
 
 	/* PER */
 	if (per_next_state < PWRDM_POWER_ON) {
-		per_prev_state = pwrdm_read_prev_pwrst(per_pwrdm);
+		if (per_next_state == PWRDM_POWER_OFF) {
+			/*
+			 * Reading the prev-state takes long time (11us@OPP2),
+			 * only do it, if we really tried to put PER in OFF
+			 */
+			per_prev_state = pwrdm_read_prev_pwrst(per_pwrdm);
+			if (per_prev_state == PWRDM_POWER_OFF) {
+				omap3_per_restore_context();
+				omap3_gpio_restore_pad_context(0);
+			} else if (per_next_state == PWRDM_POWER_OFF) {
+				omap3_gpio_restore_pad_context(1);
+			}
+		}
 		omap2_gpio_resume_after_idle();
-		if (per_prev_state == PWRDM_POWER_OFF)
-			omap3_per_restore_context();
 		omap_uart_resume_idle(2);
 		omap_uart_resume_idle(3);
 	}
