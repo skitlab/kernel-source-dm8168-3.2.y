@@ -36,7 +36,10 @@
 #include <plat/asp.h>
 #include <plat/usb.h>
 #include <plat/mmc.h>
+#include <plat/gpmc.h>
+#include <plat/nand.h>
 
+#include "board-flash.h"
 #include "clock.h"
 #include "hsmmc.h"
 
@@ -102,6 +105,43 @@ static struct snd_platform_data ti8148_evm_snd_data = {
 	.version	= MCASP_VERSION_2,
 	.txnumevt	= 1,
 	.rxnumevt	= 1,
+};
+
+/* NAND flash information */
+static struct mtd_partition ti814x_nand_partitions[] = {
+/* All the partition sizes are listed in terms of NAND block size */
+	{
+		.name           = "U-Boot-min",
+		.offset         = 0,    /* Offset = 0x0 */
+		.size           = SZ_128K,
+		.mask_flags     = MTD_WRITEABLE,        /* force read-only */
+	},
+	{
+		.name           = "U-Boot",
+		.offset         = MTDPART_OFS_APPEND,/* Offset = 0x0 + 128K */
+		.size           = 18 * SZ_128K,
+		.mask_flags     = MTD_WRITEABLE,        /* force read-only */
+	},
+	{
+		.name           = "U-Boot Env",
+		.offset         = MTDPART_OFS_APPEND,   /* Offset = 0x260000 */
+		.size           = 1 * SZ_128K,
+	},
+	{
+		.name           = "Kernel",
+		.offset         = MTDPART_OFS_APPEND,   /* Offset = 0x280000 */
+		.size           = 34 * SZ_128K,
+	},
+	{
+		.name           = "File System",
+		.offset         = MTDPART_OFS_APPEND,   /* Offset = 0x6C0000 */
+		.size           = 1601 * SZ_128K,
+	},
+	{
+		.name           = "Reserved",
+		.offset         = MTDPART_OFS_APPEND,   /* Offset = 0xCEE0000 */
+		.size           = MTDPART_SIZ_FULL,
+	},
 };
 
 /* SPI fLash information */
@@ -205,7 +245,8 @@ static void __init ti8148_evm_init(void)
 	ti81xx_register_mcasp(0, &ti8148_evm_snd_data);
 
 	omap2_hsmmc_init(mmc);
-
+	board_nand_init(ti814x_nand_partitions,
+		ARRAY_SIZE(ti814x_nand_partitions), 0, NAND_BUSWIDTH_16);
 	/* initialize usb */
 	usb_musb_init(&musb_board_data);
 

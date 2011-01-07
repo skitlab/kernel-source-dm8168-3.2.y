@@ -246,7 +246,8 @@ obj-$(CONFIG_MACH_CRANEBOARD)		+= board-am3517crane.o
 obj-$(CONFIG_MACH_SBC3530)		+= board-omap3stalker.o \
 					   hsmmc.o
 obj-$(CONFIG_MACH_TI8148EVM)		+= board-ti8148evm.o \
-					   hsmmc.o
+					   hsmmc.o \
+					   board-flash.o
 obj-$(CONFIG_MACH_TI8168EVM)		+= board-ti8168evm.o \
 					   hsmmc.o \
 					   board-flash.o
