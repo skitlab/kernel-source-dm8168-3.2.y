@@ -26,7 +26,7 @@
 
 /*
  * 32KHz clocksource ... always available, on pretty most chips except
- * OMAP 730, 1510 and TI816X.  Other timers could be used as clocksources, with
+ * OMAP 730, 1510 and TI81XX.  Other timers could be used as clocksources, with
  * higher resolution in free-running counter modes (e.g. 12 MHz xtal),
  * but systems won't necessarily want to spend resources that way.
  */
@@ -34,7 +34,7 @@
 #define OMAP16XX_TIMER_32K_SYNCHRONIZED		0xfffbc410
 
 #if !(defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP15XX)	\
-		|| defined(CONFIG_ARCH_TI816X))
+		|| defined(CONFIG_ARCH_TI81XX))
 
 #include <linux/clocksource.h>
 
