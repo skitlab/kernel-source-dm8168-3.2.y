@@ -438,6 +438,7 @@ static inline void ti81xx_mcspi_fixup(void)
 	omap2_mcspi1_resources[0].start	= TI81XX_MCSPI1_BASE;
 	omap2_mcspi1_resources[0].end	= TI81XX_MCSPI1_BASE + 0xff;
 
+#ifdef CONFIG_ARCH_TI814X
 	if (cpu_is_ti814x()) {
 		omap2_mcspi2_resources[0].start	= TI814X_MCSPI2_BASE;
 		omap2_mcspi2_resources[0].end	= TI814X_MCSPI2_BASE + 0xff;
@@ -446,6 +447,7 @@ static inline void ti81xx_mcspi_fixup(void)
 		omap2_mcspi4_resources[0].start	= TI814X_MCSPI4_BASE;
 		omap2_mcspi4_resources[0].end	= TI814X_MCSPI4_BASE + 0xff;
 	}
+#endif
 }
 #else
 static inline void ti81xx_mcspi_fixup(void)
