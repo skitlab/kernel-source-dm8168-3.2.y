@@ -59,7 +59,7 @@ static void __init usb_musb_pm_init(void)
 	if (WARN_ON(!otg_base))
 		return;
 
-	dev_set_name(dev, "musb_hdrc");
+	dev_set_name(dev, "musb-omap2430");
 	otg_clk = clk_get(dev, "ick");
 
 	if (otg_clk && clk_enable(otg_clk)) {
