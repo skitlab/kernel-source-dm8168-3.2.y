@@ -35,6 +35,7 @@
 #include <plat/omap-pm.h>
 #include <plat/common.h>
 #endif
+#include <plat/omap_device.h>
 
 #define VERY_HI_RATE	900000000
 
@@ -88,7 +89,7 @@ static int omap_target(struct cpufreq_policy *policy,
 #ifdef CONFIG_ARCH_OMAP1
 	struct cpufreq_freqs freqs;
 #endif
-#if defined(CONFIG_ARCH_OMAP3) && !defined(CONFIG_OMAP_PM_NONE)
+#if defined(CONFIG_ARCH_OMAP3)
 	unsigned long freq;
 	struct device *mpu_dev = omap2_get_mpuss_device();
 #endif
@@ -115,10 +116,10 @@ static int omap_target(struct cpufreq_policy *policy,
 #endif
 	ret = clk_set_rate(mpu_clk, freqs.new * 1000);
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
-#elif defined(CONFIG_ARCH_OMAP3) && !defined(CONFIG_OMAP_PM_NONE)
+#elif defined(CONFIG_ARCH_OMAP3)
 	freq = target_freq * 1000;
 	if (opp_find_freq_ceil(mpu_dev, &freq))
-		omap_pm_cpu_set_freq(freq);
+		omap_device_scale(mpu_dev, mpu_dev, freq);
 #endif
 	return ret;
 }
