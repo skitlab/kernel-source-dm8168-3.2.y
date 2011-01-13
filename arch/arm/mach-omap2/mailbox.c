@@ -48,8 +48,11 @@
 
 #define OMAP4_MBOX_REG_SIZE		0x130
 
+#define TI81XX_MBOX_REG_SIZE		0x144
+
 #define MBOX_NR_REGS			(MBOX_REG_SIZE / sizeof(u32))
 #define OMAP4_MBOX_NR_REGS		(OMAP4_MBOX_REG_SIZE / sizeof(u32))
+#define TI81XX_MBOX_NR_REGS		(TI81XX_MBOX_REG_SIZE / sizeof(u32))
 
 static void __iomem *mbox_base;
 
@@ -66,7 +69,7 @@ struct omap_mbox2_priv {
 	unsigned long irqstatus;
 	u32 newmsg_bit;
 	u32 notfull_bit;
-	u32 ctx[OMAP4_MBOX_NR_REGS];
+	u32 ctx[TI81XX_MBOX_NR_REGS];
 	unsigned long irqdisable;
 };
 
@@ -91,15 +94,25 @@ static int omap2_mbox_startup(struct omap_mbox *mbox)
 	u32 l;
 	unsigned long timeout;
 
-	mbox_ick_handle = clk_get(NULL, "mailboxes_ick");
-	if (IS_ERR(mbox_ick_handle)) {
-		printk(KERN_ERR "Could not get mailboxes_ick: %ld\n",
-			PTR_ERR(mbox_ick_handle));
-		return PTR_ERR(mbox_ick_handle);
+	if (cpu_is_ti81xx()) {
+		mbox_ick_handle = clk_get(NULL, "mailbox_ick");
+		if (IS_ERR(mbox_ick_handle)) {
+			printk(KERN_ERR "Could not get mailbox_ick: %ld\n",
+				PTR_ERR(mbox_ick_handle));
+			return PTR_ERR(mbox_ick_handle);
+		}
+		clk_enable(mbox_ick_handle);
+	} else {
+		mbox_ick_handle = clk_get(NULL, "mailboxes_ick");
+		if (IS_ERR(mbox_ick_handle)) {
+			printk(KERN_ERR "Could not get mailboxes_ick: %ld\n",
+				PTR_ERR(mbox_ick_handle));
+			return PTR_ERR(mbox_ick_handle);
+		}
+		clk_enable(mbox_ick_handle);
 	}
-	clk_enable(mbox_ick_handle);
 
-	if (cpu_is_omap44xx()) {
+	if (cpu_is_omap44xx() || cpu_is_ti81xx()) {
 		mbox_write_reg(OMAP4_SOFTRESET, MAILBOX_SYSCONFIG);
 		timeout = jiffies + msecs_to_jiffies(20);
 		do {
@@ -130,7 +143,7 @@ static int omap2_mbox_startup(struct omap_mbox *mbox)
 	l = mbox_read_reg(MAILBOX_REVISION);
 	pr_debug("omap mailbox rev %d.%d\n", (l & 0xf0) >> 4, (l & 0x0f));
 
-	if (cpu_is_omap44xx())
+	if (cpu_is_omap44xx() || cpu_is_ti81xx())
 		l = OMAP4_SMARTIDLE;
 	else
 		l = SMARTIDLE | AUTOIDLE;
@@ -227,8 +240,11 @@ static void omap2_mbox_save_ctx(struct omap_mbox *mbox)
 	int i;
 	struct omap_mbox2_priv *p = mbox->priv;
 	int nr_regs;
+
 	if (cpu_is_omap44xx())
 		nr_regs = OMAP4_MBOX_NR_REGS;
+	else if (cpu_is_ti81xx())
+		nr_regs = TI81XX_MBOX_NR_REGS;
 	else
 		nr_regs = MBOX_NR_REGS;
 	for (i = 0; i < nr_regs; i++) {
@@ -246,6 +262,8 @@ static void omap2_mbox_restore_ctx(struct omap_mbox *mbox)
 	int nr_regs;
 	if (cpu_is_omap44xx())
 		nr_regs = OMAP4_MBOX_NR_REGS;
+	else if (cpu_is_ti81xx())
+		nr_regs = TI81XX_MBOX_NR_REGS;
 	else
 		nr_regs = MBOX_NR_REGS;
 	for (i = 0; i < nr_regs; i++) {
