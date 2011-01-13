@@ -1839,12 +1839,13 @@ static int __devinit davinci_emac_probe(struct platform_device *pdev)
 
 	priv->emac_base_phys = res->start + pdata->ctrl_reg_offset;
 	size = res->end - res->start + 1;
+#if 0
 	if (!request_mem_region(res->start, size, ndev->name)) {
 		dev_err(emac_dev, "DaVinci EMAC: failed request_mem_region() for regs\n");
 		rc = -ENXIO;
 		goto probe_quit;
 	}
-
+#endif
 	priv->remap_addr = ioremap(res->start, size);
 	if (!priv->remap_addr) {
 		dev_err(emac_dev, "Unable to map IO\n");
