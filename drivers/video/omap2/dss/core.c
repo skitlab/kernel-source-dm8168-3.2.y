@@ -294,7 +294,7 @@ void dss_clk_enable(enum dss_clock clks)
 
 	dss_clk_enable_no_ctx(clks);
 
-	if (check_ctx && cpu_is_omap34xx() && dss_need_ctx_restore())
+	if (check_ctx || (cpu_is_omap34xx() && dss_need_ctx_restore()))
 		restore_all_ctx();
 }
 
