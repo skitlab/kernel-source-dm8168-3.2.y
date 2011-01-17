@@ -1168,13 +1168,17 @@ static int smsc911x_open(struct net_device *dev)
 		SMSC_WARNING(HW, "dev_addr is not a valid MAC address");
 		return -EADDRNOTAVAIL;
 	}
-
+	/*
+	 * WORKAROUND: Somehow SMSC soft reset is failing with latest version
+	 * of EVM's where the reset line is completely dis-connected.
+	 */
+#if 0
 	/* Reset the LAN911x */
 	if (smsc911x_soft_reset(pdata)) {
 		SMSC_WARNING(HW, "soft reset failed");
 		return -EIO;
 	}
-
+#endif
 	smsc911x_reg_write(pdata, HW_CFG, 0x00050000);
 	smsc911x_reg_write(pdata, AFC_CFG, 0x006E3740);
 
