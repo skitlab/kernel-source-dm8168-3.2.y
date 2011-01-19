@@ -297,6 +297,7 @@ static void __init omap_h4_init_irq(void)
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
 	omap_init_irq();
+	gpmc_init();
 	h4_init_flash();
 }
 

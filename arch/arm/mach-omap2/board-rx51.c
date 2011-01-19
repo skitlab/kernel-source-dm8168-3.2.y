@@ -109,6 +109,7 @@ static void __init rx51_init_irq(void)
 	sdrc_params = nokia_get_sdram_timings();
 	omap2_init_common_devices(sdrc_params, sdrc_params);
 	omap_init_irq();
+	gpmc_init();
 }
 
 extern void __init rx51_peripherals_init(void);

@@ -40,6 +40,7 @@
 #include <plat/common.h>
 #include <plat/usb.h>
 #include <plat/display.h>
+#include <plat/gpmc.h>
 
 #include <media/tvp514x.h>
 #include <media/davinci/vpfe_capture.h>
@@ -656,6 +657,7 @@ static void __init am3517_evm_init_irq(void)
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
 	omap_init_irq();
+	gpmc_init();
 }
 
 static struct omap_musb_board_data musb_board_data = {

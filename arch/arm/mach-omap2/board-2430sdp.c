@@ -146,6 +146,7 @@ static void __init omap_2430sdp_init_irq(void)
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
 	omap_init_irq();
+	gpmc_init();
 }
 
 static struct twl4030_gpio_platform_data sdp2430_gpio_data = {

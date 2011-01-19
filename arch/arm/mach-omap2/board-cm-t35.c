@@ -681,6 +681,7 @@ static void __init cm_t35_init_irq(void)
 	omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
 			     mt46h32m32lf6_sdrc_params);
 	omap_init_irq();
+	gpmc_init();
 }
 
 static struct omap_board_mux board_mux[] __initdata = {

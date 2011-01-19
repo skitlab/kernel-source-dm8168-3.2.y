@@ -327,6 +327,7 @@ static void __init omap_3430sdp_init_irq(void)
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(hyb18m512160af6_sdrc_params, NULL);
 	omap_init_irq();
+	gpmc_init();
 }
 
 static int sdp3430_batt_table[] = {

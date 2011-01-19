@@ -24,6 +24,7 @@
 #include <plat/common.h>
 #include <plat/board.h>
 #include <plat/usb.h>
+#include <plat/gpmc.h>
 
 #include <mach/board-zoom.h>
 
@@ -45,6 +46,7 @@ static void __init omap_zoom_init_irq(void)
 					  h8mbx00u0mer0em_sdrc_params);
 
 	omap_init_irq();
+	gpmc_init();
 }
 
 #ifdef CONFIG_OMAP_MUX

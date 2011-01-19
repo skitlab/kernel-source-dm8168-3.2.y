@@ -29,6 +29,7 @@
 #include <plat/usb.h>
 #include <plat/board.h>
 #include <plat/common.h>
+#include <plat/gpmc.h>
 
 static struct omap_board_config_kernel generic_config[] = {
 };
@@ -40,6 +41,7 @@ static void __init omap_generic_init_irq(void)
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
 	omap_init_irq();
+	gpmc_init();
 }
 
 static void __init omap_generic_init(void)

@@ -524,6 +524,7 @@ static void __init igep2_init_irq(void)
 	omap2_init_common_devices(m65kxxxxam_sdrc_params,
 				  m65kxxxxam_sdrc_params);
 	omap_init_irq();
+	gpmc_init();
 }
 
 static struct twl4030_codec_audio_data igep2_audio_data = {

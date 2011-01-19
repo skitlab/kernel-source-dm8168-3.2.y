@@ -36,6 +36,7 @@
 #include <plat/common.h>
 #include <plat/usb.h>
 #include <plat/mmc.h>
+#include <plat/gpmc.h>
 #include "timer-gp.h"
 
 #include "hsmmc.h"
@@ -80,6 +81,7 @@ static void __init omap4_panda_init_irq(void)
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
 	gic_init_irq();
+	gpmc_init();
 }
 
 static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {

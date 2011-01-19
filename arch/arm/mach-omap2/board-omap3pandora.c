@@ -47,6 +47,7 @@
 #include <plat/mcspi.h>
 #include <plat/usb.h>
 #include <plat/display.h>
+#include <plat/gpmc.h>
 #include <plat/nand.h>
 
 #include "mux.h"
@@ -640,6 +641,7 @@ static void __init omap3pandora_init_irq(void)
 	omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
 				  mt46h32m32lf6_sdrc_params);
 	omap_init_irq();
+	gpmc_init();
 }
 
 static void pandora_wl1251_set_power(bool enable)

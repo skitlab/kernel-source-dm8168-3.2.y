@@ -44,6 +44,7 @@
 #include <plat/mcspi.h>
 #include <plat/display.h>
 #include <plat/omap-pm.h>
+#include <plat/gpmc.h>
 
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
@@ -744,6 +745,7 @@ static void __init omap3_evm_init_irq(void)
 		omap2_init_common_devices(mt46h32m32lf6_sdrc_params, NULL);
 
 	omap_init_irq();
+	gpmc_init();
 }
 
 static struct platform_device *omap3_evm_devices[] __initdata = {
