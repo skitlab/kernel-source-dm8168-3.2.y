@@ -24,6 +24,9 @@
 #include <linux/err.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/plist.h>
+#include <linux/slab.h>
 
 #include <plat/common.h>
 #include <plat/voltage.h>
@@ -118,6 +121,20 @@ struct vc_reg_info {
 };
 
 /**
+ * struct omap_vdd_user_list - The per vdd user list
+ *
+ * @dev:	The device asking for the vdd to be set at a particular
+ *		voltage
+ * @node:	The list head entry
+ * @volt:	The voltage requested by the device <dev>
+ */
+struct omap_vdd_user_list {
+	struct device *dev;
+	struct plist_node node;
+	u32 volt;
+};
+
+/**
  * omap_vdd_info - Per Voltage Domain info
  *
  * @volt_data		: voltage table having the distinct voltages supported
@@ -132,6 +149,10 @@ struct vc_reg_info {
  *			  shifts, masks etc.
  * @voltdm		: pointer to the voltage domain structure
  * @debug_dir		: debug directory for this voltage domain.
+ * @user_lock		: the lock to be used by the plist user_list
+ * @user_list		: the list head maintaining the various users.
+ * @scaling_mutex	: the dvfs muutex.
+ *			  of this vdd with the voltage requested by each user.
  * @curr_volt		: current voltage for this vdd.
  * @ocp_mod		: The prm module for accessing the prm irqstatus reg.
  * @prm_irqst_reg	: prm irqstatus register.
@@ -146,6 +167,9 @@ struct omap_vdd_info {
 	struct vc_reg_info vc_reg;
 	struct voltagedomain voltdm;
 	struct dentry *debug_dir;
+	spinlock_t user_lock;
+	struct plist_head user_list;
+	struct mutex scaling_mutex;
 	u32 curr_volt;
 	u16 ocp_mod;
 	u8 prm_irqst_reg;
@@ -869,6 +893,11 @@ static int __init omap3_vdd_data_configure(struct omap_vdd_info *vdd)
 	vdd->write_reg = omap3_voltage_write_reg;
 	vdd->volt_scale = vp_forceupdate_scale_voltage;
 	vdd->vp_enabled = false;
+	/* Init the plist */
+	spin_lock_init(&vdd->user_lock);
+	plist_head_init(&vdd->user_list, &vdd->user_lock);
+	/* Init the DVFS mutex */
+	mutex_init(&vdd->scaling_mutex);
 
 	/* VC parameters */
 	vdd->vc_reg.prm_mod = OMAP3430_GR_MOD;
@@ -1059,6 +1088,11 @@ static int __init omap4_vdd_data_configure(struct omap_vdd_info *vdd)
 	vdd->write_reg = omap4_voltage_write_reg;
 	vdd->volt_scale = vp_forceupdate_scale_voltage;
 	vdd->vp_enabled = false;
+	/* Init the plist */
+	spin_lock_init(&vdd->user_lock);
+	plist_head_init(&vdd->user_list, &vdd->user_lock);
+	/* Init the DVFS mutex */
+	mutex_init(&vdd->scaling_mutex);
 
 	/* VC parameters */
 	vdd->vc_reg.prm_mod = OMAP4430_PRM_DEVICE_INST;
@@ -1170,6 +1204,69 @@ unsigned long omap_vp_get_curr_volt(struct voltagedomain *voltdm)
 	}
 
 	return vdd->pmic_info->vsel_to_uv(curr_vsel);
+}
+/**
+ * omap_voltage_add_request() - API to keep track of various requests to
+ *				scale the VDD and returns the best possible
+ *				voltage the VDD can be put to.
+ * @volt_domain:	pointer to the voltage domain.
+ * @dev:		the device pointer.
+ * @volt:		the voltage which is requested by the device.
+ *
+ * This API is to be called before the actual voltage scaling is
+ * done to determine what is the best possible voltage the VDD can
+ * be put to. This API adds the device <dev> in the user list of the
+ * vdd <volt_domain> with <volt> as the requested voltage. The user list
+ * is a plist with the priority element absolute voltage values.
+ * The API then finds the maximum of all the requested voltages for
+ * the VDD and returns it back through <volt> pointer itself.
+ * Returns error value in case of any errors.
+ */
+int omap_voltage_add_request(struct voltagedomain *voltdm, struct device *dev,
+		unsigned long *volt)
+{
+	struct omap_vdd_info *vdd;
+	struct omap_vdd_user_list *user;
+	struct plist_node *node;
+	int found = 0;
+
+	if (!voltdm || IS_ERR(voltdm)) {
+		pr_warning("%s: VDD specified does not exist!\n", __func__);
+		return -EINVAL;
+	}
+
+	vdd = container_of(voltdm, struct omap_vdd_info, voltdm);
+
+	mutex_lock(&vdd->scaling_mutex);
+
+	plist_for_each_entry(user, &vdd->user_list, node) {
+		if (user->dev == dev) {
+			found = 1;
+			break;
+		}
+	}
+
+	if (!found) {
+		user = kzalloc(sizeof(struct omap_vdd_user_list), GFP_KERNEL);
+		if (!user) {
+			pr_err("%s: Unable to creat a new user for vdd_%s\n",
+				__func__, voltdm->name);
+			mutex_unlock(&vdd->scaling_mutex);
+			return -ENOMEM;
+		}
+		user->dev = dev;
+	} else {
+		plist_del(&user->node, &vdd->user_list);
+	}
+
+	plist_node_init(&user->node, *volt);
+	plist_add(&user->node, &vdd->user_list);
+	node = plist_last(&vdd->user_list);
+	*volt = user->volt = node->prio;
+
+	mutex_unlock(&vdd->scaling_mutex);
+
+	return 0;
 }
 
 /**
