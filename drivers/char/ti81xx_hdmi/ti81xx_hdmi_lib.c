@@ -206,7 +206,7 @@ struct hdmi_cfg_params config_1080i60 = TI81XX_HDMI_8BIT_1080i_60_16_9_HD;
 struct hdmi_cfg_params config_1080p30 = TI81XX_HDMI_8BIT_1080p_30_16_9_HD;
 
 struct hdmi_pll_ctrl gpll_ctrl[] = {
-	{19, 745, 5, 0x20021001},
+	{19, 1485, 10, 0x20021001},
 	{19, 745,   10, 0x20021001}
 };
 
