@@ -23,6 +23,7 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/leds.h>
 #include <linux/interrupt.h>
+#include <linux/mtd/nand.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
@@ -944,7 +945,8 @@ static void __init omap3_evm_init(void)
 	omap3_evm_display_init();
 	/* NAND */
 	board_nand_init(omap3_evm_nand_partitions,
-			ARRAY_SIZE(omap3_evm_nand_partitions), 0);
+			ARRAY_SIZE(omap3_evm_nand_partitions),
+			0, NAND_BUSWIDTH_16);
 	board_onenand_init(omap3_evm_onenand_partitions,
 			ARRAY_SIZE(omap3_evm_onenand_partitions), 0);
 }
