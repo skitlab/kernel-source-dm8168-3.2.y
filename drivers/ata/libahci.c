@@ -1320,10 +1320,15 @@ static int ahci_softreset(struct ata_link *link, unsigned int *class,
 			  unsigned long deadline)
 {
 	int pmp = sata_srst_pmp(link);
+	int ret;
 
 	DPRINTK("ENTER\n");
 
-	return ahci_do_softreset(link, class, pmp, deadline, ahci_check_ready);
+	ret = ahci_do_softreset(link, class, pmp, deadline, ahci_check_ready);
+	if (ret && pmp)
+		return ahci_do_softreset(link, class, 0, deadline,
+							ahci_check_ready);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(ahci_do_softreset);
 
