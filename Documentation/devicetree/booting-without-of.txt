@@ -117,7 +117,7 @@ Revision Information
 	- Compare FSL SOC use of PCI to standard and make sure no new
 	  node definition required.
 	- Add more information about node definitions for SOC devices
-  	  that currently have no standard, like the FSL CPM.
+	  that currently have no standard, like the FSL CPM.
 
 
 I - Introduction
