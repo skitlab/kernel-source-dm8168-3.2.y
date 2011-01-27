@@ -1724,6 +1724,32 @@ static void configure_hdmi_pll(volatile u32  b_addr,
 	u32 m2nval, mn2val, read_clkctrl;
 	u32 read_m2nval, read_mn2val;
 	volatile u32 repeatCnt = 0;
+	/* Put PLL in idle bypass mode */
+	read_clkctrl = __raw_readl(b_addr + HDMI_PLL_CLKCTRL_OFF);
+	read_clkctrl |= 0x1 << 23;
+	__raw_writel(read_clkctrl, b_addr + HDMI_PLL_CLKCTRL_OFF);
+
+	/* poll for the bypass acknowledgement */
+	repeatCnt = 0u;
+	while (repeatCnt < VPS_PRCM_MAX_REP_CNT)
+	{
+		if (((__raw_readl(b_addr+HDMI_PLL_STATUS_OFF)) & 0x00000101) == 0x00000101)
+		{
+			break;
+		}
+		/* Wait for the 100 cycles */
+		udelay(100);
+		repeatCnt++;
+	}
+
+	if (((__raw_readl(b_addr+HDMI_PLL_STATUS_OFF)) & 0x00000101) == 0x00000101)
+	{
+		;
+	}
+	else
+	{
+		printk("Not able to Keep PLL in bypass state!!!\n");
+	}
 	m2nval = (__m2 << 16) | __n;
 	mn2val =  __m;
 	/*ref_clk     = OSC_FREQ/(__n+1);
@@ -1756,7 +1782,6 @@ static void configure_hdmi_pll(volatile u32  b_addr,
 
 	/* poll for the freq,phase lock to occur */
 	repeatCnt = 0u;
-
 	while (repeatCnt < VPS_PRCM_MAX_REP_CNT)
 	{
 		if (((__raw_readl(b_addr+HDMI_PLL_STATUS_OFF)) & 0x00000600) == 0x00000600)
