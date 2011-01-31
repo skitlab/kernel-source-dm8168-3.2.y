@@ -268,6 +268,14 @@ static struct regulator_consumer_supply beagle_vsim_supply = {
 	.supply			= "vmmc_aux",
 };
 
+static struct regulator_consumer_supply beagle_vaux3_supply = {
+	.supply         = "cam_1v8",
+};
+
+static struct regulator_consumer_supply beagle_vaux4_supply = {
+	.supply         = "cam_2v8",
+};
+
 static struct gpio_led gpio_leds[];
 
 static int beagle_twl_gpio_setup(struct device *dev,
@@ -315,6 +323,24 @@ static int beagle_twl_gpio_setup(struct device *dev,
 	else
 		beagle_dvi_device.reset_gpio = 170;
 
+	if (omap3_beagle_get_rev() == OMAP3BEAGLE_BOARD_XM) {
+		/* Power on camera interface */
+		gpio_request(gpio + 2, "CAM_EN");
+		gpio_direction_output(gpio + 2, 1);
+
+		/* TWL4030_GPIO_MAX + 0 == ledA,
+					EHCI nEN_USB_PWR (out, active low) */
+		gpio_request(gpio + TWL4030_GPIO_MAX, "nEN_USB_PWR");
+		gpio_direction_output(gpio + TWL4030_GPIO_MAX, 1);
+	} else {
+		gpio_request(gpio + 1, "EHCI_nOC");
+		gpio_direction_input(gpio + 1);
+
+		/* TWL4030_GPIO_MAX + 0 == ledA,
+					EHCI nEN_USB_PWR (out, active low) */
+		gpio_request(gpio + TWL4030_GPIO_MAX, "nEN_USB_PWR");
+		gpio_direction_output(gpio + TWL4030_GPIO_MAX, 0);
+	}
 	/* TWL4030_GPIO_MAX + 1 == ledB, PMU_STAT (out, active low LED) */
 	gpio_leds[2].gpio = gpio + TWL4030_GPIO_MAX + 1;
 
@@ -404,6 +430,36 @@ static struct regulator_init_data beagle_vpll2 = {
 	.consumer_supplies	= &beagle_vdvi_supply,
 };
 
+/* VAUX3 for CAM_1V8 */
+static struct regulator_init_data beagle_vaux3 = {
+	.constraints = {
+		.min_uV                 = 1800000,
+		.max_uV                 = 1800000,
+		.apply_uV               = true,
+		.valid_modes_mask       = REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask         = REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies  = 1,
+	.consumer_supplies      = &beagle_vaux3_supply,
+};
+
+ /* VAUX4 for CAM_2V8 */
+static struct regulator_init_data beagle_vaux4 = {
+	.constraints = {
+		.min_uV                 = 1800000,
+		.max_uV                 = 1800000,
+		.apply_uV               = true,
+		.valid_modes_mask       = REGULATOR_MODE_NORMAL
+			| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask         = REGULATOR_CHANGE_MODE
+			| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies  = 1,
+	.consumer_supplies      = &beagle_vaux4_supply,
+};
+
 static struct twl4030_usb_data beagle_usb_data = {
 	.usb_mode	= T2_USB_MODE_ULPI,
 };
@@ -429,6 +485,8 @@ static struct twl4030_platform_data beagle_twldata = {
 	.vsim		= &beagle_vsim,
 	.vdac		= &beagle_vdac,
 	.vpll2		= &beagle_vpll2,
+	.vaux3		= &beagle_vaux3,
+	.vaux4		= &beagle_vaux4,
 };
 
 static struct i2c_board_info __initdata beagle_i2c_boardinfo[] = {
@@ -450,9 +508,14 @@ static int __init omap3_beagle_i2c_init(void)
 {
 	omap_register_i2c_bus(1, 2600, beagle_i2c_boardinfo,
 			ARRAY_SIZE(beagle_i2c_boardinfo));
+
+	/* Bus 2 is used for Camera/Sensor interface */
+	omap_register_i2c_bus(2, 400, NULL, 0);
+
 	/* Bus 3 is attached to the DVI port where devices like the pico DLP
 	 * projector don't work reliably with 400kHz */
 	omap_register_i2c_bus(3, 100, beagle_i2c_eeprom, ARRAY_SIZE(beagle_i2c_eeprom));
+
 	return 0;
 }
 
