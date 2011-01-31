@@ -59,11 +59,29 @@
 
 static bool is_offset_valid;
 static u8 smps_offset;
+/*
+ * Flag to ensure Smartreflex bit in TWL
+ * being cleared in board file is not overwritten.
+ */
+static bool twl_sr_enable = true;
 
+
+#define TWL4030_DCDC_GLOBAL_CFG        0x06
 #define REG_SMPS_OFFSET         0xE0
+#define SMARTREFLEX_ENABLE     BIT(3)
 
 static unsigned long twl4030_vsel_to_uv(const u8 vsel)
 {
+	/*
+	 * The smartreflex bit on twl4030 needs to be enabled by
+	 * default irrespective of whether smartreflex module is
+	 * enabled on the OMAP side or not. This is because without
+	 * this bit enabled the voltage scaling through
+	 * vp forceupdate does not function properly on OMAP3.
+	 */
+	if (twl_sr_enable)
+		omap3_twl_set_sr_bit(1);
+
 	return (((vsel * 125) + 6000)) * 100;
 }
 
@@ -268,6 +286,17 @@ int __init omap3_twl_init(void)
 		omap3_core_volt_info.vp_vddmin = OMAP3630_VP2_VLIMITTO_VDDMIN;
 		omap3_core_volt_info.vp_vddmax = OMAP3630_VP2_VLIMITTO_VDDMAX;
 	}
+	/*
+	 * The smartreflex bit on twl4030 needs to be enabled by
+	 * default irrespective of whether smartreflex module is
+	 * enabled on the OMAP side or not. This is because without
+	 * this bit enabled the voltage scaling through
+	 * vp forceupdate does not function properly on OMAP3.
+	 */
+	if (twl_sr_enable)
+		omap3_twl_set_sr_bit(1);
+
+
 
 	voltdm = omap_voltage_domain_lookup("mpu");
 	omap_voltage_register_pmic(voltdm, &omap3_mpu_volt_info);
@@ -277,3 +306,49 @@ int __init omap3_twl_init(void)
 
 	return 0;
 }
+
+/**
+ * omap3_twl_set_sr_bit() - API to Set/Clear SR bit on TWL
+ * @flag: Flag to Set/Clear SR bit
+ *
+ * If flag is non zero, enables Smartreflex bit on TWL 4030
+ * to make sure voltage scaling through Vp forceupdate works.
+ * Else, the smartreflex bit on twl4030 is
+ * cleared as there are platforms which use
+ * OMAP3 and T2 but use Synchronized Scaling Hardware
+ * Strategy (ENABLE_VMODE=1) and Direct Strategy Software
+ * Scaling Mode (ENABLE_VMODE=0), for setting the voltages,
+ * in those scenarios this bit is to be cleared.
+ * API returns 0 on sucess,  error is returned
+ * if I2C read/write fails.
+ */
+
+int omap3_twl_set_sr_bit(u8 flag)
+{
+	u8 temp;
+	int ret;
+
+	ret = twl_i2c_read_u8(TWL4030_MODULE_PM_RECEIVER, &temp,
+				TWL4030_DCDC_GLOBAL_CFG);
+	if (ret)
+		goto err;
+
+	if (flag) {
+		temp |= SMARTREFLEX_ENABLE;
+		twl_sr_enable = true;
+	} else {
+		temp &= ~SMARTREFLEX_ENABLE;
+		twl_sr_enable = false;
+	}
+
+	ret = twl_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER, temp,
+			TWL4030_DCDC_GLOBAL_CFG);
+	if (ret) {
+err:
+		pr_err("%s: Unable to Read/Write to TWL4030 through I2C bus "
+				"\n", __func__);
+		return -EINVAL;
+	}
+	return 0;
+}
+
