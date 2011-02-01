@@ -2198,8 +2198,11 @@ bad_config:
 			? "DMA" : "PIO",
 			musb->nIrq);
 
-	if (status == 0)
-		musb_debug_create("driver/musb_hdrc", musb);
+	if (status == 0) {
+		u8 drvbuf[19];
+		sprintf(drvbuf, "driver/musb_hdrc.%d", musb->id);
+		musb_debug_create(drvbuf, musb);
+	}
 
 #ifdef CONFIG_USB_MUSB_HDRC_HCD
 	musb->gb_queue = create_singlethread_workqueue(dev_name(dev));
@@ -2286,6 +2289,7 @@ static int __exit musb_remove(struct platform_device *pdev)
 {
 	struct musb	*musb = dev_to_musb(&pdev->dev);
 	void __iomem	*ctrl_base = musb->ctrl_base;
+	u8 drvbuf[19];
 
 	/* this gets called on rmmod.
 	 *  - Host mode: host may still be active
@@ -2294,7 +2298,8 @@ static int __exit musb_remove(struct platform_device *pdev)
 	 */
 	musb_exit_debugfs(musb);
 	musb_shutdown(pdev);
-	musb_debug_delete("driver/musb_hdrc", musb);
+	sprintf(drvbuf, "driver/musb_hdrc.%d", musb->id);
+	musb_debug_delete(drvbuf, musb);
 
 	musb_free(musb);
 	iounmap(ctrl_base);
