@@ -103,8 +103,8 @@
  * ---------------------------------
  */
 
-static const u16 tx_comp_q[] = { 63, 64 };
-static const u16 rx_comp_q[] = { 65, 66 };
+static u16 tx_comp_q[] = { 63, 63, 63, 63 };
+static u16 rx_comp_q[] = { 65, 65, 65, 65 };
 
 /* Fair scheduling */
 u32 dma_sched_table[] = {
