@@ -854,6 +854,11 @@ static irqreturn_t ti81xx_interrupt(int irq, void *hci)
 	 * value but DEVCTL.BDEVICE is invalid without DEVCTL.SESSION set.
 	 * Also, DRVVBUS pulses for SRP (but not at 5V) ...
 	 */
+	if ((usbintr & MUSB_INTR_BABBLE) && is_host_enabled(musb)) {
+		ERR("CAUTION: musb%d: Babble Interrupt Occured\n", musb->id);
+		ERR("Please issue long reset to make usb functional !!\n");
+	}
+
 	if (usbintr & (USB_INTR_DRVVBUS << USB_INTR_USB_SHIFT)) {
 		int drvvbus = musb_readl(reg_base, USB_STAT_REG);
 		void __iomem *mregs = musb->mregs;
