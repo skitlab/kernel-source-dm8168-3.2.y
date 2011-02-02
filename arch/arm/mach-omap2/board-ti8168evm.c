@@ -14,6 +14,9 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/platform_device.h>
+#include <linux/i2c/at24.h>
+#include <linux/device.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -25,6 +28,82 @@
 #include <plat/common.h>
 
 #include "mux.h"
+
+static struct at24_platform_data eeprom_info = {
+	.byte_len       = (256*1024) / 8,
+	.page_size      = 64,
+	.flags          = AT24_FLAG_ADDR16,
+};
+
+static struct i2c_board_info __initdata ti816x_i2c_boardinfo0[] = {
+	{
+		I2C_BOARD_INFO("eeprom", 0x50),
+		.platform_data	= &eeprom_info,
+	},
+	{
+		I2C_BOARD_INFO("cpld", 0x23),
+	},
+	{
+		I2C_BOARD_INFO("tlv320aic3x", 0x18),
+	},
+	{
+		I2C_BOARD_INFO("IO Expander", 0x20),
+	},
+
+};
+
+/* FIX ME: Check on the Bit Value */
+
+#define TI816X_EVM_CIR_UART BIT(5)
+
+static struct i2c_client *cpld_reg0_client;
+
+/* CPLD Register 0 Client: used for I/O Control */
+static int cpld_reg0_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
+{
+	u8 data;
+	struct i2c_msg msg[2] = {
+		{
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = 1,
+			.buf = &data,
+		},
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = 1,
+			.buf = &data,
+		},
+	};
+
+	cpld_reg0_client = client;
+
+	/* Clear UART CIR to enable cir operation. */
+		i2c_transfer(client->adapter, msg, 1);
+		data &= ~(TI816X_EVM_CIR_UART);
+		i2c_transfer(client->adapter, msg + 1, 1);
+	return 0;
+}
+
+static const struct i2c_device_id cpld_reg_ids[] = {
+		{ "cpld_reg0", 0, },
+		{ },
+};
+
+static struct i2c_driver ti816xevm_cpld_driver = {
+	.driver.name    = "cpld_reg0",
+	.id_table       = cpld_reg_ids,
+	.probe          = cpld_reg0_probe,
+};
+
+static int __init ti816x_evm_i2c_init(void)
+{
+	omap_register_i2c_bus(1, 100, ti816x_i2c_boardinfo0,
+		ARRAY_SIZE(ti816x_i2c_boardinfo0));
+	return 0;
+}
 
 static void __init ti8168_evm_init_irq(void)
 {
@@ -45,6 +124,8 @@ static void __init ti8168_evm_init(void)
 {
 	ti81xx_mux_init(board_mux);
 	omap_serial_init();
+	ti816x_evm_i2c_init();
+	i2c_add_driver(&ti816xevm_cpld_driver);
 }
 
 
