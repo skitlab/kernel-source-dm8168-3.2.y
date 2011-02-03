@@ -33,6 +33,7 @@
 #include <plat/dma.h>
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
+#include <plat/asp.h>
 
 #include "mux.h"
 #include "control.h"
@@ -260,6 +261,7 @@ static inline void omap_init_sti(void) {}
 
 #if defined(CONFIG_SND_SOC) || defined(CONFIG_SND_SOC_MODULE)
 
+#if !defined(CONFIG_ARCH_TI81xx)
 static struct platform_device omap_pcm = {
 	.name	= "omap-pcm-audio",
 	.id	= -1,
@@ -294,6 +296,25 @@ static void omap_init_audio(void)
 #else
 static inline void omap_init_audio(void) {}
 #endif
+
+#if defined(CONFIG_ARCH_TI81XX)
+
+struct platform_device ti81xx_pcm_device = {
+	.name		= "davinci-pcm-audio",
+	.id		= -1,
+};
+
+static void ti81xx_init_pcm(void)
+{
+	platform_device_register(&ti81xx_pcm_device);
+}
+
+#else
+static inline void ti81xx_init_pcm(void) {}
+#endif
+
+#endif
+
 
 #if defined(CONFIG_SPI_OMAP24XX) || defined(CONFIG_SPI_OMAP24XX_MODULE)
 
@@ -1640,6 +1661,43 @@ static void ti81xx_ethernet_init(void)
 		ti814x_cpsw_init();
 }
 
+#if defined(CONFIG_ARCH_TI81XX)
+
+static struct resource ti81xx_mcasp_resource[] = {
+	{
+		.name = "mcasp",
+		.start = TI81XX_ASP2_BASE,
+		.end = TI81XX_ASP2_BASE + (SZ_1K * 12) - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	/* TX event */
+	{
+		.start = TI81XX_DMA_MCASP2_AXEVT,
+		.end = TI81XX_DMA_MCASP2_AXEVT,
+		.flags = IORESOURCE_DMA,
+	},
+	/* RX event */
+	{
+		.start = TI81XX_DMA_MCASP2_AREVT,
+		.end = TI81XX_DMA_MCASP2_AREVT,
+		.flags = IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device ti81xx_mcasp_device = {
+	.name = "davinci-mcasp",
+	.id = 2,
+	.num_resources = ARRAY_SIZE(ti81xx_mcasp_resource),
+	.resource = ti81xx_mcasp_resource,
+};
+
+void __init ti81xx_register_mcasp(int id, struct snd_platform_data *pdata)
+{
+	ti81xx_mcasp_device.dev.platform_data = pdata;
+	platform_device_register(&ti81xx_mcasp_device);
+}
+#endif
+
 #if defined(CONFIG_ARCH_TI816X) && defined(CONFIG_PCI)
 static struct ti816x_pcie_data ti816x_pcie_data = {
 	.msi_irq_base	= MSI_IRQ_BASE,
@@ -1738,6 +1796,7 @@ static int __init omap2_init_devices(void)
 	ti81xx_ethernet_init();
 	ti816x_init_pcie();
 	ti81xx_register_edma();
+	ti81xx_init_pcm();
 #endif
 
 	return 0;
