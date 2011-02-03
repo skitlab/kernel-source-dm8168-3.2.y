@@ -62,7 +62,8 @@ static int evm_hw_params(struct snd_pcm_substream *substream,
 
 	else if (machine_is_davinci_da830_evm() ||
 				machine_is_davinci_da850_evm() ||
-				machine_is_ti8168evm())
+				machine_is_ti8168evm() ||
+				machine_is_ti8148evm())
 		sysclk = 24576000;
 
 	else
@@ -319,7 +320,7 @@ static int __init evm_init(void)
 	} else if (machine_is_davinci_da850_evm()) {
 		evm_snd_dev_data = &da850_snd_soc_card;
 		index = 0;
-	} else if (machine_is_ti8168evm()) {
+	} else if (machine_is_ti8168evm() || machine_is_ti8148evm()) {
 		evm_snd_dev_data = &ti81xx_snd_soc_card;
 		index = 0;
 	} else

@@ -27,6 +27,7 @@
 #include <plat/irqs.h>
 #include <plat/board.h>
 #include <plat/common.h>
+#include <plat/asp.h>
 
 static struct at24_platform_data eeprom_info = {
 	.byte_len       = (256*1024) / 8,
@@ -60,6 +61,26 @@ static void __init ti814x_evm_i2c_init(void)
 				ARRAY_SIZE(ti814x_i2c_boardinfo));
 }
 
+static u8 ti8148_iis_serializer_direction[] = {
+	TX_MODE,	RX_MODE,	INACTIVE_MODE,	INACTIVE_MODE,
+	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,
+	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,
+	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,
+};
+
+static struct snd_platform_data ti8148_evm_snd_data = {
+	.tx_dma_offset	= 0x46800000,
+	.rx_dma_offset	= 0x46800000,
+	.op_mode	= DAVINCI_MCASP_IIS_MODE,
+	.num_serializer = ARRAY_SIZE(ti8148_iis_serializer_direction),
+	.tdm_slots	= 2,
+	.serial_dir	= ti8148_iis_serializer_direction,
+	.asp_chan_q	= EVENTQ_2,
+	.version	= MCASP_VERSION_2,
+	.txnumevt	= 1,
+	.rxnumevt	= 1,
+};
+
 static void __init ti8148_evm_init_irq(void)
 {
 	omap2_init_common_infrastructure();
@@ -71,6 +92,7 @@ static void __init ti8148_evm_init(void)
 {
 	omap_serial_init();
 	ti814x_evm_i2c_init();
+	ti81xx_register_mcasp(0, &ti8148_evm_snd_data);
 }
 
 static void __init ti8148_evm_map_io(void)
