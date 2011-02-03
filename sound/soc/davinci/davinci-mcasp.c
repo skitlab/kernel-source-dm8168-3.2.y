@@ -911,8 +911,11 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	dma_data = &dev->dma_params[SNDRV_PCM_STREAM_PLAYBACK];
 	dma_data->asp_chan_q = pdata->asp_chan_q;
 	dma_data->ram_chan_q = pdata->ram_chan_q;
-	dma_data->dma_addr = (dma_addr_t) (pdata->tx_dma_offset +
-							mem->start);
+	if (cpu_is_ti81xx())
+		dma_data->dma_addr = (dma_addr_t) (pdata->tx_dma_offset);
+	else
+		dma_data->dma_addr = (dma_addr_t) (pdata->tx_dma_offset
+							+ mem->start);
 
 	/* first TX, then RX */
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
@@ -927,8 +930,11 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	dma_data = &dev->dma_params[SNDRV_PCM_STREAM_CAPTURE];
 	dma_data->asp_chan_q = pdata->asp_chan_q;
 	dma_data->ram_chan_q = pdata->ram_chan_q;
-	dma_data->dma_addr = (dma_addr_t)(pdata->rx_dma_offset +
-							mem->start);
+	if (cpu_is_ti81xx())
+		dma_data->dma_addr = (dma_addr_t) (pdata->rx_dma_offset);
+	else
+		dma_data->dma_addr = (dma_addr_t) (pdata->rx_dma_offset
+							+ mem->start);
 
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
 	if (!res) {
