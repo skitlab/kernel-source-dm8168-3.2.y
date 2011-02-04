@@ -223,6 +223,7 @@ static void __init ti8168_evm_init_irq(void)
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
 	omap_init_irq();
+	gpmc_init();
 }
 
 static u8 ti8168_iis_serializer_direction[] = {
