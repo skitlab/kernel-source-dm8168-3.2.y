@@ -666,7 +666,8 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 	quot = serial_omap_get_divisor(port, baud);
 
 	up->fcr = UART_FCR_R_TRIG_01 | UART_FCR_T_TRIG_01 |
-			UART_FCR_ENABLE_FIFO;
+			UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_RCVR |
+							UART_FCR_CLEAR_XMIT;
 	if (up->use_dma)
 		up->fcr |= UART_FCR_DMA_SELECT;
 
