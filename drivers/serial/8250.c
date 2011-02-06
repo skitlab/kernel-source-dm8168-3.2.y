@@ -2399,7 +2399,9 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (up->port.type != PORT_16750) {
 		if (fcr & UART_FCR_ENABLE_FIFO) {
 			/* emulated UARTs (Lucent Venus 167x) need two steps */
-			serial_outp(up, UART_FCR, UART_FCR_ENABLE_FIFO);
+			/* Clear FIFOs when they are enabled */
+			serial_outp(up, UART_FCR, UART_FCR_ENABLE_FIFO |
+				    UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT);
 		}
 		serial_outp(up, UART_FCR, fcr);		/* set fcr */
 	}
