@@ -333,20 +333,7 @@ static const struct clksel_rate div_10_1_rates[] = {
 };
 
 /* Divide by 8 clock rates with default clock is 1/1*/
-static const struct clksel_rate div8_default1_rates[] = {
-	{ .div = 1, .val = 0, .flags = RATE_IN_TI814X },
-	{ .div = 2, .val = 1, .flags = RATE_IN_TI814X },
-	{ .div = 3, .val = 2, .flags = RATE_IN_TI814X },
-	{ .div = 4, .val = 3, .flags = RATE_IN_TI814X },
-	{ .div = 5, .val = 4, .flags = RATE_IN_TI814X },
-	{ .div = 6, .val = 5, .flags = RATE_IN_TI814X },
-	{ .div = 7, .val = 6, .flags = RATE_IN_TI814X },
-	{ .div = 8, .val = 7, .flags = RATE_IN_TI814X },
-	{ .div = 0 },
-};
-
-/* Divide by 8 clock rates with default clock is 1/3*/
-static const struct clksel_rate div8_default3_rates[] = {
+static const struct clksel_rate div8_rates[] = {
 	{ .div = 1, .val = 0, .flags = RATE_IN_TI814X },
 	{ .div = 2, .val = 1, .flags = RATE_IN_TI814X },
 	{ .div = 3, .val = 2, .flags = RATE_IN_TI814X },
@@ -476,7 +463,7 @@ static struct clk gfx_dpll_clk2_ck = {
 };
 
 static const struct clksel sysclk23_div[] = {
-	{ .parent = &gfx_dpll_clk2_ck, .rates = div8_default3_rates },
+	{ .parent = &gfx_dpll_clk2_ck, .rates = div8_rates },
 	{ .parent = NULL },
 };
 
@@ -534,7 +521,7 @@ static struct clk hdvicp_dpll_clk3_ck = {
 };
 
 static const struct clksel sysclk3_div[] = {
-	{ .parent = &hdvicp_dpll_clk3_ck, .rates = div8_default1_rates },
+	{ .parent = &hdvicp_dpll_clk3_ck, .rates = div8_rates },
 	{ .parent = NULL },
 };
 
@@ -1629,7 +1616,7 @@ static struct clk usb_dpll_div5_ck = {
 };
 
 static const struct clksel sysclk10_div[] = {
-	{ .parent = &usb_dpll_div5_ck, .rates = div8_default1_rates },
+	{ .parent = &usb_dpll_div5_ck, .rates = div8_rates },
 	{ .parent = NULL },
 };
 
@@ -2160,7 +2147,7 @@ static struct clk audio_dpll_clk4_ck = {
 };
 
 static const struct clksel sysclk16_d1_div[] = {
-	{ .parent = &video_dpll_clk1_ck, .rates = div8_default1_rates },
+	{ .parent = &video_dpll_clk1_ck, .rates = div8_rates },
 	{ .parent = NULL },
 };
 
@@ -2173,7 +2160,7 @@ static struct clk sysclk16_d1mux_ck = {
 };
 
 static const struct clksel sysclk16_b3_div[] = {
-	{ .parent = &video_dpll_clk2_ck, .rates = div8_default1_rates },
+	{ .parent = &video_dpll_clk2_ck, .rates = div8_rates },
 	{ .parent = NULL },
 };
 
@@ -2186,7 +2173,7 @@ static struct clk sysclk16_b3mux_ck = {
 };
 
 static const struct clksel sysclk14_c1_div[] = {
-	{ .parent = &video_dpll_clk3_ck, .rates = div8_default1_rates },
+	{ .parent = &video_dpll_clk3_ck, .rates = div8_rates },
 	{ .parent = NULL },
 };
 
@@ -2343,7 +2330,7 @@ static struct clk audio_dpll_clk5_ck = {
 };
 
 static const struct clksel sysclk18_a_div[] = {
-	{ .parent = &rtc_divider_out_ck, .rates = div8_default1_rates },
+	{ .parent = &rtc_divider_out_ck, .rates = div8_rates },
 	{ .parent = NULL },
 };
 
@@ -2394,7 +2381,7 @@ static struct clk sysclk18_ck = {
 };
 
 static const struct clksel sysclk19_b_div[] = {
-	{ .parent = &audio_dpll_clk2_ck, .rates = div8_default1_rates },
+	{ .parent = &audio_dpll_clk2_ck, .rates = div8_rates },
 	{ .parent = NULL },
 };
 
@@ -2411,7 +2398,7 @@ static struct clk sysclk19_ck = {
 };
 
 static const struct clksel sysclk20_c_div[] = {
-	{ .parent = &audio_dpll_clk3_ck, .rates = div8_default1_rates },
+	{ .parent = &audio_dpll_clk3_ck, .rates = div8_rates },
 	{ .parent = NULL },
 };
 
@@ -2428,7 +2415,7 @@ static struct clk sysclk20_ck = {
 };
 
 static const struct clksel sysclk21_d_div[] = {
-	{ .parent = &audio_dpll_clk4_ck, .rates = div8_default1_rates },
+	{ .parent = &audio_dpll_clk4_ck, .rates = div8_rates },
 	{ .parent = NULL },
 };
 
@@ -2445,7 +2432,7 @@ static struct clk sysclk21_ck = {
 };
 
 static const struct clksel sysclk22_e_div[] = {
-	{ .parent = &audio_dpll_clk5_ck, .rates = div8_default1_rates },
+	{ .parent = &audio_dpll_clk5_ck, .rates = div8_rates },
 	{ .parent = NULL },
 };
 
