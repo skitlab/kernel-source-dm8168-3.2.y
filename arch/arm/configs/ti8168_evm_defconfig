@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux/arm 2.6.37 Kernel Configuration
-# Mon Feb  7 15:54:04 2011
+# Mon Feb  7 20:24:53 2011
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -259,6 +259,8 @@ CONFIG_OMAP_MUX=y
 CONFIG_OMAP_MUX_WARNINGS=y
 # CONFIG_OMAP_MCBSP is not set
 # CONFIG_OMAP_MBOX_FWK is not set
+CONFIG_OMAP_IOMMU=y
+# CONFIG_OMAP_IOMMU_DEBUG is not set
 CONFIG_OMAP_MPU_TIMER=y
 # CONFIG_OMAP_32K_TIMER is not set
 CONFIG_OMAP_DM_TIMER=y
@@ -1349,6 +1351,8 @@ CONFIG_USB_VIDEO_CLASS_INPUT_EVDEV=y
 # CONFIG_V4L_MEM2MEM_DRIVERS is not set
 # CONFIG_RADIO_ADAPTERS is not set
 # CONFIG_DAB is not set
+CONFIG_HAVE_TI_TILER=y
+# CONFIG_TI_TILER is not set
 
 #
 # Graphics support
