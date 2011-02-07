@@ -101,9 +101,10 @@ config MTD_NAND_AMS_DELTA
 
 config MTD_NAND_OMAP2
 	tristate "NAND Flash device on OMAP2 and OMAP3"
-	depends on ARM && (ARCH_OMAP2 || ARCH_OMAP3)
+	depends on ARM && MTD_NAND && (ARCH_OMAP2 || ARCH_OMAP3 || ARCH_TI81XX)
 	help
-          Support for NAND flash on Texas Instruments OMAP2 and OMAP3 platforms.
+         Support for NAND flash on Texas Instruments OMAP2/3 and TI81XX
+         platforms.
 
 config MTD_NAND_IDS
 	tristate
