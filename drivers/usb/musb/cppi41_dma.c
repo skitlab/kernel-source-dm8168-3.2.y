@@ -1323,6 +1323,7 @@ static void usb_process_tx_queue(struct cppi41 *cppi, unsigned index)
 		else if (tx_ch->channel.actual_len >= tx_ch->length) {
 			void __iomem *epio = tx_ch->end_pt->regs;
 			u16 csr;
+			u32 timeout = 100000;
 			tx_ch->channel.status = MUSB_DMA_STATUS_FREE;
 
 			/*
@@ -1333,9 +1334,14 @@ static void usb_process_tx_queue(struct cppi41 *cppi, unsigned index)
 			 * USB functionality. So far, we have obsered
 			 * failure with iperf.
 			 */
+			udelay(10);
 			do {
+				cpu_relax();
 				csr = musb_readw(epio, MUSB_TXCSR);
-			} while (csr & MUSB_TXCSR_TXPKTRDY);
+			} while ((csr & MUSB_TXCSR_TXPKTRDY) && --timeout);
+
+			if (!timeout)
+				udelay(10);
 
 			/* Tx completion routine callback */
 			musb_dma_completion(cppi->musb, ep_num, 1);
