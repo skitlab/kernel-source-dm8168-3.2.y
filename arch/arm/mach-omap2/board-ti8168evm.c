@@ -33,6 +33,7 @@
 #include <plat/board.h>
 #include <plat/common.h>
 #include <plat/asp.h>
+#include <plat/usb.h>
 
 #include "mux.h"
 
@@ -190,6 +191,19 @@ static struct snd_platform_data ti8168_evm_snd_data = {
 	.rxnumevt	= 1,
 };
 
+static struct omap_musb_board_data musb_board_data = {
+	.interface_type		= MUSB_INTERFACE_ULPI,
+#ifdef CONFIG_USB_MUSB_OTG
+	.mode           = MUSB_OTG,
+#elif defined(CONFIG_USB_MUSB_HDRC_HCD)
+	.mode           = MUSB_HOST,
+#elif defined(CONFIG_USB_GADGET_MUSB_HDRC)
+	.mode           = MUSB_PERIPHERAL,
+#endif
+	.power			= 500,
+	.instances              = 1,
+};
+
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
@@ -208,6 +222,8 @@ static void __init ti8168_evm_init(void)
 	i2c_add_driver(&ti816xevm_cpld_driver);
 	ti81xx_register_mcasp(0, &ti8168_evm_snd_data);
 	ti816x_spi_init();
+	/* initialize usb */
+	usb_musb_init(&musb_board_data);
 }
 
 static void __init ti8168_evm_map_io(void)
