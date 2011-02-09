@@ -51,6 +51,7 @@
 #define OMAP_MPUIO_LATCH		0x34
 
 #define OMAP34XX_NR_GPIOS		6
+#define TI816X_NR_GPIOS			2
 
 #define OMAP_MPUIO(nr)		(OMAP_MAX_GPIO_LINES + (nr))
 #define OMAP_GPIO_IS_MPUIO(nr)	((nr) >= OMAP_MAX_GPIO_LINES)

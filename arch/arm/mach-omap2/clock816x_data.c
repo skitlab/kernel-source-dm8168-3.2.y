@@ -547,6 +547,26 @@ static struct clk gpt7_ick = {
 	.recalc		= &followparent_recalc,
 };
 
+static struct clk gpio1_ick = {
+	.name		= "gpio1_ick",
+	.parent		= &sysclk6_ck,
+	.ops		= &clkops_ti81xx_dflt_wait,
+	.enable_reg	= TI81XX_CM_ALWON_GPIO_0_CLKCTRL,
+	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
+static struct clk gpio2_ick = {
+	.name		= "gpio2_ick",
+	.parent		= &sysclk6_ck,
+	.ops		= &clkops_ti81xx_dflt_wait,
+	.enable_reg	= TI81XX_CM_ALWON_GPIO_1_CLKCTRL,
+	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
 static struct clk gpmc_ick = {
 	.name		= "gpmc_ick",
 	.parent		= &sysclk6_ck,
@@ -1072,6 +1092,26 @@ static struct clk wdt2_fck = {
 	.recalc		= &followparent_recalc,
 };
 
+static struct clk gpio1_dbck = {
+	.name		= "gpio1_dbck",
+	.parent		= &sysclk18_ck,
+	.ops		= &clkops_ti81xx_dflt_wait,
+	.enable_reg	= TI81XX_CM_ALWON_GPIO_0_CLKCTRL,
+	.enable_bit	= TI816X_GPIO_0_DBCLK_SHIFT,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
+static struct clk gpio2_dbck = {
+	.name		= "gpio2_dbck",
+	.parent		= &sysclk18_ck,
+	.ops		= &clkops_ti81xx_dflt_wait,
+	.enable_reg	= TI81XX_CM_ALWON_GPIO_1_CLKCTRL,
+	.enable_bit	= TI816X_GPIO_1_DBCLK_SHIFT,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
 static struct clk mmchsdb1_fck = {
 	.name		= "mmchsdb1_fck",
 	.parent		= &sysclk18_ck,
@@ -1175,6 +1215,8 @@ static struct omap_clk ti816x_clks[] = {
 	CLK(NULL,		"gpt5_ick",		&gpt5_ick,		CK_TI816X),
 	CLK(NULL,		"gpt6_ick",		&gpt6_ick,		CK_TI816X),
 	CLK(NULL,		"gpt7_ick",		&gpt7_ick,		CK_TI816X),
+	CLK(NULL,		"gpio1_ick",		&gpio1_ick,		CK_TI816X),
+	CLK(NULL,		"gpio2_ick",		&gpio2_ick,		CK_TI816X),
 	CLK(NULL,		"gpmc_ick",		&gpmc_ick,		CK_TI816X),
 	CLK("i2c_omap.1",	"ick",			&i2c1_ick,		CK_TI816X),
 	CLK("i2c_omap.2",	"ick",			&i2c2_ick,		CK_TI816X),
@@ -1210,6 +1252,8 @@ static struct omap_clk ti816x_clks[] = {
 	CLK(NULL,		"gpt6_fck",		&gpt6_fck,		CK_TI816X),
 	CLK(NULL,		"gpt7_fck",		&gpt7_fck,		CK_TI816X),
 	CLK(NULL,		"wdt2_fck",		&wdt2_fck,		CK_TI816X),
+	CLK(NULL,		"gpio1_dbck",		&gpio1_dbck,		CK_TI816X),
+	CLK(NULL,		"gpio2_dbck",		&gpio2_dbck,		CK_TI816X),
 	CLK("mmci-omap-hs.0",	"mmchsdb_fck",		&mmchsdb1_fck,		CK_TI816X),
 	CLK(NULL,		"audio_pll_clk3_ck",	&audio_pll_clk3_ck,	CK_TI816X),
 	CLK(NULL,		"sysclk20_ck",		&sysclk20_ck,		CK_TI816X),

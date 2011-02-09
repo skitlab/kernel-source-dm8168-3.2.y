@@ -20,6 +20,7 @@
 #include <plat/serial.h>
 #include <plat/l4_3xxx.h>
 #include <plat/ti81xx.h>
+#include <plat/gpio.h>
 
 #include "omap_hwmod_common_data.h"
 
@@ -84,6 +85,8 @@ static struct omap_hwmod ti814x_uart6_hwmod;
 static struct omap_hwmod ti816x_wd_timer2_hwmod;
 static struct omap_hwmod ti816x_i2c1_hwmod;
 static struct omap_hwmod ti816x_i2c2_hwmod;
+static struct omap_hwmod ti816x_gpio1_hwmod;
+static struct omap_hwmod ti816x_gpio2_hwmod;
 
 /* L4 SLOW -> UART1 interface */
 static struct omap_hwmod_addr_space ti816x_uart1_addr_space[] = {
@@ -247,6 +250,40 @@ static struct omap_hwmod_ocp_if ti816x_l4_slow__i2c2 = {
 	.user		= OCP_USER_MPU,
 };
 
+/* L4 SLOW -> GPIO1 */
+static struct omap_hwmod_addr_space ti816x_gpio1_addrs[] = {
+	{
+		.pa_start	= TI816X_GPIO0_BASE,
+		.pa_end		= TI816X_GPIO0_BASE + SZ_4K - 1,
+		.flags		= ADDR_MAP_ON_INIT | ADDR_TYPE_RT,
+	},
+};
+
+static struct omap_hwmod_ocp_if ti816x_l4_slow__gpio1 = {
+	.master		= &ti816x_l4_slow_hwmod,
+	.slave		= &ti816x_gpio1_hwmod,
+	.addr		= ti816x_gpio1_addrs,
+	.addr_cnt	= ARRAY_SIZE(ti816x_gpio1_addrs),
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/* L4 SLOW -> GPIO2 */
+static struct omap_hwmod_addr_space ti816x_gpio2_addrs[] = {
+	{
+		.pa_start	= TI816X_GPIO1_BASE,
+		.pa_end		= TI816X_GPIO1_BASE + SZ_4K - 1,
+		.flags		= ADDR_MAP_ON_INIT | ADDR_TYPE_RT,
+	},
+};
+
+static struct omap_hwmod_ocp_if ti816x_l4_slow__gpio2 = {
+	.master		= &ti816x_l4_slow_hwmod,
+	.slave		= &ti816x_gpio2_hwmod,
+	.addr		= ti816x_gpio2_addrs,
+	.addr_cnt	= ARRAY_SIZE(ti816x_gpio2_addrs),
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
 /* Slave interfaces on the L4_SLOW interconnect */
 static struct omap_hwmod_ocp_if *ti816x_l4_slow_slaves[] = {
 	&ti816x_l3_slow__l4_slow,
@@ -263,6 +300,8 @@ static struct omap_hwmod_ocp_if *ti816x_l4_slow_masters[] = {
 	&ti816x_l4_slow__wd_timer2,
 	&ti816x_l4_slow__i2c1,
 	&ti816x_l4_slow__i2c2,
+	&ti816x_l4_slow__gpio1,
+	&ti816x_l4_slow__gpio2,
 };
 
 /* L4 SLOW */
@@ -347,6 +386,34 @@ static struct omap_hwmod_class_sysconfig i2c_sysc = {
 static struct omap_hwmod_class i2c_class = {
 	.name = "i2c",
 	.sysc = &i2c_sysc,
+};
+
+/*
+ * 'gpio' class
+ * general purpose io module
+ */
+static struct omap_hwmod_class_sysconfig ti816x_gpio_sysc = {
+	.rev_offs	= 0x0000,
+	.sysc_offs	= 0x0010,
+	.syss_offs	= 0x0114,
+	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_ENAWAKEUP |
+			   SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET |
+			   SYSS_HAS_RESET_STATUS),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
+			   SIDLE_SMART_WKUP),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class ti816x_gpio_hwmod_class = {
+	.name	= "gpio",
+	.sysc	= &ti816x_gpio_sysc,
+	.rev	= 2,
+};
+
+/* gpio dev_attr */
+static struct omap_gpio_dev_attr gpio_dev_attr = {
+	.bank_width	= 32,
+	.dbck_flag	= true,
 };
 
 /* UART1 */
@@ -640,6 +707,76 @@ static struct omap_hwmod ti816x_i2c2_hwmod = {
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X),
 };
 
+/* GPIO1 */
+
+static struct omap_hwmod_irq_info ti816x_gpio1_irqs[] = {
+	{ .irq = TI81XX_IRQ_GPIO_0A },
+	{ .irq = TI81XX_IRQ_GPIO_0B },
+};
+
+/* gpio1 slave ports */
+static struct omap_hwmod_ocp_if *ti816x_gpio1_slaves[] = {
+	&ti816x_l4_slow__gpio1,
+};
+
+static struct omap_hwmod_opt_clk gpio1_opt_clks[] = {
+	{ .role = "dbclk", .clk = "gpio1_dbck" },
+};
+
+static struct omap_hwmod ti816x_gpio1_hwmod = {
+	.name		= "gpio1",
+	.class		= &ti816x_gpio_hwmod_class,
+	.mpu_irqs	= ti816x_gpio1_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(ti816x_gpio1_irqs),
+	.main_clk	= "gpio1_ick",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_reg = TI81XX_CM_ALWON_GPIO_0_CLKCTRL,
+		},
+	},
+	.opt_clks	= gpio1_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(gpio1_opt_clks),
+	.dev_attr	= &gpio_dev_attr,
+	.slaves		= ti816x_gpio1_slaves,
+	.slaves_cnt	= ARRAY_SIZE(ti816x_gpio1_slaves),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X),
+};
+
+/* GPIO2 */
+
+static struct omap_hwmod_irq_info ti816x_gpio2_irqs[] = {
+	{ .irq = TI81XX_IRQ_GPIO_1A },
+	{ .irq = TI81XX_IRQ_GPIO_1B },
+};
+
+/* gpio2 slave ports */
+static struct omap_hwmod_ocp_if *ti816x_gpio2_slaves[] = {
+	&ti816x_l4_slow__gpio2,
+};
+
+static struct omap_hwmod_opt_clk gpio2_opt_clks[] = {
+	{ .role = "dbclk", .clk = "gpio2_dbck" },
+};
+
+static struct omap_hwmod ti816x_gpio2_hwmod = {
+	.name		= "gpio2",
+	.class		= &ti816x_gpio_hwmod_class,
+	.mpu_irqs	= ti816x_gpio2_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(ti816x_gpio2_irqs),
+	.main_clk	= "gpio2_ick",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_reg = TI81XX_CM_ALWON_GPIO_1_CLKCTRL,
+		},
+	},
+	.opt_clks	= gpio2_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(gpio2_opt_clks),
+	.dev_attr	= &gpio_dev_attr,
+	.slaves		= ti816x_gpio2_slaves,
+	.slaves_cnt	= ARRAY_SIZE(ti816x_gpio2_slaves),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X),
+};
+
 static __initdata struct omap_hwmod *ti81xx_hwmods[] = {
 	&ti816x_l3_slow_hwmod,
 	&ti816x_l4_slow_hwmod,
@@ -653,6 +790,8 @@ static __initdata struct omap_hwmod *ti81xx_hwmods[] = {
 	&ti816x_wd_timer2_hwmod,
 	&ti816x_i2c1_hwmod,	/* Note: In TI814X this enables I2C0/2 */
 	&ti816x_i2c2_hwmod,
+	&ti816x_gpio1_hwmod,
+	&ti816x_gpio2_hwmod,
 	NULL,
 };
 
