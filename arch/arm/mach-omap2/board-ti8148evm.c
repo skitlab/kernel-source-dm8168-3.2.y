@@ -185,6 +185,7 @@ static void __init ti8148_evm_init_irq(void)
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
 	omap_init_irq();
+	gpmc_init();
 }
 
 static void __init ti814x_vpss_init(void)
