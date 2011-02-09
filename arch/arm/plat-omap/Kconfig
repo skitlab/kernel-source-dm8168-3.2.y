@@ -80,6 +80,46 @@ config OMAP_RESET_CLOCKS
 	  probably do not want this option enabled until your
 	  device drivers work properly.
 
+config TI816X_SMARTREFLEX
+	bool "SmartReflex class2 support for ti816x"
+	depends on ARCH_TI816X && PM
+	help
+	  Say Y if you want to enable SmartReflex.
+
+	  SmartReflex can perform continuous dynamic voltage
+	  scaling around the nominal operating point voltage
+	  according to silicon characteristics and operating
+	  conditions. Enabling SmartReflex reduces power
+	  consumption.
+
+	  Please note, that by default SmartReflex is only initialized.
+	  To enable the automatic voltage compensation for CORE from
+	  user space, user must write 1 to /sys/power/sr_core_autocomp.
+
+	  Note: Don't enable if the device is not Characterized.
+
+config SMARTREFLEX_CLASS2
+	bool "Class 2 mode of Smartreflex Implementation"
+	depends on TI816X_SMARTREFLEX
+	help
+	  Say Y to enable Class 2 implementation of Smartreflex
+
+	  Class 2 implementation of Smartreflex employs continuous software
+	  voltage calibration.
+
+config DEBUG_SR_CLASS2
+	bool "Smart Reflex debug output"
+	depends on SMARTREFLEX_CLASS2
+	help
+	  Say y if you want to do SR debug
+
+	  Makes the Smart reflex driver print out a lot of debug info.
+	  Also gives provides you an channel to test the driver with some
+	  nTarget vaules.
+
+	  This will display the some of the SR registers and print out some
+	  voltage changes in milli volt.
+
 config OMAP_MUX
 	bool "OMAP multiplexing support"
 	depends on ARCH_OMAP

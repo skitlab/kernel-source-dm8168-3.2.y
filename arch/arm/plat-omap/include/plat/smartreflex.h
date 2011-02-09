@@ -235,6 +235,41 @@ int sr_configure_minmax(struct voltagedomain *voltdm);
 /* API to register the smartreflex class driver with the smartreflex driver */
 int sr_register_class(struct omap_sr_class_data *class_data);
 #else
+
+#ifdef CONFIG_TI816X_SMARTREFLEX
+#define SRHVT				(1)
+#define SRSVT				(2)
+
+#define SRCONFIG_ACCUM_DATA		(0x3E8 << 22)
+
+/* SRCONFIG */
+#define SRCONFIG_SENNENABLE		(0x01 << 1)
+#define SRCONFIG_SENPENABLE		(0x01 << 0)
+
+/* AVGWEIGHT */
+#define AVGWEIGHT_SENPAVGWEIGHT_MASK	(0x03 << 2)
+#define AVGWEIGHT_SENNAVGWEIGHT_MASK	(0x03 << 0)
+
+/* IRQSTATUS_RAW */
+#define IRQSTATUSRAW_MCUACCUMINT	BIT(3)
+#define IRQSTATUSRAW_MCVALIDINT		BIT(2)
+#define IRQSTATUSRAW_MCBOUNDSINT	BIT(1)
+#define IRQSTATUSRAW_MCUDISABLEACKINT	BIT(0)
+
+#define SRCLKLENGTH_27MHZ_SYSCLK	(0x271 << 12) /* SRClk = 100KHz */
+
+#define ERRCONFIG_ERRWEIGHT		(0x4 << 16)
+#define ERRCONFIG_ERRMAXLIMIT		(0x02 << 8)
+
+#define ERRCONFIG_HVT_ERRMINLIMIT	(0xF7 << 0)
+#define ERRCONFIG_SVT_ERRMINLIMIT	(0xFA << 0)
+
+#define CONTROL_FUSE_SMRT_SCALE		(TI81XX_CTRL_BASE + 0x06A0)
+#define CONTROL_FUSE_SMRT_SVT		(TI81XX_CTRL_BASE + 0x06A8)
+#define CONTROL_FUSE_SMRT_HVT		(TI81XX_CTRL_BASE + 0x06AC)
+#define NUM_VOLT_LEVELS			(16)
+#endif /* CONFIG_TI816X_SMARTREFLEX */
+
 static inline void omap_sr_enable(struct voltagedomain *voltdm) {}
 static inline void omap_sr_disable(struct voltagedomain *voltdm) {}
 static inline void omap_sr_disable_reset_volt(

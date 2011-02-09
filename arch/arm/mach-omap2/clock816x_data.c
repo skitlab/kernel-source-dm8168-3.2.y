@@ -599,6 +599,28 @@ static struct clk mmchs1_ick = {
 	.recalc		= &followparent_recalc,
 };
 
+/* SmartReflex Core 1st fclk (VDD2) */
+static struct clk smartreflex_corehvt_fck = {
+	.name		= "smartreflex_corehvt_fck",
+	.parent		= &sysclk6_ck,
+	.ops		= &clkops_omap2_dflt,
+	.enable_reg	= TI81XX_CM_ALWON_SR_0_CLKCTRL,
+	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
+/* SmartReflex Core 2nd fclk (VDD2) */
+static struct clk smartreflex_coresvt_fck = {
+	.name		= "smartreflex_coresvt_fck",
+	.parent		= &sysclk6_ck,
+	.ops		= &clkops_omap2_dflt,
+	.enable_reg	= TI81XX_CM_ALWON_SR_1_CLKCTRL,
+	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
 static const struct clksel_rate div_2_1_rates[] = {
 	{ .div = 2, .val = 1, .flags = RATE_IN_TI816X },
 	{ .div = 0 },
@@ -1221,6 +1243,8 @@ static struct omap_clk ti816x_clks[] = {
 	CLK("i2c_omap.1",	"ick",			&i2c1_ick,		CK_TI816X),
 	CLK("i2c_omap.2",	"ick",			&i2c2_ick,		CK_TI816X),
 	CLK("mmci-omap-hs.0",	"ick",			&mmchs1_ick,		CK_TI816X),
+	CLK(NULL,	"smartreflex_corehvt_fck",	&smartreflex_corehvt_fck,	CK_TI816X),
+	CLK(NULL,	"smartreflex_coresvt_fck",	&smartreflex_coresvt_fck,	CK_TI816X),
 	CLK(NULL,		"ddr_pll_clk2_ck",	&ddr_pll_clk2_ck,	CK_TI816X),
 	CLK(NULL,		"sysclk10_ck",		&sysclk10_ck,		CK_TI816X),
 	CLK(NULL,		"uart1_fck",		&uart1_fck,		CK_TI816X),
