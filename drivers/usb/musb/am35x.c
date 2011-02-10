@@ -609,10 +609,6 @@ static int am35x_musb_exit(struct musb *musb)
 	otg_put_transceiver(musb->xceiv);
 	usb_nop_xceiv_unregister(musb->id);
 
-#ifdef CONFIG_USB_TI_CPPI41_DMA
-	cppi41_exit();
-#endif
-
 	return 0;
 }
 
@@ -863,6 +859,9 @@ subsys_initcall(am35x_init);
 
 static void __exit am35x_exit(void)
 {
+#ifdef CONFIG_USB_TI_CPPI41_DMA
+	cppi41_exit();
+#endif
 	platform_driver_unregister(&am35x_driver);
 }
 module_exit(am35x_exit);
