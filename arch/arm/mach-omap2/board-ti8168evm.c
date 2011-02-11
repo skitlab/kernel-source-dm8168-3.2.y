@@ -37,6 +37,7 @@
 #include <plat/asp.h>
 #include <plat/usb.h>
 #include <plat/mmc.h>
+#include <plat/gpio.h>
 
 #include "clock.h"
 #include "mux.h"
@@ -303,6 +304,17 @@ static void __init ti8168_evm_init(void)
 	board_nor_init(ti816x_evm_norflash_partitions,
 		ARRAY_SIZE(ti816x_evm_norflash_partitions), 0);
 }
+
+static void __init ti8168_evm_gpio_setup(void)
+{
+	/* GPIO-20 should be low for NOR access beyond 4KiB */
+	gpio_request(20, "nor");
+	gpio_direction_output(20, 0x0);
+}
+/* GPIO setup should be as subsys_initcall() as gpio driver
+ * is registered in arch_initcall()
+ */
+subsys_initcall(ti8168_evm_gpio_setup);
 
 static void __init ti8168_evm_map_io(void)
 {
