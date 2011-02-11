@@ -596,8 +596,8 @@ static struct regulator_consumer_supply omap3evm_vaux2_supplies = {
 
 static struct regulator_init_data omap3evm_vaux2 = {
 	.constraints = {
-		.min_uV		= 1800000,
-		.max_uV		= 1800000,
+		.min_uV		= 2800000,
+		.max_uV		= 2800000,
 		.apply_uV	= true,
 		.valid_modes_mask	= REGULATOR_MODE_NORMAL
 					| REGULATOR_MODE_STANDBY,
