@@ -53,6 +53,7 @@ static struct omap2_hsmmc_info mmc[] = {
 		.ocr_mask	= MMC_VDD_33_34,
 	},
 	{}	/* Terminator */
+};
 
 static struct mtd_partition ti816x_evm_norflash_partitions[] = {
 	/* bootloader (U-Boot, etc) in first 5 sectors */
