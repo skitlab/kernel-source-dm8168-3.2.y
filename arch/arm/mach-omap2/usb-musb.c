@@ -128,11 +128,6 @@ static void ti81xx_musb_phy_power(u8 id, u8 on)
 		}
 
 		omap_ctrl_writel(usbphycfg, ctrl_offs);
-		pr_info(KERN_INFO "usbphy_ctrl%d=%x\n", id,
-			omap_ctrl_readl(ctrl_offs));
-		pr_info(KERN_INFO "usbphy_stat%d=%x\n", id, omap_ctrl_readl(id ?
-			TI81XX_USBSTAT0 : TI81XX_USBSTAT1));
-
 	} else {
 		if (cpu_is_ti816x())
 			usbphycfg &= ~(TI816X_USBPHY0_NORMAL_MODE
