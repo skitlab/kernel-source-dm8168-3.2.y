@@ -153,6 +153,9 @@ __init board_nand_init(struct mtd_partition *nand_parts,
 	if (cpu_is_ti81xx()) {
 		board_nand_data.ecc_opt = OMAP_ECC_HAMMING_CODE_HW;
 		board_nand_data.xfer_type = NAND_OMAP_POLLED;
+
+		if (cpu_is_ti814x())
+			board_nand_data.gpmc_t = NULL;
 	}
 
 	gpmc_nand_init(&board_nand_data);
