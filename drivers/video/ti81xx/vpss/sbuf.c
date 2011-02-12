@@ -197,7 +197,7 @@ int __init vps_sbuf_init(const char *sbaddr, const char *sbsize)
 	/*use the default value instead if not set in the command*/
 	if (!addr) {
 		if (cpu_is_ti816x())
-			addr = TI816X_SHARING_BUFFER_BASE;
+			addr = TIC6A81XX_SHARING_BUFFER_BASE;
 		else
 			addr = TIC6A81XX_SHARING_BUFFER_BASE;
 	}
