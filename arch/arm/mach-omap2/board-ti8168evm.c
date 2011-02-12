@@ -522,11 +522,12 @@ static void __init ti8168_evm_init(void)
 	ti816x_vpss_init();
 }
 
-static void __init ti8168_evm_gpio_setup(void)
+static int __init ti8168_evm_gpio_setup(void)
 {
 	/* GPIO-20 should be low for NOR access beyond 4KiB */
 	gpio_request(20, "nor");
 	gpio_direction_output(20, 0x0);
+	return 0;
 }
 /* GPIO setup should be as subsys_initcall() as gpio driver
  * is registered in arch_initcall()
