@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux/arm 2.6.37 Kernel Configuration
-# Sat Feb 12 22:21:24 2011
+# Mon Feb 14 12:41:09 2011
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -254,7 +254,9 @@ CONFIG_ARCH_OMAP2PLUS=y
 # OMAP Feature Selections
 #
 # CONFIG_OMAP_RESET_CLOCKS is not set
-# CONFIG_TI816X_SMARTREFLEX is not set
+CONFIG_TI816X_SMARTREFLEX=y
+CONFIG_SMARTREFLEX_CLASS2=y
+# CONFIG_DEBUG_SR_CLASS2 is not set
 CONFIG_OMAP_MUX=y
 # CONFIG_OMAP_MUX_DEBUG is not set
 CONFIG_OMAP_MUX_WARNINGS=y
