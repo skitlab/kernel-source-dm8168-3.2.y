@@ -1736,15 +1736,14 @@ static ssize_t blender_order_store(struct dc_blender_info *binfo,
 	/*error check*/
 	if (comprtcfg.isglobalreorderenable == 1) {
 		if (num != 5) {
-			VPSSERR("Wrong display order setting %d for "
-				"global order\n", num);
-			return r;
+			VPSSERR("Wrong display re-order format\n");
+			return -EINVAL;
 		}
 
 	} else {
 		if (num < 2) {
-			VPSSERR("Wrong display order setting %d\n", num);
-			return r;
+			VPSSERR("Wrong display re-order format\n");
+			return -EINVAL;
 		}
 	}
 
