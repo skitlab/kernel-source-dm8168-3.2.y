@@ -271,14 +271,14 @@ static const struct clksel_rate div4_b3c1_rates[] = {
 	{ .div = 1, .val = 0, .flags = RATE_IN_TI814X },
 	{ .div = 2, .val = 1, .flags = RATE_IN_TI814X },
 	{ .div = 22, .val = 2, .flags = RATE_IN_TI814X },
-	{ .div = 22, .val = 3, .flags = RATE_IN_TI814X }, /* Hack for default val in reg */
+	{ .div = 1, .val = 3, .flags = RATE_IN_TI814X }, /* Hack for default val in reg */
 	{ .div = 0 },
 };
 /************************** Clocking Started *********************************/
 
 /* DCAN0 Func Clock(final) No PRCM */
 static struct clk dcan1_fck = {
-	.name		= "dcon1_fck",
+	.name		= "dcan1_fck",
 	.parent		= &osc0_clkin_ck,
 	.ops		= &clkops_null,
 	.recalc		= &followparent_recalc,
@@ -286,7 +286,7 @@ static struct clk dcan1_fck = {
 
 /* DCAN1 Func Clock(final) No PRCM */
 static struct clk dcan2_fck = {
-	.name		= "dcon2_fck",
+	.name		= "dcan2_fck",
 	.parent		= &osc0_clkin_ck,
 	.ops		= &clkops_null,
 	.recalc		= &followparent_recalc,
@@ -1367,7 +1367,7 @@ static struct clk atl_ick = {
 static struct clk fdif_enb_ck = {
 	.name		= "fdif_enb_ck",
 	.parent		= &sysclk6_ck,
-	.ops		= &clkops_omap2_dflt,
+	.ops		= &clkops_ti81xx_dflt_wait,
 	.enable_reg	= TI814X_CM_ISP_FDIF_CLKCTRL,
 	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
@@ -1383,22 +1383,20 @@ static struct clk rtc_c32k_ick = {
 	.recalc		= &followparent_recalc,
 };
 
-/* dcon interface clocks(final) */
-static struct clk dcon1_ick = {
-	.name		= "dcon1_ick",
+/* dcan interface clocks(final) */
+static struct clk dcan1_ick = {
+	.name		= "dcan1_ick",
 	.parent		= &sysclk6_ck,
 	.ops		= &clkops_null,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &followparent_recalc,
 };
 
-/* dcon interface clocks(final) */
-static struct clk dcon2_ick = {
-	.name		= "dcon2_ick",
+/* dcan interface clocks(final) */
+static struct clk dcan2_ick = {
+	.name		= "dcan2_ick",
 	.parent		= &sysclk6_ck,
-	.ops		= &clkops_ti81xx_dflt_wait,
-	.enable_reg	= TI814X_CM_ISP_FDIF_CLKCTRL,
-	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
+	.ops		= &clkops_null,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &followparent_recalc,
 };
@@ -2442,7 +2440,7 @@ static const struct clksel audio_prcm_mux_sel[] = {
 static struct clk audio_prcm1_out_ck = {
 	.name		= "audio_prcm1_out_ck",
 	.init		= &omap2_init_clksel_parent,
-	.ops		= &clkops_omap2_dflt,
+	.ops		= &clkops_ti81xx_dflt_wait,
 	.enable_reg	= TI81XX_CM_ALWON_MCBSP_CLKCTRL,
 	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
 	.clksel		= audio_prcm_mux_sel,
@@ -2478,7 +2476,7 @@ static struct clk mcasp1_fck = {
 	.name		= "mcasp1_fck",
 	.init		= &omap2_init_clksel_parent,
 	.clksel		= audio_prcm_mux_sel,
-	.ops		= &clkops_omap2_dflt,
+	.ops		= &clkops_ti81xx_dflt_wait,
 	.enable_reg	= TI81XX_CM_ALWON_MCASP0_CLKCTRL,
 	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
 	.clksel_reg	= TI81XX_CM_DPLL_AUDIOCLK_MCASP0_CLKSEL,
@@ -2492,7 +2490,7 @@ static struct clk mcasp2_fck = {
 	.name		= "mcasp2_fck",
 	.init		= &omap2_init_clksel_parent,
 	.clksel		= audio_prcm_mux_sel,
-	.ops		= &clkops_omap2_dflt,
+	.ops		= &clkops_ti81xx_dflt_wait,
 	.enable_reg	= TI81XX_CM_ALWON_MCASP1_CLKCTRL,
 	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
 	.clksel_reg	= TI81XX_CM_DPLL_AUDIOCLK_MCASP1_CLKSEL,
@@ -2506,7 +2504,7 @@ static struct clk mcasp3_fck = {
 	.name		= "mcasp3_fck",
 	.init		= &omap2_init_clksel_parent,
 	.clksel		= audio_prcm_mux_sel,
-	.ops		= &clkops_omap2_dflt,
+	.ops		= &clkops_ti81xx_dflt_wait,
 	.enable_reg	= TI81XX_CM_ALWON_MCASP2_CLKCTRL,
 	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
 	.clksel_reg	= TI81XX_CM_DPLL_AUDIOCLK_MCASP2_CLKSEL,
@@ -3323,8 +3321,8 @@ static struct omap_clk ti814x_clks[] = {
 	CLK(NULL,		"atl_ick",			&atl_ick,			CK_TI814X),
 	CLK(NULL,		"fdif_enb_ck",			&fdif_enb_ck,			CK_TI814X),
 	CLK(NULL,		"rtc_c32k_ick",			&rtc_c32k_ick,			CK_TI814X),
-	CLK(NULL,		"dcon1_ick",			&dcon1_ick,			CK_TI814X),
-	CLK(NULL,		"dcon2_ick",			&dcon2_ick,			CK_TI814X),
+	CLK(NULL,		"dcan1_ick",			&dcan1_ick,			CK_TI814X),
+	CLK(NULL,		"dcan2_ick",			&dcan2_ick,			CK_TI814X),
 	CLK(NULL,		"iss_dpll_ck",			&iss_dpll_ck,			CK_TI814X),
 	CLK(NULL,		"iss_ick",			&iss_ick,			CK_TI814X),
 	CLK(NULL,		"tppss_tso_ick",		&tppss_tso_ick,			CK_TI814X),
