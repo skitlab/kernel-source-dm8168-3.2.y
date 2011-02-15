@@ -262,7 +262,17 @@ static inline void omap_init_sti(void) {}
 
 #if defined(CONFIG_SND_SOC) || defined(CONFIG_SND_SOC_MODULE)
 
-#if !defined(CONFIG_ARCH_TI81xx)
+#if defined(CONFIG_ARCH_TI81XX)
+struct platform_device ti81xx_pcm_device = {
+	.name		= "davinci-pcm-audio",
+	.id		= -1,
+};
+
+static void ti81xx_init_pcm(void)
+{
+	platform_device_register(&ti81xx_pcm_device);
+}
+#else
 static struct platform_device omap_pcm = {
 	.name	= "omap-pcm-audio",
 	.id	= -1,
@@ -294,28 +304,17 @@ static void omap_init_audio(void)
 	platform_device_register(&omap_pcm);
 }
 
+#endif /* defined(CONFIG_ARCH_TI81XX) */
+
+#else
+
+#if defined(CONFIG_ARCH_TI81XX)
+static inline void ti81xx_init_pcm(void) {}
 #else
 static inline void omap_init_audio(void) {}
 #endif
 
-#if defined(CONFIG_ARCH_TI81XX)
-
-struct platform_device ti81xx_pcm_device = {
-	.name		= "davinci-pcm-audio",
-	.id		= -1,
-};
-
-static void ti81xx_init_pcm(void)
-{
-	platform_device_register(&ti81xx_pcm_device);
-}
-
-#else
-static inline void ti81xx_init_pcm(void) {}
-#endif
-
-#endif
-
+#endif /* defined(CONFIG_SND_SOC) || defined(CONFIG_SND_SOC_MODULE) */
 
 #if defined(CONFIG_SPI_OMAP24XX) || defined(CONFIG_SPI_OMAP24XX_MODULE)
 
@@ -358,7 +357,6 @@ static struct platform_device omap2_mcspi1 = {
 	},
 };
 
-#if !defined(CONFIG_ARCH_TI816X)
 static struct omap2_mcspi_platform_config omap2_mcspi2_config = {
 	.num_cs		= 2,
 };
@@ -380,7 +378,6 @@ static struct platform_device omap2_mcspi2 = {
 		.platform_data = &omap2_mcspi2_config,
 	},
 };
-#endif
 
 #if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
 	defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_ARCH_TI814X)
@@ -438,16 +435,16 @@ static inline void ti81xx_mcspi_fixup(void)
 	omap2_mcspi1_resources[0].start	= TI81XX_MCSPI1_BASE;
 	omap2_mcspi1_resources[0].end	= TI81XX_MCSPI1_BASE + 0xff;
 
-#ifdef CONFIG_ARCH_TI814X
 	if (cpu_is_ti814x()) {
 		omap2_mcspi2_resources[0].start	= TI814X_MCSPI2_BASE;
 		omap2_mcspi2_resources[0].end	= TI814X_MCSPI2_BASE + 0xff;
+#ifdef CONFIG_ARCH_TI814X
 		omap2_mcspi3_resources[0].start	= TI814X_MCSPI3_BASE;
 		omap2_mcspi3_resources[0].end	= TI814X_MCSPI3_BASE + 0xff;
 		omap2_mcspi4_resources[0].start	= TI814X_MCSPI4_BASE;
 		omap2_mcspi4_resources[0].end	= TI814X_MCSPI4_BASE + 0xff;
-	}
 #endif
+	}
 }
 #else
 static inline void ti81xx_mcspi_fixup(void)
@@ -475,16 +472,10 @@ static inline void omap4_mcspi_fixup(void)
 }
 #endif
 
-#if !defined(CONFIG_ARCH_TI816X)
 static inline void omap2_mcspi2_init(void)
 {
 	platform_device_register(&omap2_mcspi2);
 }
-#else
-static inline void omap2_mcspi2_init(void)
-{
-}
-#endif
 
 #if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
 	defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_ARCH_TI814X)
@@ -2014,7 +2005,9 @@ static int __init omap2_init_devices(void)
 	 * in alphabetical order so they're easier to sort through.
 	 */
 	omap_hsmmc_reset();
+#if !defined(CONFIG_ARCH_TI81XX)
 	omap_init_audio();
+#endif
 	omap_init_camera();
 	omap_init_mbox();
 	omap_init_mcspi();
