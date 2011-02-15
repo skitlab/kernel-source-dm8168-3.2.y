@@ -154,7 +154,7 @@ static int video_create(struct vps_video_ctrl *vctrl,
 {
 	u32				vidinstid;
 	int r = 0;
-	int i;
+/*	int i;*/
 
 	struct vps_dcenumnodeinput eninput;
 	struct vps_dcnodeinput ninput;

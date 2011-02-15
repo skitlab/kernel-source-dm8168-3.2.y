@@ -1699,7 +1699,7 @@ static ssize_t blender_order_show(struct dc_blender_info *binfo, char *buf)
 	r = dc_get_comp_rtconfig(binfo->dctrl, &comprtcfg);
 	dc_unlock(binfo->dctrl);
 
-	if(r)
+	if (r)
 		return r;
 	if (comprtcfg.isglobalreorderenable)
 		l = snprintf(buf, PAGE_SIZE, "%u,%u/%u/%u/%u\n",
