@@ -245,6 +245,7 @@ static struct resource musb_resources[] = {
 	[2] = {	/* DMA IRQ */
 		.start	= INT_243X_HS_USB_DMA,
 		.flags	= IORESOURCE_IRQ,
+		.name   = "dma",
 	},
 	[3] = { /* MEM for TI81x's second musb */
 		.flags  = IORESOURCE_MEM,
