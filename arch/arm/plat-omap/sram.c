@@ -222,8 +222,8 @@ static void __init omap_map_sram(void)
 	iotable_init(omap_sram_io_desc, ARRAY_SIZE(omap_sram_io_desc));
 
 	printk(KERN_INFO "SRAM: Mapped pa 0x%08lx to va 0x%08lx size: 0x%lx\n",
-	__pfn_to_phys(omap_sram_io_desc[0].pfn),
-	omap_sram_io_desc[0].virtual,
+	       (long unsigned int)__pfn_to_phys(omap_sram_io_desc[0].pfn),
+	       omap_sram_io_desc[0].virtual,
 	       omap_sram_io_desc[0].length);
 
 	/*
