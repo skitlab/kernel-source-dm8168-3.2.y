@@ -307,7 +307,22 @@ static void __init cacheid_init(void)
  * already provide the required functionality.
  */
 extern struct proc_info_list *lookup_processor_type(unsigned int);
-extern struct machine_desc *lookup_machine_type(unsigned int);
+
+static void __init early_print(const char *str, ...)
+{
+	extern void printascii(const char *);
+	char buf[256];
+	va_list ap;
+
+	va_start(ap, str);
+	vsnprintf(buf, sizeof(buf), str, ap);
+	va_end(ap);
+
+#ifdef CONFIG_DEBUG_LL
+	printascii(buf);
+#endif
+	printk("%s", buf);
+}
 
 static void __init feat_v6_fixup(void)
 {
@@ -425,21 +440,29 @@ void cpu_init(void)
 
 static struct machine_desc * __init setup_machine(unsigned int nr)
 {
-	struct machine_desc *list;
+	extern struct machine_desc __arch_info_begin[], __arch_info_end[];
+	struct machine_desc *p;
 
 	/*
 	 * locate machine in the list of supported machines.
 	 */
-	list = lookup_machine_type(nr);
-	if (!list) {
-		printk("Machine configuration botched (nr %d), unable "
-		       "to continue.\n", nr);
-		while (1);
-	}
+	for (p = __arch_info_begin; p < __arch_info_end; p++)
+		if (nr == p->nr) {
+			printk("Machine: %s\n", p->name);
+			return p;
+		}
 
-	printk("Machine: %s\n", list->name);
+	early_print("\n"
+		"Error: unrecognized/unsupported machine ID (r1 = 0x%08x).\n\n"
+		"Available machine support:\n\nID (hex)\tNAME\n", nr);
 
-	return list;
+	for (p = __arch_info_begin; p < __arch_info_end; p++)
+		early_print("%08x\t%s\n", p->nr, p->name);
+
+	early_print("\nPlease check your kernel config and/or bootloader.\n");
+
+	while (true)
+		/* can't use cpu_relax() here as it may require MMU setup */;
 }
 
 static int __init arm_add_memory(unsigned long start, unsigned long size)
