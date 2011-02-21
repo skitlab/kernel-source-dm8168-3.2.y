@@ -1610,7 +1610,6 @@ static int gpio_2irq(struct gpio_chip *chip, unsigned offset)
 
 /*---------------------------------------------------------------------*/
 
-static int initialized;
 #if defined(CONFIG_ARCH_OMAP1) || defined(CONFIG_ARCH_OMAP2)
 static struct clk * gpio_ick;
 #endif
@@ -1625,7 +1624,6 @@ static struct clk * gpio5_fck;
 #endif
 
 #if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
-static struct clk *gpio_iclks[OMAP34XX_NR_GPIOS];
 
 /*
  * Following pad init code in addition to the context / restore hooks are
@@ -1649,7 +1647,7 @@ static int __init omap3_gpio_pads_init(void)
 
 		for (j = min; j <= max; j++) {
 			/*
-			 * Check if pad has been configured as GPIO 
+			 * Check if pad has been configured as GPIO
 			 * (mux mode 4.)
 			 */
 			if ((omap_ctrl_readw(offset) & 0x7) == 4) {
