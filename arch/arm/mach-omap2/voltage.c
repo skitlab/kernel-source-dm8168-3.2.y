@@ -395,6 +395,8 @@ static struct dentry *voltage_dir;
 
 /* Init function pointers */
 static void (*vc_init) (struct omap_vdd_info *vdd);
+static void (*vp_init) (struct omap_vdd_info *vdd);
+
 static int (*vdd_data_configure) (struct omap_vdd_info *vdd);
 
 static u32 omap3_voltage_read_reg(u16 mod, u8 offset)
@@ -499,7 +501,7 @@ static void vp_latch_vsel(struct omap_vdd_info *vdd)
 }
 
 /* Generic voltage init functions */
-static void __init vp_init(struct omap_vdd_info *vdd)
+static void __init omap_vp_init(struct omap_vdd_info *vdd)
 {
 	u32 vp_val;
 	u16 mod;
@@ -1916,11 +1918,13 @@ static int __init omap_voltage_early_init(void)
 		vdd_info = omap3_vdd_info;
 		nr_scalable_vdd = OMAP3_NR_SCALABLE_VDD;
 		vc_init = omap3_vc_init;
+		vp_init = omap_vp_init;
 		vdd_data_configure = omap3_vdd_data_configure;
 	} else if (cpu_is_omap44xx()) {
 		vdd_info = omap4_vdd_info;
 		nr_scalable_vdd = OMAP4_NR_SCALABLE_VDD;
 		vc_init = omap4_vc_init;
+		vp_init = omap_vp_init;
 		vdd_data_configure = omap4_vdd_data_configure;
 	} else {
 		pr_warning("%s: voltage driver support not added\n", __func__);
