@@ -18,10 +18,10 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/i2c.h>
-#include <linux/platform_device.h>
-#include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/i2c.h>
+#include <linux/delay.h>
+#include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 
 #include <mach/gpio.h>
@@ -33,7 +33,6 @@
 #include "devices.h"
 
 #define CAM_USE_XCLKA			0
-/* Sensor specific GPIO signals */
 #define LEOPARD_RESET_GPIO		98
 
 static struct regulator *beagle_1v8;
@@ -86,6 +85,7 @@ static int beagle_mt9v113_s_power(struct v4l2_subdev *subdev, int on)
 		if (isp->platform_cb.set_xclk)
 			isp->platform_cb.set_xclk(isp, 0, CAM_USE_XCLKA);
 	}
+
 	return 0;
 }
 
@@ -172,6 +172,7 @@ static int __init beagle_cam_init(void)
 	gpio_direction_output(LEOPARD_RESET_GPIO, 0);
 
 	omap3_init_camera(&beagle_isp_platform_data);
+
 	return 0;
 }
 
@@ -191,5 +192,5 @@ module_init(beagle_cam_init);
 module_exit(beagle_cam_exit);
 
 MODULE_AUTHOR("Texas Instruments");
-MODULE_DESCRIPTION("Beagle Camera Module");
+MODULE_DESCRIPTION("BeagleXM Camera Module");
 MODULE_LICENSE("GPL");
