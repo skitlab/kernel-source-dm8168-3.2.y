@@ -1393,7 +1393,66 @@ static __initdata struct omap_hwmod *omap3xxx_hwmods[] = {
 	NULL,
 };
 
+/**
+ * HWMODs specific to AM35x processors
+ * Though they are quite similar to OMAP34xx definitions,
+ * having separate array makes customization easy.
+ */
+static __initdata struct omap_hwmod *am35xx_hwmods[] = {
+	&omap3xxx_l3_main_hwmod,
+	&omap3xxx_l4_core_hwmod,
+	&omap3xxx_l4_per_hwmod,
+	&omap3xxx_l4_wkup_hwmod,
+	&omap3xxx_mpu_hwmod,
+	&omap3xxx_wd_timer2_hwmod,
+	&omap3xxx_uart1_hwmod,
+	&omap3xxx_uart2_hwmod,
+	&omap3xxx_uart3_hwmod,
+	&omap3xxx_uart4_hwmod,
+	&omap3xxx_i2c1_hwmod,
+	&omap3xxx_i2c2_hwmod,
+	&omap3xxx_i2c3_hwmod,
+
+	/* gpio class */
+	&omap3xxx_gpio1_hwmod,
+	&omap3xxx_gpio2_hwmod,
+	&omap3xxx_gpio3_hwmod,
+	&omap3xxx_gpio4_hwmod,
+	&omap3xxx_gpio5_hwmod,
+	&omap3xxx_gpio6_hwmod,
+
+	/* dma_system class*/
+	&omap3xxx_dma_system_hwmod,
+
+	NULL,
+};
+
 int __init omap3xxx_hwmod_init(void)
 {
-	return omap_hwmod_init(omap3xxx_hwmods);
+	if (cpu_is_omap3505() || cpu_is_omap3517()) {
+
+		/* TODO: Find better way to get this done.
+		 *
+		 * AM35xx doesn't support smartreflex. This requires:
+		 * 1) Removing related hwmods from the initialization list.
+		 *    (done).
+		 * 2) Removing omap3_l4_core__sr1 and omap3_l4_core__sr2
+		 *    from omap3xxx_l4_core_slaves.
+		 *    This, however, has cascading effect on all hwmods,
+		 *    due to master-slave relations between these hwmods.
+		 *
+		 * Instead of duplicating contents of this file, updating
+		 * the structure to restrict slave count to 1; and setting
+		 * address of omap3_l4_core__sr1 & omap3_l4_core__sr2 to
+		 * NULL should be a reasonable workaround.
+		 */
+		omap3xxx_l4_core_slaves[1] = NULL;
+		omap3xxx_l4_core_slaves[2] = NULL;
+
+		omap3xxx_l4_core_hwmod.slaves_cnt = 1;
+
+		return omap_hwmod_init(am35xx_hwmods);
+	} else {
+		return omap_hwmod_init(omap3xxx_hwmods);
+	}
 }
