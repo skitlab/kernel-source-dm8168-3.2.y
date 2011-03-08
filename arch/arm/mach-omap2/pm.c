@@ -177,7 +177,7 @@ static void omap2_init_processor_devices(void)
 {
 	_init_omap_device("mpu", &mpu_dev);
 
-	if (!cpu_is_ti81xx())
+	if (omap3_has_iva())
 		_init_omap_device("iva", &iva_dev);
 
 	if (cpu_is_omap44xx()) {
