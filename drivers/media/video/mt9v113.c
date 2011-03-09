@@ -1,8 +1,7 @@
 /*
- * drivers/media/video/mt9v113.c
+ * Driver for MT9V113 CMOS Image Sensor from Micron
  *
- * Based on TI TVP5146/47 decoder driver
- *
+ * Based on MT9V032 sensor driver
  *
  * This package is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -128,6 +127,33 @@ static struct mt9v113_reg mt9v113_vga_reg[] = {
 	{TOK_WRITE, 0x0990, 0x0280}, /* val: 640 */
 	{TOK_WRITE, 0x098C, 0x2705}, /* out_height_A */
 	{TOK_WRITE, 0x0990, 0x01E0}, /* val: 480 */
+	{TOK_WRITE, 0x098C, 0xA103}, /* cmd */
+	{TOK_WRITE, 0x0990, 0x0005}, /* val: 5 - Refresh */
+	{TOK_DELAY, 0, 100},
+	{TOK_TERM, 0, 0},
+};
+
+static struct mt9v113_reg mt9v113_yuyv_reg[] = {
+	{TOK_WRITE, 0x098C, 0x2755}, /* output_format_A */
+	{TOK_WRITE, 0x0990, 0x0002}, /* val: 0x2 - YUYV format */
+	{TOK_WRITE, 0x098C, 0xA103}, /* cmd */
+	{TOK_WRITE, 0x0990, 0x0005}, /* val: 5 - Refresh */
+	{TOK_DELAY, 0, 100},
+	{TOK_TERM, 0, 0},
+};
+
+static struct mt9v113_reg mt9v113_uyvy_reg[] = {
+	{TOK_WRITE, 0x098C, 0x2755}, /* output_format_A */
+	{TOK_WRITE, 0x0990, 0x0000}, /* val: 0 */
+	{TOK_WRITE, 0x098C, 0xA103}, /* cmd */
+	{TOK_WRITE, 0x0990, 0x0005}, /* val: 5 - Refresh */
+	{TOK_DELAY, 0, 100},
+	{TOK_TERM, 0, 0},
+};
+
+static struct mt9v113_reg mt9v113_rgb565_reg[] = {
+	{TOK_WRITE, 0x098C, 0x2755}, /* output_format_A */
+	{TOK_WRITE, 0x0990, 0x0020}, /* val: 0x20 - RGB enable */
 	{TOK_WRITE, 0x098C, 0xA103}, /* cmd */
 	{TOK_WRITE, 0x0990, 0x0005}, /* val: 5 - Refresh */
 	{TOK_DELAY, 0, 100},
@@ -433,8 +459,33 @@ static int mt9v113_def_config(struct v4l2_subdev *subdev)
 static int mt9v113_vga_mode(struct v4l2_subdev *subdev)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(subdev);
+	struct mt9v113 *mt9v113 = to_mt9v113(subdev);
+	struct mt9v113_reg *fmt_reg;
+	int ret = 0;
 
-	return mt9v113_write_regs(client, mt9v113_vga_reg);
+	/*
+	 * VGA resolution
+	 */
+	ret = mt9v113_write_regs(client, mt9v113_vga_reg);
+	if (ret) {
+		v4l_err(client, "Failed to configure vga resolution\n");
+		goto exit;
+	}
+
+	if (mt9v113->format.code == V4L2_MBUS_FMT_YUYV8_2X8)
+		fmt_reg = mt9v113_yuyv_reg;
+	else if (mt9v113->format.code == V4L2_MBUS_FMT_RGB565_2X8_LE)
+		fmt_reg = mt9v113_rgb565_reg;
+	else
+		/* Falling down to default UYVY format */
+		fmt_reg = mt9v113_uyvy_reg;
+
+	ret = mt9v113_write_regs(client, fmt_reg);
+	if (ret)
+		v4l_err(client, "Failed to configure pixel format\n");
+
+exit:
+	return ret;
 }
 
 /*
