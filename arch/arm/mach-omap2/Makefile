@@ -178,7 +178,6 @@ obj-$(CONFIG_MACH_OMAP_2430SDP)		+= board-2430sdp.o \
 					   hsmmc.o
 obj-$(CONFIG_MACH_OMAP_APOLLON)		+= board-apollon.o
 obj-$(CONFIG_MACH_OMAP3_BEAGLE)		+= board-omap3beagle.o \
-					   board-omap3beagle-camera.o \
 					   hsmmc.o
 obj-$(CONFIG_MACH_DEVKIT8000)     	+= board-devkit8000.o \
                                            hsmmc.o
@@ -269,3 +268,8 @@ obj-y					+= $(smc91x-m) $(smc91x-y)
 
 smsc911x-$(CONFIG_SMSC911X)		:= gpmc-smsc911x.o
 obj-y					+= $(smsc911x-m) $(smsc911x-y)
+
+ifeq ($(CONFIG_MACH_OMAP3_BEAGLE),y)
+beagle-camera-$(CONFIG_VIDEO_OMAP3)	:= board-omap3beagle-camera.o
+obj-y					+= $(beagle-camera-m) $(beagle-camera-y)
+endif
