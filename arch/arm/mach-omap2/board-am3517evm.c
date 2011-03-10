@@ -714,6 +714,22 @@ static struct omap_board_mux board_mux[] __initdata = {
 };
 #endif
 
+/*
+ * HECC information
+ */
+
+#define CAN_STB         214
+static void hecc_phy_control(int on)
+{
+	int r;
+
+	r = gpio_request(CAN_STB, "can_stb");
+	if (r) {
+		printk(KERN_ERR"failed to get can_stb\n");
+		return;
+	}
+	gpio_direction_output(CAN_STB, (on == 1) ? 0 : 1);
+}
 
 static struct resource am3517_hecc_resources[] = {
 	{
@@ -742,6 +758,7 @@ static struct ti_hecc_platform_data am3517_evm_hecc_pdata = {
 	.mbx_offset		= AM35XX_HECC_MBOX_OFFSET,
 	.int_line		= AM35XX_HECC_INT_LINE,
 	.version		= AM35XX_HECC_VERSION,
+	.transceiver_switch     = hecc_phy_control,
 };
 
 static void am3517_evm_hecc_init(struct ti_hecc_platform_data *pdata)
