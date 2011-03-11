@@ -144,7 +144,7 @@ extern int omap3_tps65023_init(void);
 #else
 static inline int omap3_tps65023_init(void)
 {
-       return -EINVAL;
+	return -EINVAL;
 }
 #endif
 
