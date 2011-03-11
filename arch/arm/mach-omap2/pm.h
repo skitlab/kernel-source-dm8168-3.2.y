@@ -139,6 +139,15 @@ static inline int omap4_twl_init(void)
 }
 #endif
 
+#ifdef CONFIG_REGULATOR_TPS65023
+extern int omap3_tps65023_init(void);
+#else
+static inline int omap3_tps65023_init(void)
+{
+       return -EINVAL;
+}
+#endif
+
 #ifndef CONFIG_SUSPEND
 #define omap_pm_ops NULL
 #endif

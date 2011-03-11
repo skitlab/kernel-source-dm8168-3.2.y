@@ -19,7 +19,8 @@ obj-$(CONFIG_ARCH_TI81XX) += $(omap-2-3-common) $(hwmod-common)
 
 obj-$(CONFIG_OMAP_MCBSP) += mcbsp.o
 
-obj-$(CONFIG_TWL4030_CORE) += omap_twl.o
+obj-$(CONFIG_TWL4030_CORE)		+= omap_twl.o
+obj-$(CONFIG_REGULATOR_TPS65023)	+= pmic_tps65023.o
 
 # SMP support ONLY available for OMAP4
 obj-$(CONFIG_SMP)			+= omap-smp.o omap-headsmp.o
