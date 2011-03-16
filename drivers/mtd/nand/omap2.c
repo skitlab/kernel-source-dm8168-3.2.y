@@ -1143,6 +1143,9 @@ static int __devinit omap_nand_probe(struct platform_device *pdev)
 		else
 			omap_oobinfo.eccbytes = info->nand.ecc.bytes;
 
+		omap_oobinfo.oobavail = info->mtd.oobsize -
+				(omap_oobinfo.eccbytes - offset);
+
 		if (pdata->ecc_opt == OMAP_ECC_HAMMING_CODE_HW_ROMCODE) {
 			for (i = 0; i < omap_oobinfo.eccbytes; i++)
 				omap_oobinfo.eccpos[i] = i + offset;
