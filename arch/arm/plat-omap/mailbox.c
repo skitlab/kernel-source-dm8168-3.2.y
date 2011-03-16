@@ -202,14 +202,18 @@ nomem:
 
 static irqreturn_t mbox_interrupt(int irq, void *p)
 {
-	struct omap_mbox *mbox = p;
+	int i;
 
-	if (is_mbox_irq(mbox, IRQ_TX))
-		__mbox_tx_interrupt(mbox);
+	for (i = 0; mboxes[i]; i++)  {
+		struct omap_mbox *mbox = mboxes[i];
+		if (is_mbox_irq(mbox, IRQ_TX))
+			__mbox_tx_interrupt(mbox);
 
-	if (is_mbox_irq(mbox, IRQ_RX))
-		__mbox_rx_interrupt(mbox);
 
+		if (is_mbox_irq(mbox, IRQ_RX))
+			__mbox_rx_interrupt(mbox);
+
+	}
 	return IRQ_HANDLED;
 }
 
