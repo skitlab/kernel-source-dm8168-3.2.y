@@ -3110,21 +3110,6 @@ static struct clk emac_ick = {
 	.recalc		= &followparent_recalc,
 };
 
-static struct clk rmii_ck = {
-	.name		= "rmii_ck",
-	.ops		= &clkops_null,
-	.rate		= 50000000,
-};
-
-static struct clk emac_fck = {
-	.name		= "emac_fck",
-	.ops		= &clkops_omap2_dflt,
-	.parent		= &rmii_ck,
-	.enable_reg	= OMAP343X_CTRL_REGADDR(AM35XX_CONTROL_IPSS_CLK_CTRL),
-	.enable_bit	= AM35XX_CPGMAC_FCLK_SHIFT,
-	.recalc		= &followparent_recalc,
-};
-
 static struct clk hsotgusb_ick_am35xx = {
 	.name		= "hsotgusb_ick",
 	.ops		= &clkops_am35xx_ipss_module_wait,
@@ -3440,10 +3425,8 @@ static struct omap_clk omap3xxx_clks[] = {
 	CLK(NULL,	"gpt12_fck",	&gpt12_fck,	CK_3XXX),
 	CLK(NULL,	"wdt1_fck",	&wdt1_fck,	CK_3XXX),
 	CLK(NULL,	"ipss_ick",	&ipss_ick,	CK_AM35XX),
-	CLK(NULL,	"rmii_ck",	&rmii_ck,	CK_AM35XX),
 	CLK(NULL,	"pclk_ck",	&pclk_ck,	CK_AM35XX),
-	CLK("davinci_emac",	"emac_clk",	&emac_ick,	CK_AM35XX),
-	CLK("davinci_emac",	"phy_clk",	&emac_fck,	CK_AM35XX),
+	CLK("davinci_emac",	NULL,	&emac_ick,	CK_AM35XX),
 	CLK("vpfe-capture",	"master",	&vpfe_ick,	CK_AM35XX),
 	CLK("vpfe-capture",	"slave",	&vpfe_fck,	CK_AM35XX),
 	CLK("musb-hdrc",	"ick",		&hsotgusb_ick_am35xx,
