@@ -325,10 +325,32 @@ static inline void register_unwind_tables(struct module *mod) { }
 static inline void unregister_unwind_tables(struct module *mod) { }
 #endif
 
+static const Elf_Shdr *find_mod_section(const Elf32_Ehdr *hdr,
+				const Elf_Shdr *sechdrs, const char *name)
+{
+	const Elf_Shdr *s, *se;
+	const char *secstrs = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
+
+	for (s = sechdrs, se = sechdrs + hdr->e_shnum; s < se; s++)
+		if (strcmp(name, secstrs + s->sh_name) == 0)
+			return s;
+
+	return NULL;
+}
+
+extern void fixup_pv_table(const void *, unsigned long);
+
 int
 module_finalize(const Elf32_Ehdr *hdr, const Elf_Shdr *sechdrs,
 		struct module *module)
 {
+#ifdef CONFIG_ARM_PATCH_PHYS_VIRT
+	const Elf_Shdr *s = NULL;
+	s = find_mod_section(hdr, sechdrs, ".pv_table");
+	if (s)
+		fixup_pv_table((void *)s->sh_addr, s->sh_size);
+#endif
+
 	register_unwind_tables(module);
 	return 0;
 }
