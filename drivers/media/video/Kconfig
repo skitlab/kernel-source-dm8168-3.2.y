@@ -351,6 +351,13 @@ config VIDEO_MT9V113
 	  This is a Video4Linux2 sensor-level driver for the Aptina MT9V113
 	  image sensor.
 
+config VIDEO_MT9T111
+	tristate "Aptina MT9T111 VGA CMOS IMAGE SENSOR"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the Aptina MT9T111
+	  image sensor.
+
 config VIDEO_TCM825X
 	tristate "TCM825x camera sensor support"
 	depends on I2C && VIDEO_V4L2
