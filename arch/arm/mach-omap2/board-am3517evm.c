@@ -29,6 +29,10 @@
 #include <linux/input.h>
 #include <linux/tca6416_keypad.h>
 #include <linux/mmc/host.h>
+#include <linux/mtd/physmap.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
+#include <linux/mtd/nand.h>
 
 #include <mach/hardware.h>
 #include <mach/am35xx.h>
@@ -41,6 +45,7 @@
 #include <plat/usb.h>
 #include <plat/display.h>
 #include <plat/gpmc.h>
+#include <plat/nand.h>
 
 #include <media/tvp514x.h>
 #include <media/davinci/vpfe_capture.h>
@@ -50,6 +55,39 @@
 #include "hsmmc.h"
 
 #define AM35XX_EVM_MDIO_FREQUENCY	(1000000)
+
+#define NAND_BLOCK_SIZE        SZ_128K
+
+static struct mtd_partition am3517evm_nand_partitions[] = {
+/* All the partition sizes are listed in terms of NAND block size */
+	{
+		.name           = "xloader-nand",
+		.offset         = 0,
+		.size           = 4*(SZ_128K),
+		.mask_flags     = MTD_WRITEABLE
+	},
+	{
+		.name           = "uboot-nand",
+		.offset         = MTDPART_OFS_APPEND,
+		.size           = 14*(SZ_128K),
+		.mask_flags     = MTD_WRITEABLE
+	},
+	{
+		.name           = "params-nand",
+		.offset         = MTDPART_OFS_APPEND,
+		.size           = 2*(SZ_128K)
+	},
+	{
+		.name           = "linux-nand",
+		.offset         = MTDPART_OFS_APPEND,
+		.size           = 40*(SZ_128K)
+	},
+	{
+		.name           = "jffs2-nand",
+		.size           = MTDPART_SIZ_FULL,
+		.offset         = MTDPART_OFS_APPEND,
+	},
+};
 
 static struct mdio_platform_data am3517_evm_mdio_pdata = {
 	.bus_freq	= AM35XX_EVM_MDIO_FREQUENCY,
@@ -817,6 +855,11 @@ static void __init am3517_evm_init(void)
 
 	/* DSS */
 	am3517_evm_display_init();
+
+	/* NAND */
+	board_nand_init(am3517evm_nand_partitions,
+				ARRAY_SIZE(am3517evm_nand_partitions),
+				0, NAND_BUSWIDTH_16);
 
 	/* RTC - S35390A */
 	am3517_evm_rtc_init();
