@@ -384,6 +384,44 @@ static struct platform_device omap3_evm_dss_device = {
 	},
 };
 
+static struct regulator_consumer_supply omap3evm_vaux3_supply = {
+	.supply         = "cam_1v8",
+};
+
+static struct regulator_consumer_supply omap3evm_vaux4_supply = {
+	.supply         = "cam_2v8",
+};
+
+/* VAUX3 for CAM_1V8 */
+static struct regulator_init_data omap3evm_vaux3 = {
+	.constraints = {
+		.min_uV                 = 1800000,
+		.max_uV                 = 1800000,
+		.apply_uV               = true,
+		.valid_modes_mask       = REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask         = REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies  = 1,
+	.consumer_supplies      = &omap3evm_vaux3_supply,
+};
+
+ /* VAUX4 for CAM_2V8 */
+static struct regulator_init_data omap3evm_vaux4 = {
+	.constraints = {
+		.min_uV                 = 1800000,
+		.max_uV                 = 1800000,
+		.apply_uV               = true,
+		.valid_modes_mask       = REGULATOR_MODE_NORMAL
+			| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask         = REGULATOR_CHANGE_MODE
+			| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies  = 1,
+	.consumer_supplies      = &omap3evm_vaux4_supply,
+};
+
 static struct regulator_consumer_supply omap3evm_vmmc1_supply = {
 	.supply			= "vmmc",
 };
@@ -660,6 +698,8 @@ static struct twl4030_platform_data omap3evm_twldata = {
 	.vpll2		= &omap3_evm_vpll2,
 	.vaux2          = &omap3evm_vaux2,
 	.vio		= &omap3_evm_vio,
+	.vaux3		= &omap3evm_vaux3,
+	.vaux4		= &omap3evm_vaux4,
 };
 
 static struct i2c_board_info __initdata omap3evm_i2c_boardinfo[] = {
@@ -682,7 +722,9 @@ static int __init omap3_evm_i2c_init(void)
 
 	omap_register_i2c_bus(1, 2600, omap3evm_i2c_boardinfo,
 			ARRAY_SIZE(omap3evm_i2c_boardinfo));
+	/* Bus 2 is used for Camera/Sensor interface */
 	omap_register_i2c_bus(2, 400, NULL, 0);
+
 	omap_register_i2c_bus(3, 400, NULL, 0);
 	return 0;
 }
@@ -848,6 +890,8 @@ static struct omap_board_mux omap35x_board_mux[] __initdata = {
 				OMAP_PIN_OFF_NONE),
 	OMAP3_MUX(GPMC_WAIT2, OMAP_MUX_MODE4 | OMAP_PIN_INPUT_PULLUP |
 				OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(MCBSP1_FSR, OMAP_MUX_MODE4 | OMAP_PIN_INPUT_PULLDOWN |
+				OMAP_PIN_OFF_NONE),
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
 
@@ -860,6 +904,8 @@ static struct omap_board_mux omap36x_board_mux[] __initdata = {
 				OMAP_PIN_OFF_INPUT_PULLUP |
 				OMAP_PIN_OFF_OUTPUT_LOW |
 				OMAP_PIN_OFF_WAKEUPENABLE),
+	OMAP3_MUX(MCBSP1_FSR, OMAP_MUX_MODE4 | OMAP_PIN_INPUT_PULLDOWN |
+				OMAP_PIN_OFF_NONE),
 	/* AM/DM37x EVM: DSS data bus muxed with sys_boot */
 	OMAP3_MUX(DSS_DATA18, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
 	OMAP3_MUX(DSS_DATA19, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
