@@ -53,6 +53,7 @@
 #include "mux.h"
 #include "control.h"
 #include "hsmmc.h"
+#include "board-flash.h"
 
 #define AM35XX_EVM_MDIO_FREQUENCY	(1000000)
 
@@ -752,6 +753,74 @@ static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 	.reset_gpio_port[2]  = -EINVAL
 };
 
+
+/* NOR flash information */
+static struct mtd_partition am3517_evm_norflash_partitions[] = {
+	/* primiary bootloader (X-loader) in first 4 sectors(32K) */
+	{
+		.name           = "X-Loader-NOR",
+		.offset         = 0,
+		.size           = 4 * SZ_32K,
+		.mask_flags     = MTD_WRITEABLE, /* force read-only */
+	},
+	/* secondary bootloader (U-Boot, etc) in first 5 sectors(128K) */
+	{
+		.name           = "U-Boot-NOR",
+		.offset         = MTDPART_OFS_APPEND,
+		.size           = 5 * SZ_128K,
+		.mask_flags     = MTD_WRITEABLE, /* force read-only */
+	},
+	/* bootloader params in the next 2 sectors */
+	{
+		.name           = "Boot Env-NOR",
+		.offset         = MTDPART_OFS_APPEND,
+		.size           = 2 * SZ_128K,
+		.mask_flags     = 0,
+	},
+	/* kernel */
+	{
+		.name           = "Kernel-NOR",
+		.offset         = MTDPART_OFS_APPEND,
+		.size           = 32 * SZ_128K,
+		.mask_flags     = 0
+	},
+	/* file system */
+	{
+		.name           = "File System-NOR",
+		.offset         = MTDPART_OFS_APPEND,
+		.size           = MTDPART_SIZ_FULL,
+		.mask_flags     = 0
+	},
+};
+
+static void __init am3517_nor_init(void)
+{
+	int cs;
+	int norcs;
+
+	/* find out the chip-select on which NOR exists */
+	while (cs < GPMC_CS_NUM) {
+		u32 ret = 0;
+
+		ret = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
+		if ((ret & 0xC00) == 0x0) {
+			printk(KERN_INFO "Found NOR on CS%d\n", cs);
+			norcs = cs;
+			break;
+		}
+		cs++;
+	}
+
+	if (norcs > GPMC_CS_NUM) {
+		printk(KERN_INFO "NOR: Unable to find configuration in GPMC\n");
+		return;
+	}
+
+	printk(KERN_INFO "Registering NOR on CS%d\n", norcs);
+	board_nor_init(am3517_evm_norflash_partitions,
+			ARRAY_SIZE(am3517_evm_norflash_partitions), norcs);
+}
+
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
 	/* USB OTG DRVVBUS offset = 0x212 */
@@ -883,6 +952,9 @@ static void __init am3517_evm_init(void)
 
 	/* MMC init function */
 	omap2_hsmmc_init(mmc);
+
+	/* NOR Flash on Application board */
+	am3517_nor_init();
 }
 
 MACHINE_START(OMAP3517EVM, "OMAP3517/AM3517 EVM")

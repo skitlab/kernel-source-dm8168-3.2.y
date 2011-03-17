@@ -239,6 +239,7 @@ obj-$(CONFIG_MACH_OMAP4_PANDA)		+= board-omap4panda.o \
 					   omap_phy_internal.o
 
 obj-$(CONFIG_MACH_OMAP3517EVM)		+= board-am3517evm.o \
+					   board-flash.o \
 					   hsmmc.o
 
 obj-$(CONFIG_MACH_CRANEBOARD)		+= board-am3517crane.o
