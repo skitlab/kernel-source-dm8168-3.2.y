@@ -66,7 +66,7 @@ static struct resource am3517_mdio_resources[] = {
 
 static struct platform_device am3517_mdio_device = {
 	.name		= "davinci_mdio",
-	.id		= 0,
+	.id		= -1,
 	.num_resources	= ARRAY_SIZE(am3517_mdio_resources),
 	.resource	= am3517_mdio_resources,
 	.dev.platform_data = &am3517_evm_mdio_pdata,
