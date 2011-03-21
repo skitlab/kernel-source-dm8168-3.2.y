@@ -85,6 +85,8 @@ static void omap3evm_set_mux(enum omap3evm_cam_mux mux_id, bool on)
 		/* Set nCAM_VD_EN (T2_GPIO8) = 0 */
 		gpio_set_value_cansleep(nCAM_VD_EN, 1);
 
+		break;
+
 	case MUX_EN_TVP5146:
 	default:
 		/* Set nCAM_VD_EN (T2_GPIO8) = 0 */
@@ -174,7 +176,7 @@ static struct isp_v4l2_subdevs_group omap3evm_camera_subdevs[] = {
 		.interface = ISP_INTERFACE_PARALLEL,
 		.bus = {
 			.parallel = {
-				.data_lane_shift	= 2,
+				.data_lane_shift	= 1,
 				.clk_pol		= 0,
 				.bridge			= 3,
 			},
@@ -194,9 +196,9 @@ static int __init omap3evm_cam_init(void)
 	/*
 	 * Regulator supply required for camera interface
 	 */
-	omap3evm_1v8 = regulator_get(NULL, "cam_1v8");
+	omap3evm_1v8 = regulator_get(NULL, "vio_1v8");
 	if (IS_ERR(omap3evm_1v8)) {
-		printk(KERN_ERR "cam_1v8 regulator missing\n");
+		printk(KERN_ERR "vio_1v8 regulator missing\n");
 		return PTR_ERR(omap3evm_1v8);
 	}
 	omap3evm_2v8 = regulator_get(NULL, "cam_2v8");

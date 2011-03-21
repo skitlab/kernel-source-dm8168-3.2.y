@@ -211,11 +211,19 @@ static int mt9t111_refresh(struct i2c_client *client)
 	int i, err = 0;
 	unsigned short value;
 
-	/* MCU_ADDRESS [SEQ_CMD] -- refresh */
+	/* MCU_ADDRESS [SEQ_CMD] -- refresh mode */
 	err = mt9t111_write_reg(client, 0x098E, 0x8400);
 	if (err)
 		return err;
 	err = mt9t111_write_reg(client, 0x0990, 0x0006);
+	if (err)
+		return err;
+
+	/* refresh command */
+	err = mt9t111_write_reg(client, 0x098E, 0x8400);
+	if (err)
+		return err;
+	err = mt9t111_write_reg(client, 0x0990, 0x0005);
 	if (err)
 		return err;
 
@@ -267,7 +275,7 @@ static int mt9t111_configure(struct v4l2_subdev *subdev)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(subdev);
 	int err = 0;
-#if 0
+
 	err = mt9t111_write_reg(client, 0x001A, 0x001D);
 	if (err < 0)
 		return err;
@@ -298,13 +306,7 @@ static int mt9t111_configure(struct v4l2_subdev *subdev)
 		goto out;
 
 	err = mt9t111_refresh(client);
-#else
-	err = mt9t111_write_regs(client, test_regs1,
-			sizeof(test_regs1) / sizeof(mt9t111_regs));
-	mdelay(10);
-	err = mt9t111_write_regs(client, test_regs2,
-			sizeof(test_regs2) / sizeof(mt9t111_regs));
-#endif
+
 out:
 	return err;
 }
