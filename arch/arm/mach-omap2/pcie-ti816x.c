@@ -506,14 +506,15 @@ int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 			msg.address_hi = 0;
 			msg.address_lo = reg_phys + MSI_IRQ;
 
-			pr_debug(DRIVER_NAME ": MSI %d @%#x:%#x\n",
+			pr_debug(DRIVER_NAME ": MSI %d @%#x:%#x, irq = %d\n",
 					msg.data, msg.address_hi,
-					msg.address_lo);
+					msg.address_lo, irq);
 
 			write_msi_msg(irq, &msg);
 
 			set_irq_chip_and_handler(irq, &ti816x_msi_chip,
 						handle_level_irq);
+			set_irq_flags(irq, IRQF_VALID);
 		}
 	}
 
