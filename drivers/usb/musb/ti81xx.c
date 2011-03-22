@@ -1137,13 +1137,13 @@ static int __init ti81xx_probe(struct platform_device *pdev)
 	int                             ret;
 	struct clk *otg_fck = NULL;
 
+	pdev->num_resources = 2;
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
 		dev_err(&pdev->dev, "unable to allocate memory\n");
 		return -ENOMEM;
 	}
 
-	dev_set_name(&pdev->dev, "musb-ti81xx");
 	if (cpu_is_ti816x())
 		glue->clk = clk_get(&pdev->dev, "usbotg_ick");
 	else
@@ -1235,6 +1235,7 @@ static int __exit ti81xx_remove(struct platform_device *pdev)
 	clk_disable(glue->clk);
 	clk_put(glue->clk);
 	kfree(glue);
+	pdev->num_resources = 0;
 
 	return 0;
 }

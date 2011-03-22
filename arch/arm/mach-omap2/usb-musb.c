@@ -342,7 +342,7 @@ void __init usb_musb_init(struct omap_musb_board_data *board_data)
 
 		for (i = 0; i <= board_data->instances; i++) {
 			musb_device[i].name = "musb-ti81xx";
-			musb_device[i].num_resources = 2;
+			musb_device[i].num_resources = 0;
 		}
 
 		musb_config.fifo_mode = 4;
