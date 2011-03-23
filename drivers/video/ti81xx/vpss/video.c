@@ -29,7 +29,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <plat/ti81xx-vpss.h>
-#include <linux/vpss-video.h>
 
 #include "core.h"
 #include "dc.h"
@@ -38,6 +37,18 @@ static struct list_head vctrl_list;
 static int num_vctrl;
 static struct platform_device *video_dev;
 static struct vps_payload_info  *video_payload_info;
+
+
+static inline void video_lock(struct vps_video_ctrl *vctrl)
+{
+	mutex_lock(&vctrl->vmutex);
+}
+
+static inline void video_unlock(struct vps_video_ctrl *vctrl)
+{
+	mutex_unlock(&vctrl->vmutex);
+}
+
 
 static inline struct vps_video_ctrl *get_video_ctrl_from_handle(void * handle)
 {
@@ -66,18 +77,19 @@ static inline void video_print_status(struct vps_video_ctrl *vctrl)
 		 NULL);
 
 	if (!r) {
-		printk(KERN_INFO "Number of request queued(%d): %d\n",
+		VPSSDBG("Number of request queued(%d): %d\n",
 			vctrl->idx, vctrl->vstatus->queueCount);
-		printk(KERN_INFO "Number of request dequeued(%d): %d\n",
+		VPSSDBG("Number of request dequeued(%d): %d\n",
 			vctrl->idx, vctrl->vstatus->dequeueCount);
-		printk(KERN_INFO "Number of frames displayed(%d): %d\n",
+		VPSSDBG("Number of frames displayed(%d): %d\n",
 			vctrl->idx, vctrl->vstatus->displayedFrameCount);
-		printk(KERN_INFO "Number of frames repeated(%d): %d\n",
+		VPSSDBG("Number of frames repeated(%d): %d\n",
 			vctrl->idx, vctrl->vstatus->repeatFrameCount);
 	}
 
 }
 
+/*determine the input node of the blender*/
 static inline int video_get_inputid(struct vps_video_ctrl *vctrl,
 					int bid,
 					int inputnode)
@@ -148,7 +160,7 @@ static int video_vsync_cb(void *handle, void *appdata, void * reserved)
 	return 0;
 }
 
-
+/*video display create call*/
 static int video_create(struct vps_video_ctrl *vctrl,
 			enum vps_vpdmamemorytype mtype)
 {
@@ -156,26 +168,9 @@ static int video_create(struct vps_video_ctrl *vctrl,
 	int r = 0;
 /*	int i;*/
 
-	struct vps_dcenumnodeinput eninput;
-	struct vps_dcnodeinput ninput;
-
-	eninput.inputidx = 0;
-	while (r == 0) {
-		eninput.nodeid = vctrl->nodes[0].nodeid;
-		r = vps_dc_enum_node_input(&eninput);
-		ninput.nodeid = eninput.nodeid;
-		ninput.inputid = eninput.inputid;
-		vps_dc_get_node_status(&ninput);
-
-		VPSSERR("nid:%d iid%d on/off:%d\n",
-			ninput.nodeid, ninput.inputid, ninput.isenable);
-		eninput.inputidx++;
-	}
-	r = 0;
 	VPSSDBG("create video%d\n", vctrl->idx);
 
-
-#if 0
+	/*setup the edges by DC*/
 	for (i = 0; (i < vctrl->num_edges) && (r == 0); i++) {
 		vctrl->nodes[i].isenable = 1;
 		r = vps_dc_set_node(vctrl->nodes[i].nodeid,
@@ -184,9 +179,10 @@ static int video_create(struct vps_video_ctrl *vctrl,
 
 	}
 
-	if (r)
+	if (r) {
+		VPSSERR("Set Video%d Edges failed\n", vctrl->idx);
 		return r;
-
+	}
 	for (i = 0; (i < vctrl->num_outputs) && (r == 0); i++) {
 		vctrl->enodes[i].isenable = 1;
 		r = vps_dc_set_node(vctrl->enodes[i].nodeid,
@@ -195,9 +191,11 @@ static int video_create(struct vps_video_ctrl *vctrl,
 
 	}
 
-	if (r)
+	if (r) {
+		VPSSERR("Set Video%d Edges failed\n", vctrl->idx);
 		return r;
-#endif
+	}
+
 	vctrl->cbparams->appdata = NULL;
 	vctrl->cbparams->errlist = NULL;
 	vctrl->cbparams->errcbfnx = NULL;
@@ -228,14 +226,41 @@ static int video_create(struct vps_video_ctrl *vctrl,
 
 }
 
+/*video display delete call*/
 static int video_delete(struct vps_video_ctrl *vctrl)
 {
 	int r = 0;
-
+	int i;
 	VPSSDBG("delete video%d\n", vctrl->idx);
 
 	if ((vctrl == NULL) || (vctrl->handle == NULL))
 		return -EINVAL;
+
+
+	/*remove the notes */
+	for (i = 0; i < vctrl->num_edges; i++) {
+		vctrl->nodes[i].isenable = 0;
+		r = vps_dc_set_node(vctrl->nodes[i].nodeid,
+				vctrl->nodes[i].inputid,
+				vctrl->nodes[i].isenable);
+
+	}
+	if (r) {
+		VPSSERR("Remove Video%d Edges failed\n", vctrl->idx);
+		return r;
+	}
+	/*remove outputs*/
+	for (i = 0; i < vctrl->num_outputs; i++) {
+		vctrl->enodes[i].isenable = 0;
+		r = vps_dc_set_node(vctrl->enodes[i].nodeid,
+				vctrl->enodes[i].inputid,
+				vctrl->enodes[i].isenable);
+
+	}
+	if (r) {
+		VPSSERR("Remove Video%d Output failed\n", vctrl->idx);
+		return r;
+	}
 
 	r = vps_fvid2_delete(vctrl->handle, NULL);
 	if (!r)
@@ -244,6 +269,7 @@ static int video_delete(struct vps_video_ctrl *vctrl)
 
 }
 
+/*video display start call*/
 static int video_start(struct vps_video_ctrl *vctrl)
 {
 	int r = 0;
@@ -261,6 +287,7 @@ static int video_start(struct vps_video_ctrl *vctrl)
 
 }
 
+/*video dislay stop call*/
 static int video_stop(struct vps_video_ctrl *vctrl)
 {
 	int r = 0;
@@ -271,25 +298,13 @@ static int video_stop(struct vps_video_ctrl *vctrl)
 		return -EINVAL;
 	if (vctrl->isstarted) {
 		r = vps_fvid2_stop(vctrl->handle, NULL);
-		if (!r) {
+		if (!r)
 			vctrl->isstarted = false;
-			video_print_status(vctrl);
-		}
 	}
 	return r;
 
 }
-
-static inline int frame_index(struct vps_video_ctrl *vctrl, u32 addr)
-{
-	int i;
-	for (i = 0; i < MAX_BUFFER_NUM; i++) {
-		if (addr == vctrl->frm_phy[i])
-			return i;
-	}
-
-	return -1;
-}
+/*video display queue buffer call*/
 static int video_queue(struct vps_video_ctrl *vctrl)
 {
 	int r = 0;
@@ -298,23 +313,6 @@ static int video_queue(struct vps_video_ctrl *vctrl)
 		return -EINVAL;
 
 	VPSSDBG("queue video\n");
-#if 0
-{
-	u32 addr = (u32)vctrl->framelist->frames[0];
-	int index;
-
-	index = frame_index(vctrl, addr);
-if (vctrl->scformat == FVID2_SF_PROGRESSIVE)
-	VPSSDBG("queue %d video addr 0x%p",
-		index, vctrl->frames[index]->addr[0][0]);
-else {
-	VPSSDBG("queue %d video addr 0x%p",
-		index, vctrl->frames[index]->addr[0][0]);
-	VPSSDBG("queue %d video addr 0x%p",
-		index, vctrl->frames[index]->addr[1][0]);
-}
-}
-#endif
 	r = vps_fvid2_queue(vctrl->handle,
 			    (struct fvid2_framelist *)vctrl->frmls_phy,
 			    0);
@@ -322,7 +320,7 @@ else {
 	return r;
 
 }
-
+/*video display dequeue buffer call*/
 static int video_dequeue(struct vps_video_ctrl *vctrl)
 {
 	int r = 0;
@@ -335,32 +333,14 @@ static int video_dequeue(struct vps_video_ctrl *vctrl)
 			      (struct fvid2_framelist *)vctrl->frmls_phy,
 			      0,
 			      FVID2_TIMEOUT_NONE);
-
-#if 0
-if (!r) {
-	u32 addr = (u32)vctrl->framelist->frames[0];
-	int index;
-
-	index = frame_index(vctrl, addr);
-
-if (vctrl->scformat == FVID2_SF_PROGRESSIVE)
-	VPSSDBG("dequeue %d video addr 0x%p",
-		index, vctrl->frames[index]->addr[0][0]);
-else {
-	VPSSDBG("dequeue %d video addr 0x%p",
-		index, vctrl->frames[index]->addr[0][0]);
-	VPSSDBG("dequeue %d video addr 0x%p",
-		index, vctrl->frames[index]->addr[1][0]);
-}
-}
-#endif
 	return r;
 
 
 }
-
+/*get the venc resolution*/
 static int video_get_resolution(struct vps_video_ctrl *vctrl,
-			 u32 *fwidth, u32 *fheight, bool *isprogressive)
+				u32 *fwidth, u32 *fheight,
+				bool *isprogressive)
 {
 	VPSSDBG("get resolution.\n");
 
@@ -382,7 +362,7 @@ static int video_get_resolution(struct vps_video_ctrl *vctrl,
 	return 0;
 }
 
-
+/*video dispaly buffer call*/
 static int video_set_buffer(struct vps_video_ctrl *vctrl, u32 addr, u8 idx)
 {
 	struct fvid2_format *dfmt;
@@ -529,12 +509,14 @@ static int video_set_buffer(struct vps_video_ctrl *vctrl, u32 addr, u8 idx)
 	return r;
 }
 
+/*format sanity check*/
 static int video_check_format(struct vps_video_ctrl *vctrl,
-				      struct fvid2_format *fmt)
+			      struct fvid2_format *fmt)
 {
 	int r = 0;
 
 	VPSSDBG("check format\n");
+
 	if (fmt->width > vctrl->framewidth) {
 		VPSSERR("Width(%d) greater than frame width(%d)\n",
 			fmt->width, vctrl->framewidth);
@@ -609,9 +591,10 @@ static int video_check_format(struct vps_video_ctrl *vctrl,
 	return r;
 
 }
+/*video try format */
 static int video_try_format(struct vps_video_ctrl *vctrl, u32 width,
-				 u32 height, u32 df, u32 pitch, u8 merged,
-				  struct fvid2_format *fmt)
+			    u32 height, u32 df, u32 pitch, u8 merged,
+			    struct fvid2_format *fmt)
 {
 	int r = 0;
 	bool fieldmerged;
@@ -664,8 +647,10 @@ static int video_try_format(struct vps_video_ctrl *vctrl, u32 width,
 
 
 }
+
+/*video set format call*/
 static int video_set_format(struct vps_video_ctrl *vctrl,
-				  struct fvid2_format *fmt)
+			    struct fvid2_format *fmt)
 {
 	int r = 0;
 
@@ -685,8 +670,9 @@ static int video_set_format(struct vps_video_ctrl *vctrl,
 
 
 }
+/*video display get format call*/
 static int video_get_format(struct vps_video_ctrl *vctrl,
-				  struct fvid2_format *fmt)
+			    struct fvid2_format *fmt)
 {
 	int r = 0;
 
@@ -696,7 +682,7 @@ static int video_get_format(struct vps_video_ctrl *vctrl,
 	memcpy(fmt, vctrl->fmt, sizeof(struct fvid2_format));
 	return r;
 }
-
+/*video display set runtime position call*/
 static int video_set_rtpos(struct vps_video_ctrl *vctrl, u32 posx, u32 posy)
 {
 
@@ -716,9 +702,9 @@ static int video_set_rtpos(struct vps_video_ctrl *vctrl, u32 posx, u32 posy)
 
 	return 0;
 }
-
+/*video display set runtime crop call*/
 static int video_set_rtcrop(struct vps_video_ctrl *vctrl, u32 posx, u32 posy,
-				 u32 pitch, u32 w, u32 h)
+			    u32 pitch, u32 w, u32 h)
 {
 	VPSSDBG("Set crop\n");
 
@@ -745,9 +731,9 @@ static int video_set_rtcrop(struct vps_video_ctrl *vctrl, u32 posx, u32 posy,
 
 	return 0;
 }
-
+/*video display get color call*/
 static int video_get_color(struct vps_video_ctrl *vctrl,
-	struct vps_video_color *color)
+	struct vps_dccigrtconfig *color)
 {
 	int r;
 
@@ -758,23 +744,15 @@ static int video_get_color(struct vps_video_ctrl *vctrl,
 		return -EINVAL;
 
 
-	vctrl->cigconfig.nodeid = vctrl->enodes[0].inputid;
-	r = vps_dc_get_color(&vctrl->cigconfig);
+	color->nodeid = vctrl->enodes[0].inputid;
+	r = vps_dc_get_color(color);
 	if (r)
-		return r;
-
-	color->ben = vctrl->cigconfig.alphablending;
-	color->alpha = vctrl->cigconfig.alphavalue;
-	color->colorkey = ((vctrl->cigconfig.transcolor.r & 0xFF) << 16) |
-		((vctrl->cigconfig.transcolor.g & 0xFF) << 8) |
-		(vctrl->cigconfig.transcolor.b  & 0xff);
-	color->ten = vctrl->cigconfig.transparency;
-	color->mask = vctrl->cigconfig.mask;
-
-	return 0;
+		VPSSERR("Get video%d color failed\n", vctrl->idx);
+	return r;
 }
+/*video display set color call*/
 static int video_set_color(struct vps_video_ctrl *vctrl,
-	struct vps_video_color *color)
+	struct vps_dccigrtconfig *color)
 {
 	int r = 0;
 	int i;
@@ -785,25 +763,16 @@ static int video_set_color(struct vps_video_ctrl *vctrl,
 		return -EINVAL;
 
 
-	vctrl->cigconfig.alphablending = color->ben;
-	vctrl->cigconfig.alphavalue = color->alpha;
-	vctrl->cigconfig.transcolor.r =
-			(color->colorkey >> 16) & 0xff;
-	vctrl->cigconfig.transcolor.g =
-			(color->colorkey >> 8) & 0xff;
-	vctrl->cigconfig.transcolor.b =
-		(color->colorkey & 0xff);
-
-	vctrl->cigconfig.transparency = color->ten;
-	vctrl->cigconfig.mask = color->mask;
-
 	for (i = 0; i < vctrl->num_outputs && !r; i++) {
-		vctrl->cigconfig.nodeid = vctrl->enodes[i].inputid;
+		color->nodeid = vctrl->enodes[i].inputid;
 		/*call DC function to setup the color and alpha value*/
-		r = vps_dc_set_color(&vctrl->cigconfig);
+		r = vps_dc_set_color(color);
 	}
+	if (r)
+		VPSSERR("Set video%d color failed\n", vctrl->idx);
 	return r;
 }
+/*reserved call*/
 static int video_apply_changes(struct vps_video_ctrl *vctrl)
 {
 	int r = 0;
@@ -811,6 +780,7 @@ static int video_apply_changes(struct vps_video_ctrl *vctrl)
 	return r;
 }
 /*S********************SYSFS**************************************************/
+/*background call, reserved*/
 static ssize_t video_default_color_show(struct vps_video_ctrl *vctrl,
 					char *buf)
 {
@@ -824,54 +794,39 @@ static ssize_t video_default_color_store(struct vps_video_ctrl *vctrl,
 	return r;
 }
 
-static const struct vps_sname_info trans_key_type_name[] = {
-	{"nomasking", VPS_DC_CIG_TM_NO_MASK},
-	{"1lsbmasking", VPS_DC_CIG_TM_MASK_1_LSB},
-	{"2lsbmasking", VPS_DC_CIG_TM_MASK_2_LSB},
-	{"3lsbmasking", VPS_DC_CIG_TM_MASK_3_LSB}
-};
-
+/*sysfs entry for showing transparency type*/
 static ssize_t video_trans_key_type_show(struct vps_video_ctrl *vctrl,
 					char *buf)
 {
-	int i;
-	struct vps_video_color color;
-	if (vctrl->get_color(vctrl, &color))
+	int r;
+	struct vps_dccigrtconfig color;
+
+	video_lock(vctrl);
+	r = vctrl->get_color(vctrl, &color);
+	video_unlock(vctrl);
+
+	if (!r)
+		return snprintf(buf, PAGE_SIZE, "%d\n", color.mask);
+	else
 		return -EINVAL;
-
-	for (i = 0; i < ARRAY_SIZE(trans_key_type_name); i++) {
-		if (vctrl->cigconfig.mask == trans_key_type_name[i].value)
-			break;
-	}
-
-	if (i == ARRAY_SIZE(trans_key_type_name))
-		return -EINVAL;
-
-	return snprintf(buf, PAGE_SIZE, "%s\n", trans_key_type_name[i].name);
 }
-
+/*sysfs entry for storing transparency type*/
 static ssize_t video_trans_key_type_store(struct vps_video_ctrl *vctrl,
 				      const char *buf, size_t size)
 {
-	int r = 0, i;
+	int r = 0;
+	u32 mask;
+	struct vps_dccigrtconfig color;
 
-	if (!(vctrl->caps & VPSS_VID_CAPS_COLOR))
-		return -EINVAL;
-
-	for (i = 0; i < ARRAY_SIZE(trans_key_type_name); i++) {
-		if (sysfs_streq(buf, (const char *)trans_key_type_name[i].name))
-			break;
-	}
-
-	if (i == ARRAY_SIZE(trans_key_type_name))
-		return -EINVAL;
+	mask = simple_strtoul(buf, NULL, 10);
+	if (mask >= VPS_DC_CIG_TM_MASK_3_LSB)
+		mask = VPS_DC_CIG_TM_MASK_3_LSB;
 
 	video_lock(vctrl);
-	vctrl->cigconfig.mask = trans_key_type_name[i].value;
-	for (i = 0; i < vctrl->num_outputs && !r; i++) {
-		vctrl->cigconfig.nodeid = vctrl->enodes[i].inputid;
-		/*call DC function to setup the color and alpha value*/
-		r = vps_dc_set_color(&vctrl->cigconfig);
+	r = vctrl->get_color(vctrl, &color);
+	if (!r) {
+		color.mask = mask;
+		r = vctrl->set_color(vctrl, &color);
 	}
 	video_unlock(vctrl);
 	if (!r)
@@ -880,76 +835,81 @@ static ssize_t video_trans_key_type_store(struct vps_video_ctrl *vctrl,
 	return r;
 
 }
-
+/*sysfs entry for showing color key*/
 static ssize_t video_trans_key_value_show(struct vps_video_ctrl *vctrl,
 					char *buf)
 {
 	u32 rgb;
+	int r;
+	struct vps_dccigrtconfig color;
+	video_lock(vctrl);
+	r = vctrl->get_color(vctrl, &color);
+	video_unlock(vctrl);
 
-	struct vps_video_color color;
-	if (vctrl->get_color(vctrl, &color))
+	if (!r) {
+		rgb = ((color.transcolor.r & 0xFF) << 16) |
+			((color.transcolor.g & 0xFF) << 8) |
+			(color.transcolor.b & 0xFF);
+		return snprintf(buf, PAGE_SIZE, "%x\n", rgb);
+	} else
 		return -EINVAL;
-
-	rgb = ((vctrl->cigconfig.transcolor.r & 0xFF) << 16) |
-		((vctrl->cigconfig.transcolor.g & 0xFF) << 8) |
-		(vctrl->cigconfig.transcolor.b & 0xFF);
-	return snprintf(buf, PAGE_SIZE, "%x\n", rgb);
 }
-
+/*sysfs entry for storing color key*/
 static ssize_t video_trans_key_value_store(struct vps_video_ctrl *vctrl,
 				      const char *buf, size_t size)
 {
-	int r = 0, i;
+	int r = 0;
 	u32 rgb;
-
-	if (!(vctrl->caps & VPSS_VID_CAPS_COLOR))
-		return -EINVAL;
+	struct vps_dccigrtconfig color;
 
 	rgb = simple_strtoul(buf, NULL, 16);
 
-	vctrl->cigconfig.transcolor.r = (rgb >> 16) & 0xFF;
-	vctrl->cigconfig.transcolor.g = (rgb >> 8) & 0xFF;
-	vctrl->cigconfig.transcolor.b = (rgb >> 0) & 0xFF;
 
 	video_lock(vctrl);
-	for (i = 0; i < vctrl->num_outputs && !r; i++) {
-		vctrl->cigconfig.nodeid = vctrl->enodes[i].inputid;
-		/*call DC function to setup the color and alpha value*/
-		r = vps_dc_set_color(&vctrl->cigconfig);
+	r = vctrl->get_color(vctrl, &color);
+	if (!r) {
+
+		color.transcolor.r = (rgb >> 16) & 0xFF;
+		color.transcolor.g = (rgb >> 8) & 0xFF;
+		color.transcolor.b = (rgb >> 0) & 0xFF;
+
+		r = vctrl->set_color(vctrl, &color);
 	}
 	video_unlock(vctrl);
 	if (!r)
 		r = size;
 	return r;
 }
+/*sysfs entry for showing transparency status*/
 static ssize_t video_trans_key_enabled_show(struct vps_video_ctrl *vctrl,
 					char *buf)
 {
-	struct vps_video_color color;
-	if (vctrl->get_color(vctrl, &color))
+	int r;
+	struct vps_dccigrtconfig color;
+	video_lock(vctrl);
+	r = vctrl->get_color(vctrl, &color);
+	video_unlock(vctrl);
+	if (r)
 		return -EINVAL;
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", vctrl->cigconfig.transparency);
+	else
+		return snprintf(buf, PAGE_SIZE, "%d\n", color.transparency);
 }
-
+/*sysfs entry for storing transparency status*/
 static ssize_t video_trans_key_enabled_store(struct vps_video_ctrl *vctrl,
 				const char *buf, size_t size)
 {
-	int r = 0, i;
+	int r = 0;
 	int enable;
-
-	if (!(vctrl->caps & VPSS_VID_CAPS_COLOR))
-		return -EINVAL;
+	struct vps_dccigrtconfig color;
 
 	if (sscanf(buf, "%d", &enable) != 1)
 		return -EINVAL;
 
-	vctrl->cigconfig.transparency = enable ? 1 : 0;
 	video_lock(vctrl);
-	for (i = 0; i < vctrl->num_outputs && !r; i++) {
-		vctrl->cigconfig.nodeid = vctrl->enodes[i].inputid;
-		/*call DC function to setup the color and alpha value*/
-		r = vps_dc_set_color(&vctrl->cigconfig);
+	r = vctrl->get_color(vctrl, &color);
+	if (!r) {
+		color.transparency = enable ? 1 : 0;
+		r = vctrl->set_color(vctrl, &color);
 	}
 	video_unlock(vctrl);
 	if (!r)
@@ -957,34 +917,40 @@ static ssize_t video_trans_key_enabled_store(struct vps_video_ctrl *vctrl,
 
 	return r;
 }
+/*sysfs entry for show blending status*/
 static ssize_t video_alpha_blending_enabled_show(struct vps_video_ctrl *vctrl,
 					char *buf)
 {
-	struct vps_video_color color;
-	if (vctrl->get_color(vctrl, &color))
-		return -EINVAL;
+	int r;
+	struct vps_dccigrtconfig color;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", vctrl->cigconfig.alphablending);
+	video_lock(vctrl);
+	r = vctrl->get_color(vctrl, &color);
+	video_unlock(vctrl);
+
+	if (r)
+		return -EINVAL;
+	else
+		return snprintf(buf, PAGE_SIZE, "%d\n", color.alphablending);
 
 }
+/*sysfs entry for storing blending status*/
 static ssize_t video_alpha_blending_enabled_store(struct vps_video_ctrl *vctrl,
 				      const char *buf, size_t size)
 {
 	int enable;
-	int r = 0, i;
+	int r = 0;
+	struct vps_dccigrtconfig color;
 
-	if (!(vctrl->caps & VPSS_VID_CAPS_COLOR))
-		return -EINVAL;
 
 	if (sscanf(buf, "%d", &enable) != 1)
 		return -EINVAL;
 
 	video_lock(vctrl);
-	vctrl->cigconfig.alphablending = enable ? 1 : 0;
-	for (i = 0; i < vctrl->num_outputs && !r; i++) {
-		vctrl->cigconfig.nodeid = vctrl->enodes[i].inputid;
-		/*call DC function to setup the color and alpha value*/
-		r = vps_dc_set_color(&vctrl->cigconfig);
+	r = vctrl->get_color(vctrl, &color);
+	if (!r) {
+		color.alphablending = enable ? 1 : 0;
+		r = vctrl->set_color(vctrl, &color);
 	}
 	video_unlock(vctrl);
 	if (!r)
@@ -993,33 +959,35 @@ static ssize_t video_alpha_blending_enabled_store(struct vps_video_ctrl *vctrl,
 
 	return r;
 }
-
+/*sysfs entry for showing alpha value*/
 static ssize_t video_global_alpha_show(struct vps_video_ctrl *vctrl,
 					char *buf)
 {
-	struct vps_video_color color;
-	if (vctrl->get_color(vctrl, &color))
+	int r;
+	struct vps_dccigrtconfig color;
+	video_lock(vctrl);
+	r = vctrl->get_color(vctrl, &color);
+	video_unlock(vctrl);
+	if (r)
 		return -EINVAL;
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", vctrl->cigconfig.alphavalue);
+	else
+		return snprintf(buf, PAGE_SIZE, "%d\n", color.alphavalue);
 }
+/*sysfs entry for storing alpha value*/
 static ssize_t video_global_alpha_store(struct vps_video_ctrl *vctrl,
 				      const char *buf, size_t size)
 {
-	int r = 0, i;
+	int r = 0;
+	u8 alpha;
+	struct vps_dccigrtconfig color;
 
-	if (!(vctrl->caps & VPSS_VID_CAPS_COLOR))
-		return -EINVAL;
-
-	vctrl->cigconfig.alphavalue = simple_strtoul(buf, NULL, 10);
-	if (vctrl->cigconfig.alphavalue > 255)
-		vctrl->cigconfig.alphavalue = 255;
+	alpha = simple_strtoul(buf, NULL, 10);
 
 	video_lock(vctrl);
-	for (i = 0; i < vctrl->num_outputs && !r; i++) {
-			vctrl->cigconfig.nodeid = vctrl->enodes[i].inputid;
-			/*call DC function to setup the color and alpha value*/
-			r = vps_dc_set_color(&vctrl->cigconfig);
+	r = vctrl->get_color(vctrl, &color);
+	if (!r) {
+		color.alphavalue = alpha;
+		r = vctrl->set_color(vctrl, &color);
 	}
 	video_unlock(vctrl);
 	if (!r)
@@ -1071,21 +1039,7 @@ static ssize_t video_nodes_show(struct vps_video_ctrl *vctrl,
 	int i, r = 0;
 	int l = 0;
 	char name[10];
-	struct vps_dcenumnodeinput eninput;
-	struct vps_dcnodeinput ninput;
 
-	eninput.inputidx = 0;
-	while (r == 0) {
-		eninput.nodeid = vctrl->nodes[0].nodeid;
-		r = vps_dc_enum_node_input(&eninput);
-		ninput.nodeid = eninput.nodeid;
-		ninput.inputid = eninput.inputid;
-		vps_dc_get_node_status(&ninput);
-
-		VPSSERR("nid:%d iid%d on/off:%d\n",
-			ninput.nodeid, ninput.inputid, ninput.isenable);
-		eninput.inputidx++;
-	}
 	vps_dc_get_node_name(vctrl->nodes[0].nodeid, name);
 	if (vctrl->num_edges)
 		l += snprintf(buf + l, PAGE_SIZE - l, "%s", name);
@@ -1094,14 +1048,17 @@ static ssize_t video_nodes_show(struct vps_video_ctrl *vctrl,
 
 	for (i = 0; i < vctrl->num_outputs; i++)  {
 		r = vps_dc_get_node_name(vctrl->enodes[i].nodeid, name);
-		l += snprintf(buf + l, PAGE_SIZE - l, ",%s", name);
+		if (i == 0)
+			l += snprintf(buf + l, PAGE_SIZE - l, ":%s", name);
+		else
+			l += snprintf(buf + l, PAGE_SIZE - l, ",%s", name);
 	}
 	l += snprintf(buf + l, PAGE_SIZE - l, "\n");
 
 	return l;
 
 }
-/*set the enodes for video in the format 0:XXXX,1,XXXX,2:XXXX,3:XXXX*/
+/*set the enodes for video in the format edge,venc:edge,venc*/
 static ssize_t video_nodes_store(struct vps_video_ctrl *vctrl,
 				      const char *buf, size_t size)
 {
@@ -1128,7 +1085,7 @@ static ssize_t video_nodes_store(struct vps_video_ctrl *vctrl,
 	video_lock(vctrl);
 
 	/*get the edge path first*/
-	this_opt = strsep(&input, ",");
+	this_opt = strsep(&input, ":");
 	if (vps_dc_get_id(this_opt, &nodeid, DC_NODE_ID)) {
 		VPSSERR("(%d): wrong paths\n", vctrl->idx);
 		r = -EINVAL;
@@ -1704,7 +1661,6 @@ int __init vps_video_init(struct platform_device *pdev)
 
 	for (i = 0; i < VPS_DISPLAY_INST_MAX; i++) {
 		struct vps_video_ctrl *vctrl;
-		int j;
 		vctrl = kzalloc(sizeof(*vctrl), GFP_KERNEL);
 
 		if (vctrl == NULL) {
@@ -1723,7 +1679,7 @@ int __init vps_video_init(struct platform_device *pdev)
 		mutex_init(&vctrl->vmutex);
 
 		INIT_LIST_HEAD(&vctrl->cb_list);
-		/*connected the nodes*/
+		/*setup the nodes*/
 		switch (i) {
 		case 0:
 			num_edges = 2;
@@ -1772,35 +1728,9 @@ int __init vps_video_init(struct platform_device *pdev)
 
 			break;
 		}
-#if 1
-		for (j = 0; j < num_edges; j++) {
-			vctrl->nodes[j].isenable = 1;
-			r = vps_dc_set_node(vctrl->nodes[j].nodeid,
-					    vctrl->nodes[j].inputid,
-					    vctrl->nodes[j].isenable);
-			if (r) {
-				VPSSERR("failed to set nodes\n");
-				vctrl->num_edges = j;
-				goto cleanup;
-			}
-		}
-		vctrl->num_edges = num_edges;
-		for (j = 0; j < num_outputs; j++) {
-			vctrl->enodes[j].isenable = 1;
-			r = vps_dc_set_node(vctrl->enodes[j].nodeid,
-					    vctrl->enodes[j].inputid,
-					    vctrl->enodes[j].isenable);
-			if (r) {
-				VPSSERR("failed to set nodes\n");
-				vctrl->num_outputs = j;
-				goto cleanup;
-			}
-		}
-		vctrl->num_outputs = num_outputs;
-#else
 		vctrl->num_edges = num_edges;
 		vctrl->num_outputs = num_outputs;
-#endif
+
 		r = video_create_sysfs(vctrl);
 		if (r)
 			goto cleanup;

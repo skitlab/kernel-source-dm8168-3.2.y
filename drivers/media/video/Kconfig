@@ -14,11 +14,13 @@ config VIDEO_V4L1
 
 config VIDEOBUF_GEN
 	tristate
+	default y
 
 config VIDEOBUF_DMA_SG
 	depends on HAS_DMA
 	select VIDEOBUF_GEN
 	tristate
+	default y
 
 config VIDEOBUF_VMALLOC
 	select VIDEOBUF_GEN
@@ -28,6 +30,7 @@ config VIDEOBUF_DMA_CONTIG
 	depends on HAS_DMA
 	select VIDEOBUF_GEN
 	tristate
+	default y
 
 config VIDEOBUF_DVB
 	tristate
@@ -582,7 +585,7 @@ config VIDEO_VIVI
 source "drivers/media/video/davinci/Kconfig"
 
 source "drivers/media/video/omap/Kconfig"
-
+source "drivers/media/video/ti81xx/Kconfig"
 source "drivers/media/video/bt8xx/Kconfig"
 
 config VIDEO_PMS
