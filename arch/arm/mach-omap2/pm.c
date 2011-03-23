@@ -61,6 +61,7 @@ struct device *omap4_get_dsp_device(void)
 }
 EXPORT_SYMBOL(omap4_get_dsp_device);
 
+#ifndef CONFIG_CPU_FREQ
 static unsigned long compute_lpj(unsigned long ref, u_int div, u_int mult)
 {
 	unsigned long new_jiffy_l, new_jiffy_h;
@@ -80,6 +81,7 @@ static unsigned long compute_lpj(unsigned long ref, u_int div, u_int mult)
 
 	return new_jiffy_h + new_jiffy_l * 100;
 }
+#endif
 
 /* static int _init_omap_device(struct omap_hwmod *oh, void *user) */
 static int _init_omap_device(char *name, struct device **new_dev)
