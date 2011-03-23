@@ -975,10 +975,13 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 	dma_params.num_chan		= data->channels;
 	dma_params.has_soft_reset	= true;
 	dma_params.min_packet_size	= CPSW_MIN_PACKET_SIZE;
-	dma_params.desc_mem_size	= 4096;
+	dma_params.desc_mem_size	= data->bd_ram_size;
 	dma_params.desc_align		= 16;
 	dma_params.has_ext_regs		= true;
-	dma_params.desc_mem_phys	= 0x4A102000;
+	dma_params.desc_mem_phys	= data->no_bd_ram ? 0 :
+			(u32 __force)priv->cpsw_res->start + data->bd_ram_ofs;
+	dma_params.desc_hw_addr		= data->hw_ram_addr ?
+				data->hw_ram_addr : dma_params.desc_mem_phys ;
 
 	priv->dma = cpdma_ctlr_create(&dma_params);
 	if (!priv->dma) {

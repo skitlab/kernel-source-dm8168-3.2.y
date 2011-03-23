@@ -1625,10 +1625,13 @@ static struct cpsw_platform_data ti814x_cpsw_pdata = {
 	.ale_entries		= 1024,
 	.host_port_reg_ofs      = 0x28,
 	.hw_stats_reg_ofs       = 0x400,
+	.bd_ram_ofs		= 0x2000,
+	.bd_ram_size		= SZ_8K,
 	.rx_descs               = 64,
 	.mac_control            = BIT(5), /* MIIEN */
 	.gigabit_en		= 1,
 	.host_port_num		= 0,
+	.no_bd_ram		= false,
 };
 
 static struct mdio_platform_data cpsw_mdio_pdata = {

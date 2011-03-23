@@ -26,6 +26,10 @@ struct cpsw_platform_data {
 
 	u32	hw_stats_reg_ofs;  /* cpsw hardware statistics counters */
 
+	u32	bd_ram_ofs;   /* embedded buffer descriptor RAM offset*/
+	u32	bd_ram_size;  /*buffer descriptor ram size */
+	u32	hw_ram_addr; /*if the HW address for BD RAM is different */
+
 	u8	mac_addr[ETH_ALEN];
 
 	int	rx_descs;
@@ -37,6 +41,8 @@ struct cpsw_platform_data {
 	u32	gigabit_en; /* Is gigabit capable AND enabled */
 	u32	rmii_en; /* Is RMII mode capable AND enabled */
 	u32	host_port_num; /* The port number for the host port */
+
+	bool	no_bd_ram; /* no embedded BD ram*/
 };
 
 #endif /* __CPSW_H__ */
