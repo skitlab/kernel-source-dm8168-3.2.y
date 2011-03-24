@@ -1135,15 +1135,8 @@ int notify_shm_drv_send_event(struct notify_driver_object *handle,
 		 * remote processor */
 		msg = ((obj->remote_proc_id << 16) | event_id);
 
-		do {
-			status = omap_mbox_msg_send((struct omap_mbox *)mbox,
-							     msg);
-			if (status != 0) {
-				printk(KERN_ERR "omap_mbox_msg_send failed! "
-						"status = 0x%x. Retrying ...\n",
-						status);
-			}
-		} while (status != 0);
+		omap_mbox_msg_send((struct omap_mbox *)mbox,
+							msg);
 
 		/* Leave critical section protection. */
 		mutex_unlock(notify_shm_drv_state.gate_handle);
