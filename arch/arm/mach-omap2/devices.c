@@ -232,6 +232,28 @@ static int omap4_mbox_resources_sz = ARRAY_SIZE(omap4_mbox_resources);
 #define omap4_mbox_resources_sz		0
 #endif
 
+#ifdef CONFIG_ARCH_TI81XX
+
+#define TI81XX_MBOX_REG_SIZE            0x144
+static struct resource ti81xx_mbox_resources[] = {
+	{
+		.start          = TI81XX_MAILBOX_BASE,
+		.end            = TI81XX_MAILBOX_BASE +
+					TI81XX_MBOX_REG_SIZE - 1,
+		.flags          = IORESOURCE_MEM,
+	},
+	{
+		.start          = TI81XX_IRQ_MBOX,
+		.flags          = IORESOURCE_IRQ,
+		.name		= "mbox",
+	},
+};
+static int ti81xx_mbox_resources_sz = ARRAY_SIZE(ti81xx_mbox_resources);
+#else
+#define ti81xx_mbox_resources		NULL
+#define ti81xx_mbox_resources_sz	0
+#endif
+
 static struct platform_device mbox_device = {
 	.name		= "omap-mailbox",
 	.id		= -1,
@@ -248,6 +270,9 @@ static inline void omap_init_mbox(void)
 	} else if (cpu_is_omap44xx()) {
 		mbox_device.resource = omap4_mbox_resources;
 		mbox_device.num_resources = omap4_mbox_resources_sz;
+	} else if (cpu_is_ti81xx()) {
+		mbox_device.resource = ti81xx_mbox_resources;
+		mbox_device.num_resources = ti81xx_mbox_resources_sz;
 	} else {
 		pr_err("%s: platform not supported\n", __func__);
 		return;

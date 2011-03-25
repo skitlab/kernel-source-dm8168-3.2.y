@@ -386,6 +386,80 @@ struct omap_mbox mbox_2_info = {
 struct omap_mbox *omap4_mboxes[] = { &mbox_1_info, &mbox_2_info, NULL };
 #endif
 
+#if defined(CONFIG_ARCH_TI81XX)
+/* Mailbox for DSP */
+static struct omap_mbox2_priv omap2_mbox_ti81xx_dsp_priv = {
+	.tx_fifo = {
+		.msg		= MAILBOX_MESSAGE(3),
+		.fifo_stat	= MAILBOX_FIFOSTATUS(3),
+	},
+	.rx_fifo = {
+		.msg		= MAILBOX_MESSAGE(0),
+		.msg_stat	= MAILBOX_MSGSTATUS(0),
+	},
+	.irqenable	= OMAP4_MAILBOX_IRQENABLE(0),
+	.irqstatus	= OMAP4_MAILBOX_IRQSTATUS(0),
+	.notfull_bit	= MAILBOX_IRQ_NOTFULL(3),
+	.newmsg_bit	= MAILBOX_IRQ_NEWMSG(0),
+	.irqdisable	= OMAP4_MAILBOX_IRQENABLE_CLR(0),
+};
+
+struct omap_mbox mbox_ti81xx_dsp_info = {
+	.name	= "mailbox-dsp",
+	.ops	= &omap2_mbox_ops,
+	.priv	= &omap2_mbox_ti81xx_dsp_priv,
+};
+
+/* Mailbox for VideoM3 */
+static struct omap_mbox2_priv omap2_mbox_ti81xx_video_priv = {
+	.tx_fifo = {
+		.msg		= MAILBOX_MESSAGE(4),
+		.fifo_stat	= MAILBOX_FIFOSTATUS(4),
+	},
+	.rx_fifo = {
+		.msg		= MAILBOX_MESSAGE(6),
+		.msg_stat	= MAILBOX_MSGSTATUS(6),
+	},
+	.irqenable	= OMAP4_MAILBOX_IRQENABLE(0),
+	.irqstatus	= OMAP4_MAILBOX_IRQSTATUS(0),
+	.notfull_bit	= MAILBOX_IRQ_NOTFULL(4),
+	.newmsg_bit	= MAILBOX_IRQ_NEWMSG(6),
+	.irqdisable	= OMAP4_MAILBOX_IRQENABLE_CLR(0),
+};
+
+struct omap_mbox mbox_ti81xx_video_info = {
+	.name	= "mailbox-video",
+	.ops	= &omap2_mbox_ops,
+	.priv	= &omap2_mbox_ti81xx_video_priv,
+};
+
+/* Mailbox for VpssM3 */
+static struct omap_mbox2_priv omap2_mbox_ti81xx_vpss_priv = {
+	.tx_fifo = {
+		.msg		= MAILBOX_MESSAGE(5),
+		.fifo_stat	= MAILBOX_FIFOSTATUS(5),
+	},
+	.rx_fifo = {
+		.msg		= MAILBOX_MESSAGE(8),
+		.msg_stat	= MAILBOX_MSGSTATUS(8),
+	},
+	.irqenable	= OMAP4_MAILBOX_IRQENABLE(0),
+	.irqstatus	= OMAP4_MAILBOX_IRQSTATUS(0),
+	.notfull_bit	= MAILBOX_IRQ_NOTFULL(5),
+	.newmsg_bit	= MAILBOX_IRQ_NEWMSG(8),
+	.irqdisable	= OMAP4_MAILBOX_IRQENABLE_CLR(0),
+};
+
+struct omap_mbox mbox_ti81xx_vpss_info = {
+	.name	= "mailbox-vpss",
+	.ops	= &omap2_mbox_ops,
+	.priv	= &omap2_mbox_ti81xx_vpss_priv,
+};
+
+struct omap_mbox *ti81xx_mboxes[] = { &mbox_ti81xx_dsp_info, \
+			&mbox_ti81xx_video_info, &mbox_ti81xx_vpss_info, NULL };
+#endif
+
 static int __devinit omap2_mbox_probe(struct platform_device *pdev)
 {
 	struct resource *mem;
@@ -418,6 +492,14 @@ static int __devinit omap2_mbox_probe(struct platform_device *pdev)
 		list = omap4_mboxes;
 
 		list[0]->irq = list[1]->irq =
+			platform_get_irq_byname(pdev, "mbox");
+	}
+#endif
+#if defined(CONFIG_ARCH_TI81XX)
+	else if (cpu_is_ti81xx()) {
+		list = ti81xx_mboxes;
+
+		list[0]->irq = list[1]->irq = list[2]->irq =
 			platform_get_irq_byname(pdev, "mbox");
 	}
 #endif
