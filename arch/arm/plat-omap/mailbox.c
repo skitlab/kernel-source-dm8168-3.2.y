@@ -156,6 +156,16 @@ static void mbox_rx_work(struct work_struct *work)
 		spin_lock_irq(&mq->lock);
 		if (mq->full) {
 			mq->full = false;
+
+			if (!mbox_fifo_empty(mq->mbox)) {
+				msg = mbox_fifo_read(mq->mbox);
+
+				len = kfifo_in(&mq->fifo, (unsigned char *)&msg,
+								sizeof(msg));
+/*				WARN_ON(len != sizeof(msg));*/
+			}
+
+
 			omap_mbox_enable_irq(mq->mbox, IRQ_RX);
 		}
 		spin_unlock_irq(&mq->lock);
@@ -194,9 +204,9 @@ static void __mbox_rx_interrupt(struct omap_mbox *mbox)
 			break;
 	}
 
-	/* no more messages in the fifo. clear IRQ source. */
-	ack_mbox_irq(mbox, IRQ_RX);
 nomem:
+	/* clear IRQ source. */
+	ack_mbox_irq(mbox, IRQ_RX);
 	queue_work(mboxd, &mbox->rxq->work);
 }
 
