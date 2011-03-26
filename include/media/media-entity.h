@@ -117,9 +117,18 @@ struct media_entity_graph {
 	int top;
 };
 
+#ifdef CONFIG_MEDIA_CONTROLLER
 int media_entity_init(struct media_entity *entity, u16 num_pads,
 		struct media_pad *pads, u16 extra_links);
 void media_entity_cleanup(struct media_entity *entity);
+#else
+static inline int media_entity_init(struct media_entity *entity, u16 num_pads,
+		struct media_pad *pads, u16 extra_links)
+{
+	return 0;
+}
+static inline void media_entity_cleanup(struct media_entity *entity) {}
+#endif
 
 int media_entity_create_link(struct media_entity *source, u16 source_pad,
 		struct media_entity *sink, u16 sink_pad, u32 flags);

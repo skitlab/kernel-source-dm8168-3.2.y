@@ -479,9 +479,8 @@ struct v4l2_subdev_ops {
    stand-alone or embedded in a larger struct.
  */
 struct v4l2_subdev {
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	struct media_entity entity;
-#endif
+
 	struct list_head list;
 	struct module *owner;
 	u32 flags;
@@ -513,16 +512,13 @@ struct v4l2_subdev {
  */
 struct v4l2_subdev_fh {
 	struct v4l2_fh vfh;
-#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 	struct v4l2_mbus_framefmt *try_fmt;
 	struct v4l2_rect *try_crop;
-#endif
 };
 
 #define to_v4l2_subdev_fh(fh)	\
 	container_of(fh, struct v4l2_subdev_fh, vfh)
 
-#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 static inline struct v4l2_mbus_framefmt *
 v4l2_subdev_get_try_format(struct v4l2_subdev_fh *fh, unsigned int pad)
 {
@@ -534,7 +530,6 @@ v4l2_subdev_get_try_crop(struct v4l2_subdev_fh *fh, unsigned int pad)
 {
 	return &fh->try_crop[pad];
 }
-#endif
 
 extern const struct v4l2_file_operations v4l2_subdev_fops;
 
