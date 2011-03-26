@@ -176,6 +176,7 @@ struct isp_video_fh {
 	struct isp_video *video;
 	struct isp_video_queue queue;
 	struct v4l2_format format;
+	struct v4l2_standard standard;
 	struct v4l2_fract timeperframe;
 };
 

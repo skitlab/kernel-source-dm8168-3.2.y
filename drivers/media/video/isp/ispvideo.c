@@ -40,6 +40,7 @@
 #include "ispvideo.h"
 #include "isp.h"
 
+#include <media/tvp514x.h>
 
 /* -----------------------------------------------------------------------------
  * Helper functions
@@ -1036,7 +1037,97 @@ isp_video_g_input(struct file *file, void *fh, unsigned int *input)
 static int
 isp_video_s_input(struct file *file, void *fh, unsigned int input)
 {
-	return input == 0 ? 0 : -EINVAL;
+	struct isp_video *video = video_drvdata(file);
+	struct media_entity *entity = &video->video.entity;
+	struct media_entity_graph graph;
+	struct v4l2_subdev *subdev;
+	struct v4l2_routing route;
+	int ret = 0;
+
+	media_entity_graph_walk_start(&graph, entity);
+	while ((entity = media_entity_graph_walk_next(&graph))) {
+		if (media_entity_type(entity) ==
+				MEDIA_ENTITY_TYPE_V4L2_SUBDEV) {
+			subdev = media_entity_to_v4l2_subdev(entity);
+			if (subdev != NULL) {
+				if (input == 0)
+					route.input = INPUT_CVBS_VI4A;
+				else
+					route.input = INPUT_SVIDEO_VI2C_VI1C;
+				route.output = 0;
+				ret = v4l2_subdev_call(subdev, video, s_routing,
+						route.input, route.output, 0);
+				if (ret < 0 && ret != -ENOIOCTLCMD)
+					return ret;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int isp_video_querystd(struct file *file, void *fh, v4l2_std_id *a)
+{
+	struct isp_video_fh *vfh = to_isp_video_fh(fh);
+	struct isp_video *video = video_drvdata(file);
+	struct media_entity *entity = &video->video.entity;
+	struct media_entity_graph graph;
+	struct v4l2_subdev *subdev;
+	int ret = 0;
+
+	media_entity_graph_walk_start(&graph, entity);
+	while ((entity = media_entity_graph_walk_next(&graph))) {
+		if (media_entity_type(entity) ==
+				MEDIA_ENTITY_TYPE_V4L2_SUBDEV) {
+			subdev = media_entity_to_v4l2_subdev(entity);
+			if (subdev != NULL) {
+				ret = v4l2_subdev_call(subdev, video, querystd,
+						a);
+				if (ret < 0 && ret != -ENOIOCTLCMD)
+					return ret;
+			}
+		}
+	}
+
+	vfh->standard.id = *a;
+	return 0;
+}
+
+static int isp_video_g_std(struct file *file, void *fh, v4l2_std_id *norm)
+{
+	struct isp_video_fh *vfh = to_isp_video_fh(fh);
+	struct isp_video *video = video_drvdata(file);
+
+	mutex_lock(&video->mutex);
+	*norm = vfh->standard.id;
+	mutex_unlock(&video->mutex);
+
+	return 0;
+}
+
+static int isp_video_s_std(struct file *file, void *fh, v4l2_std_id *norm)
+{
+	struct isp_video *video = video_drvdata(file);
+	struct media_entity *entity = &video->video.entity;
+	struct media_entity_graph graph;
+	struct v4l2_subdev *subdev;
+	int ret = 0;
+
+	media_entity_graph_walk_start(&graph, entity);
+	while ((entity = media_entity_graph_walk_next(&graph))) {
+		if (media_entity_type(entity) ==
+				MEDIA_ENTITY_TYPE_V4L2_SUBDEV) {
+			subdev = media_entity_to_v4l2_subdev(entity);
+			if (subdev != NULL) {
+				ret = v4l2_subdev_call(subdev, core, s_std,
+						*norm);
+				if (ret < 0 && ret != -ENOIOCTLCMD)
+					return ret;
+			}
+		}
+	}
+
+	return 0;
 }
 
 static const struct v4l2_ioctl_ops isp_video_ioctl_ops = {
@@ -1061,6 +1152,9 @@ static const struct v4l2_ioctl_ops isp_video_ioctl_ops = {
 	.vidioc_enum_input		= isp_video_enum_input,
 	.vidioc_g_input			= isp_video_g_input,
 	.vidioc_s_input			= isp_video_s_input,
+	.vidioc_querystd		= isp_video_querystd,
+	.vidioc_g_std			= isp_video_g_std,
+	.vidioc_s_std			= isp_video_s_std,
 };
 
 /* -----------------------------------------------------------------------------
@@ -1223,7 +1317,10 @@ int isp_video_register(struct isp_video *video, struct v4l2_device *vdev)
 	ret = video_register_device(&video->video, VFL_TYPE_GRABBER, -1);
 	if (ret < 0)
 		printk(KERN_ERR "%s: could not register video device (%d)\n",
-			__func__, ret);
+				__func__, ret);
+
+	video->video.tvnorms            = V4L2_STD_NTSC | V4L2_STD_PAL;
+	video->video.current_norm       = V4L2_STD_NTSC;
 
 	return ret;
 }
