@@ -27,6 +27,7 @@
 #include <mach/gpio.h>
 
 #include <media/mt9t111.h>
+#include <media/tvp514x.h>
 
 #include <../drivers/media/video/isp/isp.h>
 
@@ -34,6 +35,7 @@
 
 #define CAM_USE_XCLKA			0
 
+#define TVP5146_DEC_RST			98
 #define T2_GPIO_2			194
 #define nCAM_VD_SEL			157
 #define nCAM_VD_EN			200
@@ -50,6 +52,32 @@ enum omap3evm_cam_mux {
 	MUX_INVALID,
 };
 
+static int omap3evm_regulator_ctrl(u32 on)
+{
+	if (!omap3evm_1v8 || !omap3evm_2v8) {
+		printk(KERN_ERR "No regulator available\n");
+		return -ENODEV;
+	}
+
+	if (on) {
+		/* Turn on VDD */
+		regulator_enable(omap3evm_1v8);
+		mdelay(1);
+		regulator_enable(omap3evm_2v8);
+		mdelay(50);
+	} else {
+		/*
+		 * Power Down Sequence
+		 */
+		if (regulator_is_enabled(omap3evm_1v8))
+			regulator_disable(omap3evm_1v8);
+		if (regulator_is_enabled(omap3evm_2v8))
+			regulator_disable(omap3evm_2v8);
+	}
+
+	return 0;
+}
+
 /**
  * @brief omap3evm_set_mux - Sets mux to enable/disable signal routing to
  *                             different peripherals present on new EVM board
@@ -58,22 +86,13 @@ enum omap3evm_cam_mux {
  * @param value - enum, ENABLE_MUX for enabling and DISABLE_MUX for disabling
  *
  */
-static void omap3evm_set_mux(enum omap3evm_cam_mux mux_id, bool on)
+static void omap3evm_set_mux(enum omap3evm_cam_mux mux_id)
 {
-	/*
-	 * Directly disable fisrt level GPIO buffer
-	 */
-	if (on)
-		gpio_set_value_cansleep(T2_GPIO_2, 0);
-	else
-		gpio_set_value_cansleep(T2_GPIO_2, 1);
-
-
 	switch (mux_id) {
-	/*
-	 * JP1 jumper need to configure to choose betweek on-board
-	 * camera sensor conn and on-board LI-3MC02 camera sensor.
-	 */
+		/*
+		 * JP1 jumper need to configure to choose betweek on-board
+		 * camera sensor conn and on-board LI-3MC02 camera sensor.
+		 */
 	case MUX_EN_CAMERA_SENSOR:
 		/* Set nCAM_VD_EN (T2_GPIO8) = 0 */
 		gpio_set_value_cansleep(nCAM_VD_EN, 0);
@@ -82,7 +101,7 @@ static void omap3evm_set_mux(enum omap3evm_cam_mux mux_id, bool on)
 		break;
 
 	case MUX_EN_EXP_CAMERA_SENSOR:
-		/* Set nCAM_VD_EN (T2_GPIO8) = 0 */
+		/* Set nCAM_VD_EN (T2_GPIO8) = 1 */
 		gpio_set_value_cansleep(nCAM_VD_EN, 1);
 
 		break;
@@ -97,38 +116,25 @@ static void omap3evm_set_mux(enum omap3evm_cam_mux mux_id, bool on)
 	}
 }
 
+/* MT9T111: 3M sensor */
 
 static int omap3evm_mt9t111_s_power(struct v4l2_subdev *subdev, u32 on)
 {
 	struct isp_device *isp = v4l2_dev_to_isp_device(subdev->v4l2_dev);
+	int ret;
 
-	if (!omap3evm_1v8 || !omap3evm_2v8) {
-		dev_err(isp->dev, "No regulator available\n");
-		return -ENODEV;
-	}
+	ret = omap3evm_regulator_ctrl(on);
+	if (ret)
+		return ret;
 
-	omap3evm_set_mux(MUX_EN_CAMERA_SENSOR, on);
+	omap3evm_set_mux(MUX_EN_CAMERA_SENSOR);
 
 	if (on) {
-		/* Turn on VDD */
-		regulator_enable(omap3evm_1v8);
-		mdelay(1);
-		regulator_enable(omap3evm_2v8);
-
-		mdelay(50);
 		/* Enable EXTCLK */
 		if (isp->platform_cb.set_xclk)
 			isp->platform_cb.set_xclk(isp, 24000000, CAM_USE_XCLKA);
 		udelay(5);
 	} else {
-		/*
-		 * Power Down Sequence
-		 */
-		if (regulator_is_enabled(omap3evm_1v8))
-			regulator_disable(omap3evm_1v8);
-		if (regulator_is_enabled(omap3evm_2v8))
-			regulator_disable(omap3evm_2v8);
-
 		if (isp->platform_cb.set_xclk)
 			isp->platform_cb.set_xclk(isp, 0, CAM_USE_XCLKA);
 	}
@@ -136,33 +142,55 @@ static int omap3evm_mt9t111_s_power(struct v4l2_subdev *subdev, u32 on)
 	return 0;
 }
 
-static int omap3evm_mt9t111_configure_interface(struct v4l2_subdev *subdev,
-					      u32 pixclk)
-{
-	struct isp_device *isp = v4l2_dev_to_isp_device(subdev->v4l2_dev);
+static struct mt9t111_platform_data omap3evm_mt9t111_platform_data = {
+	.s_power		= omap3evm_mt9t111_s_power,
+};
 
-	if (isp->platform_cb.set_pixel_clock)
-		isp->platform_cb.set_pixel_clock(isp, pixclk);
+/* TVP5146: Video Decoder */
+
+static int omap3evm_tvp514x_s_power(struct v4l2_subdev *subdev, u32 on)
+{
+	static bool reset_done = false;
+	int ret;
+
+	ret = omap3evm_regulator_ctrl(on);
+	if (ret)
+		return ret;
+
+	omap3evm_set_mux(MUX_EN_TVP5146);
+
+	if (!reset_done) {
+		/* Assert the reset signal */
+		gpio_set_value(TVP5146_DEC_RST, 0);
+		mdelay(5);
+		gpio_set_value(TVP5146_DEC_RST, 1);
+
+		reset_done = true;
+	}
 
 	return 0;
 }
 
-static struct mt9t111_platform_data omap3evm_mt9t111_platform_data = {
-	.s_power		= omap3evm_mt9t111_s_power,
-	.configure_interface	= omap3evm_mt9t111_configure_interface,
+static struct tvp514x_platform_data omap3evm_tvp514x_platform_data = {
+	.s_power		= omap3evm_tvp514x_s_power,
 };
 
 
 #define MT9T111_I2C_BUS_NUM		2
+#define TVP514X_I2C_BUS_NUM		3
 
 static struct i2c_board_info omap3evm_camera_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO(MT9T111_MODULE_NAME, MT9T111_I2C_ADDR),
 		.platform_data = &omap3evm_mt9t111_platform_data,
 	},
+	{
+		I2C_BOARD_INFO("tvp5146m2", 0x5C),
+		.platform_data	= &omap3evm_tvp514x_platform_data,
+	},
 };
 
-static struct isp_subdev_i2c_board_info omap3evm_camera_primary_subdevs[] = {
+static struct isp_subdev_i2c_board_info omap3evm_mt9t111_subdevs[] = {
 	{
 		.board_info = &omap3evm_camera_i2c_devices[0],
 		.i2c_adapter_id = MT9T111_I2C_BUS_NUM,
@@ -170,15 +198,34 @@ static struct isp_subdev_i2c_board_info omap3evm_camera_primary_subdevs[] = {
 	{ NULL, 0 },
 };
 
+static struct isp_subdev_i2c_board_info omap3evm_tvp514x_subdevs[] = {
+	{
+		.board_info	= &omap3evm_camera_i2c_devices[1],
+		.i2c_adapter_id	= TVP514X_I2C_BUS_NUM,
+	},
+	{ NULL, 0 },
+};
+
 static struct isp_v4l2_subdevs_group omap3evm_camera_subdevs[] = {
 	{
-		.subdevs = omap3evm_camera_primary_subdevs,
+		.subdevs = omap3evm_mt9t111_subdevs,
 		.interface = ISP_INTERFACE_PARALLEL,
 		.bus = {
 			.parallel = {
 				.data_lane_shift	= 1,
 				.clk_pol		= 0,
 				.bridge			= 3,
+			},
+		},
+	},
+	{
+		.subdevs	= omap3evm_tvp514x_subdevs,
+		.interface	= ISP_INTERFACE_PARALLEL,
+		.bus		= {
+			.parallel	= {
+				.data_lane_shift	= 1,
+				.clk_pol		= 0,
+				.bridge			= 0,
 			},
 		},
 	},
@@ -226,7 +273,7 @@ static int __init omap3evm_cam_init(void)
 		printk(KERN_ERR "failed to get cam_vd_sel\n");
 		goto err_3;
 	}
-	gpio_direction_output(nCAM_VD_SEL, 0);
+	gpio_direction_output(nCAM_VD_SEL, 1);
 
 	/*
 	 * EXP_nCAM_VD_EN (T2_GPIO.8)
@@ -238,11 +285,19 @@ static int __init omap3evm_cam_init(void)
 	}
 	gpio_direction_output(nCAM_VD_EN, 0);
 
+	if (gpio_request(TVP5146_DEC_RST, "vid-dec reset") < 0) {
+		printk(KERN_ERR "failed to get GPIO98_VID_DEC_RES\n");
+		goto err_5;
+	}
+	gpio_direction_output(TVP5146_DEC_RST, 1);
+
 	omap3_init_camera(&omap3evm_isp_platform_data);
 
 	printk(KERN_INFO "omap3evm camer init done successfully...\n");
 	return 0;
 
+err_5:
+	gpio_free(nCAM_VD_EN);
 err_4:
 	gpio_free(nCAM_VD_SEL);
 err_3:
