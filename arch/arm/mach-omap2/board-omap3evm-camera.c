@@ -214,7 +214,11 @@ static struct isp_v4l2_subdevs_group omap3evm_camera_subdevs[] = {
 			.parallel = {
 				.data_lane_shift	= 1,
 				.clk_pol		= 0,
+				.hdpol			= 0,
+				.vdpol			= 0,
+				.fldmode		= 0,
 				.bridge			= 3,
+				.is_bt656		= 0,
 			},
 		},
 	},
@@ -223,9 +227,14 @@ static struct isp_v4l2_subdevs_group omap3evm_camera_subdevs[] = {
 		.interface	= ISP_INTERFACE_PARALLEL,
 		.bus		= {
 			.parallel	= {
+				.width			= 8,
 				.data_lane_shift	= 1,
 				.clk_pol		= 0,
+				.hdpol			= 0,
+				.vdpol			= 1,
+				.fldmode		= 1,
 				.bridge			= 0,
+				.is_bt656		= 1,
 			},
 		},
 	},
