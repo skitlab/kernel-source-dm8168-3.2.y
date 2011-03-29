@@ -137,16 +137,28 @@ struct isp_reg {
  *		3 - CAMEXT[13:6] -> CAM[7:0]
  * @clk_pol: Pixel clock polarity
  *		0 - Non Inverted, 1 - Inverted
+ * @hdpol: Horz Sync signal polarity
+ *		0 - Non Inverted, 1 - Inverted
+ * @vdpol: Vert Sync signal polarity
+ *		0 - Non Inverted, 1 - Inverted
+ * @fldmode: Field mode
+ *		0 - progressive, 1 - Interlaced
  * @bridge: CCDC Bridge input control
  *		ISPCTRL_PAR_BRIDGE_DISABLE - Disable
  *		ISPCTRL_PAR_BRIDGE_LENDIAN - Little endian
  *		ISPCTRL_PAR_BRIDGE_BENDIAN - Big endian
+ * @is_bt656: Is BT656
+ *		0 - non BT656, 1 - BT656
  */
 struct isp_parallel_platform_data {
 	unsigned int width;
 	unsigned int data_lane_shift:2;
 	unsigned int clk_pol:1;
+	unsigned int hdpol:1;
+	unsigned int vdpol:1;
+	unsigned int fldmode:1;
 	unsigned int bridge:4;
+	unsigned int is_bt656:1;
 };
 
 /**
