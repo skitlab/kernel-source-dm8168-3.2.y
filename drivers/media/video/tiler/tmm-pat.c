@@ -17,6 +17,7 @@
  */
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <asm/cacheflush.h>
@@ -33,7 +34,7 @@ static u32 cache_limit = CONFIG_TILER_CACHE_LIMIT << 20;
 
 param_check_uint(cache, &cache_limit);
 module_param_call(cache, param_set_mem, param_get_uint, &cache_limit, 0644);
-__MODULE_PARM_TYPE(cache, "uint")
+__MODULE_PARM_TYPE(cache, "uint");
 MODULE_PARM_DESC(cache, "Cache free pages if total memory is under this limit");
 
 /* global state - statically initialized */

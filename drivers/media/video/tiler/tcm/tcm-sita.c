@@ -18,6 +18,7 @@
  *
  */
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #include "_tcm-sita.h"
 #include "tcm-sita.h"
@@ -161,6 +162,7 @@ error:
 	kfree(pvt);
 	return NULL;
 }
+EXPORT_SYMBOL(sita_init);
 
 static void sita_deinit(struct tcm *tcm)
 {
