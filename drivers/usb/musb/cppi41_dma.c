@@ -1404,8 +1404,21 @@ static void usb_process_rx_queue(struct cppi41 *cppi, unsigned index)
 		if (en_bd_intr)
 			orig_buf_len &= ~CPPI41_PKT_INTR_FLAG;
 
-		if (unlikely(rx_ch->channel.actual_len >= rx_ch->length ||
-			(rx_ch->channel.actual_len % rx_ch->pkt_size != 0))) {
+		/* GRNDIS isoc: for isoc/highbandwidth the data packet received
+		 * from device will be 3K,2K or 1K. The compeltion for
+		 * 2K and 1K is special case where it is not short packet
+		 * and interrupt generated in the generic rndis mode
+		 * in this case the completion should be done
+		 */
+		if ((rx_ch->dma_mode == USB_GENERIC_RNDIS_MODE) &&
+			!(rx_ch->channel.actual_len % rx_ch->pkt_size != 0) &&
+			(rx_ch->channel.actual_len < rx_ch->length)) {
+			rx_ch->channel.status = MUSB_DMA_STATUS_FREE;
+
+			/* Rx completion routine callback */
+			musb_dma_completion(cppi->musb, ep_num, 0);
+		} else if (unlikely(rx_ch->channel.actual_len >= rx_ch->length
+		       || (rx_ch->channel.actual_len % rx_ch->pkt_size != 0))) {
 			rx_ch->channel.status = MUSB_DMA_STATUS_FREE;
 
 			/* Rx completion routine callback */
