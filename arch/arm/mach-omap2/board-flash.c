@@ -131,6 +131,29 @@ static struct gpmc_timings nand_timings = {
 	.wr_data_mux_bus = 0,
 };
 
+static struct gpmc_timings nand_timings_ti814x = {
+
+	.sync_clk = 0,
+
+	.cs_on = 0,
+	.cs_rd_off = 31,
+	.cs_wr_off = 31,
+
+	.adv_on = 5,
+	.adv_rd_off = 21,
+	.adv_wr_off = 31,
+
+	.we_off = 26,
+	.oe_off = 42,
+
+	.access = 47,
+	.rd_cycle = 63,
+	.wr_cycle = 63,
+
+	.wr_access = 26,
+	.wr_data_mux_bus = 0,
+};
+
 static struct omap_nand_platform_data board_nand_data = {
 	.nand_setup	= NULL,
 	.gpmc_t		= &nand_timings,
@@ -158,7 +181,7 @@ __init board_nand_init(struct mtd_partition *nand_parts,
 		board_nand_data.xfer_type = NAND_OMAP_POLLED;
 
 		if (cpu_is_ti814x())
-			board_nand_data.gpmc_t = NULL;
+			board_nand_data.gpmc_t = &nand_timings_ti814x;
 	}
 
 	gpmc_nand_init(&board_nand_data);
