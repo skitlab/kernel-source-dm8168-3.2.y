@@ -91,6 +91,11 @@ extern int omap4430_phy_set_clk(struct device *dev, int on);
 extern int omap4430_phy_init(struct device *dev);
 extern int omap4430_phy_exit(struct device *dev);
 
+#ifdef CONFIG_PM
+/* This is added to support musb idle off mode */
+extern void omap_musb_restore_context(void);
+extern void omap_musb_save_context(void);
+#endif
 #endif
 
 

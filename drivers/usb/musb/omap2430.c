@@ -37,6 +37,11 @@
 #include "musb_core.h"
 #include "omap2430.h"
 
+#ifdef CONFIG_PM
+struct musb *gb_musb;
+unsigned short musb_clock_on = 1;
+#endif
+
 struct omap2430_glue {
 	struct device		*dev;
 	struct platform_device	*musb;
@@ -364,6 +369,11 @@ static int omap2430_musb_init(struct musb *musb)
 	musb->a_wait_bcon = MUSB_TIMEOUT_A_WAIT_BCON;
 	setup_timer(&musb_idle_timer, musb_do_idle, (unsigned long) musb);
 
+#ifdef CONFIG_PM
+	gb_musb = musb;
+	omap_musb_save = omap2430_idle_save_context;
+	omap_musb_restore = omap2430_idle_restore_context;
+#endif
 	return 0;
 }
 
@@ -374,6 +384,10 @@ static int omap2430_musb_exit(struct musb *musb)
 	omap2430_low_level_exit(musb);
 	otg_put_transceiver(musb->xceiv);
 
+#ifdef CONFIG_PM
+	omap_musb_save = NULL;
+	omap_musb_restore = NULL;
+#endif
 	return 0;
 }
 
@@ -510,16 +524,41 @@ static void omap2430_restore_context(struct musb *musb)
 			musb->context.otg_forcestandby);
 }
 
+void omap2430_idle_save_context(void)
+{
+	struct musb *musb = gb_musb;
+
+	if (!musb_clock_on)
+		return;
+
+	musb_save_context(musb);
+	omap2430_save_context(musb);
+}
+void omap2430_idle_restore_context(void)
+{
+	struct musb *musb = gb_musb;
+
+	if (!musb_clock_on)
+		return;
+
+	omap2430_restore_context(musb);
+	musb_restore_context(musb);
+}
+
 static int omap2430_suspend(struct device *dev)
 {
 	struct omap2430_glue		*glue = dev_get_drvdata(dev);
 	struct musb			*musb = glue_to_musb(glue);
+
+	if (!musb_clock_on)
+		return 0;
 
 	omap2430_low_level_exit(musb);
 	otg_set_suspend(musb->xceiv, 1);
 	musb_save_context(musb);
 	omap2430_save_context(musb);
 	clk_disable(glue->clk);
+	musb_clock_on = 0;
 
 	return 0;
 }
@@ -530,12 +569,16 @@ static int omap2430_resume(struct device *dev)
 	struct musb			*musb = glue_to_musb(glue);
 	int				ret;
 
+	if (musb_clock_on)
+		return 0;
+
 	ret = clk_enable(glue->clk);
 	if (ret) {
 		dev_err(dev, "faled to enable clock\n");
 		return ret;
 	}
 
+	musb_clock_on = 1;
 	omap2430_low_level_init(musb);
 	omap2430_restore_context(musb);
 	musb_restore_context(musb);

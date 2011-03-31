@@ -150,6 +150,7 @@ static void omap3_core_save_context(void)
 	/* Save the system control module context, padconf already save above*/
 	omap3_control_save_context();
 	omap_dma_global_context_save();
+	omap_musb_save_context();
 }
 
 static void omap3_core_restore_context(void)
@@ -161,6 +162,7 @@ static void omap3_core_restore_context(void)
 	/* Restore the interrupt controller context */
 	omap_intc_restore_context();
 	omap_dma_global_context_restore();
+	omap_musb_restore_context();
 }
 
 /*

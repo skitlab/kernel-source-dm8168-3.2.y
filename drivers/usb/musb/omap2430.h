@@ -49,4 +49,11 @@
 #define OTG_FORCESTDBY		0x414
 #	define	ENABLEFORCE		(1 << 0)
 
+extern void (*omap_musb_save)(void);
+extern void (*omap_musb_restore)(void);
+
+#ifdef CONFIG_PM
+void omap2430_idle_save_context(void);
+void omap2430_idle_restore_context(void);
+#endif
 #endif	/* __MUSB_OMAP243X_H__ */

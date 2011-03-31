@@ -92,6 +92,25 @@ void usb_musb_disable_autoidle(void)
 	}
 }
 
+#ifdef CONFIG_PM
+void (*omap_musb_save)(void);
+EXPORT_SYMBOL_GPL(omap_musb_save);
+void (*omap_musb_restore)(void);
+EXPORT_SYMBOL_GPL(omap_musb_restore);
+
+void omap_musb_save_context(void)
+{
+	if (omap_musb_save)
+		omap_musb_save();
+}
+
+void omap_musb_restore_context(void)
+{
+	if (omap_musb_restore)
+		omap_musb_restore();
+}
+#endif
+
 #if defined(CONFIG_USB_MUSB_OMAP2PLUS) || defined(CONFIG_USB_MUSB_AM35X)
 
 static void ti81xx_musb_phy_power(u8 id, u8 on)
