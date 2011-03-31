@@ -96,9 +96,10 @@ static DEFINE_SPINLOCK(ti816x_pci_io_lock);
 #define IRQ_ENABLE_CLR			0x18c
 
 /*
- * PCIe COnfig Register Offsets (misc)
+ * PCIe Config Register Offsets (misc)
  */
 #define DEBUG0				0x728
+#define PL_GEN2				0x80c
 
 /* Various regions in PCIESS address space */
 #define SPACE0_LOCAL_CFG_OFFSET		0x1000
@@ -114,6 +115,9 @@ static DEFINE_SPINLOCK(ti816x_pci_io_lock);
 /* Link training encodings as indicated in DEBUG0 register */
 #define LTSSM_STATE_MASK		0x1f
 #define LTSSM_STATE_L0			0x11
+
+/* Directed Speed Change */
+#define DIR_SPD				(1 << 17)
 
 /* Default value used for Command register */
 #define CFG_PCIM_CSR_VAL         (PCI_COMMAND_SERR			\
@@ -660,6 +664,15 @@ static int ti816x_pcie_setup(int nr, struct pci_sys_data *sys)
 
 	if (clk_enable(pcie_ck))
 		goto err_clken;
+
+	/*
+	 * TI81xx devices do not support h/w autonomous link up-training to GEN2
+	 * form GEN1 in either EP/RC modes. The software needs to initiate speed
+	 * change.
+	 */
+	__raw_writel(DIR_SPD | __raw_readl(
+				reg_virt + SPACE0_LOCAL_CFG_OFFSET + PL_GEN2),
+			reg_virt + SPACE0_LOCAL_CFG_OFFSET + PL_GEN2);
 
 	/*
 	 * Initiate Link Training. We will delay for L0 as specified by
