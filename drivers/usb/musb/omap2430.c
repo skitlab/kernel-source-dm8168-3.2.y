@@ -517,6 +517,7 @@ static int omap2430_suspend(struct device *dev)
 
 	omap2430_low_level_exit(musb);
 	otg_set_suspend(musb->xceiv, 1);
+	musb_save_context(musb);
 	omap2430_save_context(musb);
 	clk_disable(glue->clk);
 
@@ -537,6 +538,7 @@ static int omap2430_resume(struct device *dev)
 
 	omap2430_low_level_init(musb);
 	omap2430_restore_context(musb);
+	musb_restore_context(musb);
 	otg_set_suspend(musb->xceiv, 0);
 
 	return 0;
