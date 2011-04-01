@@ -1135,7 +1135,7 @@ static struct musb_fifo_cfg __devinitdata mode_3_cfg[] = {
 { .hw_ep_num = 4, .style = FIFO_RXTX, .maxpacket = 256, },
 };
 
-#ifdef CONFIG_USB_GADGET_MUSB_HDRC
+#if defined(CONFIG_USB_GADGET_MUSB_HDRC) && defined(CONFIG_USB_MUSB_TI81XX)
 /* mode 4 - fits in 16KB */
 static struct musb_fifo_cfg __devinitdata mode_4_cfg[] = {
 { .hw_ep_num =  1, .style = FIFO_TX,   .maxpacket = 512, .mode = BUF_DOUBLE,},
