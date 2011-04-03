@@ -525,6 +525,8 @@ console_still_active:
 
 int omap3_can_sleep(void)
 {
+	if (cpu_is_omap3505() || cpu_is_omap3517())
+		return 0;
 	if (!sleep_while_idle)
 		return 0;
 	if (!omap_uart_can_sleep())
@@ -1030,11 +1032,23 @@ static int __init clkdms_setup(struct clockdomain *clkdm, void *unused)
 
 void omap_push_sram_idle(void)
 {
-	_omap_sram_idle = omap_sram_push(omap34xx_cpu_suspend,
+	if (cpu_is_omap3505() || cpu_is_omap3517())
+		_omap_sram_idle = omap_sram_push(omap3517_cpu_suspend,
+					omap3517_cpu_suspend_sz);
+	else
+		_omap_sram_idle = omap_sram_push(omap34xx_cpu_suspend,
 					omap34xx_cpu_suspend_sz);
 	if (omap_type() != OMAP2_DEVICE_TYPE_GP)
-		_omap_save_secure_sram = omap_sram_push(save_secure_ram_context,
-				save_secure_ram_context_sz);
+		if (cpu_is_omap3505() || cpu_is_omap3517())
+			_omap_save_secure_sram =
+				omap_sram_push(
+					omap3517_save_secure_ram_context,
+					omap3517_save_secure_ram_context_sz);
+		else
+			_omap_save_secure_sram =
+				omap_sram_push(
+					save_secure_ram_context,
+					save_secure_ram_context_sz);
 }
 
 static void __init pm_errata_configure(void)

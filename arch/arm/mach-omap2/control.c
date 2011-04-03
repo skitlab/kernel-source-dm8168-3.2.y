@@ -284,10 +284,13 @@ void omap3_save_scratchpad_contents(void)
 	 * The restore pointer is stored into the scratchpad.
 	 */
 	scratchpad_contents.boot_config_ptr = 0x0;
-	if (cpu_is_omap3630())
+	if (cpu_is_omap3505() || cpu_is_omap3517()) {
+		scratchpad_contents.public_restore_ptr =
+			virt_to_phys(omap3517_get_restore_pointer());
+	} else if (cpu_is_omap3630()) {
 		scratchpad_contents.public_restore_ptr =
 			virt_to_phys(get_omap3630_restore_pointer());
-	else if (omap_rev() != OMAP3430_REV_ES3_0 &&
+	} else if (omap_rev() != OMAP3430_REV_ES3_0 &&
 					omap_rev() != OMAP3430_REV_ES3_1)
 		scratchpad_contents.public_restore_ptr =
 			virt_to_phys(get_restore_pointer());

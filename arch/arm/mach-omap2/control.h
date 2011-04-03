@@ -416,6 +416,7 @@ extern void omap4_ctrl_pad_writel(u32 val, u16 offset);
 extern void omap3_save_scratchpad_contents(void);
 extern void omap3_clear_scratchpad_contents(void);
 extern u32 *get_restore_pointer(void);
+extern u32 *omap3517_get_restore_pointer(void);
 extern u32 *get_es3_restore_pointer(void);
 extern u32 *get_omap3630_restore_pointer(void);
 extern u32 omap3_arm_context[128];
