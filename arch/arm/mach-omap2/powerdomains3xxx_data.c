@@ -217,7 +217,7 @@ static struct powerdomain usbhost_pwrdm = {
 	 * driver is not selected in kernel config so putting this flag within
 	 * EHCI driver config.
 	 */
-#if defined(CONFIG_USB_EHCI_HCD) || defined(CONFIG_USB_EHCI_HCD_MODULE)
+#if 0 /* defined(CONFIG_USB_EHCI_HCD) || defined(CONFIG_USB_EHCI_HCD_MODULE) */
 	.flags	  = PWRDM_HAS_HDWR_SAR, /* for USBHOST ctrlr only */
 #endif
 	.banks		  = 1,
