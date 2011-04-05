@@ -103,8 +103,10 @@
  * ---------------------------------
  */
 
-static u16 tx_comp_q[] = { 63, 63, 63, 63 };
-static u16 rx_comp_q[] = { 65, 65, 65, 65 };
+static u16 tx_comp_q[] = {63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63,
+				63, 63};
+static u16 rx_comp_q[] = {65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
+				65, 65};
 
 /* Fair scheduling */
 u32 dma_sched_table[] = {
@@ -205,8 +207,8 @@ int __devinit cppi41_init(struct musb *musb)
 		cppi_info->ep_dma_ch[i] = i;
 
 	cppi_info->q_mgr = 0;
-	cppi_info->num_tx_comp_q = 4;
-	cppi_info->num_rx_comp_q = 4;
+	cppi_info->num_tx_comp_q = 15;
+	cppi_info->num_rx_comp_q = 15;
 	cppi_info->tx_comp_q = tx_comp_q;
 	cppi_info->rx_comp_q = rx_comp_q;
 	cppi_info->bd_intr_ctrl = 0; /* am35x dont support bd interrupt */
