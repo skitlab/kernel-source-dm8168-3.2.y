@@ -293,6 +293,98 @@ exit:
 	return status;
 }
 
+/* Whether event is available */
+bool
+notify_event_available(u16 proc_id, u16 line_id, u32 event_id)
+{
+	u32                 stripped_event = (event_id & NOTIFY_EVENT_MASK);
+	bool                available       = false;
+	struct notify_driver_object *driver_handle;
+	struct notify_object *obj;
+	int status;
+
+	if (WARN_ON(unlikely(atomic_cmpmask_and_lt(&(notify_state.ref_count),
+				NOTIFY_MAKE_MAGICSTAMP(0),
+				NOTIFY_MAKE_MAGICSTAMP(1)) == true))) {
+		status = NOTIFY_E_INVALIDSTATE;
+		goto exit;
+	}
+
+	if (WARN_ON(proc_id >= multiproc_get_num_processors())) {
+		status = NOTIFY_E_INVALIDARG;
+		goto exit;
+	}
+
+	if (WARN_ON(line_id >= NOTIFY_MAX_INTLINES)) {
+		status = NOTIFY_E_INVALIDARG;
+		goto exit;
+	}
+
+	if (WARN_ON(stripped_event >= (notify_state.cfg.num_events))) {
+		status = NOTIFY_E_EVTNOTREGISTERED;
+		goto exit;
+	}
+
+	if (mutex_lock_interruptible(notify_state.gate_handle) != 0)
+		WARN_ON(1);
+
+	driver_handle = notify_get_driver_handle(proc_id, line_id);
+	if (WARN_ON(driver_handle == NULL)) {
+		status = NOTIFY_E_DRIVERNOTREGISTERED;
+		goto exit_unlock_mutex;
+	}
+	if (WARN_ON(driver_handle->is_init != NOTIFY_DRIVERINITSTATUS_DONE)) {
+		status = NOTIFY_E_FAIL;
+		goto exit_unlock_mutex;
+	}
+
+	obj = (struct notify_object *)driver_handle->notify_handle;
+	if (WARN_ON(obj == NULL)) {
+		status = NOTIFY_E_FAIL;
+		goto exit_unlock_mutex;
+	}
+
+	/* Driver not registered or event is reserved and caller is not using
+	 * system key
+	 */
+	if ((obj == NULL)
+		||  (!ISRESERVED(event_id, notify_state.cfg.reserved_events)))
+		available = false;
+	else
+		available = \
+		(obj->callbacks[stripped_event].fn_notify_cbck == NULL);
+
+
+	mutex_unlock(notify_state.gate_handle);
+
+	return available;
+
+exit_unlock_mutex:
+	mutex_unlock(notify_state.gate_handle);
+exit:
+	return available;
+}
+EXPORT_SYMBOL(notify_event_available);
+
+u16 notify_numintlines(u16 proc_id)
+{
+	u16 num;
+
+	if (multiproc_self() == proc_id)
+		/* There is always a single interrupt line to the loopback
+		 * instance
+		 */
+		num = 1;
+	else
+		/* Query the notify_setup module for the number of interrupt
+		 * lines
+		 */
+		num = notify_setup_proxy_numintlines(proc_id);
+
+	return num;
+}
+EXPORT_SYMBOL(notify_numintlines);
+
 /* This function registers a callback for a specific event with the
  * Notify module. */
 int notify_register_event(u16 proc_id, u16 line_id, u32 event_id,
@@ -1020,7 +1112,7 @@ exit:
 EXPORT_SYMBOL(notify_enable_event);
 
 /* Whether notification via interrupt line has been registered. */
-bool notify_is_registered(u16 proc_id, u16 line_id)
+bool notify_intline_registered(u16 proc_id, u16 line_id)
 {
 	int status = NOTIFY_S_SUCCESS;
 	bool is_registered = false;
@@ -1047,12 +1139,12 @@ bool notify_is_registered(u16 proc_id, u16 line_id)
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_is_registered failed! status = 0x%x",
+		printk(KERN_ERR "notify_intline_registered failed! status = 0x%x",
 			status);
 	}
 	return is_registered;
 }
-EXPORT_SYMBOL(notify_is_registered);
+EXPORT_SYMBOL(notify_intline_registered);
 
 /* Creates notify drivers and registers them with Notify */
 int notify_attach(u16 proc_id, void *shared_addr)

@@ -81,7 +81,7 @@
 /* Macro to make a correct module magic number with refCount */
 #define NOTIFY_MAKE_MAGICSTAMP(x) ((NOTIFY_MODULEID << 12u) | (x))
 
-#define REG volatile
+#define VOLATILE volatile
 
 /* Maximum number of events supported by the Notify module */
 #define NOTIFY_MAXEVENTS		(u16)32
@@ -112,7 +112,7 @@ void notify_enable_event(u16 proc_id, u16 line_id, u32 event_id);
 
 /* Function to find out whether notification via interrupt line has been
  * registered. */
-bool notify_is_registered(u16 proc_id, u16 line_id);
+bool notify_intline_registered(u16 proc_id, u16 line_id);
 
 /* Returns the amount of shared memory used by one Notify instance. */
 uint notify_shared_mem_req(u16 proc_id, void *shared_addr);
@@ -142,5 +142,10 @@ int notify_unregister_event(u16 proc_id, u16 line_id, u32 event_id,
 /* Function to unregister an event */
 int notify_unregister_event_single(u16 proc_id, u16 line_id, u32 event_id);
 
+/* Function to query the number of interrupt lines to the given proc id */
+u16 notify_numintlines(u16 proc_id);
+
+bool
+notify_event_available(u16 proc_id, u16 line_id, u32 event_id);
 
 #endif /* !defined(_NOTIFY_H_) */
