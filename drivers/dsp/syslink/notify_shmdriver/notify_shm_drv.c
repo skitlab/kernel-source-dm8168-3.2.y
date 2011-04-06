@@ -69,6 +69,7 @@
 
 #define ROUND_UP(a, b)	(((a) + ((b) - 1)) & (~((b) - 1)))
 
+#define SET_BIT(num, pos)            ((num) |= (1u << (pos)))
 
 static int notify_shmdrv_isr(struct notifier_block *, unsigned long, void *);
 static int notify_shmdrv_dsp_isr(struct notifier_block *,
@@ -104,8 +105,6 @@ struct notify_shm_drv_module {
 
 /* Notify ducati driver instance object. */
 struct notify_shm_drv_object {
-	struct notify_shm_drv_params params;
-	/* Instance parameters (configuration values) */
 	VOLATILE struct notify_shm_drv_proc_ctrl *self_proc_ctrl;
 	/* Pointer to control structure in shared memory for self processor. */
 	VOLATILE struct notify_shm_drv_proc_ctrl *other_proc_ctrl;
@@ -133,6 +132,8 @@ struct notify_shm_drv_object {
 	/* Spacing between event entries   */
 	u32 num_events;
 	/* Number of events configured */
+	struct notify_shm_drv_params params;
+	/* Instance parameters (configuration values) */
 };
 
 
@@ -145,10 +146,6 @@ static struct notify_shm_drv_module notify_shm_drv_state = {
 	.def_inst_params.line_id = 0,
 	.def_inst_params.local_int_id = (u32) -1,
 	.def_inst_params.remote_int_id = (u32) -1
-};
-
-static struct notifier_block omap_notify_nb = {
-	.notifier_call = notify_shmdrv_isr,
 };
 
 /* Get the default configuration for the notify_shm_drv module. */
@@ -604,6 +601,7 @@ struct notify_shm_drv_object *notify_shm_drv_create(
 	/* Save the eventEntrySize in obj since we will need it at runtime to
 	 * index the event charts */
 
+
 	obj->event_entry_size = ROUND_UP(
 				sizeof(struct notify_shm_drv_event_entry),
 				min_align);
@@ -623,6 +621,7 @@ struct notify_shm_drv_object *notify_shm_drv_create(
 					(2 * proc_ctrl_size) + \
 					(obj->event_entry_size * \
 					obj->num_events * obj->other_id));
+
 
 	for (i = 0; i < obj->num_events; i++)
 		obj->reg_chart[i] = (u32)-1;
@@ -782,6 +781,7 @@ int notify_shm_drv_register_event(struct notify_driver_object *handle,
 	int status = NOTIFY_S_SUCCESS;
 	struct notify_shm_drv_object *obj;
 	VOLATILE struct notify_shm_drv_event_entry *event_entry;
+
 	int i;
 	int j;
 
@@ -841,14 +841,15 @@ int notify_shm_drv_register_event(struct notify_driver_object *handle,
 					event_id);
 	event_entry->flag = NOTIFYSHMDRIVER_DOWN;
 
-
-
-
 	/* Set the registered bit in shared memory and write back */
 	obj->self_proc_ctrl->event_reg_mask |= (1 << event_id);
 
+	__set_bit(event_id, (void *)&(obj->self_proc_ctrl->event_reg_mask));
+
+#if 0
 	set_bit(event_id, (unsigned long *)
 			&(obj->self_proc_ctrl->event_reg_mask));
+#endif
 
 #if 0
 	/* Write back both the flag and the reg mask */
@@ -910,7 +911,9 @@ int notify_shm_drv_unregister_event(struct notify_driver_object *handle,
 	/* This function is only called for the last unregister, i.e. when the
 	 * final remaining callback is being unregistered.
 	 * Unset the registered bit in shared memory */
-	clear_bit(event_id, (unsigned long *)
+
+
+	__clear_bit(event_id, (unsigned long *)
 			&(obj->self_proc_ctrl->event_reg_mask));
 
 	/* Clear any pending unserviced event as there are no listeners
@@ -1102,7 +1105,17 @@ int notify_shm_drv_send_event(struct notify_driver_object *handle,
 		/* Send an interrupt with the event information to the
 		 * remote processor */
 		msg = ((obj->remote_proc_id << 16) | event_id);
-		status = omap_mbox_msg_send((struct omap_mbox *)mbox, msg);
+
+		do {
+			status = omap_mbox_msg_send((struct omap_mbox *)mbox,
+							     msg);
+			if (status != 0) {
+				printk(KERN_ERR "omap_mbox_msg_send failed! "
+						"status = 0x%x. Retrying ...\n",
+						status);
+			}
+		} while (status != 0);
+
 		/* Leave critical section protection. */
 		mutex_unlock(notify_shm_drv_state.gate_handle);
 	}
@@ -1450,7 +1463,6 @@ static int notify_shmdrv_dsp_isr(struct notifier_block *nb, unsigned long val,
 	/* Decode the msg to identify the processor that has sent the message */
 	u32 proc_id;
 	proc_id = multiproc_get_id("DSP");
-
 	/* Call the corresponding prpc_id callback */
 	notify_shmdrv_isr_callback(notify_shm_drv_state.driver_handles
 		[proc_id][0], ntfy_msg);
@@ -1466,7 +1478,6 @@ static int notify_shmdrv_video_isr(struct notifier_block *nb, unsigned long val,
 	/* Decode the msg to identify the processor that has sent the message */
 	u32 proc_id;
 	proc_id = multiproc_get_id("VIDEO-M3");
-
 	/* Call the corresponding prpc_id callback */
 	notify_shmdrv_isr_callback(notify_shm_drv_state.driver_handles
 		[proc_id][0], ntfy_msg);
@@ -1482,7 +1493,6 @@ static int notify_shmdrv_vpss_isr(struct notifier_block *nb, unsigned long val,
 	/* Decode the msg to identify the processor that has sent the message */
 	u32 proc_id;
 	proc_id = multiproc_get_id("VPSS-M3");
-
 	/* Call the corresponding prpc_id callback */
 	notify_shmdrv_isr_callback(notify_shm_drv_state.driver_handles
 		[proc_id][0], ntfy_msg);
@@ -1543,6 +1553,7 @@ static bool notify_shmdrv_isr_callback(void *ref_data, void *notify_msg)
 			/* Execute the callback function */
 			notify_exec(obj->drv_handle->notify_handle, event_id,
 					payload);
+
 			/* reinitialize the event check counter. */
 			i = 0;
 		} else {
