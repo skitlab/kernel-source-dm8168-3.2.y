@@ -829,8 +829,7 @@ sched:
 	}
 
 	/* enable schedular if not enabled */
-	if (is_peripheral_active(cppi->musb) && (n_bd > 0)
-		&& rx_ch->dma_mode == USB_TRANSPARENT_MODE)
+	if (is_peripheral_active(cppi->musb) && (n_bd > 0))
 		cppi41_schedtbl_add_dma_ch(0, 0, rx_ch->ch_num, 0);
 	return 1;
 }
@@ -1324,8 +1323,6 @@ static void usb_process_tx_queue(struct cppi41 *cppi, unsigned index)
 		    (tx_ch->transfer_mode && !tx_ch->zlp_queued))
 			cppi41_next_tx_segment(tx_ch);
 		else if (tx_ch->channel.actual_len >= tx_ch->length) {
-			void __iomem *epio = tx_ch->end_pt->regs;
-			u16 csr;
 			tx_ch->channel.status = MUSB_DMA_STATUS_FREE;
 
 			/*
@@ -1336,10 +1333,7 @@ static void usb_process_tx_queue(struct cppi41 *cppi, unsigned index)
 			 * USB functionality. So far, we have obsered
 			 * failure with iperf.
 			 */
-			do {
-				csr = musb_readw(epio, MUSB_TXCSR);
-			} while (csr & MUSB_TXCSR_TXPKTRDY);
-
+			udelay(20);
 			/* Tx completion routine callback */
 			musb_dma_completion(cppi->musb, ep_num, 1);
 		}
@@ -1382,9 +1376,9 @@ static void usb_process_rx_queue(struct cppi41 *cppi, unsigned index)
 		if (curr_pd->eop) {
 			curr_pd->eop = 0;
 			/* disable the rx dma schedular */
-			if (is_peripheral_active(cppi->musb)
-				&& rx_ch->dma_mode == USB_TRANSPARENT_MODE) {
+			if (is_peripheral_active(cppi->musb)) {
 				cppi41_schedtbl_remove_dma_ch(0, 0, ch_num, 0);
+				musb_dma_completion(cppi->musb, ep_num, 0);
 			}
 		}
 
