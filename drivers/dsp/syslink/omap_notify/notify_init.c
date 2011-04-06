@@ -1,17 +1,17 @@
 /*
- * notify_init.c
+ * Syslink notify module implementation.
  *
- * Syslink support functions for TI OMAP processors.
+ * Copyright (C) 2010 Texas Instruments Incorporated - http://www.ti.com/
  *
- * Copyright (C) 2008-2009 Texas Instruments, Inc.
  *
- * This package is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation version 2.
  *
- * THIS PACKAGE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
- * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed "as is" WITHOUT ANY WARRANTY of any
+ * kind, whether express or implied; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
 
 
@@ -28,6 +28,7 @@
 #include <linux/types.h>
 #include <linux/cdev.h>
 #include <linux/slab.h>
+
 
 /*Linux specific headers*/
 #include <plat/iommu.h>
@@ -73,8 +74,33 @@
 #define IOPTE_MASK      (~(IOPTE_SIZE - 1))
 #define IOPAGE_MASK     IOPTE_MASK
 
-/* Maximum number of user supported.*/
-#define MAX_PROCESSES 32
+/* notify slave virtual address of dsp*/
+static  int  dsp_notify_va ;
+module_param_named(dsp_sva, dsp_notify_va, int,
+				S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+MODULE_PARM_DESC(dsp_notify_va, "Specify the slave virtual address where the "
+				"notify driver for dsp will be created."
+				" ignore notify driver creation  is not "
+				"required at kernel boot time ");
+#if defined(CONFIG_ARCH_TI81XX)
+/* notify slave virtual address of videom3*/
+static  int  videom3_notify_va ;
+module_param_named videom3_sva, videom3_notify_va, int,
+				S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+MODULE_PARM_DESC(videom3_notify_va, "Specify the slave virtual address where "
+				"the notify driver for video m3 will be "
+				"created. ignore notify driver creation  is not"
+				"required at kernel boot time ");
+
+/* notify slave virtual address of vpssm3*/
+static  int  vpssm3_notify_va ;
+module_param_named(vpssm3_sva, vpssm3_notify_va, int,
+				S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+MODULE_PARM_DESC(vpssm3_notify_va, "Specify the slave virtual address where the"
+				"notify driver for vpssm3 will be created."
+				" ignore notify driver creation  is not"
+				"required at kernel boot time ");
+#endif
 
 static  int  syslink_notify_phys_addr ;
 module_param_named(notify_pa, syslink_notify_phys_addr, int,
@@ -111,6 +137,31 @@ struct notify_map_table_info {
 	/*!< Is cached? */
 } ;
 
+struct omap_notify {
+	char           name[32];
+	struct iommu *mmu_handle;
+	struct clk   *clk_handle;
+	u32    map_index;
+	u16    rproc_id;
+	bool   attached;
+};
+
+#if defined(CONFIG_ARCH_OMAP3430)
+/* DSP */
+struct omap_notify notify_dsp_info = {
+	.name	= "DSP", /* same as multiproc name for dsp */
+	.mmu_handle = NULL,
+	.clk_handle = NULL,
+	.map_index  = 0
+};
+#endif
+
+#if defined(CONFIG_ARCH_OMAP3430)
+struct omap_notify *omap3_notify[] = { &notify_dsp_info, NULL };
+#endif
+
+struct omap_notify **notifies;
+
 /*Mapped memory information  associated with each remote proc */
 static struct notify_map_table_info *notify_map_info;
 
@@ -141,8 +192,8 @@ static struct notify_map_table_info *notify_map_info;
 #define PM_PWSTST_IVA2          0x000000E4
 
 #define MAX_WAIT_COUNT          0x50000
-#if defined(CONFIG_ARCH_OMAP3430)
 
+#if defined(CONFIG_ARCH_OMAP3430)
 int
 OMAP3530PWR_off(u32 cm, u32 prm)
 {
@@ -150,10 +201,13 @@ OMAP3530PWR_off(u32 cm, u32 prm)
 }
 
 struct clk *clk_handle ;
+/**
+ * OMAP3530PWR_on - relese IVA2 MMU .
+ */
 int
 OMAP3530PWR_on(void)
 {
-	int status = 0;
+	int err = 0;
 	u32               i;
 	u32               cm;
 	u32               prm;
@@ -169,18 +223,19 @@ OMAP3530PWR_on(void)
 	for (i = 0; i < MAX_WAIT_COUNT; i++) {
 		if ((REG(prm + RM_RSTST_IVA2) & (1 << 9)))
 			break;
-
 	}
 	clk_handle = clk_get(NULL, "iva2_ck");
-	if (clk_handle == NULL)
-		printk(KERN_ERR "***clk_get error\n");
-	else
-		printk(KERN_INFO "***clk_get handle 0x%x\n", clk_handle);
+	if (IS_ERR(clk_handle)) {
+		err = PTR_ERR(clk_handle);
+		printk(KERN_ERR "OMAP3530PWR_on: clk_get failed for iva2_ck\n");
+		goto exit;
+	}
 
 	clk_enable(clk_handle);
 
-	/*! @retval PWRMGR_SUCCESS Operation successful */
-	return status;
+	return 0;
+exit:
+	return err;
 }
 
 /*!
@@ -194,7 +249,7 @@ notify_add_mmu_entry(void *mmu_handle, u32 slave_virt_addr, u32 size)
 	u32  *ppgd = NULL;
 	u32  *ppte = NULL;
 	s32                     cur_size;
-	u32                    master_phys_addr;
+	u32                     master_phys_addr;
 	struct iotlb_entry tlb_entry;
 
 	/* Align the addresses to page size */
@@ -270,22 +325,28 @@ unsigned int __initdata notify_pa;
 static int __init notify_init(void)
 {
 	s32 retval = 0;
-	u32     offset = 0;
-	u32     memreq;
-	u16     i = 0;
+	u32 memreq;
+	u16 i = 0;
+	struct omap_notify **list;
 
 	OMAP3530PWR_on();
 
 	multiproc_setup(NULL);
 
-#if 0
-	notify_iommu_iva2 = iommu_get("iva2");
-	if (notify_iommu_iva2 == NULL) {
-		goto setup_fail;
-		printk(KERN_ERR "*****iommu_get failed\n");
-	} else {
-		printk(KERN_INFO "********iommu get passed  notify_iommu_iva2"
-			"0x%x\n", notify_iommu_iva2);
+	if (false)
+		;
+#if defined(CONFIG_ARCH_OMAP3430)
+	else if (cpu_is_omap343x()) {
+		list = omap3_notify;
+		notifies = list;
+		OMAP3530PWR_on();
+		list[0]->mmu_handle = iommu_get("iva2");
+		if (list[0]->mmu_handle == NULL) {
+			printk(KERN_ERR "notify_init: iommu_get failed for"
+				"iva2\n");
+			goto setup_fail;
+		}
+
 	}
 #endif
 	notify_setup(NULL);
@@ -297,7 +358,7 @@ static int __init notify_init(void)
 		goto setup_fail;
 	}
 
-	notify_map_info = kmalloc(((sizeof(struct notify_map_table_info)) *
+	notify_map_info = kzalloc(((sizeof(struct notify_map_table_info)) *
 					multiproc_get_num_processors()),
 					GFP_KERNEL);
 	if (!notify_map_info) {
@@ -306,78 +367,56 @@ static int __init notify_init(void)
 		goto setup_fail;
 	}
 
-	/* Create notify drivers by calling notify_attach to each remote
-	 * procid
-	 */
-	if (syslink_notify_phys_addr != (u32)NULL) {
-		for (i = 0; i < multiproc_get_num_processors(); i++) {
-			if (i != multiproc_self()) {
-				notify_map_info[i].actualAddress =
-					syslink_notify_phys_addr + offset;
-				memreq = notify_shared_mem_req(i, (void *)
-					notify_map_info[i].actualAddress);
+	if (dsp_notify_va != 0) {
+		i = multiproc_get_id("DSP");
+		list[0]->map_index = i;
+		notify_map_info[i].actualAddress = dsp_notify_va;
+		memreq = notify_shared_mem_req(i, (void *)
+				notify_map_info[i].actualAddress);
+		notify_map_info[i].size = memreq;
 
-				notify_map_info[i].size = memreq;
-				offset += memreq;
-			}
-		}
-
-		/* Map the the physical address to kernel virtual space  and
-		 * creating notify
-		 * drivers by calling notify_attach to each remote procid
-		 */
 		if (cpu_is_omap343x()) {
-			i = multiproc_get_id("DSP");
-
-			notify_iommu_iva2 = iommu_get("iva2");
-			if (notify_iommu_iva2 == NULL) {
-				goto setup_fail;
-				printk(KERN_ERR "*****iommu_get failed\n");
-			}
-
-
-			notify_add_mmu_entry(notify_iommu_iva2,
+			notify_add_mmu_entry(list[0]->mmu_handle,
 					notify_map_info[i].actualAddress,
 					notify_map_info[i].size);
 		}
-		for (i = 0; i < multiproc_get_num_processors(); i++) {
-			if (i != multiproc_self()) {
-				notify_map_info[i].mappedAddress = (u32)
-					ioremap_nocache ((dma_addr_t)
+	}
+
+	for (i = 0; i < multiproc_get_num_processors(); i++) {
+		if (i != multiproc_self()
+			&& notify_map_info[i].actualAddress != 0) {
+			u32 vaddr = (u32) ioremap_nocache((dma_addr_t)
 					notify_map_info[i].actualAddress,
 					notify_map_info[i].size);
 
-				notify_map_info[i].isCached = false;
-				/* Calling notify_attach to create driver */
-				retval = notify_attach(i, (void *)
-					notify_map_info[i].mappedAddress);
-				if (retval < 0) {
-					printk(KERN_ERR "notify_init : "
-					"notify_attach failed for  remote "
-					"proc id 0%d\n", i);
-					goto notify_attach_fail;
-				} else {
-					printk(KERN_INFO "notify_init : notify "
-						"driver created  for  remote "
-						"proc id 0%d at physical "
-						"Address 0x%x\n",
-						i,
-						notify_map_info[i].
-								actualAddress);
-				}
+			notify_map_info[i].mappedAddress = vaddr;
+			notify_map_info[i].isCached = false;
+			/* Calling notify_attach to create driver */
+			retval = notify_attach(i,
+				(void *)notify_map_info[i].mappedAddress);
+			if (retval < 0) {
+				printk(KERN_ERR "notify_init : notify_attach " \
+					"failed for  remote proc id %d\n", i);
+				goto notify_attach_fail;
+			} else {
+				list[0]->attached = true;
+				list[0]->rproc_id = i;
+				printk(KERN_INFO  "notify_init : notify driver"
+					"created  for  remote proc id %d at "
+					"physical Address 0x%x\n",
+					i, notify_map_info[i].actualAddress);
 			}
 		}
 	}
 
-
-
 	return retval;
 
 notify_attach_fail:
-	i -= 1;
-	for (; i >= 0 ;i--)
-		notify_detach(i);
-
+	i = 0;
+	while (notifies[i] != NULL) {
+		if (notifies[i]->attached == true)
+			notify_detach(notifies[i]->rproc_id);
+	}
 	for (i = 0; i < multiproc_get_num_processors(); i++) {
 		if ((i != multiproc_self()) &&
 			((void *)notify_map_info[i].mappedAddress != NULL))
@@ -410,8 +449,15 @@ static void __exit notify_exit(void)
 	for (i = 0; i < multiproc_get_num_processors(); i++) {
 		if ((i != multiproc_self()) &&
 			((void *)notify_map_info[i].mappedAddress != NULL))
-			iounmap((unsigned int *)
-				notify_map_info[i].mappedAddress);
+			iounmap((u32 *)notify_map_info[i].mappedAddress);
+	}
+	i = 0;
+	while (notifies[i] != NULL) {
+		if (notifies[i]->attached == true)
+			notify_detach(notifies[i]->rproc_id);
+
+		if (notifies[i]->mmu_handle)
+			iommu_put(notifies[i]->mmu_handle);
 	}
 }
 
