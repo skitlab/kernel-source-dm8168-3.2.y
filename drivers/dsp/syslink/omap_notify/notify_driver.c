@@ -23,7 +23,6 @@
 #include <linux/io.h>
 #include <asm/pgtable.h>
 
-#include <syslink/gt.h>
 #include <syslink/notify.h>
 #include <syslink/notify_driver.h>
 #include <syslink/notifydefs.h>
