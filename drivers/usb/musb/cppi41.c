@@ -414,6 +414,8 @@ int cppi41_dma_block_uninit(u8 dma_num, u8 q_mgr, u8 num_order,
 	}
 
 	__raw_writel(0,	dma_block->sched_ctrl_base + DMA_SCHED_CTRL_REG);
+
+	return 0;
 }
 EXPORT_SYMBOL(cppi41_dma_block_uninit);
 /*
