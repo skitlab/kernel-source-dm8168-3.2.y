@@ -198,7 +198,10 @@ static void omap2_mbox_enable_irq(struct omap_mbox *mbox,
 	u32 l, bit = (irq == IRQ_TX) ? p->notfull_bit : p->newmsg_bit;
 
 	l = mbox_read_reg(p->irqenable);
-	l |= bit;
+	if (cpu_is_ti81xx())
+		l = bit;
+	else
+		l |= bit;
 	mbox_write_reg(l, p->irqenable);
 }
 
@@ -208,7 +211,10 @@ static void omap2_mbox_disable_irq(struct omap_mbox *mbox,
 	struct omap_mbox2_priv *p = mbox->priv;
 	u32 l, bit = (irq == IRQ_TX) ? p->notfull_bit : p->newmsg_bit;
 	l = mbox_read_reg(p->irqdisable);
-	l &= ~bit;
+	if (cpu_is_ti81xx())
+		l = bit;
+	else
+		l &= ~bit;
 	mbox_write_reg(l, p->irqdisable);
 }
 
