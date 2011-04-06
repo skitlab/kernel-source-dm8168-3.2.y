@@ -124,7 +124,7 @@ extern
 void
 iopgtable_lookup_entry(struct iommu *obj, u32 da, u32 **ppgd, u32 **ppte);
 
-static struct iommu *notify_iommu_iva2 ;
+
 
 struct notify_map_table_info {
 	u32    actualAddress;
@@ -193,7 +193,7 @@ static struct notify_map_table_info *notify_map_info;
 
 #define MAX_WAIT_COUNT          0x50000
 
-#if defined(CONFIG_ARCH_OMAP3430)
+
 int
 OMAP3530PWR_off(u32 cm, u32 prm)
 {
@@ -311,7 +311,7 @@ notify_add_mmu_entry(void *mmu_handle, u32 slave_virt_addr, u32 size)
 
 	return status;
 }
-#endif
+
 
 unsigned int __initdata notify_pa;
 
@@ -328,8 +328,6 @@ static int __init notify_init(void)
 	u32 memreq;
 	u16 i = 0;
 	struct omap_notify **list;
-
-	OMAP3530PWR_on();
 
 	multiproc_setup(NULL);
 
