@@ -229,7 +229,7 @@ int notify_shm_drv_setup(struct notify_shm_drv_config *cfg)
 		rproc_id = multiproc_get_id("DSP");
 		if ((notify_shm_drv_state.mbox_handle[rproc_id] == NULL)) {
 			notify_shm_drv_state.mbox_handle[rproc_id] =
-				omap_mbox_get("dsp", &omap_notify_nb);
+				omap_mbox_get("dsp");
 			if ((notify_shm_drv_state.mbox_handle[rproc_id] == \
 				NULL)) {
 				printk(KERN_ERR \
@@ -252,7 +252,7 @@ int notify_shm_drv_setup(struct notify_shm_drv_config *cfg)
 				== NULL)) {
 			notify_shm_drv_state.mbox_handle[appm3_proc_id] = \
 			notify_shm_drv_state.mbox_handle[rproc_id] = \
-				omap_mbox_get("mailbox-2", &omap_notify_nb);
+				omap_mbox_get("mailbox-2");
 
 			if ((notify_shm_drv_state.mbox_handle[appm3_proc_id] \
 				== NULL)  \
@@ -274,7 +274,7 @@ int notify_shm_drv_setup(struct notify_shm_drv_config *cfg)
 		rproc_id = multiproc_get_id("Tesla");
 		if (!notify_shm_drv_state.mbox_handle[rproc_id]) {
 			notify_shm_drv_state.mbox_handle[rproc_id] = \
-				omap_mbox_get("mailbox-1", &omap_notify_nb);
+				omap_mbox_get("mailbox-1");
 
 			if (!notify_shm_drv_state.mbox_handle[rproc_id]) {
 				printk(KERN_ERR \
@@ -346,19 +346,19 @@ int notify_shm_drv_destroy(void)
 		/* Finalize the maibox module for dsp */
 		rproc_id = multiproc_get_id("DSP");
 		omap_mbox_put(((struct omap_mbox *)notify_shm_drv_state. \
-			mbox_handle[rproc_id]), &omap_notify_nb);
+			mbox_handle[rproc_id]));
 		notify_shm_drv_state.mbox_handle[rproc_id] = NULL;
 	} else if (cpu_is_omap443x()) {
 		/* Finalize the maibox module for Ducati.Either SYSM3 or APPM3*/
 		rproc_id =  multiproc_get_id("AppM3");
 		omap_mbox_put(((struct omap_mbox *)notify_shm_drv_state. \
-			mbox_handle[rproc_id]), &omap_notify_nb);
+			mbox_handle[rproc_id]));
 		notify_shm_drv_state.mbox_handle[rproc_id] = NULL;
 
 		/* Finalize the maibox module for Tesla */
 		rproc_id =  multiproc_get_id("Tesla");
 		omap_mbox_put(((struct omap_mbox *)notify_shm_drv_state. \
-			mbox_handle[rproc_id]), &omap_notify_nb);
+			mbox_handle[rproc_id]));
 		notify_shm_drv_state.mbox_handle[rproc_id] = NULL;
 	}
 
@@ -405,7 +405,12 @@ exit:
 }
 EXPORT_SYMBOL(notify_shm_drv_params_init);
 
-/* Function to create an instance of this Notify ducati driver. */
+/* Function to create an instance of this Notify driver. */
+/* Caller will pass the params->shared_addr in  kernel virtual format
+ * This create call will be made during module init call or else user can
+ * directly call it with the appropriate params.
+ */
+
 struct notify_shm_drv_object *notify_shm_drv_create(
 				const struct notify_shm_drv_params *params)
 {
@@ -416,8 +421,6 @@ struct notify_shm_drv_object *notify_shm_drv_create(
 	struct omap_mbox *mbox;
 	atomic_t *mbx_cnt;
 	u32 i;
-	u16 region_id;
-	uint region_cache_size;
 	uint min_align;
 	struct notify_shm_drv_event_entry *event_entry;
 	u32 proc_ctrl_size;
@@ -502,20 +505,6 @@ struct notify_shm_drv_object *notify_shm_drv_create(
 	 * SharedRegion cache flag setting, if applicable. */
 	obj->cache_enabled = params->cache_enabled;
 	min_align = params->cache_line_size;
-	region_id = sharedregion_get_id((void *)params->shared_addr);
-	if (region_id != SHAREDREGION_INVALIDREGIONID) {
-		/* Override the user cacheEnabled setting if the region
-		 * cacheEnabled is FALSE. */
-		if (!sharedregion_is_cache_enabled(region_id))
-			obj->cache_enabled = false;
-
-		region_cache_size = sharedregion_get_cache_line_size(region_id);
-
-		/* Override the user cache line size setting if the region
-		 * cache line size is smaller. */
-		if (region_cache_size < min_align)
-			min_align = region_cache_size;
-	}
 
 	if ((u32)params->shared_addr % min_align != 0) {
 		status = NOTIFY_E_FAIL;
@@ -1302,8 +1291,6 @@ uint notify_shm_drv_shared_mem_req(
 				const struct notify_shm_drv_params *params)
 {
 	uint mem_req = 0;
-	u16 region_id;
-	uint region_cache_size;
 	uint min_align;
 	s32 status = NOTIFY_S_SUCCESS;
 
@@ -1322,15 +1309,6 @@ uint notify_shm_drv_shared_mem_req(
 	/* Determine obj->cache_enabled using params->cache_enabled and
 	 * sharedregion cache flag setting, if applicable. */
 	min_align = params->cache_line_size;
-	region_id = sharedregion_get_id((void *) params->shared_addr);
-	if (region_id != SHAREDREGION_INVALIDREGIONID) {
-		region_cache_size = sharedregion_get_cache_line_size(region_id);
-
-		/* Override the user cache line size setting if the region
-		 * cache line size is smaller. */
-		if (region_cache_size < min_align)
-			min_align = region_cache_size;
-	}
 
 	/* Determine obj->eventEntrySize which will be used to ROUND_UP
 	 * addresses */
