@@ -851,6 +851,8 @@ int cpdma_chan_stop(struct cpdma_chan *chan)
 	/* trigger teardown */
 	dma_reg_write(ctlr, chan->td, chan->chan_num);
 
+	spin_unlock_irqrestore(&chan->lock, flags);
+
 	/* wait for teardown complete */
 	timeout = jiffies + HZ/10;	/* 100 msec */
 	while (time_before(jiffies, timeout)) {
@@ -870,6 +872,7 @@ int cpdma_chan_stop(struct cpdma_chan *chan)
 	} while ((ret & CPDMA_DESC_TD_COMPLETE) == 0);
 
 	/* remaining packets haven't been tx/rx'ed, clean them up */
+	spin_lock_irqsave(&chan->lock, flags);
 	while (chan->head) {
 		struct cpdma_desc __iomem *desc = chan->head;
 		dma_addr_t next_dma;
