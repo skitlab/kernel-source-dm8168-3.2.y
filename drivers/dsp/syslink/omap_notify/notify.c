@@ -13,6 +13,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
+#include <linux/cpu.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -697,14 +698,17 @@ int notify_send_event(u16 proc_id, u16 line_id, u32 event_id, u32 payload,
 		goto exit_unlock_mutex;
 	}
 
+
 	/* Maybe the proc is shutdown this functions will check and
 	 * restore if needed.
 	 * Currently only used to enable Idle and set HW_AUTO as
 	 * the ducati_clkstctrl mode*/
-	status = ipu_pm_restore_ctx(proc_id);
-	if (status)
-		goto exit_unlock_mutex;
+	if (cpu_is_omap443x()) {
+		status = ipu_pm_restore_ctx(proc_id);
+		if (status)
+			goto exit_unlock_mutex;
 
+	}
 	if (proc_id != multiproc_self()) {
 		status = driver_handle->fxn_table.send_event(driver_handle,
 					stripped_event_id, payload, wait_clear);
