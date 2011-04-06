@@ -1,0 +1,16 @@
+obj-$(CONFIG_SYSLINK_NOTIFY) += notifyk.o
+notifyk-y := notify.o notify_driver.o  notify_init.o plat/omap_notify_setup.o  \
+../notify_shmdriver/notify_shm_drv.o
+
+#../pr_resources.o
+#ccflags-y += -Wno-strict-prototypes
+
+#Machine dependent
+ccflags-y += -D_TI_ -D_DB_TIOMAP -DTMS32060 \
+                -DTICFG_PROC_VER -DTICFG_EVM_TYPE -DCHNL_SMCLASS \
+                -DCHNL_MESSAGES -DUSE_LEVEL_1_MACROS  \
+                -DCONFIG_DISABLE_BRIDGE_PM -DDSP_TRACEBUF_DISABLED
+
+#Header files
+ccflags-y += -Iarch/arm/plat-omap/include
+ccflags-y += -Iarch/arm/plat-omap/include/syslink
