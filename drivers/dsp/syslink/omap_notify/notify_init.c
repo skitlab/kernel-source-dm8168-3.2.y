@@ -77,17 +77,17 @@
 /* notify slave virtual address of dsp*/
 static  int  dsp_notify_va ;
 module_param_named(dsp_sva, dsp_notify_va, int,
-				S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+			S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 MODULE_PARM_DESC(dsp_notify_va, "Specify the slave virtual address where the "
 				"notify driver for dsp will be created."
-				" ignore notify driver creation  is not "
-				"required at kernel boot time ");
+				" ignore notify driver creation  is not"
+				" required at kernel boot time ");
 #if defined(CONFIG_ARCH_TI81XX)
 /* notify slave virtual address of videom3*/
 static  int  videom3_notify_va ;
-module_param_named videom3_sva, videom3_notify_va, int,
-				S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-MODULE_PARM_DESC(videom3_notify_va, "Specify the slave virtual address where "
+module_param_named(videom3_sva, videom3_notify_va, int,
+			S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+MODULE_PARM_DESC(videom3_notify_va, "Specify the slave virtual address where"
 				"the notify driver for video m3 will be "
 				"created. ignore notify driver creation  is not"
 				"required at kernel boot time ");
@@ -95,28 +95,11 @@ MODULE_PARM_DESC(videom3_notify_va, "Specify the slave virtual address where "
 /* notify slave virtual address of vpssm3*/
 static  int  vpssm3_notify_va ;
 module_param_named(vpssm3_sva, vpssm3_notify_va, int,
-				S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+			S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 MODULE_PARM_DESC(vpssm3_notify_va, "Specify the slave virtual address where the"
 				"notify driver for vpssm3 will be created."
-				" ignore notify driver creation  is not"
+				" ignore notify driver creation  is not "
 				"required at kernel boot time ");
-#endif
-
-static  int  syslink_notify_phys_addr ;
-module_param_named(notify_pa, syslink_notify_phys_addr, int,
-			S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-MODULE_PARM_DESC(syslink_notify_phys_addr,
-			"Specify the physical address where the notify drivers"
-			"will be created. ignore notify driver creation  is not"
-			"required at kernel boot time ");
-
-#if (defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_TI816X))
-static bool  create_dsp_driver;
-module_param_named(dsp, create_dsp_driver, bool,
-			S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-MODULE_PARM_DESC(test, "Specify the physical address where the notify drivers"
-			"will be created."
-			"kernel boot time creation is not required");
 #endif
 
 /* IOMMU Exported function */
@@ -154,10 +137,37 @@ struct omap_notify notify_dsp_info = {
 	.clk_handle = NULL,
 	.map_index  = 0
 };
+struct omap_notify *omap3_notify[] = { &notify_dsp_info, NULL };
 #endif
 
-#if defined(CONFIG_ARCH_OMAP3430)
-struct omap_notify *omap3_notify[] = { &notify_dsp_info, NULL };
+#if defined(CONFIG_ARCH_TI81XX)
+/* DSP */
+struct omap_notify notify_dsp_info = {
+	.name	= "DSP", /* same as multiproc name for dsp */
+	.mmu_handle = NULL,
+	.clk_handle = NULL,
+	.map_index  = 0
+};
+
+/* VideoM3 */
+struct omap_notify notify_video_info = {
+	.name	= "VIDEO-M3", /* same as multiproc name for dsp */
+	.mmu_handle = NULL,
+	.clk_handle = NULL,
+	.map_index  = 0
+};
+
+/* VpssM3 */
+struct omap_notify notify_vpss_info = {
+	.name	= "VPSS-M3", /* same as multiproc name for dsp */
+	.mmu_handle = NULL,
+	.clk_handle = NULL,
+	.map_index  = 0
+};
+struct omap_notify *ti81xx_notify[] = { &notify_dsp_info,
+					&notify_video_info,
+					&notify_vpss_info,
+					NULL };
 #endif
 
 struct omap_notify **notifies;
@@ -345,6 +355,13 @@ static int __init notify_init(void)
 			goto setup_fail;
 		}
 
+	}
+#endif
+#if defined(CONFIG_ARCH_TI81XX)
+	else if (cpu_is_ti81xx()) {
+		list = ti81xx_notify;
+		notifies = list;
+	/* FIX Me Add mmu handles to do mappings  */
 	}
 #endif
 	notify_setup(NULL);

@@ -71,6 +71,12 @@
 
 
 static int notify_shmdrv_isr(struct notifier_block *, unsigned long, void *);
+static int notify_shmdrv_dsp_isr(struct notifier_block *,
+					unsigned long, void *);
+static int notify_shmdrv_video_isr(struct notifier_block *,
+					unsigned long, void *);
+static int notify_shmdrv_vpss_isr(struct notifier_block *,
+					unsigned long, void *);
 static bool notify_shmdrv_isr_callback(void *ref_data, void* ntfy_msg);
 
 
@@ -282,6 +288,65 @@ int notify_shm_drv_setup(struct notify_shm_drv_config *cfg)
 				mbox_handle[rproc_id])->rxq->callback = \
 				(int (*)(void *))notify_shmdrv_isr;
 		}
+	} else if (cpu_is_ti81xx()) {
+		u16 rproc_id = multiproc_get_id("DSP");
+		/* Initialize the maibox module for dsp, videom3 and vpssm3 */
+		if ((notify_shm_drv_state.mbox_handle[rproc_id] == NULL)) {
+			notify_shm_drv_state.mbox_handle[rproc_id] = \
+				omap_mbox_get("mailbox-dsp");
+
+			if ((notify_shm_drv_state.mbox_handle[rproc_id] \
+				== NULL)) {
+				printk(KERN_ERR  \
+					"Failed in omap_mbox_get(mailbox-dsp)\n");
+				status = NOTIFY_E_INVALIDSTATE;
+				goto error_mailbox_get_failed;
+			}
+
+			((struct omap_mbox *)notify_shm_drv_state. \
+				mbox_handle[rproc_id])->rxq->callback = \
+				(int (*)(void *))notify_shmdrv_dsp_isr;
+		}
+
+		rproc_id = multiproc_get_id("VIDEO-M3");
+		/* Initialize the maibox module for dsp, videom3 and vpssm3 */
+		if ((notify_shm_drv_state.mbox_handle[rproc_id] == NULL)) {
+			notify_shm_drv_state.mbox_handle[rproc_id] = \
+				omap_mbox_get("mailbox-video");
+
+			if ((notify_shm_drv_state.mbox_handle[rproc_id] \
+				== NULL)) {
+				printk(KERN_ERR  \
+					"Failed in omap_mbox_get(" \
+					"mailbox-video)\n");
+				status = NOTIFY_E_INVALIDSTATE;
+				goto error_mailbox_get_failed;
+			}
+
+			((struct omap_mbox *)notify_shm_drv_state. \
+				mbox_handle[rproc_id])->rxq->callback = \
+				(int (*)(void *))notify_shmdrv_video_isr;
+		}
+
+		rproc_id = multiproc_get_id("VPSS-M3");
+		/* Initialize the maibox module for dsp, videom3 and vpssm3 */
+		if ((notify_shm_drv_state.mbox_handle[rproc_id] == NULL)) {
+			notify_shm_drv_state.mbox_handle[rproc_id] = \
+				omap_mbox_get("mailbox-vpss");
+
+			if ((notify_shm_drv_state.mbox_handle[rproc_id] \
+				== NULL)) {
+				printk(KERN_ERR  \
+					"Failed in omap_mbox_get(" \
+					"mailbox-vpss)\n");
+				status = NOTIFY_E_INVALIDSTATE;
+				goto error_mailbox_get_failed;
+			}
+
+			((struct omap_mbox *)notify_shm_drv_state. \
+				mbox_handle[rproc_id])->rxq->callback = \
+				(int (*)(void *))notify_shmdrv_vpss_isr;
+		}
 	}
 
 	pr_debug("Leaving notify_shm_drv_setup status 0x%x\n", 0);
@@ -352,6 +417,24 @@ int notify_shm_drv_destroy(void)
 
 		/* Finalize the maibox module for Tesla */
 		rproc_id =  multiproc_get_id("Tesla");
+		omap_mbox_put(((struct omap_mbox *)notify_shm_drv_state. \
+			mbox_handle[rproc_id]));
+		notify_shm_drv_state.mbox_handle[rproc_id] = NULL;
+	} else if (cpu_is_ti81xx()) {
+		/* Finalize the maibox module for DSP */
+		rproc_id =  multiproc_get_id("DSP");
+		omap_mbox_put(((struct omap_mbox *)notify_shm_drv_state. \
+			mbox_handle[rproc_id]));
+		notify_shm_drv_state.mbox_handle[rproc_id] = NULL;
+
+		/* Finalize the maibox module for Video m3*/
+		rproc_id =  multiproc_get_id("VIDEO-M3");
+		omap_mbox_put(((struct omap_mbox *)notify_shm_drv_state. \
+			mbox_handle[rproc_id]));
+		notify_shm_drv_state.mbox_handle[rproc_id] = NULL;
+
+		/* Finalize the maibox module for Vpss m3*/
+		rproc_id =  multiproc_get_id("VPSS-M3");
 		omap_mbox_put(((struct omap_mbox *)notify_shm_drv_state. \
 			mbox_handle[rproc_id]));
 		notify_shm_drv_state.mbox_handle[rproc_id] = NULL;
@@ -575,6 +658,13 @@ struct notify_shm_drv_object *notify_shm_drv_create(
 
 	drv_handle->is_init = NOTIFY_DRIVERINITSTATUS_DONE;
 	mutex_unlock(notify_shm_drv_state.gate_handle);
+	/* for debug */
+	set_bit(1, (unsigned long *)
+			&(obj->self_proc_ctrl->event_reg_mask));
+
+	/* All events initially not registered */
+	obj->self_proc_ctrl->event_reg_mask = 0x0;
+
 	return obj;
 
 error_clean_and_exit:
@@ -751,7 +841,12 @@ int notify_shm_drv_register_event(struct notify_driver_object *handle,
 					event_id);
 	event_entry->flag = NOTIFYSHMDRIVER_DOWN;
 
+
+
+
 	/* Set the registered bit in shared memory and write back */
+	obj->self_proc_ctrl->event_reg_mask |= (1 << event_id);
+
 	set_bit(event_id, (unsigned long *)
 			&(obj->self_proc_ctrl->event_reg_mask));
 
@@ -1345,6 +1440,55 @@ static int notify_shmdrv_isr(struct notifier_block *nb, unsigned long val,
 	return 0;
 }
 EXPORT_SYMBOL(notify_shmdrv_isr);
+
+
+/* This function implements the interrupt service routine for the interrupt
+ * received from the Ducati processor. */
+static int notify_shmdrv_dsp_isr(struct notifier_block *nb, unsigned long val,
+								void *ntfy_msg)
+{
+	/* Decode the msg to identify the processor that has sent the message */
+	u32 proc_id;
+	proc_id = multiproc_get_id("DSP");
+
+	/* Call the corresponding prpc_id callback */
+	notify_shmdrv_isr_callback(notify_shm_drv_state.driver_handles
+		[proc_id][0], ntfy_msg);
+	return 0;
+}
+EXPORT_SYMBOL(notify_shmdrv_dsp_isr);
+
+/* This function implements the interrupt service routine for the interrupt
+ * received from the Ducati processor. */
+static int notify_shmdrv_video_isr(struct notifier_block *nb, unsigned long val,
+								void *ntfy_msg)
+{
+	/* Decode the msg to identify the processor that has sent the message */
+	u32 proc_id;
+	proc_id = multiproc_get_id("VIDEO-M3");
+
+	/* Call the corresponding prpc_id callback */
+	notify_shmdrv_isr_callback(notify_shm_drv_state.driver_handles
+		[proc_id][0], ntfy_msg);
+	return 0;
+}
+EXPORT_SYMBOL(notify_shmdrv_video_isr);
+
+/* This function implements the interrupt service routine for the interrupt
+ * received from the Ducati processor. */
+static int notify_shmdrv_vpss_isr(struct notifier_block *nb, unsigned long val,
+								void *ntfy_msg)
+{
+	/* Decode the msg to identify the processor that has sent the message */
+	u32 proc_id;
+	proc_id = multiproc_get_id("VPSS-M3");
+
+	/* Call the corresponding prpc_id callback */
+	notify_shmdrv_isr_callback(notify_shm_drv_state.driver_handles
+		[proc_id][0], ntfy_msg);
+	return 0;
+}
+EXPORT_SYMBOL(notify_shmdrv_vpss_isr);
 
 static bool notify_shmdrv_isr_callback(void *ref_data, void *notify_msg)
 {
