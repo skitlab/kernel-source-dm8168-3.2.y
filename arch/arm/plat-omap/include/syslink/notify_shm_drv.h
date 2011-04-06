@@ -1,5 +1,5 @@
 /*
- * notify_ducatidriver.h
+ * notify_shm_drv.h
  *
  * Syslink driver support for OMAP Processors.
  *
@@ -14,9 +14,8 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef NOTIFY_DUCATIDRIVER_H_
-#define NOTIFY_DUCATIDRIVER_H_
-
+#ifndef NOTIFY_SHM_DRV_H_
+#define NOTIFY_SHM_DRV_H_
 
 
 /* Notify*/
@@ -24,7 +23,7 @@
 #include <syslink/notify_driverdefs.h>
 
 /* Module ID for NotifyDriverShm. */
-#define NOTIFY_DUCATIDRIVER_MODULEID	((u16) 0xb9d4)
+#define NOTIFY_SHMDRIVER_MODULEID	((u16) 0xb9d4)
 
 #define VOLATILE volatile
 
@@ -33,13 +32,13 @@ extern void unmap_ducati_virt_mem(u32 shm_virt_addr);
 
 
 /* module configuration structure */
-struct notify_ducatidrv_config {
+struct notify_shm_drv_config {
 	u32 reserved;
 };
 
 /* This structure defines the configuration structure for
  * initialization of the Notify driver. */
-struct notify_ducatidrv_params {
+struct notify_shm_drv_params {
 	void *shared_addr;
 	/* Address in shared memory where this instance will be placed */
 	bool cache_enabled;
@@ -60,7 +59,7 @@ struct notify_ducatidrv_params {
  * Each entry contains occured event-specific information.
  * Used to flag a remote event and determine if a local event has been
  * flagged. This struct is placed in shared memory. */
-struct notify_ducatidrv_event_entry {
+struct notify_shm_drv_event_entry {
 	VOLATILE u32 flag;
 	/* Flag indicating whether event is set */
 	VOLATILE u32 payload;
@@ -73,7 +72,7 @@ struct notify_ducatidrv_event_entry {
 /* Defines the NotifyDriverShm control structure, which contains all
  * information for one processor. This structure is shared between the
  * two processors. */
-struct notify_ducatidrv_proc_ctrl {
+struct notify_shm_drv_proc_ctrl {
 	VOLATILE u32 recv_init_status;
 	/* Initialization status for receiving events */
 	VOLATILE u32 send_init_status;
@@ -85,56 +84,56 @@ struct notify_ducatidrv_proc_ctrl {
 };
 
 
-/* Function to get the default configuration for the notify_ducati driver
+/* Function to get the default configuration for the notify_shm_drv driver
  * module. */
-void notify_ducatidrv_get_config(struct notify_ducatidrv_config *cfg);
+void notify_shm_drv_get_config(struct notify_shm_drv_config *cfg);
 
 /* Function to setup the notify ducati driver with the given configuration*/
-int notify_ducatidrv_setup(struct notify_ducatidrv_config *cfg);
+int notify_shm_drv_setup(struct notify_shm_drv_config *cfg);
 
 /* Function to destroy the notify ducati driver */
-int notify_ducatidrv_destroy(void);
+int notify_shm_drv_destroy(void);
 
 /*Function to initialize the given parameters  */
-void notify_ducatidrv_params_init(struct notify_ducatidrv_params *params);
+void notify_shm_drv_params_init(struct notify_shm_drv_params *params);
 
 /* Function to create the ducati driver handle and performs initialization. */
-struct notify_ducatidrv_object *notify_ducatidrv_create(
-				const struct notify_ducatidrv_params *params);
+struct notify_shm_drv_object *notify_shm_drv_create(
+				const struct notify_shm_drv_params *params);
 
 /* Function to delete the ducati driver handle and performs de initialization.*/
-int notify_ducatidrv_delete(struct notify_ducatidrv_object **handle);
+int notify_shm_drv_delete(struct notify_shm_drv_object **handle);
 
 /* Get the shared memory requirements for the notify ducati driver. */
-uint notify_ducatidrv_shared_mem_req(
-				const struct notify_ducatidrv_params *params);
+uint notify_shm_drv_shared_mem_req(
+				const struct notify_shm_drv_params *params);
 
 
 /* Register a callback for an event with the Notify driver. */
-int notify_ducatidrv_register_event(struct notify_driver_object *handle,
+int notify_shm_drv_register_event(struct notify_driver_object *handle,
 					u32 event_id);
 
 /* Unregister a callback for an event with the Notify driver. */
-int notify_ducatidrv_unregister_event(struct notify_driver_object *handle,
+int notify_shm_drv_unregister_event(struct notify_driver_object *handle,
 					u32 event_id);
 
 /* Send a notification event to the registered users for this
- notification on the specified processor. */
-int notify_ducatidrv_send_event(struct notify_driver_object *handle,
+notification on the specified processor. */
+int notify_shm_drv_send_event(struct notify_driver_object *handle,
 				u32 event_id, u32 payload, bool wait_clear);
 
 /* Disable all events for this Notify driver. */
-int notify_ducatidrv_disable(struct notify_driver_object *handle);
+int notify_shm_drv_disable(struct notify_driver_object *handle);
 
 /* Restore the Notify driver to the state before the last disable was called. */
-void notify_ducatidrv_enable(struct notify_driver_object *handle);
+void notify_shm_drv_enable(struct notify_driver_object *handle);
 
 /* Disable a specific event for this Notify driver. */
-void notify_ducatidrv_disable_event(struct notify_driver_object *handle,
+void notify_shm_drv_disable_event(struct notify_driver_object *handle,
 					u32 event_id);
 
 /* Enable a specific event for this Notify driver. */
-void notify_ducatidrv_enable_event(struct notify_driver_object *handle,
+void notify_shm_drv_enable_event(struct notify_driver_object *handle,
 					u32 event_id);
 
 
