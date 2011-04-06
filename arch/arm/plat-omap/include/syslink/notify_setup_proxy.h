@@ -17,37 +17,24 @@
 #if !defined(_NOTIFYSETUPPROXY_H_0x5f84)
 #define _NOTIFYSETUPPROXY_H_0x5f84
 
-#if defined(CONFIG_ARCH_OMAP4)
+
 /* Function that will be called in Notify_attach */
-extern int notify_setup_omap4_attach(u16 proc_id, void *shared_addr);
+extern int notify_setup_omap_attach(u16 proc_id, void *shared_addr);
 #define notify_setup_proxy_attach(proc_id, shared_addr)		\
-			notify_setup_omap4_attach(proc_id, shared_addr)
+			notify_setup_omap_attach(proc_id, shared_addr)
 
 /* Function that will be called in notify_stop */
-extern int notify_setup_omap4_detach(u16 proc_id);
-#define notify_setup_proxy_detach notify_setup_omap4_detach
+extern int notify_setup_omap_detach(u16 proc_id);
+#define notify_setup_proxy_detach notify_setup_omap_detach
 
 /* Shared Memory Required for notify setup */
-extern uint notify_setup_omap4_shared_mem_req(u16 proc_id, void *shared_addr);
+extern uint notify_setup_omap_shared_mem_req(u16 proc_id, void *shared_addr);
 #define notify_setup_proxy_shared_mem_req(proc_id, shared_addr)	\
-			notify_setup_omap4_shared_mem_req(proc_id, shared_addr)
+			notify_setup_omap_shared_mem_req(proc_id, shared_addr)
 
 /* Is interrupt line available? */
-extern bool notify_setup_omap4_int_line_available(u16 remote_proc_id);
+extern bool notify_setup_omap_int_line_available(u16 remote_proc_id);
 #define notify_setup_proxy_int_line_available(remote_proc_id)	\
-	notify_setup_omap4_int_line_available(remote_proc_id)
-#else
-/* Function that will be called in Notify_attach */
-#define notify_setup_proxy_attach(proc_id, shared_addr)
-
-/* Function that will be called in notify_stop */
-#define notify_setup_proxy_detach
-
-/* Shared Memory Required for notify setup */
-#define notify_setup_proxy_shared_mem_req(proc_id, shared_addr)
-
-/* Is interrupt line available? */
-#define notify_setup_proxy_int_line_available(remote_proc_id)
-#endif /* if defined (SYSLINK_PLATFORM_OMAPL1XX) */
+	notify_setup_omap_int_line_available(remote_proc_id)
 
 #endif  /* !defined(_NOTIFYSETUPPROXY_H_0x5f84) */
