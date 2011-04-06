@@ -259,7 +259,7 @@ static struct vpfe_subdev_info vpfe_sub_devs[] = {
 		.routes		= tvp5146_routes,
 		.can_route	= 1,
 		.ccdc_if_params	= {
-			.if_type = VPFE_BT656_10BIT,
+			.if_type = VPFE_BT656,
 			.hdpol	= VPFE_PINPOL_POSITIVE,
 			.vdpol	= VPFE_PINPOL_POSITIVE,
 		},
