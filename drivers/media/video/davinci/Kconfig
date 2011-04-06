@@ -33,7 +33,7 @@ config VIDEO_DAVINCI_VPIF
 
 config VIDEO_VPSS_SYSTEM
 	tristate "VPSS System module driver"
-	depends on ARCH_DAVINCI
+	depends on ARCH_DAVINCI || ARCH_OMAP3
 	help
 	  Support for vpss system module for video driver
 
