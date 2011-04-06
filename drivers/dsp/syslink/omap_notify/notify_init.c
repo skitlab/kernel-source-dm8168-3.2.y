@@ -38,7 +38,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 
-#include <syslink/drv_notify.h>
+
 #include <syslink/notify_driver.h>
 #include <syslink/notify.h>
 #include <syslink/notify_shm_drv.h>
