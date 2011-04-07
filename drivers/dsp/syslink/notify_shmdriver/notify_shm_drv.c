@@ -148,6 +148,22 @@ static struct notify_shm_drv_module notify_shm_drv_state = {
 	.def_inst_params.remote_int_id = (u32) -1
 };
 
+static struct notifier_block omap_notify_nb = {
+	.notifier_call = notify_shmdrv_isr,
+};
+
+static struct notifier_block ti81xx_dsp_notify_nb = {
+	.notifier_call = notify_shmdrv_dsp_isr,
+};
+
+static struct notifier_block ti81xx_video_notify_nb = {
+	.notifier_call = notify_shmdrv_video_isr,
+};
+
+static struct notifier_block ti81xx_vpss_notify_nb = {
+	.notifier_call = notify_shmdrv_vpss_isr,
+};
+
 /* Get the default configuration for the notify_shm_drv module. */
 void notify_shm_drv_get_config(struct notify_shm_drv_config *cfg)
 {
@@ -227,7 +243,7 @@ int notify_shm_drv_setup(struct notify_shm_drv_config *cfg)
 		rproc_id = multiproc_get_id("DSP");
 		if ((notify_shm_drv_state.mbox_handle[rproc_id] == NULL)) {
 			notify_shm_drv_state.mbox_handle[rproc_id] =
-				omap_mbox_get("dsp");
+				omap_mbox_get("dsp", &omap_notify_nb);
 			if ((notify_shm_drv_state.mbox_handle[rproc_id] == \
 				NULL)) {
 				printk(KERN_ERR \
@@ -235,11 +251,13 @@ int notify_shm_drv_setup(struct notify_shm_drv_config *cfg)
 				status = NOTIFY_E_INVALIDSTATE;
 				goto error_mailbox_get_failed;
 			}
+#if 0
 			/*Set callback functions to receive notifications from
 			 *dsp */
 			((struct omap_mbox *)notify_shm_drv_state. \
 				mbox_handle[rproc_id])->rxq->callback = \
 				(int (*)(void *))notify_shmdrv_isr;
+#endif
 		}
 	} else if (cpu_is_omap443x()) {
 		u16 appm3_proc_id = multiproc_get_id("AppM3");
@@ -250,7 +268,7 @@ int notify_shm_drv_setup(struct notify_shm_drv_config *cfg)
 				== NULL)) {
 			notify_shm_drv_state.mbox_handle[appm3_proc_id] = \
 			notify_shm_drv_state.mbox_handle[rproc_id] = \
-				omap_mbox_get("mailbox-2");
+				omap_mbox_get("mailbox-2", &omap_notify_nb);
 
 			if ((notify_shm_drv_state.mbox_handle[appm3_proc_id] \
 				== NULL)  \
@@ -262,17 +280,19 @@ int notify_shm_drv_setup(struct notify_shm_drv_config *cfg)
 				goto error_mailbox_get_failed;
 			}
 
+#if 0
 			((struct omap_mbox *)notify_shm_drv_state. \
 				mbox_handle[appm3_proc_id])->rxq->callback = \
 			((struct omap_mbox *)notify_shm_drv_state. \
 				mbox_handle[rproc_id])->rxq->callback = \
 				(int (*)(void *))notify_shmdrv_isr;
+#endif
 		}
 		/* Initialize the maibox module for Tesla */
 		rproc_id = multiproc_get_id("Tesla");
 		if (!notify_shm_drv_state.mbox_handle[rproc_id]) {
 			notify_shm_drv_state.mbox_handle[rproc_id] = \
-				omap_mbox_get("mailbox-1");
+				omap_mbox_get("mailbox-1", &omap_notify_nb);
 
 			if (!notify_shm_drv_state.mbox_handle[rproc_id]) {
 				printk(KERN_ERR \
@@ -280,36 +300,41 @@ int notify_shm_drv_setup(struct notify_shm_drv_config *cfg)
 				status = NOTIFY_E_INVALIDSTATE;
 				goto error_mailbox_get_failed;
 			}
-
+#if 0
 			((struct omap_mbox *)notify_shm_drv_state. \
 				mbox_handle[rproc_id])->rxq->callback = \
 				(int (*)(void *))notify_shmdrv_isr;
+#endif
 		}
 	} else if (cpu_is_ti81xx()) {
 		u16 rproc_id = multiproc_get_id("DSP");
 		/* Initialize the maibox module for dsp, videom3 and vpssm3 */
 		if ((notify_shm_drv_state.mbox_handle[rproc_id] == NULL)) {
 			notify_shm_drv_state.mbox_handle[rproc_id] = \
-				omap_mbox_get("mailbox-dsp");
+				omap_mbox_get("mailbox-dsp",
+						&ti81xx_dsp_notify_nb);
 
 			if ((notify_shm_drv_state.mbox_handle[rproc_id] \
 				== NULL)) {
-				printk(KERN_ERR  \
-					"Failed in omap_mbox_get(mailbox-dsp)\n");
+				printk(KERN_ERR "Failed in omap_mbox_get"
+						"(mailbox-dsp)\n");
 				status = NOTIFY_E_INVALIDSTATE;
 				goto error_mailbox_get_failed;
 			}
 
+#if 0
 			((struct omap_mbox *)notify_shm_drv_state. \
 				mbox_handle[rproc_id])->rxq->callback = \
 				(int (*)(void *))notify_shmdrv_dsp_isr;
+#endif
 		}
 
 		rproc_id = multiproc_get_id("VIDEO-M3");
 		/* Initialize the maibox module for dsp, videom3 and vpssm3 */
 		if ((notify_shm_drv_state.mbox_handle[rproc_id] == NULL)) {
 			notify_shm_drv_state.mbox_handle[rproc_id] = \
-				omap_mbox_get("mailbox-video");
+				omap_mbox_get("mailbox-video",
+						&ti81xx_video_notify_nb);
 
 			if ((notify_shm_drv_state.mbox_handle[rproc_id] \
 				== NULL)) {
@@ -319,17 +344,19 @@ int notify_shm_drv_setup(struct notify_shm_drv_config *cfg)
 				status = NOTIFY_E_INVALIDSTATE;
 				goto error_mailbox_get_failed;
 			}
-
+#if 0
 			((struct omap_mbox *)notify_shm_drv_state. \
 				mbox_handle[rproc_id])->rxq->callback = \
 				(int (*)(void *))notify_shmdrv_video_isr;
+#endif
 		}
 
 		rproc_id = multiproc_get_id("VPSS-M3");
 		/* Initialize the maibox module for dsp, videom3 and vpssm3 */
 		if ((notify_shm_drv_state.mbox_handle[rproc_id] == NULL)) {
 			notify_shm_drv_state.mbox_handle[rproc_id] = \
-				omap_mbox_get("mailbox-vpss");
+				omap_mbox_get("mailbox-vpss",
+						&ti81xx_vpss_notify_nb);
 
 			if ((notify_shm_drv_state.mbox_handle[rproc_id] \
 				== NULL)) {
@@ -340,9 +367,11 @@ int notify_shm_drv_setup(struct notify_shm_drv_config *cfg)
 				goto error_mailbox_get_failed;
 			}
 
+#if 0
 			((struct omap_mbox *)notify_shm_drv_state. \
 				mbox_handle[rproc_id])->rxq->callback = \
 				(int (*)(void *))notify_shmdrv_vpss_isr;
+#endif
 		}
 	}
 
@@ -403,37 +432,37 @@ int notify_shm_drv_destroy(void)
 		/* Finalize the maibox module for dsp */
 		rproc_id = multiproc_get_id("DSP");
 		omap_mbox_put(((struct omap_mbox *)notify_shm_drv_state. \
-			mbox_handle[rproc_id]));
+			mbox_handle[rproc_id]), &omap_notify_nb);
 		notify_shm_drv_state.mbox_handle[rproc_id] = NULL;
 	} else if (cpu_is_omap443x()) {
 		/* Finalize the maibox module for Ducati.Either SYSM3 or APPM3*/
 		rproc_id =  multiproc_get_id("AppM3");
 		omap_mbox_put(((struct omap_mbox *)notify_shm_drv_state. \
-			mbox_handle[rproc_id]));
+			mbox_handle[rproc_id]), &omap_notify_nb);
 		notify_shm_drv_state.mbox_handle[rproc_id] = NULL;
 
 		/* Finalize the maibox module for Tesla */
 		rproc_id =  multiproc_get_id("Tesla");
 		omap_mbox_put(((struct omap_mbox *)notify_shm_drv_state. \
-			mbox_handle[rproc_id]));
+			mbox_handle[rproc_id]), &omap_notify_nb);
 		notify_shm_drv_state.mbox_handle[rproc_id] = NULL;
 	} else if (cpu_is_ti81xx()) {
 		/* Finalize the maibox module for DSP */
 		rproc_id =  multiproc_get_id("DSP");
 		omap_mbox_put(((struct omap_mbox *)notify_shm_drv_state. \
-			mbox_handle[rproc_id]));
+			mbox_handle[rproc_id]), &ti81xx_dsp_notify_nb);
 		notify_shm_drv_state.mbox_handle[rproc_id] = NULL;
 
 		/* Finalize the maibox module for Video m3*/
 		rproc_id =  multiproc_get_id("VIDEO-M3");
 		omap_mbox_put(((struct omap_mbox *)notify_shm_drv_state. \
-			mbox_handle[rproc_id]));
+			mbox_handle[rproc_id]), &ti81xx_video_notify_nb);
 		notify_shm_drv_state.mbox_handle[rproc_id] = NULL;
 
 		/* Finalize the maibox module for Vpss m3*/
 		rproc_id =  multiproc_get_id("VPSS-M3");
 		omap_mbox_put(((struct omap_mbox *)notify_shm_drv_state. \
-			mbox_handle[rproc_id]));
+			mbox_handle[rproc_id]), &ti81xx_vpss_notify_nb);
 		notify_shm_drv_state.mbox_handle[rproc_id] = NULL;
 	}
 
