@@ -771,22 +771,21 @@ int notify_send_event(u16 proc_id, u16 line_id, u32 event_id, u32 payload,
 		goto exit;
 	}
 
-	if (mutex_lock_interruptible(notify_state.gate_handle) != 0)
-			WARN_ON(1);
+
 	driver_handle = notify_get_driver_handle(proc_id, line_id);
 	if (WARN_ON(driver_handle == NULL)) {
 		status = NOTIFY_E_DRIVERNOTREGISTERED;
-		goto exit_unlock_mutex;
+		goto exit;
 	}
 	if (WARN_ON(driver_handle->is_init != NOTIFY_DRIVERINITSTATUS_DONE)) {
 		status = NOTIFY_E_FAIL;
-		goto exit_unlock_mutex;
+		goto exit;
 	}
 
 	obj = (struct notify_object *)driver_handle->notify_handle;
 	if (WARN_ON(obj == NULL)) {
 		status = NOTIFY_E_FAIL;
-		goto exit_unlock_mutex;
+		goto exit;
 	}
 
 
@@ -794,6 +793,8 @@ int notify_send_event(u16 proc_id, u16 line_id, u32 event_id, u32 payload,
 		status = driver_handle->fxn_table.send_event(driver_handle,
 					stripped_event_id, payload, wait_clear);
 	} else {
+		if (mutex_lock_interruptible(notify_state.gate_handle))
+			WARN_ON(1);
 		/* If nesting == 0 (the driver is enabled) and the event is
 		 * enabled, send the event */
 		if (obj->callbacks[stripped_event_id].fn_notify_cbck == NULL) {
@@ -816,10 +817,9 @@ int notify_send_event(u16 proc_id, u16 line_id, u32 event_id, u32 payload,
 			if (mutex_lock_interruptible(notify_state.gate_handle))
 				WARN_ON(1);
 		}
+		mutex_unlock(notify_state.gate_handle);
 	}
 
-exit_unlock_mutex:
-	mutex_unlock(notify_state.gate_handle);
 exit:
 	if (status < 0) {
 		printk(KERN_ERR "notify_send_event failed! status = 0x%x",
