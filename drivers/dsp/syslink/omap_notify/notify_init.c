@@ -277,9 +277,9 @@ notify_add_mmu_entry(void *mmu_handle, u32 slave_virt_addr, u32 size)
 		/* Lookup if the entry exists */
 
 		iopgtable_lookup_entry(mmu_handle,
-								slave_virt_addr,
-								(u32 **) &ppgd,
-								(u32 **) &ppte);
+					slave_virt_addr,
+					(u32 **) &ppgd,
+					(u32 **) &ppte);
 		if (!*ppgd || !*ppte) {
 			/* Entry doesnot exists, insert this page */
 			tlb_entry.pgsz  = MMU_CAM_PGSZ_4K;
@@ -396,6 +396,35 @@ static int __init notify_init(void)
 					notify_map_info[i].size);
 		}
 	}
+
+#if defined(CONFIG_ARCH_TI81XX)
+	if (cpu_is_ti81xx()) {
+		/* check if memory is provided to create notify with other
+		 * procs.
+		 */
+		if (videom3_notify_va != 0) {
+			i = multiproc_get_id("VIDEO-M3");
+			list[1]->map_index = i;
+			notify_map_info[i].actualAddress = videom3_notify_va;
+			memreq = notify_shared_mem_req(i,                      \
+			(void *)notify_map_info[i].actualAddress);
+			notify_map_info[i].size = memreq;
+
+			/* Fix Me adde mmu mapping for this memory */
+		}
+
+		if (vpssm3_notify_va != 0) {
+			i = multiproc_get_id("VPSS-M3");
+			list[2]->map_index = i;
+			notify_map_info[i].actualAddress = vpssm3_notify_va;
+			memreq = notify_shared_mem_req(i,                      \
+				(void *)notify_map_info[i].actualAddress);
+			notify_map_info[i].size = memreq;
+
+			/* Fix Me adde mmu mapping for this memory */
+		}
+	}
+#endif
 
 	for (i = 0; i < multiproc_get_num_processors(); i++) {
 		if (i != multiproc_self()
