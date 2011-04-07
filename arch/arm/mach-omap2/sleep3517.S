@@ -55,6 +55,9 @@ loop:
 
 	/* Disable SDRC and Control Module */
 	ldr     r4, cm_iclken1_core
+	ldr     r5, [r4]
+	str     r5, iclk_core_enable
+	ldr     r4, cm_iclken1_core
 	ldr     r5, clk_core_disable
 	str     r5, [r4]
 wait_sdrc_ok:
@@ -108,7 +111,7 @@ wait_sdrc_ok:
 clk_core_disable:
 	.word   0x0
 iclk_core_enable:
-	.word   0x42
+	.word   0x0
 emif_phy_gate:
 	.word   0x2620
 emif_phy_enable:
