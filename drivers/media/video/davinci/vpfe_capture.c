@@ -1314,7 +1314,6 @@ static void vpfe_videobuf_release(struct videobuf_queue *vq,
 {
 	struct vpfe_fh *fh = vq->priv_data;
 	struct vpfe_device *vpfe_dev = fh->vpfe_dev;
-	unsigned long flags;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_videobuf_release\n");
 
