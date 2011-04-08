@@ -1910,6 +1910,7 @@ int omap_voltage_scale(struct voltagedomain *voltdm, unsigned long volt)
 	node = plist_first(&vdd->user_list);
 	user = container_of(node, struct omap_vdd_user_list, node);
 
+	mutex_unlock(&vdd->scaling_mutex);
 	/* calculate the voltages for dependent vdd's */
 	if (calc_dep_vdd_volt(user->dev, vdd, volt)) {
 		pr_warning("%s: Error in calculating dependent vdd voltages"
@@ -1917,6 +1918,7 @@ int omap_voltage_scale(struct voltagedomain *voltdm, unsigned long volt)
 		return -EINVAL;
 	}
 
+	mutex_lock(&vdd->scaling_mutex);
 	/* Disable smartreflex module across voltage and frequency scaling */
 	omap_sr_disable(voltdm);
 
