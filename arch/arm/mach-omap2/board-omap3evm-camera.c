@@ -302,7 +302,7 @@ static int __init omap3evm_cam_init(void)
 
 	omap3_init_camera(&omap3evm_isp_platform_data);
 
-	printk(KERN_INFO "omap3evm camer init done successfully...\n");
+	printk(KERN_INFO "omap3evm camera init done successfully...\n");
 	return 0;
 
 err_5:
