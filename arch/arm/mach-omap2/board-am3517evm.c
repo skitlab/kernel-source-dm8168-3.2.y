@@ -197,8 +197,8 @@ static void am3517_evm_ethernet_init(struct emac_platform_data *pdata)
 	pdata->interrupt_enable		= am3517_enable_ethernet_int;
 	pdata->interrupt_disable	= am3517_disable_ethernet_int;
 	am3517_emac_device.dev.platform_data	= pdata;
-	platform_device_register(&am3517_emac_device);
 	platform_device_register(&am3517_mdio_device);
+	platform_device_register(&am3517_emac_device);
 	clk_add_alias(NULL, dev_name(&am3517_mdio_device.dev),
 		      NULL, &am3517_emac_device.dev);
 
