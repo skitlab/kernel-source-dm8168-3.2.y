@@ -47,8 +47,8 @@
 #include <plat/gpmc.h>
 #include <plat/nand.h>
 
-#include <media/tvp514x.h>
 #include <media/davinci/vpfe_capture.h>
+#include <media/tvp514x.h>
 
 #include "mux.h"
 #include "control.h"
