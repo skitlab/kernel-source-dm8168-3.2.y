@@ -23,12 +23,14 @@
 #define __ARCH_ARM_PLAT_PSP_VERSION_H
 
 #define TI_PSP_ENTRY		"ti-psp-version"
-#define TI_PSP_VERSION		"04.02.00.02"
+#define TI_PSP_VERSION		"04.02.00.06"
 
 #if defined (CONFIG_MACH_OMAP3EVM)
 #define TI_PSP_PLATFORM		"OMAP3EVM"
 #elif defined(CONFIG_MACH_OMAP3517EVM)
 #define TI_PSP_PLATFORM		"AM3517EVM"
+#elif defined(CONFIG_MACH_OMAP3_BEAGLE)
+#define TI_PSP_PLATFORM		"OMAP3BEAGLE"
 #else
 #define TI_PSP_DEVICE		"DEVICE"
 #define TI_PSP_PLATFORM		"PLATFORM"
