@@ -31,6 +31,7 @@
 
 #include <../drivers/media/video/isp/isp.h>
 
+#include "mux.h"
 #include "devices.h"
 
 #define CAM_USE_XCLKA			0
@@ -150,7 +151,6 @@ static struct mt9t111_platform_data omap3evm_mt9t111_platform_data = {
 
 static int omap3evm_tvp514x_s_power(struct v4l2_subdev *subdev, u32 on)
 {
-	static bool reset_done = false;
 	int ret;
 
 	ret = omap3evm_regulator_ctrl(on);
@@ -159,14 +159,10 @@ static int omap3evm_tvp514x_s_power(struct v4l2_subdev *subdev, u32 on)
 
 	omap3evm_set_mux(MUX_EN_TVP5146);
 
-	if (!reset_done) {
-		/* Assert the reset signal */
-		gpio_set_value(TVP5146_DEC_RST, 0);
-		mdelay(5);
-		gpio_set_value(TVP5146_DEC_RST, 1);
-
-		reset_done = true;
-	}
+	/* Assert the reset signal */
+	gpio_set_value(TVP5146_DEC_RST, 0);
+	mdelay(5);
+	gpio_set_value(TVP5146_DEC_RST, 1);
 
 	return 0;
 }
@@ -277,6 +273,7 @@ static int __init omap3evm_cam_init(void)
 	/*
 	 * nCAM_VD_SEL (GPIO157)
 	 */
+	omap_mux_init_gpio(nCAM_VD_SEL, OMAP_PIN_INPUT_PULLUP);
 	ret = gpio_request(nCAM_VD_SEL, "cam_vd_sel");
 	if (ret) {
 		printk(KERN_ERR "failed to get cam_vd_sel\n");
@@ -294,6 +291,7 @@ static int __init omap3evm_cam_init(void)
 	}
 	gpio_direction_output(nCAM_VD_EN, 0);
 
+	omap_mux_init_gpio(TVP5146_DEC_RST, OMAP_PIN_INPUT_PULLUP);
 	if (gpio_request(TVP5146_DEC_RST, "vid-dec reset") < 0) {
 		printk(KERN_ERR "failed to get GPIO98_VID_DEC_RES\n");
 		goto err_5;
