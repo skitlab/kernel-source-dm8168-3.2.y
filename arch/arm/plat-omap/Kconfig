@@ -98,27 +98,18 @@ config TI816X_SMARTREFLEX
 
 	  Note: Don't enable if the device is not Characterized.
 
-config SMARTREFLEX_CLASS2
-	bool "Class 2 mode of Smartreflex Implementation"
-	depends on TI816X_SMARTREFLEX
-	help
-	  Say Y to enable Class 2 implementation of Smartreflex
-
-	  Class 2 implementation of Smartreflex employs continuous software
-	  voltage calibration.
-
 config DEBUG_SR_CLASS2
 	bool "Smart Reflex debug output"
-	depends on SMARTREFLEX_CLASS2
+	depends on TI816X_SMARTREFLEX
 	help
 	  Say y if you want to do SR debug
 
 	  Makes the Smart reflex driver print out a lot of debug info.
-	  Also gives provides you an channel to test the driver with some
+	  Also provides you an channel to test the driver with some
 	  nTarget vaules.
 
-	  This will display the some of the SR registers and print out some
-	  voltage changes in milli volt.
+	  This will display the some of the SR registers values and print
+	  out some voltage changes in micro volts range.
 
 config OMAP_MUX
 	bool "OMAP multiplexing support"
