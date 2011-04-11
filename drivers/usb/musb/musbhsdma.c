@@ -329,8 +329,7 @@ static void configure_channel(struct dma_channel *channel,
 	DBG(4, "%p, pkt_sz %d, addr 0x%x, len %d, mode %d\n",
 			channel, packet_sz, dma_addr, len, mode);
 
-	if (buffer_is_aligned && (packet_sz >= 512) &&
-			(musb->hwvers >= MUSB_HWVERS_1800))
+	if (buffer_is_aligned && (musb->hwvers >= MUSB_HWVERS_1800))
 		use_sdma = 0;
 
 	if (use_sdma) {
