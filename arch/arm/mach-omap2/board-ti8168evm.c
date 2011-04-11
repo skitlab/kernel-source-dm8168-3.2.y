@@ -25,6 +25,9 @@
 #include <linux/spi/flash.h>
 #include <linux/mtd/physmap.h>
 #include <linux/phy.h>
+#include <linux/gpio.h>
+#include <linux/regulator/machine.h>
+#include <linux/regulator/gpio-regulator.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -38,7 +41,6 @@
 #include <plat/asp.h>
 #include <plat/usb.h>
 #include <plat/mmc.h>
-#include <plat/gpio.h>
 #include <plat/gpmc.h>
 #include <plat/nand.h>
 
@@ -129,6 +131,9 @@ static struct mtd_partition ti816x_evm_norflash_partitions[] = {
 
 #define NAND_BLOCK_SIZE                SZ_128K
 
+/* Macro for GPIO voltage regulator */
+#define VR_GPIO_INSTANCE	0
+
 static struct mtd_partition ti816x_nand_partitions[] = {
 /* All the partition sizes are listed in terms of NAND block size */
 	{
@@ -165,6 +170,67 @@ static struct at24_platform_data eeprom_info = {
 	.flags          = AT24_FLAG_ADDR16,
 };
 
+static struct regulator_consumer_supply ti816x_gpio_dcdc_supply[] = {
+	{
+		.supply = "vdd_avs",
+	},
+};
+
+static struct regulator_init_data gpio_pmic_init_data = {
+	.constraints = {
+		.min_uV         = 757000,
+		.max_uV         = 1198000,
+		.apply_uV       = true,
+		.valid_ops_mask = (REGULATOR_CHANGE_VOLTAGE |
+			REGULATOR_CHANGE_STATUS),
+	},
+	.num_consumer_supplies  = 1,
+	.consumer_supplies      = ti816x_gpio_dcdc_supply,
+};
+
+/* Supported voltage values for regulators */
+static struct gpio_vr_data ti816x_vsel_table[] = {
+	{0x0, 756000}, {0x8, 811000}, {0x4, 816000}, {0x2, 836000},
+	{0xC, 871000}, {0xA, 891000}, {0x6, 896000}, {0xE, 951000},
+	{0x1, 1003000}, {0x9, 1058000}, {0x5, 1063000}, {0x3, 1083000},
+	{0xD, 1118000}, {0xB, 1138000}, {0x7, 1143000}, {0xF, 1198000},
+};
+
+static struct gpio vcore_gpios[] = {
+	{ (VR_GPIO_INSTANCE * 32) + 0, GPIOF_OUT_INIT_LOW, "vgpio 0"},
+	{ (VR_GPIO_INSTANCE * 32) + 1, GPIOF_OUT_INIT_HIGH, "vgpio 1"},
+	{ (VR_GPIO_INSTANCE * 32) + 2, GPIOF_OUT_INIT_HIGH, "vgpio 2"},
+	{ (VR_GPIO_INSTANCE * 32) + 3, GPIOF_OUT_INIT_HIGH, "vgpio 3"},
+};
+
+/* GPIO regulator platform data */
+static struct gpio_reg_platform_data gpio_vr_init_data = {
+	.name			= "VFB",
+	.pmic_init_data		= &gpio_pmic_init_data,
+	.gpio_vsel_table	= ti816x_vsel_table,
+	.num_voltages		= ARRAY_SIZE(ti816x_vsel_table),
+	.gpios			= vcore_gpios,
+	.num_gpio_pins		= ARRAY_SIZE(vcore_gpios),
+	.pmic_vout		= 600000,
+};
+
+/* VCORE for SR regulator init */
+static struct platform_device ti816x_gpio_vr_device = {
+	.name		= "gpio_vr",
+	.id		= -1,
+	.dev = {
+		.platform_data = &gpio_vr_init_data,
+	},
+};
+
+static void __init ti816x_gpio_vr_init(void)
+{
+	if (platform_device_register(&ti816x_gpio_vr_device))
+		printk(KERN_ERR "failed to register ti816x_gpio_vr device\n");
+	else
+		printk(KERN_INFO "registered ti816x_gpio_vr device\n");
+}
+
 static struct i2c_board_info __initdata ti816x_i2c_boardinfo0[] = {
 	{
 		I2C_BOARD_INFO("eeprom", 0x50),
@@ -187,7 +253,6 @@ static struct i2c_board_info __initdata ti816x_i2c_boardinfo1[] = {
 		I2C_BOARD_INFO("pcf8575_1", 0x20),
 	}
 };
-
 
 static struct i2c_client *pcf8575_1_client;
 static unsigned char pcf8575_port[2] = {0, 0};
@@ -520,6 +585,7 @@ static void __init ti8168_evm_init(void)
 	board_nor_init(ti816x_evm_norflash_partitions,
 		ARRAY_SIZE(ti816x_evm_norflash_partitions), 0);
 	ti816x_vpss_init();
+	ti816x_gpio_vr_init();
 }
 
 static int __init ti8168_evm_gpio_setup(void)

@@ -210,6 +210,16 @@ config REGULATOR_TPS65023
 	  three step-down converters and two general-purpose LDO voltage regulators.
 	  It supports TI's software based Class-2 SmartReflex implementation.
 
+config REGULATOR_GPIO
+	tristate "GPIO voltage regulator"
+	depends on GPIOLIB
+	default y
+	help
+	  This is a GPIO based voltage controller driver, which controls the voltage
+	  coming from PMIC based on the resistor combinations. Voltage is varying
+	  based on the GPIO values. It supports TI's software based
+	  TI816X Class-2 SmartReflex implementation
+
 config REGULATOR_TPS6507X
 	tristate "TI TPS6507X Power regulators"
 	depends on I2C
