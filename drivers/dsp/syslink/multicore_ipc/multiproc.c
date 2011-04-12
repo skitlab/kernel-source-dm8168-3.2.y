@@ -23,6 +23,8 @@
  *  no_of_processors - 1
  */
 
+#include <linux/io.h>
+#include <linux/slab.h>
 /* Standard headers */
 #include <linux/types.h>
 #include <linux/module.h>
@@ -46,8 +48,8 @@ struct multiproc_module_object {
 	u16 id;	/* Local processor ID */
 };
 
-static struct multiproc_module_object multiproc_state = {
-	.def_cfg.num_processors = 4,
+static struct multiproc_module_object omap4_multiproc_state = {
+	.def_cfg.num_processors	= 4,
 	.def_cfg.name_list[0][0] = 'T',
 	.def_cfg.name_list[0][1] = 'e',
 	.def_cfg.name_list[0][2] = 's',
@@ -70,11 +72,19 @@ static struct multiproc_module_object multiproc_state = {
 	.id = MULTIPROC_INVALIDID
 };
 
+static struct multiproc_module_object omap3_multiproc_state = {
+	.def_cfg.num_processors = 2,
+	.def_cfg.name_list[0] = "DSP",
+	.def_cfg.name_list[1] = "HOST",
+	.def_cfg.id = 1,
+	.id = MULTIPROC_INVALIDID
+};
+
 /*
  * ========= multiproc_module =========
  *  Pointer to the MultiProc module state.
  */
-static struct multiproc_module_object *multiproc_module = &multiproc_state;
+static struct multiproc_module_object *multiproc_module;
 
 
 /*
@@ -84,18 +94,31 @@ static struct multiproc_module_object *multiproc_module = &multiproc_state;
  */
 void multiproc_get_config(struct multiproc_config *cfg)
 {
+	struct multiproc_config *src = NULL;
+
 	BUG_ON(cfg == NULL);
-	if (atomic_cmpmask_and_lt(
-			&(multiproc_module->ref_count),
-			MULTIPROC_MAKE_MAGICSTAMP(0),
-			MULTIPROC_MAKE_MAGICSTAMP(1)) == true) {
-			/* (If setup has not yet been called) */
-		memcpy(cfg, &multiproc_module->def_cfg,
-				sizeof(struct multiproc_config));
+
+	if (multiproc_module !=	NULL) {
+		if (atomic_cmpmask_and_lt(
+				&(multiproc_module->ref_count),
+				MULTIPROC_MAKE_MAGICSTAMP(0),
+				MULTIPROC_MAKE_MAGICSTAMP(1)) == true) {
+				/* (If setup has not yet been called) */
+			src = &(multiproc_module->def_cfg);
+		} else {
+			src = &(multiproc_module->cfg);
+		}
 	} else {
-		memcpy(cfg, &multiproc_module->cfg,
-				sizeof(struct multiproc_config));
+		if (cpu_is_omap343x())
+			src = &(omap3_multiproc_state.def_cfg);
+		else if (cpu_is_omap443x())
+			src = &(omap4_multiproc_state.def_cfg);
+		else
+			pr_err("multiproc is not supported on this platform\n");
 	}
+
+	if  (src != NULL)
+		memcpy(cfg, src, sizeof(struct multiproc_config));
 }
 EXPORT_SYMBOL(multiproc_get_config);
 
@@ -111,7 +134,18 @@ s32 multiproc_setup(struct multiproc_config *cfg)
 	s32	status = 0;
 	struct multiproc_config tmp_cfg;
 
-	/* This sets the ref_count variable is not initialized, upper 16 bits is
+	if (multiproc_module == NULL) {
+
+		if (cpu_is_omap343x())
+			multiproc_module = &omap3_multiproc_state;
+		else if	(cpu_is_omap443x())
+			multiproc_module = &omap4_multiproc_state;
+		else {
+			pr_err("multiproc is not supported on this platform\n");
+			return -EPERM;
+		}
+	}
+	/* This	sets the ref_count variable is not initialized,	upper 16 bits is
 	* written with module Id to ensure correctness of ref_count variable.
 	*/
 	atomic_cmpmask_and_set(&multiproc_module->ref_count,
