@@ -27,7 +27,6 @@
 #include "cm.h"
 #include "cm81xx.h"
 #include "cm-regbits-81xx.h"
-#include "fapll_ti816x.h"
 #include "prm.h"
 
 /*
@@ -67,43 +66,6 @@
  *   before accessing respective module.
  */
 
-/* Frequency table, used while setting the clock rate */
-static struct freq_parameters mainpll_freqs[] = {
-	FAPLL(MAINPLL,	1,	800000000),
-	FAPLL(MAINPLL,	2,	1000000000),
-	FAPLL(MAINPLL,	3,	540000000),
-	FAPLL(MAINPLL,	4,	500000000),
-	FAPLL(MAINPLL,	5,	125000000),
-	FAPLL(MAINPLL,	6,	24000000),
-	FAPLL(MAINPLL,	7,	432000000),
-};
-
-static struct freq_parameters ddrpll_freqs[] = {
-	FAPLL(DDRPLL_400,	1,	400000000),
-	FAPLL(DDRPLL_400,	2,	96000000),
-	FAPLL(DDRPLL_400,	3,	400000000),
-	FAPLL(DDRPLL_400,	4,	228000000),
-	FAPLL(DDRPLL_400,	5,	228000000),
-};
-
-static struct freq_parameters videopll_freqs[] = {
-	FAPLL(VIDEOPLL,	1,	216000000),
-	FAPLL(VIDEOPLL,	2,	594000000),
-	FAPLL(VIDEOPLL,	3,	594000000),
-};
-
-static struct freq_parameters audiopll_freqs[] = {
-	FAPLL(AUDIOPLL,	2,	160000000),
-	FAPLL(AUDIOPLL,	3,	198000000),
-	FAPLL(AUDIOPLL,	4,	45000000),
-	FAPLL(AUDIOPLL,	5,	32768000),
-};
-
-#define TI816X_MAINPLL_FRQTABL_SIZE ARRAY_SIZE(mainpll_freqs)
-#define TI816X_DDRPLL_FRQTABL_SIZE ARRAY_SIZE(ddrpll_freqs)
-#define TI816X_VIDEOPLL_FRQTABL_SIZE ARRAY_SIZE(videopll_freqs)
-#define TI816X_AUDIOPLL_FRQTABL_SIZE ARRAY_SIZE(audiopll_freqs)
-
 static struct clk secure_32k_ck = {
 	.name		= "secure_32k_ck",
 	.ops		= &clkops_null,
@@ -134,12 +96,11 @@ static struct clk sys_clkin_ck = {
 
 /* MAIN FAPLL */
 static struct fapll_data fapll_main_fd = {
+	.fapll_id	= TI816X_MAINPLL_ID,
 	.control_reg	= TI816X_MAINPLL_CTRL,
 	.pwd_reg	= TI816X_MAINPLL_PWD,
 	.clk_bypass	= &sys_clkin_ck,
 	.clk_ref	= &sys_clkin_ck,
-	.freq_table	= mainpll_freqs,
-	.freq_tbl_size	= TI816X_MAINPLL_FRQTABL_SIZE,
 	.mult_mask	= TI816X_PLL_NVAL_MASK,
 	.div_mask	= TI816X_PLL_PVAL_MASK,
 	.bypass_mask	= TI816X_PLL_BYPASS_MASK,
@@ -154,12 +115,12 @@ static struct fapll_data fapll_main_fd = {
 	.bypass_en	= TI816X_MAINPLL_BYPASS_EN,
 	.modes		= (1 << TI816X_FAPLL_BYPASS_SHIFT) |
 				(1 << TI816X_FAPLL_LOCKED_SHIFT),
-	.first_syn	= 1,
-	.last_syn	= TI816X_MAINPLL_NUM_SYN,
 	.rate_tolerance = TI816X_PLL_RATE_TOLARANCE,
 	.max_multiplier	= TI816X_PLL_MAX_MULT,
 	.min_divider	= 1,
 	.max_divider	= TI816X_PLL_MAX_DIV,
+	.mult_n		= TI816X_MAINPLL_N,
+	.pre_div_p	= TI816X_MAINPLL_P,
 };
 
 /* Synthesizer 1 from Main PLL */
@@ -167,10 +128,9 @@ static struct clk main_pll_clk1_ck = {
 	.name		= "main_pll_clk1_ck",
 	.parent		= &sys_clkin_ck,
 	.fapll_data	= &fapll_main_fd,
+	.synthesizer_id	= TI816X_SYNTHESIZER_ID1,
 	.freq_reg	= TI816X_MAINPLL_FREQ1,
 	.post_div_reg	= TI816X_MAINPLL_DIV1,
-	.synthesizer_id	= 1,
-	.tolerance_flag	= 1,
 	.frac_flag	= 1,
 	.pwd_mask	= TI816X_MAINPLL_PWD_CLK1_MASK,
 	.init		= &ti816x_init_fapll_parent,
@@ -185,10 +145,9 @@ static struct clk main_pll_clk2_ck = {
 	.name		= "main_pll_clk2_ck",
 	.parent		= &sys_clkin_ck,
 	.fapll_data	= &fapll_main_fd,
+	.synthesizer_id	= TI816X_SYNTHESIZER_ID2,
 	.freq_reg	= TI816X_MAINPLL_FREQ2,
 	.post_div_reg	= TI816X_MAINPLL_DIV2,
-	.synthesizer_id	= 2,
-	.tolerance_flag	= 1,
 	.frac_flag	= 1,
 	.pwd_mask	= TI816X_MAINPLL_PWD_CLK2_MASK,
 	.init		= &ti816x_init_fapll_parent,
@@ -203,10 +162,9 @@ static struct clk main_pll_clk3_ck = {
 	.name		= "main_pll_clk3_ck",
 	.parent		= &sys_clkin_ck,
 	.fapll_data	= &fapll_main_fd,
+	.synthesizer_id	= TI816X_SYNTHESIZER_ID3,
 	.freq_reg	= TI816X_MAINPLL_FREQ3,
 	.post_div_reg	= TI816X_MAINPLL_DIV3,
-	.synthesizer_id	= 3,
-	.tolerance_flag	= 1,
 	.frac_flag	= 1,
 	.pwd_mask	= TI816X_MAINPLL_PWD_CLK3_MASK,
 	.init		= &ti816x_init_fapll_parent,
@@ -221,10 +179,9 @@ static struct clk main_pll_clk4_ck = {
 	.name		= "main_pll_clk4_ck",
 	.parent		= &sys_clkin_ck,
 	.fapll_data	= &fapll_main_fd,
+	.synthesizer_id	= TI816X_SYNTHESIZER_ID4,
 	.freq_reg	= TI816X_MAINPLL_FREQ4,
 	.post_div_reg	= TI816X_MAINPLL_DIV4,
-	.synthesizer_id	= 4,
-	.tolerance_flag	= 1,
 	.frac_flag	= 1,
 	.pwd_mask	= TI816X_MAINPLL_PWD_CLK4_MASK,
 	.init		= &ti816x_init_fapll_parent,
@@ -239,10 +196,9 @@ static struct clk main_pll_clk5_ck = {
 	.name		= "main_pll_clk5_ck",
 	.parent		= &sys_clkin_ck,
 	.fapll_data	= &fapll_main_fd,
+	.synthesizer_id	= TI816X_SYNTHESIZER_ID5,
 	.freq_reg	= TI816X_MAINPLL_FREQ5,
 	.post_div_reg	= TI816X_MAINPLL_DIV5,
-	.synthesizer_id	= 5,
-	.tolerance_flag	= 1,
 	.frac_flag	= 1,
 	.pwd_mask	= TI816X_MAINPLL_PWD_CLK5_MASK,
 	.init		= &ti816x_init_fapll_parent,
@@ -257,9 +213,8 @@ static struct clk main_pll_clk6_ck = {
 	.name		= "main_pll_clk6_ck",
 	.parent		= &sys_clkin_ck,
 	.fapll_data	= &fapll_main_fd,
+	.synthesizer_id	= TI816X_SYNTHESIZER_ID6,
 	.post_div_reg	= TI816X_MAINPLL_DIV6,
-	.synthesizer_id	= 6,
-	.tolerance_flag	= 1,
 	.pwd_mask	= TI816X_MAINPLL_PWD_CLK6_MASK,
 	.init		= &ti816x_init_fapll_parent,
 	.ops		= &clkops_ti816x_fapll_ops,
@@ -273,9 +228,8 @@ static struct clk main_pll_clk7_ck = {
 	.name		= "main_pll_clk7_ck",
 	.parent		= &sys_clkin_ck,
 	.fapll_data	= &fapll_main_fd,
+	.synthesizer_id	= TI816X_SYNTHESIZER_ID7,
 	.post_div_reg	= TI816X_MAINPLL_DIV7,
-	.synthesizer_id	= 7,
-	.tolerance_flag	= 1,
 	.pwd_mask	= TI816X_MAINPLL_PWD_CLK7_MASK,
 	.init		= &ti816x_init_fapll_parent,
 	.ops		= &clkops_ti816x_fapll_ops,
@@ -857,12 +811,11 @@ static struct clk gem_trc_fck = {
 
 /* DDR FAPLL */
 static struct fapll_data fapll_ddr_fd = {
+	.fapll_id	= TI816X_DDRPLL_ID,
 	.control_reg	= TI816X_DDRPLL_CTRL,
 	.pwd_reg	= TI816X_DDRPLL_PWD,
 	.clk_bypass	= &sys_clkin_ck,
 	.clk_ref	= &sys_clkin_ck,
-	.freq_table	= ddrpll_freqs,
-	.freq_tbl_size	= TI816X_DDRPLL_FRQTABL_SIZE,
 	.mult_mask	= TI816X_PLL_NVAL_MASK,
 	.div_mask	= TI816X_PLL_PVAL_MASK,
 	.bypass_mask	= TI816X_PLL_BYPASS_MASK,
@@ -877,12 +830,12 @@ static struct fapll_data fapll_ddr_fd = {
 	.bypass_en	= TI816X_DDRPLL_BYPASS_EN,
 	.modes		= (1 << TI816X_FAPLL_BYPASS_SHIFT) |
 				(1 << TI816X_FAPLL_LOCKED_SHIFT),
-	.first_syn	= 1,
-	.last_syn	= TI816X_DDRPLL_NUM_SYN,
 	.rate_tolerance = TI816X_PLL_RATE_TOLARANCE,
 	.max_multiplier	= TI816X_PLL_MAX_MULT,
 	.min_divider	= 1,
 	.max_divider	= TI816X_PLL_MAX_DIV,
+	.mult_n		= TI816X_DDRPLL_400_N,
+	.pre_div_p	= TI816X_DDRPLL_400_P,
 };
 
 /* Synthesizer 1 from DDR PLL */
@@ -890,9 +843,8 @@ static struct clk ddr_pll_clk1_ck = {
 	.name		= "ddr_pll_clk1_ck",
 	.parent		= &sys_clkin_ck,
 	.fapll_data	= &fapll_ddr_fd,
+	.synthesizer_id	= TI816X_SYNTHESIZER_ID1,
 	.post_div_reg	= TI816X_DDRPLL_DIV1,
-	.synthesizer_id	= 1,
-	.tolerance_flag	= 1,
 	.pwd_mask	= TI816X_DDRPLL_PWD_CLK1_MASK,
 	.init		= &ti816x_init_fapll_parent,
 	.ops		= &clkops_ti816x_fapll_ops,
@@ -906,10 +858,9 @@ static struct clk ddr_pll_clk2_ck = {
 	.name		= "ddr_pll_clk2_ck",
 	.parent		= &sys_clkin_ck,
 	.fapll_data	= &fapll_ddr_fd,
+	.synthesizer_id	= TI816X_SYNTHESIZER_ID2,
 	.freq_reg	= TI816X_DDRPLL_FREQ2,
 	.post_div_reg	= TI816X_DDRPLL_DIV2,
-	.synthesizer_id	= 2,
-	.tolerance_flag	= 1,
 	.frac_flag	= 1,
 	.pwd_mask	= TI816X_DDRPLL_PWD_CLK2_MASK,
 	.init		= &ti816x_init_fapll_parent,
@@ -924,10 +875,9 @@ static struct clk ddr_pll_clk3_ck = {
 	.name		= "ddr_pll_clk3_ck",
 	.parent		= &sys_clkin_ck,
 	.fapll_data	= &fapll_ddr_fd,
+	.synthesizer_id	= TI816X_SYNTHESIZER_ID3,
 	.freq_reg	= TI816X_DDRPLL_FREQ3,
 	.post_div_reg	= TI816X_DDRPLL_DIV3,
-	.synthesizer_id	= 3,
-	.tolerance_flag	= 1,
 	.frac_flag	= 1,
 	.pwd_mask	= TI816X_DDRPLL_PWD_CLK3_MASK,
 	.init		= &ti816x_init_fapll_parent,
@@ -942,10 +892,9 @@ static struct clk ddr_pll_clk4_ck = {
 	.name		= "ddr_pll_clk4_ck",
 	.parent		= &sys_clkin_ck,
 	.fapll_data	= &fapll_ddr_fd,
+	.synthesizer_id	= TI816X_SYNTHESIZER_ID4,
 	.freq_reg	= TI816X_DDRPLL_FREQ4,
 	.post_div_reg	= TI816X_DDRPLL_DIV4,
-	.synthesizer_id	= 4,
-	.tolerance_flag	= 1,
 	.frac_flag	= 1,
 	.pwd_mask	= TI816X_DDRPLL_PWD_CLK4_MASK,
 	.init		= &ti816x_init_fapll_parent,
@@ -960,10 +909,9 @@ static struct clk ddr_pll_clk5_ck = {
 	.name		= "ddr_pll_clk5_ck",
 	.parent		= &sys_clkin_ck,
 	.fapll_data	= &fapll_ddr_fd,
+	.synthesizer_id	= TI816X_SYNTHESIZER_ID5,
 	.freq_reg	= TI816X_DDRPLL_FREQ5,
 	.post_div_reg	= TI816X_DDRPLL_DIV5,
-	.synthesizer_id	= 5,
-	.tolerance_flag	= 1,
 	.frac_flag	= 1,
 	.pwd_mask	= TI816X_DDRPLL_PWD_CLK4_MASK,
 	.init		= &ti816x_init_fapll_parent,
@@ -1087,12 +1035,11 @@ static struct clk sysclk24_ck = {
 
 /* VIDEO FAPLL */
 static struct fapll_data fapll_video_fd = {
+	.fapll_id	= TI816X_VIDEOPLL_ID,
 	.control_reg	= TI816X_VIDEOPLL_CTRL,
 	.pwd_reg	= TI816X_VIDEOPLL_PWD,
 	.clk_bypass	= &sys_clkin_ck,
 	.clk_ref	= &sys_clkin_ck,
-	.freq_table	= videopll_freqs,
-	.freq_tbl_size	= TI816X_VIDEOPLL_FRQTABL_SIZE,
 	.mult_mask	= TI816X_PLL_NVAL_MASK,
 	.div_mask	= TI816X_PLL_PVAL_MASK,
 	.bypass_mask	= TI816X_PLL_BYPASS_MASK,
@@ -1107,12 +1054,12 @@ static struct fapll_data fapll_video_fd = {
 	.bypass_en	= TI816X_VIDEOPLL_BYPASS_EN,
 	.modes		= (1 << TI816X_FAPLL_BYPASS_SHIFT) |
 				(1 << TI816X_FAPLL_LOCKED_SHIFT),
-	.first_syn	= 1,
-	.last_syn	= TI816X_VIDEOPLL_NUM_SYN,
 	.rate_tolerance = TI816X_PLL_RATE_TOLARANCE,
 	.max_multiplier	= TI816X_PLL_MAX_MULT,
 	.min_divider	= 1,
 	.max_divider	= TI816X_PLL_MAX_DIV,
+	.mult_n		= TI816X_VIDEOPLL_N,
+	.pre_div_p	= TI816X_VIDEOPLL_P,
 };
 
 /* Synthesizer 1 from VIDEO PLL */
@@ -1120,10 +1067,9 @@ static struct clk video_pll_clk1_ck = {
 	.name		= "video_pll_clk1_ck",
 	.parent		= &sys_clkin_ck,
 	.fapll_data	= &fapll_video_fd,
+	.synthesizer_id	= TI816X_SYNTHESIZER_ID1,
 	.freq_reg	= TI816X_VIDEOPLL_FREQ1,
 	.post_div_reg	= TI816X_VIDEOPLL_DIV1,
-	.synthesizer_id	= 1,
-	.tolerance_flag	= 1,
 	.frac_flag	= 1,
 	.pwd_mask	= TI816X_VIDEOPLL_PWD_CLK1_MASK,
 	.init		= &ti816x_init_fapll_parent,
@@ -1138,10 +1084,9 @@ static struct clk video_pll_clk2_ck = {
 	.name		= "video_pll_clk2_ck",
 	.parent		= &sys_clkin_ck,
 	.fapll_data	= &fapll_video_fd,
+	.synthesizer_id	= TI816X_SYNTHESIZER_ID2,
 	.freq_reg	= TI816X_VIDEOPLL_FREQ2,
 	.post_div_reg	= TI816X_VIDEOPLL_DIV2,
-	.synthesizer_id	= 2,
-	.tolerance_flag	= 1,
 	.frac_flag	= 1,
 	.pwd_mask	= TI816X_VIDEOPLL_PWD_CLK2_MASK,
 	.init		= &ti816x_init_fapll_parent,
@@ -1156,10 +1101,9 @@ static struct clk video_pll_clk3_ck = {
 	.name		= "video_pll_clk3_ck",
 	.parent		= &sys_clkin_ck,
 	.fapll_data	= &fapll_video_fd,
+	.synthesizer_id	= TI816X_SYNTHESIZER_ID3,
 	.freq_reg	= TI816X_VIDEOPLL_FREQ3,
 	.post_div_reg	= TI816X_VIDEOPLL_DIV3,
-	.synthesizer_id	= 3,
-	.tolerance_flag	= 1,
 	.frac_flag	= 1,
 	.pwd_mask	= TI816X_VIDEOPLL_PWD_CLK3_MASK,
 	.init		= &ti816x_init_fapll_parent,
@@ -1178,12 +1122,11 @@ static struct clk audio_pll_clk1_ck = {
 
 /* AUDIO FAPLL */
 static struct fapll_data fapll_audio_fd = {
+	.fapll_id	= TI816X_AUDIOPLL_ID,
 	.control_reg	= TI816X_AUDIOPLL_CTRL,
 	.pwd_reg	= TI816X_AUDIOPLL_PWD,
 	.clk_bypass	= &main_pll_clk7_ck,
 	.clk_ref	= &main_pll_clk7_ck,
-	.freq_table	= audiopll_freqs,
-	.freq_tbl_size	= TI816X_AUDIOPLL_FRQTABL_SIZE,
 	.mult_mask	= TI816X_PLL_NVAL_MASK,
 	.div_mask	= TI816X_PLL_PVAL_MASK,
 	.bypass_mask	= TI816X_PLL_BYPASS_MASK,
@@ -1198,12 +1141,12 @@ static struct fapll_data fapll_audio_fd = {
 	.bypass_en	= TI816X_AUDIOPLL_BYPASS_EN,
 	.modes		= (1 << TI816X_FAPLL_BYPASS_SHIFT) |
 				(1 << TI816X_FAPLL_LOCKED_SHIFT),
-	.first_syn	= 2,
-	.last_syn	= TI816X_AUDIOPLL_NUM_SYN,
 	.rate_tolerance = TI816X_PLL_RATE_TOLARANCE,
 	.max_multiplier	= TI816X_PLL_MAX_MULT,
 	.min_divider	= 1,
 	.max_divider	= TI816X_PLL_MAX_DIV,
+	.mult_n		= TI816X_AUDIOPLL_N,
+	.pre_div_p	= TI816X_AUDIOPLL_P,
 };
 
 /* Synthesizer 2 from AUDIO PLL */
@@ -1211,10 +1154,9 @@ static struct clk audio_pll_clk2_ck = {
 	.name		= "audio_pll_clk2_ck",
 	.parent		= &main_pll_clk7_ck,
 	.fapll_data	= &fapll_audio_fd,
+	.synthesizer_id	= TI816X_SYNTHESIZER_ID2,
 	.freq_reg	= TI816X_AUDIOPLL_FREQ2,
 	.post_div_reg	= TI816X_AUDIOPLL_DIV2,
-	.synthesizer_id	= 2,
-	.tolerance_flag	= 1,
 	.frac_flag	= 1,
 	.pwd_mask	= TI816X_AUDIOPLL_PWD_CLK2_MASK,
 	.init		= &ti816x_init_fapll_parent,
@@ -1229,10 +1171,9 @@ static struct clk audio_pll_clk3_ck = {
 	.name		= "audio_pll_clk3_ck",
 	.parent		= &main_pll_clk7_ck,
 	.fapll_data	= &fapll_audio_fd,
+	.synthesizer_id	= TI816X_SYNTHESIZER_ID3,
 	.freq_reg	= TI816X_AUDIOPLL_FREQ3,
 	.post_div_reg	= TI816X_AUDIOPLL_DIV3,
-	.synthesizer_id	= 3,
-	.tolerance_flag	= 1,
 	.frac_flag	= 1,
 	.pwd_mask	= TI816X_AUDIOPLL_PWD_CLK3_MASK,
 	.init		= &ti816x_init_fapll_parent,
@@ -1247,10 +1188,9 @@ static struct clk audio_pll_clk4_ck = {
 	.name		= "audio_pll_clk4_ck",
 	.parent		= &main_pll_clk7_ck,
 	.fapll_data	= &fapll_audio_fd,
+	.synthesizer_id	= TI816X_SYNTHESIZER_ID4,
 	.freq_reg	= TI816X_AUDIOPLL_FREQ4,
 	.post_div_reg	= TI816X_AUDIOPLL_DIV4,
-	.synthesizer_id	= 4,
-	.tolerance_flag	= 1,
 	.frac_flag	= 1,
 	.pwd_mask	= TI816X_AUDIOPLL_PWD_CLK4_MASK,
 	.init		= &ti816x_init_fapll_parent,
@@ -1265,10 +1205,9 @@ static struct clk audio_pll_clk5_ck = {
 	.name		= "audio_pll_clk5_ck",
 	.parent		= &main_pll_clk7_ck,
 	.fapll_data	= &fapll_audio_fd,
+	.synthesizer_id	= TI816X_SYNTHESIZER_ID5,
 	.freq_reg	= TI816X_AUDIOPLL_FREQ5,
 	.post_div_reg	= TI816X_AUDIOPLL_DIV5,
-	.synthesizer_id	= 5,
-	.tolerance_flag	= 1,
 	.frac_flag	= 1,
 	.pwd_mask	= TI816X_AUDIOPLL_PWD_CLK5_MASK,
 	.init		= &ti816x_init_fapll_parent,

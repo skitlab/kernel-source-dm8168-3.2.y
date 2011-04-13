@@ -420,8 +420,10 @@ void __init omap2_init_common_infrastructure(void)
 		omap2430_clk_init();
 	else if (cpu_is_omap34xx())
 		omap3xxx_clk_init();
-	else if (cpu_is_ti816x())
+	else if (cpu_is_ti816x()) {
 		ti816x_clk_init();
+		ti816x_fapll_init();
+	}
 	else if (cpu_is_ti814x())
 		ti814x_clk_init();
 	else if (cpu_is_omap44xx())
