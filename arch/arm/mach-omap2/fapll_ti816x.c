@@ -93,6 +93,9 @@ u32 ti816x_fapll_get_rate(struct clk *clk)
 	if (!fd)
 		return 0;
 
+	pr_debug("%s, reference clock rate %lu\n",
+				clk->name, fd->clk_ref->rate);
+
 	/* Return bypass rate if FAPLL is bypassed */
 	v = __raw_readl(fd->control_reg);
 	v &= fd->bypass_mask;
@@ -138,6 +141,7 @@ u32 ti816x_fapll_get_rate(struct clk *clk)
 
 	fapll_clk = (long long)fd->clk_ref->rate * fapll_num;
 	do_div(fapll_clk, fapll_den);
+	pr_debug("%s, get rate %lld\n", clk->name, fapll_clk);
 
 	return fapll_clk;
 }

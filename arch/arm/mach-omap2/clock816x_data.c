@@ -92,9 +92,17 @@ static struct freq_parameters videopll_freqs[] = {
 	FAPLL(VIDEOPLL,	3,	594000000),
 };
 
+static struct freq_parameters audiopll_freqs[] = {
+	FAPLL(AUDIOPLL,	2,	160000000),
+	FAPLL(AUDIOPLL,	3,	198000000),
+	FAPLL(AUDIOPLL,	4,	45000000),
+	FAPLL(AUDIOPLL,	5,	32768000),
+};
+
 #define TI816X_MAINPLL_FRQTABL_SIZE ARRAY_SIZE(mainpll_freqs)
 #define TI816X_DDRPLL_FRQTABL_SIZE ARRAY_SIZE(ddrpll_freqs)
 #define TI816X_VIDEOPLL_FRQTABL_SIZE ARRAY_SIZE(videopll_freqs)
+#define TI816X_AUDIOPLL_FRQTABL_SIZE ARRAY_SIZE(audiopll_freqs)
 
 static struct clk secure_32k_ck = {
 	.name		= "secure_32k_ck",
@@ -1168,25 +1176,106 @@ static struct clk audio_pll_clk1_ck = {
 	.flags		= RATE_IN_TI816X,
 };
 
+/* AUDIO FAPLL */
+static struct fapll_data fapll_audio_fd = {
+	.control_reg	= TI816X_AUDIOPLL_CTRL,
+	.pwd_reg	= TI816X_AUDIOPLL_PWD,
+	.clk_bypass	= &main_pll_clk7_ck,
+	.clk_ref	= &main_pll_clk7_ck,
+	.freq_table	= audiopll_freqs,
+	.freq_tbl_size	= TI816X_AUDIOPLL_FRQTABL_SIZE,
+	.mult_mask	= TI816X_PLL_NVAL_MASK,
+	.div_mask	= TI816X_PLL_PVAL_MASK,
+	.bypass_mask	= TI816X_PLL_BYPASS_MASK,
+	.enable_mask	= TI816X_PLL_ENABLE_MASK,
+	.lock_mask	= TI816X_PLL_LOCK_OUT_SEL_MASK,
+	.lock_sts_mask	= TI816X_PLL_LOCK_STS_MASK,
+	.freq_frac_mask	= TI816X_PLL_FRACFREQ_MASK,
+	.freq_int_mask	= TI816X_PLL_INTFREQ_MASK,
+	.post_div_mask	= TI816X_PLL_MDIV_MASK,
+	.ldfreq_mask	= TI816X_PLL_LDFREQ_MASK,
+	.lddiv1_mask	= TI816X_PLL_LDMDIV_MASK,
+	.bypass_en	= TI816X_AUDIOPLL_BYPASS_EN,
+	.modes		= (1 << TI816X_FAPLL_BYPASS_SHIFT) |
+				(1 << TI816X_FAPLL_LOCKED_SHIFT),
+	.first_syn	= 2,
+	.last_syn	= TI816X_AUDIOPLL_NUM_SYN,
+	.rate_tolerance = TI816X_PLL_RATE_TOLARANCE,
+	.max_multiplier	= TI816X_PLL_MAX_MULT,
+	.min_divider	= 1,
+	.max_divider	= TI816X_PLL_MAX_DIV,
+};
+
+/* Synthesizer 2 from AUDIO PLL */
+static struct clk audio_pll_clk2_ck = {
+	.name		= "audio_pll_clk2_ck",
+	.parent		= &main_pll_clk7_ck,
+	.fapll_data	= &fapll_audio_fd,
+	.freq_reg	= TI816X_AUDIOPLL_FREQ2,
+	.post_div_reg	= TI816X_AUDIOPLL_DIV2,
+	.synthesizer_id	= 2,
+	.tolerance_flag	= 1,
+	.frac_flag	= 1,
+	.pwd_mask	= TI816X_AUDIOPLL_PWD_CLK2_MASK,
+	.init		= &ti816x_init_fapll_parent,
+	.ops		= &clkops_ti816x_fapll_ops,
+	.recalc		= &ti816x_fapll_recalc,
+	.round_rate	= &ti816x_fapll_round_rate,
+	.set_rate	= &ti816x_fapll_set_rate,
+};
+
+/* Synthesizer 3 from AUDIO PLL */
 static struct clk audio_pll_clk3_ck = {
 	.name		= "audio_pll_clk3_ck",
-	.ops		= &clkops_null,
-	.rate		= 196000000,
-	.flags		= RATE_IN_TI816X,
+	.parent		= &main_pll_clk7_ck,
+	.fapll_data	= &fapll_audio_fd,
+	.freq_reg	= TI816X_AUDIOPLL_FREQ3,
+	.post_div_reg	= TI816X_AUDIOPLL_DIV3,
+	.synthesizer_id	= 3,
+	.tolerance_flag	= 1,
+	.frac_flag	= 1,
+	.pwd_mask	= TI816X_AUDIOPLL_PWD_CLK3_MASK,
+	.init		= &ti816x_init_fapll_parent,
+	.ops		= &clkops_ti816x_fapll_ops,
+	.recalc		= &ti816x_fapll_recalc,
+	.round_rate	= &ti816x_fapll_round_rate,
+	.set_rate	= &ti816x_fapll_set_rate,
 };
 
+/* Synthesizer 4 from AUDIO PLL */
 static struct clk audio_pll_clk4_ck = {
 	.name		= "audio_pll_clk4_ck",
-	.ops		= &clkops_null,
-	.rate		= 45000000,
-	.flags		= RATE_IN_TI816X,
+	.parent		= &main_pll_clk7_ck,
+	.fapll_data	= &fapll_audio_fd,
+	.freq_reg	= TI816X_AUDIOPLL_FREQ4,
+	.post_div_reg	= TI816X_AUDIOPLL_DIV4,
+	.synthesizer_id	= 4,
+	.tolerance_flag	= 1,
+	.frac_flag	= 1,
+	.pwd_mask	= TI816X_AUDIOPLL_PWD_CLK4_MASK,
+	.init		= &ti816x_init_fapll_parent,
+	.ops		= &clkops_ti816x_fapll_ops,
+	.recalc		= &ti816x_fapll_recalc,
+	.round_rate	= &ti816x_fapll_round_rate,
+	.set_rate	= &ti816x_fapll_set_rate,
 };
 
+/* Synthesizer 5 from AUDIO PLL */
 static struct clk audio_pll_clk5_ck = {
 	.name		= "audio_pll_clk5_ck",
-	.ops		= &clkops_null,
-	.rate		= 32000000,
-	.flags		= RATE_IN_TI816X,
+	.parent		= &main_pll_clk7_ck,
+	.fapll_data	= &fapll_audio_fd,
+	.freq_reg	= TI816X_AUDIOPLL_FREQ5,
+	.post_div_reg	= TI816X_AUDIOPLL_DIV5,
+	.synthesizer_id	= 5,
+	.tolerance_flag	= 1,
+	.frac_flag	= 1,
+	.pwd_mask	= TI816X_AUDIOPLL_PWD_CLK5_MASK,
+	.init		= &ti816x_init_fapll_parent,
+	.ops		= &clkops_ti816x_fapll_ops,
+	.recalc		= &ti816x_fapll_recalc,
+	.round_rate	= &ti816x_fapll_round_rate,
+	.set_rate	= &ti816x_fapll_set_rate,
 };
 
 static const struct clksel audio_pll_a_div[] = {
@@ -1568,6 +1657,10 @@ static struct omap_clk ti816x_clks[] = {
 	CLK(NULL,		"video_pll_clk2_ck",	&video_pll_clk2_ck,	CK_TI816X),
 	CLK(NULL,		"video_pll_clk3_ck",	&video_pll_clk3_ck,	CK_TI816X),
 	CLK(NULL,		"audio_pll_clk1_ck",	&audio_pll_clk1_ck,	CK_TI816X),
+	CLK(NULL,		"audio_pll_clk2_ck",	&audio_pll_clk2_ck,	CK_TI816X),
+	CLK(NULL,		"audio_pll_clk3_ck",	&audio_pll_clk3_ck,	CK_TI816X),
+	CLK(NULL,		"audio_pll_clk4_ck",	&audio_pll_clk4_ck,	CK_TI816X),
+	CLK(NULL,		"audio_pll_clk5_ck",	&audio_pll_clk5_ck,	CK_TI816X),
 	CLK(NULL,		"audio_pll_a_ck",	&audio_pll_a_ck,	CK_TI816X),
 	CLK(NULL,		"sysclk18_ck",		&sysclk18_ck,		CK_TI816X),
 	CLK(NULL,		"gpt1_fck",		&gpt1_fck,		CK_TI816X),
@@ -1581,11 +1674,8 @@ static struct omap_clk ti816x_clks[] = {
 	CLK(NULL,		"gpio1_dbck",		&gpio1_dbck,		CK_TI816X),
 	CLK(NULL,		"gpio2_dbck",		&gpio2_dbck,		CK_TI816X),
 	CLK("mmci-omap-hs.0",	"mmchsdb_fck",		&mmchsdb1_fck,		CK_TI816X),
-	CLK(NULL,		"audio_pll_clk3_ck",	&audio_pll_clk3_ck,	CK_TI816X),
 	CLK(NULL,		"sysclk20_ck",		&sysclk20_ck,		CK_TI816X),
-	CLK(NULL,		"audio_pll_clk4_ck",	&audio_pll_clk4_ck,	CK_TI816X),
 	CLK(NULL,		"sysclk21_ck",		&sysclk21_ck,		CK_TI816X),
-	CLK(NULL,		"audio_pll_clk5_ck",	&audio_pll_clk5_ck,	CK_TI816X),
 	CLK(NULL,		"sysclk22_ck",		&sysclk22_ck,		CK_TI816X),
 	CLK("davinci-mcasp.0",	NULL,			&mcasp0_fck,		CK_TI816X),
 	CLK("davinci-mcasp.1",	NULL,			&mcasp1_fck,		CK_TI816X),
