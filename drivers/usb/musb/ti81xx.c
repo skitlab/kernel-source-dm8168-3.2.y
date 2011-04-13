@@ -610,8 +610,7 @@ void ti81xx_musb_enable(struct musb *musb)
 	       ((musb->epmask & USB_RX_EP_MASK) << USB_INTR_RX_SHIFT);
 	coremask = (0x01ff << USB_INTR_USB_SHIFT);
 
-	coremask &= ~0x8; /* disable the SOF */
-	coremask |= 0x8;
+	coremask &= ~MUSB_INTR_SOF;
 
 	musb_writel(reg_base, USB_EP_INTR_SET_REG, epmask);
 	musb_writel(reg_base, USB_CORE_INTR_SET_REG, coremask);
@@ -848,14 +847,10 @@ static irqreturn_t ti81xx_interrupt(int irq, void *hci)
 	/* Acknowledge and handle non-CPPI interrupts */
 	/* Get endpoint interrupts */
 	epintr = musb_readl(reg_base, USB_EP_INTR_STATUS_REG);
-	if (epintr) {
+	musb->int_rx = (epintr & USB_RX_INTR_MASK) >> USB_INTR_RX_SHIFT;
+	musb->int_tx = (epintr & USB_TX_INTR_MASK) >> USB_INTR_TX_SHIFT;
+	if (epintr)
 		musb_writel(reg_base, USB_EP_INTR_STATUS_REG, epintr);
-
-		musb->int_rx =
-			(epintr & USB_RX_INTR_MASK) >> USB_INTR_RX_SHIFT;
-		musb->int_tx =
-			(epintr & USB_TX_INTR_MASK) >> USB_INTR_TX_SHIFT;
-	}
 
 	/* Get usb core interrupts */
 	usbintr = musb_readl(reg_base, USB_CORE_INTR_STATUS_REG);
@@ -864,11 +859,11 @@ static irqreturn_t ti81xx_interrupt(int irq, void *hci)
 		goto eoi;
 	}
 
-	if (usbintr) {
+	if (usbintr)
 		musb_writel(reg_base, USB_CORE_INTR_STATUS_REG, usbintr);
-		musb->int_usb =
-			(usbintr & USB_INTR_USB_MASK) >> USB_INTR_USB_SHIFT;
-	}
+	musb->int_usb =	(usbintr & USB_INTR_USB_MASK) >> USB_INTR_USB_SHIFT;
+
+	DBG(4, "usbintr (%x) epintr(%x)\n", usbintr, epintr);
 	/*
 	 * DRVVBUS IRQs are the only proxy we have (a very poor one!) for
 	 * AM3517's missing ID change IRQ.  We need an ID change IRQ to
@@ -938,7 +933,7 @@ static irqreturn_t ti81xx_interrupt(int irq, void *hci)
 	/* EOI needs to be written for the IRQ to be re-asserted. */
 	if (ret == IRQ_HANDLED || epintr || usbintr) {
 		/* write EOI */
-		musb_writel(reg_base, USB_IRQ_EOI, 0);
+		musb_writel(reg_base, USB_IRQ_EOI, 1);
 	}
 
 	/* Poll for ID change */
