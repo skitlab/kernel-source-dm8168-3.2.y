@@ -86,8 +86,15 @@ static struct freq_parameters ddrpll_freqs[] = {
 	FAPLL(DDRPLL_400,	5,	228000000),
 };
 
+static struct freq_parameters videopll_freqs[] = {
+	FAPLL(VIDEOPLL,	1,	216000000),
+	FAPLL(VIDEOPLL,	2,	594000000),
+	FAPLL(VIDEOPLL,	3,	594000000),
+};
+
 #define TI816X_MAINPLL_FRQTABL_SIZE ARRAY_SIZE(mainpll_freqs)
 #define TI816X_DDRPLL_FRQTABL_SIZE ARRAY_SIZE(ddrpll_freqs)
+#define TI816X_VIDEOPLL_FRQTABL_SIZE ARRAY_SIZE(videopll_freqs)
 
 static struct clk secure_32k_ck = {
 	.name		= "secure_32k_ck",
@@ -1070,6 +1077,90 @@ static struct clk sysclk24_ck = {
 	.recalc		= &omap2_clksel_recalc,
 };
 
+/* VIDEO FAPLL */
+static struct fapll_data fapll_video_fd = {
+	.control_reg	= TI816X_VIDEOPLL_CTRL,
+	.pwd_reg	= TI816X_VIDEOPLL_PWD,
+	.clk_bypass	= &sys_clkin_ck,
+	.clk_ref	= &sys_clkin_ck,
+	.freq_table	= videopll_freqs,
+	.freq_tbl_size	= TI816X_VIDEOPLL_FRQTABL_SIZE,
+	.mult_mask	= TI816X_PLL_NVAL_MASK,
+	.div_mask	= TI816X_PLL_PVAL_MASK,
+	.bypass_mask	= TI816X_PLL_BYPASS_MASK,
+	.enable_mask	= TI816X_PLL_ENABLE_MASK,
+	.lock_mask	= TI816X_PLL_LOCK_OUT_SEL_MASK,
+	.lock_sts_mask	= TI816X_PLL_LOCK_STS_MASK,
+	.freq_frac_mask	= TI816X_PLL_FRACFREQ_MASK,
+	.freq_int_mask	= TI816X_PLL_INTFREQ_MASK,
+	.post_div_mask	= TI816X_PLL_MDIV_MASK,
+	.ldfreq_mask	= TI816X_PLL_LDFREQ_MASK,
+	.lddiv1_mask	= TI816X_PLL_LDMDIV_MASK,
+	.bypass_en	= TI816X_VIDEOPLL_BYPASS_EN,
+	.modes		= (1 << TI816X_FAPLL_BYPASS_SHIFT) |
+				(1 << TI816X_FAPLL_LOCKED_SHIFT),
+	.first_syn	= 1,
+	.last_syn	= TI816X_VIDEOPLL_NUM_SYN,
+	.rate_tolerance = TI816X_PLL_RATE_TOLARANCE,
+	.max_multiplier	= TI816X_PLL_MAX_MULT,
+	.min_divider	= 1,
+	.max_divider	= TI816X_PLL_MAX_DIV,
+};
+
+/* Synthesizer 1 from VIDEO PLL */
+static struct clk video_pll_clk1_ck = {
+	.name		= "video_pll_clk1_ck",
+	.parent		= &sys_clkin_ck,
+	.fapll_data	= &fapll_video_fd,
+	.freq_reg	= TI816X_VIDEOPLL_FREQ1,
+	.post_div_reg	= TI816X_VIDEOPLL_DIV1,
+	.synthesizer_id	= 1,
+	.tolerance_flag	= 1,
+	.frac_flag	= 1,
+	.pwd_mask	= TI816X_VIDEOPLL_PWD_CLK1_MASK,
+	.init		= &ti816x_init_fapll_parent,
+	.ops		= &clkops_ti816x_fapll_ops,
+	.recalc		= &ti816x_fapll_recalc,
+	.round_rate	= &ti816x_fapll_round_rate,
+	.set_rate	= &ti816x_fapll_set_rate,
+};
+
+/* Synthesizer 2 from VIDEO PLL */
+static struct clk video_pll_clk2_ck = {
+	.name		= "video_pll_clk2_ck",
+	.parent		= &sys_clkin_ck,
+	.fapll_data	= &fapll_video_fd,
+	.freq_reg	= TI816X_VIDEOPLL_FREQ2,
+	.post_div_reg	= TI816X_VIDEOPLL_DIV2,
+	.synthesizer_id	= 2,
+	.tolerance_flag	= 1,
+	.frac_flag	= 1,
+	.pwd_mask	= TI816X_VIDEOPLL_PWD_CLK2_MASK,
+	.init		= &ti816x_init_fapll_parent,
+	.ops		= &clkops_ti816x_fapll_ops,
+	.recalc		= &ti816x_fapll_recalc,
+	.round_rate	= &ti816x_fapll_round_rate,
+	.set_rate	= &ti816x_fapll_set_rate,
+};
+
+/* Synthesizer 3 from VIDEO PLL */
+static struct clk video_pll_clk3_ck = {
+	.name		= "video_pll_clk3_ck",
+	.parent		= &sys_clkin_ck,
+	.fapll_data	= &fapll_video_fd,
+	.freq_reg	= TI816X_VIDEOPLL_FREQ3,
+	.post_div_reg	= TI816X_VIDEOPLL_DIV3,
+	.synthesizer_id	= 3,
+	.tolerance_flag	= 1,
+	.frac_flag	= 1,
+	.pwd_mask	= TI816X_VIDEOPLL_PWD_CLK3_MASK,
+	.init		= &ti816x_init_fapll_parent,
+	.ops		= &clkops_ti816x_fapll_ops,
+	.recalc		= &ti816x_fapll_recalc,
+	.round_rate	= &ti816x_fapll_round_rate,
+	.set_rate	= &ti816x_fapll_set_rate,
+};
+
 static struct clk audio_pll_clk1_ck = {
 	.name		= "audio_pll_clk1_ck",
 	.ops		= &clkops_null,
@@ -1473,6 +1564,9 @@ static struct omap_clk ti816x_clks[] = {
 	CLK("i2c_omap.2",	"fck",			&i2c2_fck,		CK_TI816X),
 	CLK("mmci-omap-hs.0",	"fck",			&mmchs1_fck,		CK_TI816X),
 	CLK(NULL,		"sysclk24_ck",		&sysclk24_ck,		CK_TI816X),
+	CLK(NULL,		"video_pll_clk1_ck",	&video_pll_clk1_ck,	CK_TI816X),
+	CLK(NULL,		"video_pll_clk2_ck",	&video_pll_clk2_ck,	CK_TI816X),
+	CLK(NULL,		"video_pll_clk3_ck",	&video_pll_clk3_ck,	CK_TI816X),
 	CLK(NULL,		"audio_pll_clk1_ck",	&audio_pll_clk1_ck,	CK_TI816X),
 	CLK(NULL,		"audio_pll_a_ck",	&audio_pll_a_ck,	CK_TI816X),
 	CLK(NULL,		"sysclk18_ck",		&sysclk18_ck,		CK_TI816X),
