@@ -42,6 +42,12 @@
 #define OMAP4XXX_EN_DPLL_FRBYPASS		0x6
 #define OMAP4XXX_EN_DPLL_LOCKED			0x7
 
+/* TI816X FAPLL_CTRL bits - for ti816x_get_fapll_rate() */
+#define TI816X_FAPLL_LOCKED_SHIFT		0x0
+#define TI816X_FAPLL_LOCKED_MASK		(1 << 0x0)
+#define TI816X_FAPLL_BYPASS_SHIFT		0x2
+#define TI816X_FAPLL_BYPASS_MASK		(1 << 0x2)
+
 /* CM_CLKEN_PLL*.EN* bit values - not all are available for every DPLL */
 #define DPLL_LOW_POWER_STOP	0x1
 #define DPLL_LOW_POWER_BYPASS	0x5
@@ -65,6 +71,19 @@ u32 omap3_dpll_autoidle_read(struct clk *clk);
 int omap3_noncore_dpll_set_rate(struct clk *clk, unsigned long rate);
 int omap3_noncore_dpll_enable(struct clk *clk);
 void omap3_noncore_dpll_disable(struct clk *clk);
+
+long ti816x_clk_round_rate(struct clk *clk, unsigned long rate);
+int ti816x_clk_set_rate(struct clk *clk, unsigned long rate);
+int ti816x_clk_set_parent(struct clk *clk, struct clk *new_parent);
+void ti816x_init_fapll_parent(struct clk *clk);
+int ti816x_fapll_set_rate_tolerance(struct clk *clk, unsigned int tolerance);
+unsigned long ti816x_fapll_recalc(struct clk *clk);
+long ti816x_fapll_round_rate(struct clk *clk, unsigned long target_rate);
+int ti816x_fapll_set_rate(struct clk *clk, unsigned long rate);
+int ti816x_fapll_enable(struct clk *clk);
+void ti816x_fapll_disable(struct clk *clk);
+
+extern const struct clkops clkops_ti816x_fapll_ops;
 
 #ifdef CONFIG_OMAP_RESET_CLOCKS
 void omap2_clk_disable_unused(struct clk *clk);

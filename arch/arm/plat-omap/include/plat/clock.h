@@ -171,6 +171,84 @@ struct dpll_data {
 #  endif
 };
 
+/**
+ * struct fapll_data - FAPLL registers and integration data
+ * @control_reg: register containing the FAPLL N and P bitfields
+ * @mult_mask: mask of the FAPLL N bitfield in @control_reg
+ * @div_mask: mask of the FAPLL P bitfield in @control_reg
+ * @bypass_mask: bypass mask of the FAPLL mode bitfield in @control_reg
+ * @enable_mask: enable mask of the FAPLL mode bitfield in @control_reg
+ * @lock_mask: lock mask of the FAPLL mode bitfield in @control_reg
+ * @lock_sts_mask: lock status mask of the FAPLL mode bitfield in @control_reg
+ * @pwd_reg: register containing the power down bitfields
+ * @clk_bypass: struct clk pointer to the clock's bypass clock input
+ * @clk_ref: struct clk pointer to the clock's reference clock input
+ * @freq_table: Table contains all the frequencies of FAPLL
+ * @freq_tbl_size: Frequency table size
+ * @freq_frac_mask: mask of the FAPLL freq fracional part bitfield
+ * @freq_int_mask: mask of the FAPLL freq integer part bitfield
+ * @post_div_mask: mask of the FAPLL post divider bitfield
+ * @ldfreq_mask: mask of the load freq value to synthesizer
+ * @lddiv1_mask: mask to load M value to synthesizer
+ * @trunk_mask: mask of the FAPLL trunk bitfield in @freq_reg
+ * @bypass_en: Enable value for checking the bypass mode of FAPLL
+ * @modes: possible values of @enable_mask
+ * @first_syn: contians the starting number of synthesizer
+ * @last_syn: contians the last number of synthesizer
+ * @rate_tolerance: maximum variance allowed from target rate (in Hz)
+ * @last_rounded_rate: cache of the last rate result of omap2_dpll_round_rate()
+ * @last_rounded_n: cache of the last N result of ti816x_fapll_round_rate()
+ * @last_rounded_p: cache of the last P result of ti816x_fapll_round_rate()
+ * @last_rounded_m: cache of the last M result of ti816x_fapll_round_rate()
+ * @last_rounded_freq_int: cache of the last freq integer result
+ * @last_rounded_freq_frac: cache of the last freq fractional result
+ * @max_multiplier: maximum valid non-bypass multiplier value (actual)
+ * @min_divider: minimum valid non-bypass divider value (actual)
+ * @max_divider: maximum valid non-bypass divider value (actual)
+ *
+ * XXX @rate_tolerance should probably be deprecated - currently there
+ * don't seem to be any usecases for FAPLL rounding that is not exact.
+ *
+ * XXX The runtime-variable fields (@last_rounded_rate, @last_rounded_m,
+ * @last_rounded_n) should be separated from the runtime-fixed fields
+ * and placed into a differenct structure, so that the runtime-fixed data
+ * can be placed into read-only space.
+ */
+struct fapll_data {
+	void __iomem		*control_reg;
+	u32			mult_mask;
+	u32			div_mask;
+	u32			bypass_mask;
+	u32			enable_mask;
+	u32			lock_mask;
+	u32			lock_sts_mask;
+	void __iomem		*pwd_reg;
+	struct clk		*clk_bypass;
+	struct clk		*clk_ref;
+	struct freq_parameters	*freq_table;
+	u32			freq_tbl_size;
+	u32			freq_frac_mask;
+	u32			freq_int_mask;
+	u32			post_div_mask;
+	u32			ldfreq_mask;
+	u32			lddiv1_mask;
+	u32			trunk_mask;
+	u32			bypass_en;
+	u8			modes;
+	u32			first_syn;
+	u32			last_syn;
+	unsigned int		rate_tolerance;
+	unsigned long		last_rounded_rate;
+	u16			last_rounded_n;
+	u8			last_rounded_p;
+	u8			last_rounded_m;
+	u8			last_rounded_freq_int;
+	u32			last_rounded_freq_frac;
+	u16			max_multiplier;
+	u8			min_divider;
+	u8			max_divider;
+};
+
 #endif
 
 /* struct clk.flags possibilities */
@@ -206,6 +284,14 @@ struct dpll_data {
  * @clkdm: pointer to struct clockdomain, resolved from @clkdm_name at runtime
  * @rate_offset: bitshift for rate selection bitfield (OMAP1 only)
  * @src_offset: bitshift for source selection bitfield (OMAP1 only)
+ * @fapll_data: for FAPLLs, pointer to struct fapll_data for this clock
+ * @freq_reg: for synthesizer clks, output rate is based on this value
+ * @post_div_reg: register containing M value of FAPLL
+ * @synthesizer_id: synthesizer id in a particular FAPLL
+ * @pwd_mask: mask of the FAPLL to put all syn's in power down
+ * @pwd_syn: contain the value of synthesizer to power down
+ * @tolerance_flag: Flag for allowing the tolarance to computation
+ * @frac_flag: Flag for setting the frac part is persent or not
  *
  * XXX @rate_offset, @src_offset should probably be removed and OMAP1
  * clock code converted to use clksel.
@@ -251,9 +337,18 @@ struct clk {
 	struct dpll_data	*dpll_data;
 	const char		*clkdm_name;
 	struct clockdomain	*clkdm;
-#else
 	u8			rate_offset;
 	u8			src_offset;
+#ifdef CONFIG_ARCH_TI816X
+	struct fapll_data	*fapll_data;
+	void __iomem		*freq_reg;
+	void __iomem		*post_div_reg;
+	u32			synthesizer_id;
+	u32			pwd_mask;
+	u32			pwd_syn;
+	u32			tolerance_flag;
+	u32			frac_flag;
+#endif
 #endif
 #if defined(CONFIG_PM_DEBUG) && defined(CONFIG_DEBUG_FS)
 	struct dentry		*dent;	/* For visible tree hierarchy */

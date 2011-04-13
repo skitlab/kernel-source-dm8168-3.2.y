@@ -377,6 +377,15 @@ const struct clkops clkops_omap3_noncore_dpll_ops = {
 
 #endif
 
+/* TI816X ADPLL clkops */
+#if defined(CONFIG_ARCH_TI816X)
+
+const struct clkops clkops_ti816x_fapll_ops = {
+	.enable		= ti816x_fapll_enable,
+	.disable	= ti816x_fapll_disable,
+};
+
+#endif
 
 /*
  * OMAP2+ clock reset and init functions
