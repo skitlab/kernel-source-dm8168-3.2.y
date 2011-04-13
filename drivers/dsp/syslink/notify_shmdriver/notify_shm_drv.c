@@ -1284,7 +1284,7 @@ void notify_shm_drv_disable_event(struct notify_driver_object *handle,
 					notify_shm_drv_state.gate_handle);
 	if (status)
 		goto exit;
-	clear_bit(event_id, (unsigned long *)
+	__clear_bit(event_id, (unsigned long *)
 			&(obj->self_proc_ctrl->event_enable_mask));
 	/* Leave critical section protection. */
 	mutex_unlock(notify_shm_drv_state.gate_handle);
@@ -1390,7 +1390,7 @@ void notify_shm_drv_enable_event(struct notify_driver_object *handle,
 					notify_shm_drv_state.gate_handle);
 	if (status)
 		goto exit;
-	set_bit(event_id, (unsigned long *)
+	__set_bit(event_id, (unsigned long *)
 			&(obj->self_proc_ctrl->event_enable_mask));
 	/* Leave critical section protection. */
 	mutex_unlock(notify_shm_drv_state.gate_handle);
