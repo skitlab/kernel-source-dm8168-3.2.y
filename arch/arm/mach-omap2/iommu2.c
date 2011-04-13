@@ -107,8 +107,13 @@ static int omap2_iommu_enable(struct iommu *obj)
 	} while (!time_after(jiffies, timeout));
 
 	if (!(l & MMU_SYS_RESETDONE)) {
-		dev_err(obj->dev, "can't take mmu out of reset\n");
-		return -ENODEV;
+		/* MMU_SYS_RESETDONE is tied to zero in ti81xx devices.
+		 * we are relying on 20ms delay on ti81xx devices
+		 */
+		if (!cpu_is_ti81xx()) {
+			dev_err(obj->dev, "can't take mmu out of reset\n");
+			return -ENODEV;
+		}
 	}
 
 	l = iommu_read_reg(obj, MMU_REVISION);
