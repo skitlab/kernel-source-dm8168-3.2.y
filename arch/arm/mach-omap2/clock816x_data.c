@@ -77,7 +77,17 @@ static struct freq_parameters mainpll_freqs[] = {
 	FAPLL(MAINPLL,	6,	24000000),
 	FAPLL(MAINPLL,	7,	432000000),
 };
+
+static struct freq_parameters ddrpll_freqs[] = {
+	FAPLL(DDRPLL_400,	1,	400000000),
+	FAPLL(DDRPLL_400,	2,	96000000),
+	FAPLL(DDRPLL_400,	3,	400000000),
+	FAPLL(DDRPLL_400,	4,	228000000),
+	FAPLL(DDRPLL_400,	5,	228000000),
+};
+
 #define TI816X_MAINPLL_FRQTABL_SIZE ARRAY_SIZE(mainpll_freqs)
+#define TI816X_DDRPLL_FRQTABL_SIZE ARRAY_SIZE(ddrpll_freqs)
 
 static struct clk secure_32k_ck = {
 	.name		= "secure_32k_ck",
@@ -830,11 +840,122 @@ static struct clk gem_trc_fck = {
 	.recalc         = &followparent_recalc,
 };
 
+/* DDR FAPLL */
+static struct fapll_data fapll_ddr_fd = {
+	.control_reg	= TI816X_DDRPLL_CTRL,
+	.pwd_reg	= TI816X_DDRPLL_PWD,
+	.clk_bypass	= &sys_clkin_ck,
+	.clk_ref	= &sys_clkin_ck,
+	.freq_table	= ddrpll_freqs,
+	.freq_tbl_size	= TI816X_DDRPLL_FRQTABL_SIZE,
+	.mult_mask	= TI816X_PLL_NVAL_MASK,
+	.div_mask	= TI816X_PLL_PVAL_MASK,
+	.bypass_mask	= TI816X_PLL_BYPASS_MASK,
+	.enable_mask	= TI816X_PLL_ENABLE_MASK,
+	.lock_mask	= TI816X_PLL_LOCK_OUT_SEL_MASK,
+	.lock_sts_mask	= TI816X_PLL_LOCK_STS_MASK,
+	.freq_frac_mask	= TI816X_PLL_FRACFREQ_MASK,
+	.freq_int_mask	= TI816X_PLL_INTFREQ_MASK,
+	.post_div_mask	= TI816X_PLL_MDIV_MASK,
+	.ldfreq_mask	= TI816X_PLL_LDFREQ_MASK,
+	.lddiv1_mask	= TI816X_PLL_LDMDIV_MASK,
+	.bypass_en	= TI816X_DDRPLL_BYPASS_EN,
+	.modes		= (1 << TI816X_FAPLL_BYPASS_SHIFT) |
+				(1 << TI816X_FAPLL_LOCKED_SHIFT),
+	.first_syn	= 1,
+	.last_syn	= TI816X_DDRPLL_NUM_SYN,
+	.rate_tolerance = TI816X_PLL_RATE_TOLARANCE,
+	.max_multiplier	= TI816X_PLL_MAX_MULT,
+	.min_divider	= 1,
+	.max_divider	= TI816X_PLL_MAX_DIV,
+};
+
+/* Synthesizer 1 from DDR PLL */
+static struct clk ddr_pll_clk1_ck = {
+	.name		= "ddr_pll_clk1_ck",
+	.parent		= &sys_clkin_ck,
+	.fapll_data	= &fapll_ddr_fd,
+	.post_div_reg	= TI816X_DDRPLL_DIV1,
+	.synthesizer_id	= 1,
+	.tolerance_flag	= 1,
+	.pwd_mask	= TI816X_DDRPLL_PWD_CLK1_MASK,
+	.init		= &ti816x_init_fapll_parent,
+	.ops		= &clkops_ti816x_fapll_ops,
+	.recalc		= &ti816x_fapll_recalc,
+	.round_rate	= &ti816x_fapll_round_rate,
+	.set_rate	= &ti816x_fapll_set_rate,
+};
+
+/* Synthesizer 2 from DDR PLL */
 static struct clk ddr_pll_clk2_ck = {
 	.name		= "ddr_pll_clk2_ck",
-	.ops		= &clkops_null,
-	.rate		= 96000000,
-	.flags		= RATE_IN_TI816X,
+	.parent		= &sys_clkin_ck,
+	.fapll_data	= &fapll_ddr_fd,
+	.freq_reg	= TI816X_DDRPLL_FREQ2,
+	.post_div_reg	= TI816X_DDRPLL_DIV2,
+	.synthesizer_id	= 2,
+	.tolerance_flag	= 1,
+	.frac_flag	= 1,
+	.pwd_mask	= TI816X_DDRPLL_PWD_CLK2_MASK,
+	.init		= &ti816x_init_fapll_parent,
+	.ops		= &clkops_ti816x_fapll_ops,
+	.recalc		= &ti816x_fapll_recalc,
+	.round_rate	= &ti816x_fapll_round_rate,
+	.set_rate	= &ti816x_fapll_set_rate,
+};
+
+/* Synthesizer 3 from DDR PLL */
+static struct clk ddr_pll_clk3_ck = {
+	.name		= "ddr_pll_clk3_ck",
+	.parent		= &sys_clkin_ck,
+	.fapll_data	= &fapll_ddr_fd,
+	.freq_reg	= TI816X_DDRPLL_FREQ3,
+	.post_div_reg	= TI816X_DDRPLL_DIV3,
+	.synthesizer_id	= 3,
+	.tolerance_flag	= 1,
+	.frac_flag	= 1,
+	.pwd_mask	= TI816X_DDRPLL_PWD_CLK3_MASK,
+	.init		= &ti816x_init_fapll_parent,
+	.ops		= &clkops_ti816x_fapll_ops,
+	.recalc		= &ti816x_fapll_recalc,
+	.round_rate	= &ti816x_fapll_round_rate,
+	.set_rate	= &ti816x_fapll_set_rate,
+};
+
+/* Synthesizer 4 from DDR PLL */
+static struct clk ddr_pll_clk4_ck = {
+	.name		= "ddr_pll_clk4_ck",
+	.parent		= &sys_clkin_ck,
+	.fapll_data	= &fapll_ddr_fd,
+	.freq_reg	= TI816X_DDRPLL_FREQ4,
+	.post_div_reg	= TI816X_DDRPLL_DIV4,
+	.synthesizer_id	= 4,
+	.tolerance_flag	= 1,
+	.frac_flag	= 1,
+	.pwd_mask	= TI816X_DDRPLL_PWD_CLK4_MASK,
+	.init		= &ti816x_init_fapll_parent,
+	.ops		= &clkops_ti816x_fapll_ops,
+	.recalc		= &ti816x_fapll_recalc,
+	.round_rate	= &ti816x_fapll_round_rate,
+	.set_rate	= &ti816x_fapll_set_rate,
+};
+
+/* Synthesizer 5 from DDR PLL */
+static struct clk ddr_pll_clk5_ck = {
+	.name		= "ddr_pll_clk5_ck",
+	.parent		= &sys_clkin_ck,
+	.fapll_data	= &fapll_ddr_fd,
+	.freq_reg	= TI816X_DDRPLL_FREQ5,
+	.post_div_reg	= TI816X_DDRPLL_DIV5,
+	.synthesizer_id	= 5,
+	.tolerance_flag	= 1,
+	.frac_flag	= 1,
+	.pwd_mask	= TI816X_DDRPLL_PWD_CLK4_MASK,
+	.init		= &ti816x_init_fapll_parent,
+	.ops		= &clkops_ti816x_fapll_ops,
+	.recalc		= &ti816x_fapll_recalc,
+	.round_rate	= &ti816x_fapll_round_rate,
+	.set_rate	= &ti816x_fapll_set_rate,
 };
 
 static const struct clksel sysclk10_div[] = {
@@ -1329,7 +1450,11 @@ static struct omap_clk ti816x_clks[] = {
 	CLK("mmci-omap-hs.0",	"ick",			&mmchs1_ick,		CK_TI816X),
 	CLK(NULL,	"smartreflex_corehvt_fck",	&smartreflex_corehvt_fck,	CK_TI816X),
 	CLK(NULL,	"smartreflex_coresvt_fck",	&smartreflex_coresvt_fck,	CK_TI816X),
+	CLK(NULL,		"ddr_pll_clk1_ck",	&ddr_pll_clk1_ck,	CK_TI816X),
 	CLK(NULL,		"ddr_pll_clk2_ck",	&ddr_pll_clk2_ck,	CK_TI816X),
+	CLK(NULL,		"ddr_pll_clk3_ck",	&ddr_pll_clk3_ck,	CK_TI816X),
+	CLK(NULL,		"ddr_pll_clk4_ck",	&ddr_pll_clk4_ck,	CK_TI816X),
+	CLK(NULL,		"ddr_pll_clk5_ck",	&ddr_pll_clk5_ck,	CK_TI816X),
 	CLK(NULL,		"sysclk10_ck",		&sysclk10_ck,		CK_TI816X),
 	CLK(NULL,		"uart1_fck",		&uart1_fck,		CK_TI816X),
 	CLK(NULL,		"uart2_fck",		&uart2_fck,		CK_TI816X),
