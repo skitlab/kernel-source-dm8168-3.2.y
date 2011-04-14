@@ -812,7 +812,7 @@ int notify_send_event(u16 proc_id, u16 line_id, u32 event_id, u32 payload,
 			mutex_unlock(notify_state.gate_handle);
 			/* Execute the callback function registered to the
 			 * event */
-			notify_exec(obj, event_id, payload);
+			notify_exec(obj, stripped_event_id, payload);
 			/* Enter critical section protection. TBD: nesting */
 			if (mutex_lock_interruptible(notify_state.gate_handle))
 				WARN_ON(1);
