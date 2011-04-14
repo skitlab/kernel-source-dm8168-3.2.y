@@ -18,10 +18,12 @@ config SYSLINK_NOTIFY
 		select SYSLINK_MULTIPROC
 		select OMAP_IOMMU
 		select OMAP_USER_DMM
+		select OMAP_IOMMU_IVA2 if ARCH_OMAP3430
 		help
 		 Syslink multi core notify Implementation
 
 endif
+
 
 
 
