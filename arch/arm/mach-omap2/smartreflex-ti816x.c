@@ -26,24 +26,19 @@
 #include <linux/kobject.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
+#include <linux/regulator/consumer.h>
 
 #include <plat/ti81xx.h>
 #include <plat/irqs-ti81xx.h>
 #include <plat/smartreflex.h>
 #include <plat/gpio.h>
 
-#define GPIO_VAL_INIT		(0xFF)
-#define NUM_GPIO_BITS		(4)
 #define SENS_PER_VDOMAIN	(2)
+#define	NUM_VOLTAGE_DOMAINS	(1)
 #define SEN_NAME_LEN		(40)
 
 #define MARGIN			(0)
-#define STEP_SIZE		(80) /* (1/12.5mv)*/
-#define MIN_VOLT		(0x2F5)
-#define MAX_VOLT		(0x4AE)
 #define	THOU_MVOLT		(1000)
-
-#define gpio_num(bank_num, pin_num) (bank_num * 32 + pin_num)
 
 #ifdef CONFIG_DEBUG_SR_CLASS2
 static int sr_debugfs_enable = 1;
@@ -51,41 +46,26 @@ static int sr_debugfs_enable = 1;
 static int sr_debugfs_enable;
 #endif
 
-struct tps40041_volt_data {
-	u8 gpio_val;
-	u32 mvolt;
-};
-static struct tps40041_volt_data volt_sd;
-
-/*
- * TODO: Populate this table based on silicon characterization data
- */
-static struct tps40041_volt_data tps_volt_data[NUM_VOLT_LEVELS] = {
-	{0x0, 0x2F4}, {0x8, 0X32B}, {0x4, 0x330}, {0x2, 0x344},
-	{0xC, 0x367}, {0xA, 0x37B}, {0x6, 0x380}, {0xE, 0x3B7},
-	{0x1, 0x3EB}, {0x9, 0x422}, {0x5, 0x427}, {0x3, 0x43B},
-	{0xD, 0x45E}, {0xB, 0x472}, {0x7, 0x477}, {0xF, 0x4AE},
-};
-
 struct ti816x_sr_sensors {
 	const char			*name;
 	struct clk			*fck;
 	int				irq_processed;
 	u32				nvalue;
+	/* Error to Voltage gain * 1000 */
 	s32				e2v_gain;
 	u32				base_addr;
 };
 
 struct ti816x_sr {
-	u8				init_gpio_val;
-	u8				curr_gpio_val;
-	u32				curr_volt;
 	int				is_autocomp_active;
+	u32				init_volt;
+	u32				current_volt;
 	spinlock_t			lock;
-	int				nvalue_count;
-	struct ti816x_sr_sensors	sen[SENS_PER_VDOMAIN];
 	struct timer_list		timer;
-	int				sr_intdelay;
+	struct ti816x_sr_sensors	sen[SENS_PER_VDOMAIN];
+	int				nvalue_count;
+	int				sr_irq_delay;
+	struct regulator		*reg;
 };
 
 static void sr_start_coreautocomp(struct ti816x_sr *sr);
@@ -96,19 +76,19 @@ static struct ti816x_sr srcore = {
 		.name		= "hvt",
 		.irq_processed	= 0,
 		.nvalue		= 0,
-		.e2v_gain	= (15),
+		.e2v_gain	= 195,
 		.base_addr	= TI816X_SR0_BASE,
 	},
 	.sen[1] = {
 		.name		= "svt",
 		.irq_processed	= 0,
 		.nvalue		= 0,
-		.e2v_gain	= (22),
+		.e2v_gain	= 279,
 		.base_addr	= TI816X_SR1_BASE,
 	},
-	.nvalue_count		= 2,
+	.nvalue_count		= SENS_PER_VDOMAIN * NUM_VOLTAGE_DOMAINS,
 	.is_autocomp_active	= 0,
-	.sr_intdelay		= 2000, /* msec */
+	.sr_irq_delay		= 2000, /* msec */
 };
 
 static inline void sr_write_reg(u32 srbase, int offset, u32 value)
@@ -133,148 +113,11 @@ static inline u32 sr_read_reg(u32 srbase, int offset)
 	return omap_readl(srbase + offset);
 }
 
-static u8 sr_gpio_getn(void)
-{
-	int i = 0;
-	int gpio_numb;
-	int gpio_val;
-	u8 cur_gpio_val = 0;
-
-	while (i < NUM_GPIO_BITS) {
-		gpio_numb = gpio_num(0, i);
-		gpio_request(gpio_numb, "srdrv");
-		gpio_val = gpio_get_value(gpio_numb);
-		cur_gpio_val = cur_gpio_val | (gpio_val << i);
-		i++;
-	}
-	srcore.curr_gpio_val = cur_gpio_val;
-
-	return cur_gpio_val;
-}
-
-static int sr_gpio_setn(u8 gpio_val)
-{
-	int i = 0;
-	int gpio_numb;
-
-	while (i < NUM_GPIO_BITS) {
-		gpio_numb = gpio_num(0, i);
-		gpio_request(gpio_numb, "srdrv");
-		gpio_direction_output(gpio_numb, (gpio_val & (1 << i)));
-		i++;
-	}
-
-	return 0;
-}
-
-/*
- * The routine reads the efuse register for getting current
- * gpio voltage value
- */
-static int get_core_voltage(void)
-{
-	u8 gpio_val;
-	u32 mvolt = 0;
-	int loopcnt;
-
-	gpio_val = sr_gpio_getn();
-
-	/* Get the voltage from the table based on gpio_val */
-	for (loopcnt = 0; loopcnt < NUM_VOLT_LEVELS; loopcnt++) {
-		if (tps_volt_data[loopcnt].gpio_val == gpio_val) {
-			mvolt = tps_volt_data[loopcnt].mvolt;
-			break;
-		}
-	}
-	srcore.curr_volt = mvolt;
-
-	return mvolt;
-}
-
-static void get_near_gpio_val(s32 curr_volt)
-{
-	int loopcnt, ncnt = 0;
-	s32 temp[NUM_VOLT_LEVELS], volt_greater[NUM_VOLT_LEVELS], swap_var;
-
-	volt_sd.gpio_val = GPIO_VAL_INIT;
-
-	/* Nearest GPIO val, nothing but picking the minimum diff
-	 * gpio values from a group of values
-	 */
-	for (loopcnt = 0; loopcnt < NUM_VOLT_LEVELS; loopcnt++) {
-		temp[loopcnt] = tps_volt_data[loopcnt].mvolt - curr_volt;
-		if (temp[loopcnt] >= 0) {
-			volt_greater[ncnt] = temp[loopcnt];
-			ncnt++;
-		}
-		if (ncnt > 1) {
-			if (volt_greater[ncnt-2] < volt_greater[ncnt-1]) {
-				swap_var = volt_greater[ncnt-2];
-				volt_greater[ncnt-2] = volt_greater[ncnt-1];
-				volt_greater[ncnt-1] = swap_var;
-			}
-		}
-	}
-
-	for (loopcnt = 0; loopcnt < NUM_VOLT_LEVELS; loopcnt++) {
-		if (temp[loopcnt] == volt_greater[ncnt - 1]) {
-			volt_sd.mvolt = tps_volt_data[loopcnt].mvolt;
-			volt_sd.gpio_val = tps_volt_data[loopcnt].gpio_val;
-			break;
-		}
-	}
-}
-
-/*
- * The routine get the error value and adjust the TPS40041 core
- * voltage based on the decision from two sensors
- * Assumptions:
- * 1. The efuse data is programmed into HVT and SVT control regs
- * 2. The efuse and gpio clocks are already enabled
- */
-static int set_core_voltage(s32 sr1error, s32 sr2error)
-{
-	int ret;
-	int current_volt;
-	int prev_volt;
-	unsigned long flags;
-
-	/* Get the current voltage from GPIO */
-	prev_volt = get_core_voltage();
-	if ((srcore.sen[0].irq_processed == 0) ||
-			(srcore.sen[1].irq_processed == 0))
-		return (volt_sd.mvolt == prev_volt);
-
-	if (sr1error > sr2error)
-		current_volt = prev_volt + sr1error;
-	else
-		current_volt = prev_volt + sr2error;
-
-	get_near_gpio_val(current_volt);
-	if (volt_sd.gpio_val == GPIO_VAL_INIT)
-		printk(KERN_ERR "Failed to get the gpio val = %d\n",
-				volt_sd.gpio_val);
-
-	spin_lock_irqsave(&srcore.lock, flags);
-	ret = sr_gpio_setn(volt_sd.gpio_val);
-	spin_unlock_irqrestore(&srcore.lock, flags);
-	if (ret)
-		printk(KERN_ERR "Failed to set the core voltage with GPIO\n");
-
-	srcore.sen[0].irq_processed = 0;
-	srcore.sen[1].irq_processed = 0;
-
-	return (volt_sd.mvolt == prev_volt);
-}
-
 static int get_errvolt(s32 srid)
 {
-	u32 srbase;
-	s32 e2vgain;
+	u32 srbase, senerror_reg;
+	s32 e2vgain, mvoltage;
 	s8 terror;
-	u32 senerror_reg;
-	s32 error, delta;
-	s32 steps, mvoltage;
 
 	if (srid == SRHVT) {
 		srbase	= srcore.sen[0].base_addr;
@@ -290,16 +133,67 @@ static int get_errvolt(s32 srid)
 	terror = senerror_reg & 0x000000FF;
 
 	/* convert from binary to % error x 1000mv */
-	error = terror * 25 * THOU_MVOLT;
-	delta = ((error + MARGIN) * e2vgain) >> 5;
+	mvoltage = ((terror + MARGIN) * e2vgain) >> 7;
 
-	/* compute the (steps * 1000mv) */
-	steps = delta/STEP_SIZE;
+	return mvoltage * 1000;
+}
 
-	/* Steps to volatge correction based on step size in mV*/
-	mvoltage = steps/STEP_SIZE;
+/*
+ * The routine get the error value and adjust the TPS40041 core
+ * voltage based on the decision from two sensors
+ * Assumptions:
+ * 1. The efuse data is programmed into HVT and SVT control regs
+ * 2. The efuse and gpio clocks are already enabled
+ */
+static int error_handling(int irq)
+{
+	int ret;
+	int prev_volt;
+	int uV;
+	unsigned long flags;
+	s32 hvt_dvolt;
+	s32 svt_dvolt;
 
-	return mvoltage;
+	hvt_dvolt = get_errvolt(SRHVT);
+	svt_dvolt = get_errvolt(SRSVT);
+
+	/* Get the current voltage from GPIO */
+	prev_volt = regulator_get_voltage(srcore.reg);
+	if ((srcore.sen[0].irq_processed == 0) ||
+			(srcore.sen[1].irq_processed == 0))
+		return (srcore.current_volt == prev_volt);
+
+	/* SRCONFIG - disable SR */
+	sr_modify_reg(srcore.sen[0].base_addr, SRCONFIG,
+			SRCONFIG_SRENABLE, ~SRCONFIG_SRENABLE);
+	/* SRCONFIG - disable SR */
+	sr_modify_reg(srcore.sen[1].base_addr, SRCONFIG,
+			SRCONFIG_SRENABLE, ~SRCONFIG_SRENABLE);
+
+	if (hvt_dvolt > svt_dvolt)
+		uV = prev_volt + hvt_dvolt;
+	else
+		uV = prev_volt + svt_dvolt;
+
+	spin_lock_irqsave(&srcore.lock, flags);
+	ret = regulator_set_voltage(srcore.reg, uV, uV);
+	spin_unlock_irqrestore(&srcore.lock, flags);
+	if (ret)
+		printk(KERN_ERR "Failed to set the core voltage with GPIO\n");
+
+	srcore.sen[0].irq_processed = 0;
+	srcore.sen[1].irq_processed = 0;
+
+	srcore.current_volt = regulator_get_voltage(srcore.reg);
+
+	/* SRCONFIG - enable SR*/
+	sr_modify_reg(srcore.sen[0].base_addr, SRCONFIG,
+			SRCONFIG_SRENABLE, SRCONFIG_SRENABLE);
+	/*SRCONFIG - enable SR*/
+	sr_modify_reg(srcore.sen[1].base_addr, SRCONFIG,
+			SRCONFIG_SRENABLE, SRCONFIG_SRENABLE);
+
+	return (srcore.current_volt == prev_volt);
 }
 
 static void irq_sr_timer(unsigned long data)
@@ -316,18 +210,13 @@ static void irq_sr_timer(unsigned long data)
 static irqreturn_t srcore_class2_irq(int irq, void *dev_id)
 {
 	int sr_irqdis;
-	s32 srhvt_delta;
-	s32 srsvt_delta;
-
-	srhvt_delta = get_errvolt(SRHVT);
-	srsvt_delta = get_errvolt(SRSVT);
 
 	if (irq == TI81XX_IRQ_SMRFLX0)
 		srcore.sen[0].irq_processed = 1;
 	else
 		srcore.sen[1].irq_processed = 1;
 
-	sr_irqdis = set_core_voltage(srhvt_delta, srsvt_delta);
+	sr_irqdis = error_handling(irq);
 
 	if (sr_irqdis == 1) {
 
@@ -335,7 +224,7 @@ static irqreturn_t srcore_class2_irq(int irq, void *dev_id)
 			srcore.timer.data = irq;
 			srcore.timer.function = irq_sr_timer;
 			srcore.timer.expires = jiffies +
-					msecs_to_jiffies(srcore.sr_intdelay);
+					msecs_to_jiffies(srcore.sr_irq_delay);
 			add_timer(&srcore.timer);
 		}
 
@@ -522,12 +411,10 @@ static void sr_stop_coreautocomp(struct ti816x_sr *sr)
 	sr_clk_disable(sr->sen[1].fck);
 
 	spin_lock_irqsave(&sr->lock, flags);
-	ret = sr_gpio_setn(sr->init_gpio_val);
+	ret = regulator_set_voltage(srcore.reg, sr->init_volt, sr->init_volt);
 	spin_unlock_irqrestore(&sr->lock, flags);
 	if (ret)
 		printk(KERN_ERR "Failed to set the initial voltage\n");
-	sr->curr_gpio_val = sr->init_gpio_val;
-	sr->curr_volt = get_core_voltage();
 }
 
 /* Sysfs interface to select SR CORE auto compensation */
@@ -576,14 +463,12 @@ static int sr_debugfs_entires(struct ti816x_sr *sr_info)
 		return PTR_ERR(dbg_dir);
 	}
 
-	(void) debugfs_create_x32("sr_interrupt_delay", S_IRUGO | S_IWUGO,
-				dbg_dir, &sr_info->sr_intdelay);
-	(void) debugfs_create_u32("sr_current_voltage", S_IRUGO, dbg_dir,
-				&sr_info->curr_volt);
-	(void) debugfs_create_u8("sr_init_gpio_val", S_IRUGO, dbg_dir,
-				&sr_info->init_gpio_val);
-	(void) debugfs_create_u8("sr_curr_gpio_val", S_IRUGO, dbg_dir,
-				&sr_info->curr_gpio_val);
+	(void) debugfs_create_u32("current_voltage", S_IRUGO, dbg_dir,
+				&sr_info->current_volt);
+	(void) debugfs_create_u32("initial_voltage", S_IRUGO, dbg_dir,
+				&sr_info->init_volt);
+	(void) debugfs_create_x32("interrupt_delay", S_IRUGO | S_IWUGO,
+				dbg_dir, &sr_info->sr_irq_delay);
 
 	for (i = 0; i < sr_info->nvalue_count; i++) {
 		char *name;
@@ -602,9 +487,9 @@ static int sr_debugfs_entires(struct ti816x_sr *sr_info)
 			return PTR_ERR(sen_dir);
 		}
 
-		(void) debugfs_create_x32("sr_err2voltgain", S_IRUGO, sen_dir,
-					&sr_info->sen[i].e2v_gain);
-		(void) debugfs_create_x32("sr_nvalue", S_IRUGO | S_IWUGO,
+		(void) debugfs_create_x32("err2voltgain", S_IRUGO | S_IWUGO,
+					sen_dir, &sr_info->sen[i].e2v_gain);
+		(void) debugfs_create_x32("nvalue", S_IRUGO | S_IWUGO,
 					sen_dir, &sr_info->sen[i].nvalue);
 	}
 	return 0;
@@ -614,14 +499,13 @@ static int sr_debugfs_entires(struct ti816x_sr *sr_info)
 static int __init sr_class2_init(void)
 {
 	int ret = 0;
+	struct regulator *reg;
 
 	srcore.sen[0].fck = clk_get(NULL, "smartreflex_corehvt_fck");
 	if (IS_ERR(srcore.sen[0].fck)) {
 		printk(KERN_ERR "Could not get corehvt_fck\n");
 		return PTR_ERR(srcore.sen[0].fck);
 	}
-	printk(KERN_INFO "sr1_fck HVT rate = %lu\n",
-				clk_get_rate(srcore.sen[0].fck));
 
 	srcore.sen[1].fck = clk_get(NULL, "smartreflex_coresvt_fck");
 	if (IS_ERR(srcore.sen[1].fck)) {
@@ -629,8 +513,6 @@ static int __init sr_class2_init(void)
 		ret = PTR_ERR(srcore.sen[1].fck);
 		goto fail_svt_clk_get;
 	}
-	printk(KERN_INFO "sr2_fck SVT rate = %lu\n",
-				clk_get_rate(srcore.sen[1].fck));
 
 	if (sr_debugfs_enable == 1) {
 		ret = sr_debugfs_entires(&srcore);
@@ -641,15 +523,17 @@ static int __init sr_class2_init(void)
 	} else {
 		ret = sr_set_nvalues(&srcore);
 		if (ret) {
-			printk(KERN_WARNING "SmartReflex Driver is not"
-						"initialized\n");
 			goto fail_hvt_req_irq;
 		}
 	}
 
+	reg = regulator_get(NULL, "vdd_avs");
+	if (!IS_ERR(reg))
+		srcore.reg = reg;
+
 	/* Read current GPIO value and voltage */
-	srcore.init_gpio_val = sr_gpio_getn();
-	srcore.curr_volt = get_core_voltage();
+	srcore.init_volt = srcore.current_volt =
+		regulator_get_voltage(srcore.reg);
 
 	ret = request_irq(TI81XX_IRQ_SMRFLX0, srcore_class2_irq,
 				IRQF_DISABLED, "sr1", NULL);
@@ -670,9 +554,7 @@ static int __init sr_class2_init(void)
 		printk(KERN_ERR "subsys_create_file failed: %d\n", ret);
 		goto fail_sysfs;
 	}
-
-	printk(KERN_INFO "SmartReflex Driver initialized\n");
-	return 0;
+	return ret;
 
 fail_sysfs:
 	free_irq(TI81XX_IRQ_SMRFLX1, NULL);
