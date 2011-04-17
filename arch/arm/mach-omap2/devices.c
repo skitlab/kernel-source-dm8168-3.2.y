@@ -573,7 +573,7 @@ static void omap_init_pmu(void)
 {
 	if (cpu_is_omap24xx())
 		omap_pmu_device.resource = &omap2_pmu_resource;
-	else if (cpu_is_omap34xx())
+	else if (cpu_is_omap34xx() || cpu_is_ti81xx())
 		omap_pmu_device.resource = &omap3_pmu_resource;
 	else
 		return;
