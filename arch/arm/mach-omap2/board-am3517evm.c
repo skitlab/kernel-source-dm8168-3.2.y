@@ -795,8 +795,8 @@ static struct mtd_partition am3517_evm_norflash_partitions[] = {
 
 static void __init am3517_nor_init(void)
 {
-	int cs;
-	int norcs;
+	int cs = 0;
+	int norcs = -1;
 
 	/* find out the chip-select on which NOR exists */
 	while (cs < GPMC_CS_NUM) {
@@ -811,7 +811,7 @@ static void __init am3517_nor_init(void)
 		cs++;
 	}
 
-	if (norcs > GPMC_CS_NUM) {
+	if (cs >= GPMC_CS_NUM) {
 		printk(KERN_INFO "NOR: Unable to find configuration in GPMC\n");
 		return;
 	}
