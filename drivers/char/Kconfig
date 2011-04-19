@@ -1145,12 +1145,6 @@ config TI81XX_PCIE_BOOTDRV
 	  can then be controlled using ioctls provided by this driver to
 	  perform the boot operation. Use 'M' to build as module.
 
-config TI81XX_HDMI
-	tristate "TI81XX HDMI Driver"
-	help
-	  This option builds driver required for booting TI81XX HDMI
-	  Use 'M' to build as module.
-
 source "drivers/s390/char/Kconfig"
 
 config RAMOOPS
