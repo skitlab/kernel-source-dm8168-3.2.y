@@ -82,6 +82,8 @@ long ti816x_fapll_round_rate(struct clk *clk, unsigned long target_rate);
 int ti816x_fapll_set_rate(struct clk *clk, unsigned long rate);
 int ti816x_fapll_enable(struct clk *clk);
 void ti816x_fapll_disable(struct clk *clk);
+int ti816x_clksel_set_rate(struct clk *clk, unsigned long rate);
+int ti816x_clksel_set_parent(struct clk *clk, struct clk *new_parent);
 
 extern const struct clkops clkops_ti816x_fapll_ops;
 

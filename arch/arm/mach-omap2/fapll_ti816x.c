@@ -31,15 +31,16 @@
 /* FAPLL rate rounding: minimum FAPLL multiplier, divider values */
 #define FAPLL_MIN_MULTIPLIER		2
 #define FAPLL_MIN_DIVIDER		1
+#define FAPLL_MAX_DIVIDER		255
 
-/* FAPLL valid Fint frequency band limits - from 34xx TRM Section 4.7.6.2 */
+/* FAPLL fvco frequency band limits */
 #define FAPLL_FVCO_BAND_MIN		800000000
 #define FAPLL_FVCO_BAND_MAX		1850000000
 
 #define MAX_FAPLL_WAIT_TRIES		1000
 
 #define TI816X_FAPLL_FREQ_MIN_VALUE	8
-#define TI816X_FAPLL_FREQ_MAX_VALUE	16
+#define TI816X_FAPLL_FREQ_MAX_VALUE	15
 #define TI816X_FAPLL_K			8
 
 struct ti816x_fapll_def {
@@ -118,7 +119,7 @@ static int _ti816x_wait_fapll_status(struct clk *clk, u8 state)
 	}
 
 	if (i == MAX_FAPLL_WAIT_TRIES) {
-		printk(KERN_ERR "clock: %s failed transition to 'locked'\n",
+		pr_err("clock: %s failed transition to 'locked'\n",
 			clk->name);
 	} else {
 		pr_debug("clock: %s transition to 'locked' in %d loops\n",
@@ -288,10 +289,10 @@ static unsigned long _fapll_test_fvco(unsigned long ref_rate, u16 n, u8 p)
 {
 	unsigned long fvco;
 
-	fvco = (ref_rate * n)/p;
-	if ((fvco < FAPLL_FVCO_BAND_MIN) & (fvco > FAPLL_FVCO_BAND_MAX)) {
-		printk(KERN_ERR "rejecting n=%u, p=%u due"
-					" to fvco failure\n", n, p);
+	fvco = (ref_rate/p) * n;
+	if ((fvco < FAPLL_FVCO_BAND_MIN) || (fvco > FAPLL_FVCO_BAND_MAX)) {
+		pr_err("rejecting n=%u, p=%u due"
+				" to fvco failure\n", n, p);
 		return -EINVAL;
 	} else
 		return 0;
@@ -307,7 +308,7 @@ static unsigned long _fapll_test_fvco(unsigned long ref_rate, u16 n, u8 p)
  */
 static int _fapll_get_rounded_vals(struct clk *clk, unsigned long target_rate)
 {
-	int i;
+	int i, m;
 	struct fapll_data *fd;
 	unsigned long freq_val;
 	unsigned int freq, reminder, quotient;
@@ -325,22 +326,25 @@ static int _fapll_get_rounded_vals(struct clk *clk, unsigned long target_rate)
 
 	if (clk->frac_flag == 1) {
 		if (reminder == 0) {
-			for (i = TI816X_FAPLL_FREQ_MIN_VALUE;
-				i < TI816X_FAPLL_FREQ_MAX_VALUE; i++) {
+			for (i = TI816X_FAPLL_FREQ_MAX_VALUE;
+				i >= TI816X_FAPLL_FREQ_MIN_VALUE; i--) {
 				if (quotient%i == 0) {
-					fd->last_rounded_m = quotient/i;
+					m = quotient/i;
+					if (m > FAPLL_MAX_DIVIDER)
+						return -EINVAL;
+					fd->last_rounded_m = m;
 					fd->last_rounded_freq_int = i;
 					fd->last_rounded_freq_frac = 0;
 					break;
 				}
 			}
-			if (i == TI816X_FAPLL_FREQ_MAX_VALUE)
+			if (i < TI816X_FAPLL_FREQ_MIN_VALUE)
 				return -EINVAL;
 		} else {
 			for (i = FAPLL_MIN_DIVIDER; i <= fd->max_divider; i++) {
 				freq = quotient/i;
-				if ((freq >= TI816X_FAPLL_FREQ_MIN_VALUE) &
-					(freq < TI816X_FAPLL_FREQ_MAX_VALUE)) {
+				if ((freq >= TI816X_FAPLL_FREQ_MIN_VALUE) &&
+					(freq <= TI816X_FAPLL_FREQ_MAX_VALUE)) {
 					fd->last_rounded_m = i;
 					fd->last_rounded_freq_int = freq;
 					fd->last_rounded_freq_frac =
@@ -350,15 +354,14 @@ static int _fapll_get_rounded_vals(struct clk *clk, unsigned long target_rate)
 					break;
 				}
 			}
-			if (i == fd->max_divider)
+			if (i > fd->max_divider)
 				return -EINVAL;
 		}
 	} else {
 		fd->last_rounded_freq_int = 0;
 		fd->last_rounded_freq_frac = 0;
-		/* Only oscilator frequency is needed */
 		fd->last_rounded_m = freq_val/(target_rate * TI816X_FAPLL_K);
-		if (fd->last_rounded_m == fd->max_divider)
+		if (fd->last_rounded_m > fd->max_divider)
 			return -EINVAL;
 	}
 
@@ -382,10 +385,9 @@ void ti816x_init_fapll_parent(struct clk *clk)
 	v >>= __ffs(fd->bypass_mask);
 
 	/* Reparent in case the fapll is in bypass */
-	if (cpu_is_ti816x()) {
-		if (v == fd->bypass_en)
-			clk_reparent(clk, fd->clk_bypass);
-	}
+	if (v == fd->bypass_en)
+		clk_reparent(clk, fd->clk_bypass);
+
 	return;
 }
 
@@ -420,10 +422,8 @@ u32 ti816x_fapll_get_rate(struct clk *clk)
 	v &= fd->bypass_mask;
 	v >>= __ffs(fd->bypass_mask);
 
-	if (cpu_is_ti816x()) {
-		if (v == fd->bypass_en)
-			return fd->clk_bypass->rate;
-	}
+	if (v == fd->bypass_en)
+		return fd->clk_bypass->rate;
 
 	/* N and P values */
 	v = __raw_readl(fd->control_reg);
@@ -451,15 +451,16 @@ u32 ti816x_fapll_get_rate(struct clk *clk)
 		/* Truncating last 8 bits to reach all the freq's */
 		fapll_num <<= 16;
 		fapll_den = ((integ << 24) + frac) >> 8;
-		fapll_den = fapll_den * fapll_p * fapll_m;
+		fapll_den = fapll_den * fapll_m;
 	} else {
 		/* Out put is directly taking from VCO so no K */
 		fapll_num = fapll_n;
-		fapll_den = fapll_p * fapll_m;
+		fapll_den = fapll_m;
 	}
 
 	fapll_clk = (long long)fd->clk_ref->rate * fapll_num;
 	do_div(fapll_clk, fapll_den);
+	do_div(fapll_clk, fapll_p);
 
 	return fapll_clk;
 }
@@ -555,7 +556,7 @@ int ti816x_fapll_enable(struct clk *clk)
 
 	r = _ti816x_fapll_syn_pwr_up(clk);
 	if (!r)
-		printk(KERN_ERR "Failed to power up the synthesizer\n");
+		pr_err("Failed to power up the synthesizer\n");
 
 	if (clk->rate == fd->clk_bypass->rate) {
 		WARN_ON(clk->parent != fd->clk_bypass);
@@ -614,6 +615,10 @@ int ti816x_fapll_set_rate(struct clk *clk, unsigned long rate)
 
 	if (rate == ti816x_fapll_get_rate(clk))
 		return 0;
+
+	ret = ti816x_fapll_enable(clk);
+	if (ret)
+		pr_err("failed to enable the fapll\n");
 
 	/*
 	 * Ensure both the bypass and ref clocks are enabled prior to
@@ -703,15 +708,16 @@ static unsigned long _fapll_syn_compute_new_rate(unsigned long ref_rate,
 
 	if (f_int > 0) {
 		num = (unsigned long long) ((TI816X_FAPLL_K * n) << 16);
-		den = (unsigned long long)
-				((((f_int << 24) + f_frac)>>8) * p * m);
+		den = (unsigned long long) (((f_int << 24) + f_frac)>>8) * m;
 	} else {
 		num = (unsigned long long) n;
-		den = (unsigned long long) (p * m);
+		den = (unsigned long long) m;
 	}
 
 	num = (long long)ref_rate * num;
+
 	do_div(num, den);
+	do_div(num, p);
 
 	return num;
 }
@@ -753,12 +759,14 @@ long ti816x_fapll_round_rate(struct clk *clk, unsigned long target_rate)
 		return ret;
 
 	ret = _fapll_get_rounded_vals(clk, target_rate);
-	if (ret)
+	if (ret) {
+		pr_err("Failed to get the rounded values\n");
 		return ret;
+	}
 
 	fd->last_rounded_rate = _fapll_syn_compute_new_rate(fd->clk_ref->rate,
-				fd->mult_n, fd->pre_div_p,
-				fd->last_rounded_m, fd->last_rounded_freq_int,
+				fd->mult_n, fd->pre_div_p, fd->last_rounded_m,
+				fd->last_rounded_freq_int,
 				fd->last_rounded_freq_frac);
 
 	return fd->last_rounded_rate;
@@ -780,6 +788,7 @@ int __init ti816x_set_fapll_freqs(struct ti816x_fapll_def *freq_def,
 {
 	int i;
 	int ret = 0;
+	struct clk *clk;
 
 	if (!freq_def || !freq_def_size) {
 		pr_err("%s: invalid params!\n", __func__);
@@ -788,17 +797,17 @@ int __init ti816x_set_fapll_freqs(struct ti816x_fapll_def *freq_def,
 
 	/* Lets now set the rate with default values */
 	for (i = 0; i < freq_def_size; i++) {
-		struct clk *clk;
+		if (freq_def[i].default_available == true) {
+			clk = clk_get(NULL, freq_def[i].clk_name);
+			if (WARN(IS_ERR(clk), "Failed to get %s.\n",
+						freq_def[i].clk_name))
+				ret = -1;
 
-		clk = clk_get(NULL, freq_def[i].clk_name);
-		if (WARN(IS_ERR(clk), "Failed to get %s.\n",
-					freq_def[i].clk_name))
-			ret = -1;
-
-		if (!ret)
-			if (clk_set_rate(clk, freq_def[i].freq))
-				pr_err("Unable to set the frequency (%lu)\n",
-						freq_def[i].freq);
+			if (!ret)
+				if (clk_set_rate(clk, freq_def[i].freq))
+					pr_err("Unable to set the frequency"
+						" (%lu)\n", freq_def[i].freq);
+		}
 
 	}
 	return 0;
@@ -810,9 +819,6 @@ int __init ti816x_set_fapll_freqs(struct ti816x_fapll_def *freq_def,
 int __init ti816x_fapll_init(void)
 {
 	int r = -ENODEV;
-
-	if (!cpu_is_ti816x())
-		return r;
 
 	r = ti816x_set_fapll_freqs(ti816x_freq_def_list,
 			ARRAY_SIZE(ti816x_freq_def_list));

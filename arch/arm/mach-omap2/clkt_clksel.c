@@ -311,9 +311,10 @@ u32 omap2_clksel_round_rate_div(struct clk *clk, unsigned long target_rate,
 	}
 
 	if (!clkr->div) {
-		pr_err("clock: Could not find divisor for target "
-		       "rate %ld for clock %s parent %s\n", target_rate,
-		       clk->name, clk->parent->name);
+		if (!cpu_is_ti816x())
+			pr_err("clock: Could not find divisor for target "
+			       "rate %ld for clock %s parent %s\n",
+				target_rate, clk->name, clk->parent->name);
 		return ~0;
 	}
 
@@ -507,3 +508,117 @@ int omap2_clksel_set_parent(struct clk *clk, struct clk *new_parent)
 
 	return 0;
 }
+
+/**
+ * ti816x_clksel_set_parent() - change a clock's parent clock
+ * @clk: struct clk * of the child clock
+ * @new_parent: struct clk * of the new parent clock
+ *
+ * This function is intended to be called only by the clock framework.
+ * Change the parent clock of clock @clk to @new_parent.  This is
+ * intended to be used while @clk is disabled. Returns -EINVAL upon
+ * error, or 0 upon success.
+ */
+int ti816x_clksel_set_parent(struct clk *clk, struct clk *new_parent)
+{
+	u32 field_val = 0;
+	u32 parent_div;
+
+	if (!clk->clksel || !clk->clksel_mask)
+		return -EINVAL;
+
+	parent_div = _get_div_and_fieldval(new_parent, clk, &field_val);
+	if (!parent_div)
+		return -EINVAL;
+
+	_write_clksel_reg(clk, field_val);
+
+	clk_reparent(clk, new_parent);
+
+	/* CLKSEL clocks follow their parents' rates, divided by a divisor */
+	clk->rate = new_parent->rate;
+
+	if (parent_div > 0)
+		clk->rate /= parent_div;
+
+	pr_debug("clock: %s: set parent to %s (new rate %ld)\n",
+		 clk->name, clk->parent->name, clk->rate);
+
+	return 0;
+}
+
+/**
+ * ti816x_clksel_set_rate() - program clock rate in hardware
+ * @clk: struct clk * to program rate
+ * @rate: target rate to program
+ *
+ * This function is intended to be called only by the aduio usecase.
+ * Program @clk's rate to @rate in the hardware.  The clock can be
+ * either enabled or disabled when this happens, although if the clock
+ * is enabled, some downstream devices may glitch or behave
+ * unpredictably when the clock rate is changed - this depends on the
+ * hardware. If multiple drivers are using the clock, even though it
+ * is trying to change then this return -EINVAL with error message.
+ * Returns -EINVAL upon error, or 0 upon success.
+ */
+int ti816x_clksel_set_rate(struct clk *clk, unsigned long rate)
+{
+	u32 validrate, new_div = 0;
+	struct clk *pclk = NULL;
+	struct clk *fclk;
+	struct fapll_data *fd;
+	const struct clksel *clks;
+	u32 field_val = ~0;
+	int ret;
+
+	if (!clk->clksel || !clk->clksel_mask)
+		return -EINVAL;
+
+	/* Change the parent */
+	if (clk->usecount == 0)
+		clks = _get_clksel_by_parent(clk, clk->parent);
+
+	for (clks = clk->clksel; clks->parent; clks++) {
+		pclk = clks->parent;
+		if (pclk->usecount == 0)
+			break;
+	}
+	ti816x_clksel_set_parent(clk, pclk);
+
+	/* check dividers in parent clock*/
+	if (pclk->usecount < 1) {
+		validrate = omap2_clksel_round_rate_div(pclk, rate, &new_div);
+		if (validrate == rate) {
+			field_val = _divisor_to_clksel(pclk, new_div);
+			if (field_val != ~0) {
+				_write_clksel_reg(pclk, field_val);
+				pclk->rate = pclk->parent->rate / new_div;
+			}
+		}
+	}
+
+	fclk = pclk->parent;
+	if (field_val == ~0) {
+		/* Changing the FAPLL synthesizer rate */
+		if (fclk->usecount >= 1) {
+			pr_err("clock: %s, parent %s is already in use"
+				", change parent\n", pclk->name,
+				pclk->parent->name);
+			return -EINVAL;
+		} else {
+			if (fclk->fapll_data) {
+				fd = fclk->fapll_data;
+				if (fd->fapll_id == 4)
+					ret = fclk->set_rate(fclk, rate);
+			}
+		}
+		/* reset divider */
+		ret = omap2_clksel_set_rate(pclk, fclk->rate);
+		if (ret)
+			pr_err("Failed to reset the divider\n");
+	}
+	propagate_rate(fclk);
+
+	return 0;
+}
+
