@@ -331,7 +331,7 @@ struct clk {
 	struct clockdomain	*clkdm;
 	u8			rate_offset;
 	u8			src_offset;
-#ifdef CONFIG_ARCH_TI816X
+#ifdef CONFIG_ARCH_TI81XX
 	u32			synthesizer_id;
 	u32			pwd_mask;
 	u32			frac_flag;

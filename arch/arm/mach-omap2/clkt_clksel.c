@@ -509,6 +509,8 @@ int omap2_clksel_set_parent(struct clk *clk, struct clk *new_parent)
 	return 0;
 }
 
+#ifdef CONFIG_ARCH_TI81XX
+
 /**
  * ti816x_clksel_set_parent() - change a clock's parent clock
  * @clk: struct clk * of the child clock
@@ -621,4 +623,4 @@ int ti816x_clksel_set_rate(struct clk *clk, unsigned long rate)
 
 	return 0;
 }
-
+#endif
