@@ -166,7 +166,7 @@ static int video_create(struct vps_video_ctrl *vctrl,
 {
 	u32				vidinstid;
 	int r = 0;
-/*	int i;*/
+	int i;
 
 	VPSSDBG("create video%d\n", vctrl->idx);
 
