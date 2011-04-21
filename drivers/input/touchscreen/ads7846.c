@@ -952,6 +952,11 @@ static int __devinit ads7846_setup_pendown(struct spi_device *spi, struct ads784
 
 	if (pdata->get_pendown_state) {
 		ts->get_pendown_state = pdata->get_pendown_state;
+		/*
+		 * Initialize it to -1, required
+		 * in _remove function of the driver for freeing the gpio.
+		 */
+		ts->gpio_pendown = -1;
 		return 0;
 	}
 
