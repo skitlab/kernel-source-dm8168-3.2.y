@@ -75,6 +75,7 @@ obj-$(CONFIG_TI816X_SMARTREFLEX)	+= smartreflex-ti816x.o
 
 AFLAGS_sleep24xx.o			:=-Wa,-march=armv6
 AFLAGS_sleep34xx.o			:=-Wa,-march=armv7-a
+AFLAGS_sleep3517.o			:=-Wa,-march=armv7-a
 
 ifeq ($(CONFIG_PM_VERBOSE),y)
 CFLAGS_pm_bus.o				+= -DDEBUG
