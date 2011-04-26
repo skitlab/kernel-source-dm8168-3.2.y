@@ -238,6 +238,26 @@ static void __init ti814x_vpss_init(void)
 		printk(KERN_INFO "registered ti814x_vpss device\n");
 }
 
+static struct platform_device ti814x_hdmi_plat_device = {
+	.name = "TI81XX_HDMI",
+	.id = -1,
+	.num_resources = 0,
+	.dev = {
+//		.release = ti81xx_hdmi_platform_release,
+		.platform_data = NULL,
+	}
+};
+
+static void __init ti814x_hdmi_init(void)
+{
+
+	if(platform_device_register(&ti814x_hdmi_plat_device))
+		printk("KERN_ERR: Could not register TI814x onchip-HDMI device\n");
+	else
+		printk(KERN_INFO "registered TI814x on-chip HDMI device\n");
+	/*FIXME add platform data here*/
+}
+
 static void __init ti8148_evm_init(void)
 {
 	omap_serial_init();
@@ -252,6 +272,7 @@ static void __init ti8148_evm_init(void)
 
 	ti8148_spi_init();
 	ti814x_vpss_init();
+	ti814x_hdmi_init();
 }
 
 static void __init ti8148_evm_map_io(void)
