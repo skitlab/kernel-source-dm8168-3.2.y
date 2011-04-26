@@ -49,7 +49,7 @@ config ARCH_OMAP4
 config ARCH_TI81XX
 	bool "TI 81XX"
 	depends on ARCH_OMAP2PLUS
-	default y
+	default n
 	select CPU_V7
 	select ARM_L1_CACHE_SHIFT_6 if !ARCH_OMAP4
 	select ARCH_SUPPORTS_MSI
