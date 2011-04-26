@@ -280,6 +280,13 @@ int __init omap3_twl_init(void)
 	if (!cpu_is_omap34xx())
 		return -ENODEV;
 
+	/*
+	 * In case of AM3517/AM3505 we should not be going down
+	 * further, since SR is not applicable there.
+	 */
+	if (cpu_is_omap3505() || cpu_is_omap3517())
+		return -ENODEV;
+
 	if (cpu_is_omap3630()) {
 		omap3_mpu_volt_info.vp_vddmin = OMAP3630_VP1_VLIMITTO_VDDMIN;
 		omap3_mpu_volt_info.vp_vddmax = OMAP3630_VP1_VLIMITTO_VDDMAX;
