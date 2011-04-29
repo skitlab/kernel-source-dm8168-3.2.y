@@ -502,25 +502,6 @@ static void __init ti816x_vpss_init(void)
 	/*FIXME add platform data here*/
 }
 
-static struct platform_device ti816x_hdmi_plat_device = {
-	.name = "TI81XX_HDMI",
-	.id = -1,
-	.num_resources = 0,
-	.dev = {
-//		.release = ti81xx_hdmi_platform_release,
-		.platform_data = NULL,
-	}
-};
-
-static void __init ti816x_hdmi_init(void)
-{
-
-	if(platform_device_register(&ti816x_hdmi_plat_device))
-		printk("KERN_ERR: Could not register TI816x onchip-HDMI device\n");
-	else
-		printk(KERN_INFO "registered TI816x on-chip HDMI device\n");
-	/*FIXME add platform data here*/
-}
 
 
 static void __init ti8168_evm_init(void)
@@ -539,7 +520,6 @@ static void __init ti8168_evm_init(void)
 	board_nor_init(ti816x_evm_norflash_partitions,
 		ARRAY_SIZE(ti816x_evm_norflash_partitions), 0);
 	ti816x_vpss_init();
-	ti816x_hdmi_init();
 }
 
 static int __init ti8168_evm_gpio_setup(void)
