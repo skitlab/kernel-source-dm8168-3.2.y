@@ -38,6 +38,7 @@
 #define FAPLL_FVCO_BAND_MAX		1850000000
 
 #define MAX_FAPLL_WAIT_TRIES		1000
+#define	ROUNDING_DIVIDER		1000
 
 #define TI816X_FAPLL_FREQ_MIN_VALUE	8
 #define TI816X_FAPLL_FREQ_MAX_VALUE	15
@@ -123,7 +124,7 @@ static int _ti816x_wait_fapll_status(struct clk *clk, u8 state)
 			clk->name);
 	} else {
 		pr_debug("clock: %s transition to 'locked' in %d loops\n",
-			 clk->name, i);
+			clk->name, i);
 		ret = 0;
 	}
 
@@ -317,54 +318,54 @@ static int _fapll_get_rounded_vals(struct clk *clk, unsigned long target_rate)
 	if (!fd)
 		return -EINVAL;
 
-	freq_val = ((clk->parent->rate/1000) * fd->mult_n *
+	freq_val = ((clk->parent->rate/ROUNDING_DIVIDER) * fd->mult_n *
 				TI816X_FAPLL_K)/fd->pre_div_p;
-	target_rate = target_rate/1000;
+	target_rate = target_rate/ROUNDING_DIVIDER;
 
 	reminder = freq_val%target_rate;
 	quotient = freq_val/target_rate;
 
-	if (clk->frac_flag == 1) {
-		if (reminder == 0) {
-			for (i = TI816X_FAPLL_FREQ_MAX_VALUE;
-				i >= TI816X_FAPLL_FREQ_MIN_VALUE; i--) {
-				if (quotient%i == 0) {
-					m = quotient/i;
-					if (m > FAPLL_MAX_DIVIDER)
-						return -EINVAL;
-					fd->last_rounded_m = m;
-					fd->last_rounded_freq_int = i;
-					fd->last_rounded_freq_frac = 0;
-					break;
-				}
-			}
-			if (i < TI816X_FAPLL_FREQ_MIN_VALUE)
-				return -EINVAL;
-		} else {
-			for (i = FAPLL_MIN_DIVIDER; i <= fd->max_divider; i++) {
-				freq = quotient/i;
-				if ((freq >= TI816X_FAPLL_FREQ_MIN_VALUE) &&
-					(freq <= TI816X_FAPLL_FREQ_MAX_VALUE)) {
-					fd->last_rounded_m = i;
-					fd->last_rounded_freq_int = freq;
-					fd->last_rounded_freq_frac =
-						((((quotient%i) << 16)/i +
-						((reminder/1000) << 16) /
-						(i*(target_rate/1000)))<<8);
-					break;
-				}
-			}
-			if (i > fd->max_divider)
-				return -EINVAL;
-		}
-	} else {
+	if (clk->frac_flag != 1) {
 		fd->last_rounded_freq_int = 0;
 		fd->last_rounded_freq_frac = 0;
 		fd->last_rounded_m = freq_val/(target_rate * TI816X_FAPLL_K);
 		if (fd->last_rounded_m > fd->max_divider)
 			return -EINVAL;
+		return 0;
 	}
 
+	if (reminder == 0) {
+		for (i = TI816X_FAPLL_FREQ_MAX_VALUE;
+			i >= TI816X_FAPLL_FREQ_MIN_VALUE; i--) {
+			if (quotient%i == 0) {
+				m = quotient/i;
+				if (m > FAPLL_MAX_DIVIDER)
+					return -EINVAL;
+				fd->last_rounded_m = m;
+				fd->last_rounded_freq_int = i;
+				fd->last_rounded_freq_frac = 0;
+				break;
+			}
+		}
+		if (i < TI816X_FAPLL_FREQ_MIN_VALUE)
+			return -EINVAL;
+	} else {
+		for (i = FAPLL_MIN_DIVIDER; i <= fd->max_divider; i++) {
+			freq = quotient/i;
+			if ((freq >= TI816X_FAPLL_FREQ_MIN_VALUE) &&
+				(freq <= TI816X_FAPLL_FREQ_MAX_VALUE)) {
+				fd->last_rounded_m = i;
+				fd->last_rounded_freq_int = freq;
+				fd->last_rounded_freq_frac =
+					((((quotient%i) << 16)/i +
+					((reminder/ROUNDING_DIVIDER) << 16) /
+					(i*(target_rate/ROUNDING_DIVIDER)))<<8);
+					break;
+			}
+		}
+		if (i > fd->max_divider)
+			return -EINVAL;
+	}
 	return 0;
 }
 
@@ -643,7 +644,7 @@ int ti816x_fapll_set_rate(struct clk *clk, unsigned long rate)
 			return -EINVAL;
 
 		pr_debug("clock: %s: set rate: locking rate to %lu.\n",
-			 clk->name, fd->last_rounded_rate);
+				clk->name, fd->last_rounded_rate);
 
 		ret = ti816x_fapll_program(clk, fd->mult_n,
 						fd->pre_div_p,
@@ -751,7 +752,7 @@ long ti816x_fapll_round_rate(struct clk *clk, unsigned long target_rate)
 		return -EINVAL;
 
 	pr_debug("clock: starting FAPLL round_rate for clock %s, target rate "
-		 "%ld\n", clk->name, target_rate);
+					"%ld\n", clk->name, target_rate);
 	fd->last_rounded_rate = 0;
 
 	ret = _fapll_test_fvco(clk->parent->rate, fd->mult_n, fd->pre_div_p);
