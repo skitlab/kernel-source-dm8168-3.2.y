@@ -379,9 +379,21 @@ void __init ti81xx_check_revision(void)
 		pr_info("OMAP chip is TI8168 %s\n", cpu_rev);
 		return;
 	} else if ((partnum == 0xb8f2)) {
-		omap_revision = TI8148_REV_ES1_0;
 		omap_chip.oc |= CHIP_IS_TI814X;
-		pr_info("OMAP chip is TI8148\n");
+
+		switch (rev) {
+		case 0:
+			omap_revision = TI8148_REV_ES1_0;
+			strcpy(cpu_rev, "1.0");
+			break;
+		case 1:
+			/* FALLTHROUGH */
+		default:
+			omap_revision = TI8148_REV_ES2_0;
+			strcpy(cpu_rev, "2.0");
+		}
+
+		pr_info("OMAP chip is TI8148 %s\n", cpu_rev);
 		return;
 	}
 
