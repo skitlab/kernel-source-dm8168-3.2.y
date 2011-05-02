@@ -260,5 +260,11 @@ config REGULATOR_TPS6586X
 	help
 	  This driver supports TPS6586X voltage regulator chips.
 
+config REGULATOR_TPS65910
+	tristate "TI TPS65910 Power Regulator"
+	depends on MFD_TPS65910
+	help
+	  This driver supports TPS65910 voltage regulator chips.
+
 endif
 
