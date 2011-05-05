@@ -27,370 +27,370 @@
 #include <linux/slab.h>
 #include <linux/regulator/consumer.h>
 
-#include <plat/ti81xx.h>
-#include <plat/irqs-ti81xx.h>
+#include <plat/common.h>
 #include <plat/smartreflex.h>
 
+#include "control.h"
+
 #define MARGIN			0
-#define SENS_PER_VDOMAIN	2
-#define	NUM_VOLTAGE_DOMAINS	1
+#define CLK_NAME_LEN		40
+#define MAX_SENSORS_PER_VD	2
+#define SR_DIS_CLASS2_TIMEOUT	200
 
 struct ti816x_sr_sensors {
-	char				*name;
-	struct clk			*fck;
+	u32				irq;
+	s32				irq_status;
+	u32				efuse_offs;
 	u32				nvalue;
 	s32				e2v_gain;
-	u32				base_addr;
-	s32				irq_processed;
+	u32				err_minlimit;
+	u32				err_maxlimit;
+	char				*name;
+	void __iomem			*base;
+	struct clk			*fck;
 	struct timer_list		timer;
 };
 
 struct ti816x_sr {
-	int				is_autocomp_active;
-	u32				init_volt;
-	u32				curr_volt;
-	int				nvalue_count;
-	int				sr_irq_delay;
-	struct ti816x_sr_sensors	sen[SENS_PER_VDOMAIN];
+	u32				autocomp_active;
+	int				init_volt;
+	int				sens_per_vd;
+	int				irq_delay;
+	int				ip_type;
+	int				voltage_step_size;
 	struct regulator		*reg;
 	struct work_struct		work;
+	struct sr_platform_data		*sr_data;
+	struct ti816x_sr_sensors	sen[MAX_SENSORS_PER_VD];
+	struct platform_device		*pdev;
+	unsigned long			data;
 };
 
-static struct ti816x_sr srcore = {
-	.sen[0] = {
-		.name		= "hvt",
-		.nvalue		= 0,
-		.e2v_gain	= 195,
-		.base_addr	= TI816X_SR0_BASE,
-	},
-	.sen[1] = {
-		.name		= "svt",
-		.nvalue		= 0,
-		.e2v_gain	= 279,
-		.base_addr	= TI816X_SR1_BASE,
-	},
-	.curr_volt		= 0,
-	.init_volt		= 0,
-	.nvalue_count		= SENS_PER_VDOMAIN * NUM_VOLTAGE_DOMAINS,
-	.is_autocomp_active	= 0,
-	.sr_irq_delay		= 2000,
-};
-
-static inline void sr_write_reg(u32 srbase, int offset, u32 value)
+static inline void sr_write_reg(struct ti816x_sr *sr, int offset, u32 value,
+					int srid)
 {
-	omap_writel(value, srbase + offset);
+	__raw_writel(value, sr->sen[srid].base + offset);
 }
 
-static inline void sr_modify_reg(u32 srbase, int offset, u32 mask,
-				u32 value)
+static inline void sr_modify_reg(struct ti816x_sr *sr, int offset, u32 mask,
+				u32 value, int srid)
 {
 	u32 reg_val;
 
-	reg_val = omap_readl(srbase + offset);
+	reg_val = __raw_readl(sr->sen[srid].base + offset);
 	reg_val &= ~mask;
 	reg_val |= (value&mask);
 
-	omap_writel(reg_val, srbase + offset);
+	__raw_writel(reg_val, sr->sen[srid].base + offset);
 }
 
-static inline u32 sr_read_reg(u32 srbase, int offset)
+static inline u32 sr_read_reg(struct ti816x_sr *sr, int offset, int srid)
 {
-	return omap_readl(srbase + offset);
+	return __raw_readl(sr->sen[srid].base + offset);
 }
 
-static int get_errvolt(s32 srid)
+static int get_errvolt(struct ti816x_sr *sr, s32 srid)
 {
-	u32 srbase, senerror_reg;
-	s32 e2vgain, mvoltage;
+	u32 senerror_reg;
+	s32 uvoltage;
 	s8 terror;
 
-	if (srid == SRHVT) {
-		srbase	= srcore.sen[0].base_addr;
-		e2vgain = srcore.sen[0].e2v_gain;
-	} else {
-		srbase	= srcore.sen[1].base_addr;
-		e2vgain = srcore.sen[1].e2v_gain;
-	}
-	senerror_reg = sr_read_reg(srbase, SENERROR_V2);
+	senerror_reg = sr_read_reg(sr, SENERROR_V2, srid);
 	senerror_reg = (senerror_reg & 0x0000FF00);
 	senerror_reg = senerror_reg >> 8;
 
 	terror = senerror_reg & 0x000000FF;
 
-	/* convert from binary to % error x 1000mv */
-	mvoltage = ((terror + MARGIN) * e2vgain) >> 7;
+	/* convert from binary to percentage error and then to deltaV */
+	uvoltage = ((terror + MARGIN) * sr->voltage_step_size) >> 7;
+	uvoltage = uvoltage * sr->sen[srid].e2v_gain;
 
-	return mvoltage * 1000;
+	return uvoltage;
 }
 
 static void set_voltage(struct work_struct *work)
 {
-	u32 prev_volt, new_volt;
+	struct ti816x_sr *sr;
+	int prev_volt, new_volt;
 	s32 hvt_dvolt, svt_dvolt;
 
-	/* Get the current voltage from GPIO */
-	prev_volt = regulator_get_voltage(srcore.reg);
+	sr = container_of(work, struct ti816x_sr, work);
 
-	hvt_dvolt = get_errvolt(SRHVT);
-	svt_dvolt = get_errvolt(SRSVT);
+	/* Get the current voltage from GPIO */
+	prev_volt = regulator_get_voltage(sr->reg);
+
+	hvt_dvolt = get_errvolt(sr, SRHVT);
+	svt_dvolt = get_errvolt(sr, SRSVT);
 
 	if (hvt_dvolt > svt_dvolt)
 		new_volt = prev_volt + hvt_dvolt;
 	else
 		new_volt = prev_volt + svt_dvolt;
 
-	/* SRCONFIG - disable SR */
-	sr_modify_reg(srcore.sen[0].base_addr, SRCONFIG,
-			SRCONFIG_SRENABLE, ~SRCONFIG_SRENABLE);
+	/* Clear nCounts of the sensor */
+	sr_modify_reg(sr, SRCONFIG, SRCONFIG_SRENABLE,
+			~SRCONFIG_SRENABLE, SRHVT);
+	sr_modify_reg(sr, SRCONFIG, SRCONFIG_SRENABLE,
+			~SRCONFIG_SRENABLE, SRSVT);
 
-	/* SRCONFIG - disable SR */
-	sr_modify_reg(srcore.sen[1].base_addr, SRCONFIG,
-			SRCONFIG_SRENABLE, ~SRCONFIG_SRENABLE);
+	regulator_set_voltage(sr->reg, new_volt, new_volt);
 
-	regulator_set_voltage(srcore.reg, new_volt, new_volt);
-
-	/* SRCONFIG - enable SR */
-	sr_modify_reg(srcore.sen[0].base_addr, SRCONFIG,
-			SRCONFIG_SRENABLE, SRCONFIG_SRENABLE);
-
-	/* SRCONFIG - enable SR */
-	sr_modify_reg(srcore.sen[1].base_addr, SRCONFIG,
-			SRCONFIG_SRENABLE, SRCONFIG_SRENABLE);
+	/* Restart the sensor after voltage set */
+	sr_modify_reg(sr, SRCONFIG, SRCONFIG_SRENABLE,
+			SRCONFIG_SRENABLE, SRHVT);
+	sr_modify_reg(sr, SRCONFIG, SRCONFIG_SRENABLE,
+			SRCONFIG_SRENABLE, SRSVT);
 }
 
-
-static void irq_sr_timer(unsigned long data)
+static void irq_sr_htimer(unsigned long data)
 {
+	struct ti816x_sr *sr;
+
+	sr = (struct ti816x_sr *)data;
+
 	/* Enable the interrupt */
-	sr_modify_reg(srcore.sen[(int)data].base_addr, IRQENABLE_SET,
-				IRQENABLE_MCUBOUNDSINT,
-				IRQENABLE_MCUBOUNDSINT);
+	sr_modify_reg(sr, IRQENABLE_SET, IRQENABLE_MCUBOUNDSINT,
+			IRQENABLE_MCUBOUNDSINT, SRHVT);
 }
 
-static irqreturn_t srcore_class2_irq(int irq, void *dev_id)
+static void irq_sr_stimer(unsigned long data)
 {
-	int idx;
+	struct ti816x_sr *sr;
+
+	sr = (struct ti816x_sr *)data;
+
+	/* Enable the interrupt */
+	sr_modify_reg(sr, IRQENABLE_SET, IRQENABLE_MCUBOUNDSINT,
+			IRQENABLE_MCUBOUNDSINT, SRSVT);
+}
+
+static irqreturn_t sr_class2_irq(int irq, void *data)
+{
+	int srid;
+	struct ti816x_sr *sr = (struct ti816x_sr *)data;
 
 	if (irq == TI81XX_IRQ_SMRFLX0)
-		idx = 0;
+		srid = SRHVT;
 	else
-		idx = 1;
-	srcore.sen[idx].irq_processed = 1;
+		srid = SRSVT;
+
+	sr->sen[srid].irq_status = 1;
 
 	/* Clear MCUBounds Interrupt */
-	sr_modify_reg(srcore.sen[idx].base_addr, IRQSTATUS,
-				IRQSTATUS_MCBOUNDSINT,
-				IRQSTATUS_MCBOUNDSINT);
+	sr_modify_reg(sr, IRQSTATUS, IRQSTATUS_MCBOUNDSINT,
+			IRQSTATUS_MCBOUNDSINT, srid);
 
 	/* Disable the interrupt and enable after timer expires */
-	sr_modify_reg(srcore.sen[idx].base_addr, IRQENABLE_CLR,
-				IRQENABLE_MCUBOUNDSINT,
-				IRQENABLE_MCUBOUNDSINT);
+	sr_modify_reg(sr, IRQENABLE_CLR, IRQENABLE_MCUBOUNDSINT,
+			IRQENABLE_MCUBOUNDSINT, srid);
 
-	if (!timer_pending(&srcore.sen[idx].timer)) {
-			srcore.sen[idx].timer.data = (unsigned long)idx;
-			srcore.sen[idx].timer.function = irq_sr_timer;
-			srcore.sen[idx].timer.expires = jiffies +
-				msecs_to_jiffies(srcore.sr_irq_delay);
-			add_timer(&srcore.sen[idx].timer);
+	if (!timer_pending(&sr->sen[srid].timer)) {
+		sr->sen[srid].timer.data = (unsigned long)sr;
+		if (srid == SRHVT)
+			sr->sen[srid].timer.function = irq_sr_htimer;
+		else
+			sr->sen[srid].timer.function = irq_sr_stimer;
+
+		sr->sen[srid].timer.expires = jiffies +
+				msecs_to_jiffies(sr->irq_delay);
+		add_timer(&sr->sen[srid].timer);
 	} else {
-		/* Timer of this interrupt should not pending*/
+		/* Timer of this interrupt should not be pending
+		 * while system is running
+		 */
 		BUG();
 	}
 
-	if ((srcore.sen[0].irq_processed == 1) &&
-			(srcore.sen[1].irq_processed == 1)) {
-		schedule_work(&srcore.work);
-		srcore.sen[0].irq_processed = 0;
-		srcore.sen[1].irq_processed = 0;
+	if ((sr->sen[SRHVT].irq_status == 1) &&
+			(sr->sen[SRSVT].irq_status == 1)) {
+		schedule_work(&sr->work);
+		sr->sen[SRHVT].irq_status = 0;
+		sr->sen[SRSVT].irq_status = 0;
 	}
+
 	return IRQ_HANDLED;
 }
 
-static int sr_clk_enable(struct clk *fck)
+static int sr_clk_enable(struct ti816x_sr *sr, int srid)
 {
-	if (clk_enable(fck) != 0) {
-		pr_err("Could not enable sr_fck\n");
+	if (clk_enable(sr->sen[srid].fck) != 0) {
+		dev_err(&sr->pdev->dev, "%s: Could not enable sr_fck\n",
+					__func__);
 		return -EINVAL;
 	}
 
 	return 0;
 }
 
-static int sr_clk_disable(struct clk *fck)
+static int sr_clk_disable(struct ti816x_sr *sr, int srid)
 {
-	clk_disable(fck);
+	clk_disable(sr->sen[srid].fck);
 
 	return 0;
 }
 
-static int sr_set_nvalues(struct ti816x_sr *sr)
+static int sr_set_nvalues(struct ti816x_sr *sr, int srid)
 {
-	/* Read HVT values for CORE from EFUSE */
-	sr->sen[0].nvalue = omap_readl(CONTROL_FUSE_SMRT_HVT) & 0xFFFFFF;
-
-	/* Read SVT values for CORE from EFUSE */
-	sr->sen[1].nvalue = omap_readl(CONTROL_FUSE_SMRT_SVT) & 0xFFFFFF;
-
-	if ((sr->sen[0].nvalue == 0) || (sr->sen[1].nvalue == 0))
-		return -EINVAL;
+	/* Read nTarget value form EFUSE register*/
+	sr->sen[srid].nvalue = __raw_readl(TI81XX_CTRL_REGADDR
+			(sr->sen[srid].efuse_offs)) & 0xFFFFFF;
 
 	return 0;
 }
 
-static void sr_configure(u32 srbase, s32 srid)
+static void sr_configure(struct ti816x_sr *sr, int srid)
 {
-	u32 sr_config;
-
-	/* Enable MCUDisableAck Interrupt */
-	sr_modify_reg(srbase, IRQSTATUS_RAW,
-			IRQSTATUSRAW_MCUDISABLEACKINT,
-			IRQSTATUSRAW_MCUDISABLEACKINT);
-
-	sr_config = SRCONFIG_ACCUM_DATA |
+	/* Configuring the SR module with clock length, accumulate window,
+	 * Enabling the error generator, enable SR module, enable N and P
+	 * sensors
+	 */
+	sr_write_reg(sr, SRCONFIG, (SRCONFIG_ACCUM_DATA |
 			SRCLKLENGTH_27MHZ_SYSCLK |
 			SRCONFIG_SENENABLE | SRCONFIG_ERRGEN_EN |
-			SRCONFIG_MINMAXAVG_EN |
-			SRCONFIG_SENNENABLE |
-			SRCONFIG_SENPENABLE;
+			SRCONFIG_MINMAXAVG_EN | SRCONFIG_SENNENABLE |
+			SRCONFIG_SENPENABLE), srid);
 
-	sr_write_reg(srbase, SRCONFIG, sr_config);
+	/* Determines the integration window for SenAvg, Which is used by
+	 * Error generator
+	 */
+	sr_write_reg(sr, AVGWEIGHT, AVGWEIGHT_SENPAVGWEIGHT_MASK |
+			AVGWEIGHT_SENNAVGWEIGHT_MASK, srid);
 
-	sr_write_reg(srbase, AVGWEIGHT, AVGWEIGHT_SENPAVGWEIGHT_MASK |
-			AVGWEIGHT_SENNAVGWEIGHT_MASK);
-
-	if (srid == SRHVT)
-		sr_modify_reg(srbase, ERRCONFIG_V2, (SR_ERRWEIGHT_MASK |
-			SR_ERRMAXLIMIT_MASK | SR_ERRMINLIMIT_MASK),
-			ERRCONFIG_ERRWEIGHT | ERRCONFIG_ERRMAXLIMIT |
-			ERRCONFIG_HVT_ERRMINLIMIT);
-	else
-		sr_modify_reg(srbase, ERRCONFIG_V2, (SR_ERRWEIGHT_MASK |
-			SR_ERRMAXLIMIT_MASK | SR_ERRMINLIMIT_MASK),
-			ERRCONFIG_ERRWEIGHT | ERRCONFIG_ERRMAXLIMIT |
-			ERRCONFIG_SVT_ERRMINLIMIT);
+	/* Configuring the Error Generator */
+	sr_modify_reg(sr, ERRCONFIG_V2, (SR_ERRWEIGHT_MASK |
+		SR_ERRMAXLIMIT_MASK | SR_ERRMINLIMIT_MASK),
+		ERRCONFIG_ERRWEIGHT | (sr->sen[srid].err_maxlimit <<
+		ERRCONFIG_ERRMAXLIMIT_SHIFT) | (sr->sen[srid].err_minlimit <<
+		ERRCONFIG_ERRMINLIMIT_SHIFT), srid);
 }
 
-static void sr_enable(u32 srbase, u32 nvalue)
+static void sr_enable(struct ti816x_sr *sr, int srid)
 {
-	/* SRCONFIG - disable SR */
-	sr_modify_reg(srbase, SRCONFIG, SRCONFIG_SRENABLE,
-					~SRCONFIG_SRENABLE);
+	/* Check if SR is already enabled. If yes do nothing */
+	if (sr_read_reg(sr, SRCONFIG, srid) & SRCONFIG_SRENABLE)
+		return;
 
-	if (nvalue == 0)
-		pr_err("OPP doesn't support SmartReflex\n");
+	if (sr->sen[srid].nvalue == 0)
+		dev_err(&sr->pdev->dev, "%s: OPP doesn't support SmartReflex\n",
+				__func__);
 
-	sr_write_reg(srbase, NVALUERECIPROCAL, nvalue);
+	/* Writing the nReciprocal value to the register */
+	sr_write_reg(sr, NVALUERECIPROCAL, sr->sen[srid].nvalue, srid);
 
-	/* Clear MCUDisableAck Interrupt */
-	sr_modify_reg(srbase, IRQSTATUS,
-			IRQSTATUS_MCUDISABLEACKINT,
-			IRQSTATUS_MCUDISABLEACKINT);
-	/* Disable MCUDisableAck interrupt */
-	sr_modify_reg(srbase, IRQENABLE_CLR,
-			IRQSTATUS_MCUDISABLEACKINT,
-			IRQSTATUS_MCUDISABLEACKINT);
 	/* Enable the interrupt */
-	sr_modify_reg(srbase, IRQENABLE_SET,
-			IRQENABLE_MCUBOUNDSINT,
-			IRQENABLE_MCUBOUNDSINT);
+	sr_modify_reg(sr, IRQENABLE_SET, IRQENABLE_MCUBOUNDSINT,
+				IRQENABLE_MCUBOUNDSINT, srid);
 
 	/* SRCONFIG - enable SR */
-	sr_modify_reg(srbase, SRCONFIG, SRCONFIG_SRENABLE,
-					SRCONFIG_SRENABLE);
+	sr_modify_reg(sr, SRCONFIG, SRCONFIG_SRENABLE,
+				SRCONFIG_SRENABLE, srid);
 }
 
-static void sr_disable(u32 srbase)
+static void sr_disable(struct ti816x_sr *sr, int srid)
 {
-	/* Disable the interrupt */
-	sr_modify_reg(srbase, IRQENABLE_CLR,
-			IRQENABLE_MCUBOUNDSINT,
-			IRQENABLE_MCUBOUNDSINT);
 	/* SRCONFIG - disable SR */
-	sr_modify_reg(srbase, SRCONFIG, SRCONFIG_SRENABLE,
-					~SRCONFIG_SRENABLE);
+	sr_modify_reg(sr, SRCONFIG, SRCONFIG_SRENABLE,
+				~SRCONFIG_SRENABLE, srid);
+
+	/* Disable the interrupt */
+	sr_modify_reg(sr, IRQENABLE_CLR, IRQENABLE_MCUBOUNDSINT,
+				IRQENABLE_MCUBOUNDSINT, srid);
 }
 
-static void sr_start_coreautocomp(struct ti816x_sr *sr)
+static void sr_start_vddautocomp(struct ti816x_sr *sr)
 {
-	if ((sr->sen[0].nvalue == 0) || (sr->sen[1].nvalue == 0)) {
-		pr_err("SmartReflex Driver: Un-Characterized"
+	int i;
+
+	if ((sr->sen[SRHVT].nvalue == 0) || (sr->sen[SRSVT].nvalue == 0)) {
+		dev_err(&sr->pdev->dev, "SmartReflex Driver: Un-Characterized"
 					" silicon found\n");
 		return;
 	}
 
-	if (sr->is_autocomp_active == 1) {
-		pr_warning("SR VDD autocomp is already active\n");
+	if (sr->autocomp_active == 1) {
+		dev_warn(&sr->pdev->dev, "SR VDD autocomp is already active\n");
 		return;
 	}
 
-	init_timer(&sr->sen[0].timer);
-	init_timer(&sr->sen[1].timer);
+	for (i = 0; i < sr->sens_per_vd; i++) {
+		sr_clk_enable(sr, i);
+		sr_configure(sr, i);
+		sr_enable(sr, i);
+	}
 
-	sr_clk_enable(sr->sen[0].fck);
-	sr_clk_enable(sr->sen[1].fck);
-	sr_configure(sr->sen[0].base_addr, SRHVT);
-	sr_configure(sr->sen[1].base_addr, SRSVT);
-
-	sr_enable(sr->sen[0].base_addr, sr->sen[0].nvalue);
-	sr_enable(sr->sen[1].base_addr, sr->sen[1].nvalue);
-
-	sr->is_autocomp_active = 1;
+	sr->autocomp_active = 1;
 }
 
-static void sr_stop_coreautocomp(struct ti816x_sr *sr)
+static void sr_stop_vddautocomp(struct ti816x_sr *sr)
 {
-	if (sr->is_autocomp_active == 0) {
-		pr_warning("SR VDD autocomp is not active\n");
+	int i;
+
+	if (sr->autocomp_active == 0) {
+		dev_warn(&sr->pdev->dev, "SR VDD autocomp is not active\n");
 		return;
 	}
 
-	del_timer_sync(&sr->sen[0].timer);
-	del_timer_sync(&sr->sen[1].timer);
-	sr->is_autocomp_active = 0;
-	sr_disable(sr->sen[0].base_addr);
-	sr_disable(sr->sen[1].base_addr);
-	sr_clk_disable(sr->sen[0].fck);
-	sr_clk_disable(sr->sen[1].fck);
+	flush_work_sync(&sr->work);
 
-	sr->curr_volt = sr->init_volt;
-	regulator_set_voltage(srcore.reg, sr->init_volt, sr->init_volt);
+	for (i = 0; i < sr->sens_per_vd; i++) {
+		sr_disable(sr, i);
+		del_timer(&sr->sen[i].timer);
+		sr_clk_disable(sr, i);
+	}
+
+	regulator_set_voltage(sr->reg, sr->init_volt, sr->init_volt);
+	sr->autocomp_active = 0;
 }
 
-/* Sysfs interface to select SR CORE auto compensation */
-static ssize_t sr_core_autocomp_show(struct kobject *kobj,
-					struct kobj_attribute *attr, char *buf)
+/* PM Debug Fs enteries to enable disable smartreflex. */
+static int ti816x_sr_autocomp_show(void *data, u64 *val)
 {
-	return sprintf(buf, "%d\n", srcore.is_autocomp_active);
+	struct ti816x_sr *sr_info = (struct ti816x_sr *) data;
+
+	*val = (u64) sr_info->autocomp_active;
+
+	return 0;
 }
 
-static ssize_t sr_core_autocomp_store(struct kobject *kobj,
-					struct kobj_attribute *attr,
-					const char *buf, size_t n)
+static int ti816x_sr_autocomp_store(void *data, u64 val)
 {
-	unsigned short value;
+	struct ti816x_sr *sr_info = (struct ti816x_sr *) data;
 
-	if (sscanf(buf, "%hu", &value) != 1 || (value > 1)) {
-		pr_err("sr_core_autocomp: Invalid value\n");
+	/* Sanity check */
+	if (val && (val != 1)) {
+		dev_warn(&sr_info->pdev->dev, "%s: Invalid argument %llu\n",
+				__func__, val);
 		return -EINVAL;
 	}
 
-	if (value == 0)
-		sr_stop_coreautocomp(&srcore);
+	if (!val)
+		sr_stop_vddautocomp(sr_info);
 	else
-		sr_start_coreautocomp(&srcore);
+		sr_start_vddautocomp(sr_info);
 
-	return n;
+	return 0;
 }
 
-static struct kobj_attribute sr_core_autocomp = {
-	.attr = {
-		.name = __stringify(sr_core_autocomp),
-		.mode = 0644,
-		},
-	.show = sr_core_autocomp_show,
-	.store = sr_core_autocomp_store,
-};
+DEFINE_SIMPLE_ATTRIBUTE(pm_sr_fops, ti816x_sr_autocomp_show,
+		ti816x_sr_autocomp_store, "%llu\n");
+
+static int sr_curr_volt_show(void *data, u64 *val)
+{
+	struct ti816x_sr *sr_info = (struct ti816x_sr *) data;
+
+	if (!sr_info) {
+		dev_warn(&sr_info->pdev->dev, "%s: ti816x_sr struct for sr"
+				" not found\n", __func__);
+		return -EINVAL;
+	}
+
+	*val = (u64) regulator_get_voltage(sr_info->reg);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(curr_volt_fops, sr_curr_volt_show,
+		NULL, "%llu\n");
 
 static int sr_debugfs_entires(struct ti816x_sr *sr_info)
 {
@@ -399,22 +399,26 @@ static int sr_debugfs_entires(struct ti816x_sr *sr_info)
 
 	dbg_dir = debugfs_create_dir("smartreflex", NULL);
 	if (IS_ERR(dbg_dir)) {
-		pr_err("Unable to create debugfs directory\n");
+		dev_err(&sr_info->pdev->dev, "%s: Unable to create debugfs"
+				" directory\n", __func__);
 		return PTR_ERR(dbg_dir);
 	}
 
+	(void) debugfs_create_file("autocomp", S_IRUGO | S_IWUGO, dbg_dir,
+				(void *)sr_info, &pm_sr_fops);
 	(void) debugfs_create_u32("initial_voltage", S_IRUGO, dbg_dir,
 				&sr_info->init_volt);
-	(void) debugfs_create_u32("current_voltage", S_IRUGO, dbg_dir,
-				&sr_info->curr_volt);
-	(void) debugfs_create_x32("interrupt_delay", S_IRUGO | S_IWUGO,
-				dbg_dir, &sr_info->sr_irq_delay);
+	(void) debugfs_create_file("current_voltage", S_IRUGO, dbg_dir,
+				(void *)sr_info, &curr_volt_fops);
+	(void) debugfs_create_u32("interrupt_delay", S_IRUGO | S_IWUGO,
+				dbg_dir, &sr_info->irq_delay);
 
-	for (i = 0; i < sr_info->nvalue_count; i++) {
+	for (i = 0; i < sr_info->sens_per_vd; i++) {
 
 		sen_dir = debugfs_create_dir(sr_info->sen[i].name, dbg_dir);
 		if (IS_ERR(sen_dir)) {
-			pr_err("Unable to create debugfs directory\n");
+			dev_err(&sr_info->pdev->dev, "%s: Unable to create"
+				" debugfs directory\n", __func__);
 			return PTR_ERR(sen_dir);
 		}
 
@@ -426,90 +430,207 @@ static int sr_debugfs_entires(struct ti816x_sr *sr_info)
 	return 0;
 }
 
-/* SR driver init */
-static int __init sr_class2_init(void)
+static int __init ti816x_sr_probe(struct platform_device *pdev)
 {
-	int ret = 0;
-	struct regulator *reg;
+	struct ti816x_sr *sr_info;
+	struct ti816x_sr_platform_data *pdata;
+	struct resource *mem[MAX_SENSORS_PER_VD];
+	int irq;
+	int ret;
+	int i = 0;
 
-	INIT_WORK(&srcore.work, set_voltage);
-
-	srcore.sen[0].fck = clk_get(NULL, "smartreflex_corehvt_fck");
-	if (IS_ERR(srcore.sen[0].fck)) {
-		pr_err("Could not get corehvt_fck\n");
-		return PTR_ERR(srcore.sen[0].fck);
+	sr_info = kzalloc(sizeof(struct ti816x_sr), GFP_KERNEL);
+	if (!sr_info) {
+		dev_err(&pdev->dev, "%s: unable to allocate sr_info\n",
+					__func__);
+		return -ENOMEM;
 	}
 
-	srcore.sen[1].fck = clk_get(NULL, "smartreflex_coresvt_fck");
-	if (IS_ERR(srcore.sen[1].fck)) {
-		pr_err("Could not get coresvt_fck\n");
-		ret = PTR_ERR(srcore.sen[1].fck);
-		goto fail_svt_clk_get;
+	pdata = pdev->dev.platform_data;
+	if (!pdata) {
+		dev_err(&pdev->dev, "%s: platform data missing\n", __func__);
+		return -EINVAL;
 	}
 
-	ret = sr_set_nvalues(&srcore);
-	if (ret) {
-		ret = sr_debugfs_entires(&srcore);
-		if (ret) {
-			pr_err("Debug FS entires are created\n");
-			goto fail_hvt_req_irq;
+	INIT_WORK(&sr_info->work, set_voltage);
+
+	sr_info->pdev = pdev;
+	sr_info->sen[SRHVT].name = "sr_hvt";
+	sr_info->sen[SRSVT].name = "sr_svt";
+	sr_info->ip_type = pdata->ip_type;
+	sr_info->irq_delay = pdata->irq_delay;
+	sr_info->sens_per_vd = pdata->no_of_sens/pdata->no_of_vds;
+	sr_info->voltage_step_size = pdata->vstep_size;
+	sr_info->autocomp_active = false;
+
+	while (i < sr_info->sens_per_vd) {
+		char *name;
+
+		name = kzalloc(CLK_NAME_LEN + 1, GFP_KERNEL);
+		/* resources */
+		mem[i] = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						sr_info->sen[i].name);
+		if (!mem[i]) {
+			dev_err(&pdev->dev, "%s: no mem resource\n", __func__);
+			ret = -ENODEV;
+			goto err_free_devinfo;
 		}
+
+		sr_info->sen[i].base = ioremap(mem[i]->start,
+						resource_size(mem[i]));
+		if (!sr_info->sen[i].base) {
+			dev_err(&pdev->dev, "%s: ioremap fail\n", __func__);
+			ret = -ENOMEM;
+			goto err_release_region;
+		}
+
+		irq = platform_get_irq_byname(pdev, sr_info->sen[i].name);
+		sr_info->sen[i].irq = irq;
+
+		strcat(name, sr_info->sen[i].name);
+		strcat(name, "_fck");
+
+		sr_info->sen[i].fck = clk_get(NULL, name);
+		if (IS_ERR(sr_info->sen[i].fck)) {
+			dev_err(&pdev->dev, "%s: Could not get sr fck\n",
+						__func__);
+			ret = PTR_ERR(sr_info->sen[i].fck);
+			goto err_clk_fail;
+		}
+
+		ret = request_irq(sr_info->sen[i].irq, sr_class2_irq,
+			IRQF_DISABLED, sr_info->sen[i].name, (void *)sr_info);
+		if (ret) {
+			dev_err(&pdev->dev, "%s: Could not install SR ISR\n",
+						__func__);
+			goto err_req_irq;
+		}
+
+		sr_info->sen[i].efuse_offs = pdata->sr_sdata[i].efuse_offs;
+		sr_info->sen[i].nvalue = pdata->sr_sdata[i].nvalue;
+		sr_info->sen[i].e2v_gain = pdata->sr_sdata[i].e2v_gain;
+		sr_info->sen[i].err_minlimit = pdata->sr_sdata[i].err_minlimit;
+		sr_info->sen[i].err_maxlimit = pdata->sr_sdata[i].err_maxlimit;
+		init_timer(&sr_info->sen[i].timer);
+
+		sr_set_nvalues(sr_info, i);
+
+		i++;
 	}
 
-	reg = regulator_get(NULL, "vdd_avs");
-	if (!IS_ERR(reg))
-		srcore.reg = reg;
+	/* debugfs entries */
+	ret = sr_debugfs_entires(sr_info);
+	if (ret) {
+		dev_err(&pdev->dev, "%s: Failed to create Debugfs entires\n",
+						__func__);
+		goto err_debugfs_fail;
+	}
+
+	sr_info->reg = regulator_get(NULL, pdata->vd_name);
+	if (IS_ERR(sr_info->reg))
+		goto err_debugfs_fail;
 
 	/* Read current GPIO value and voltage */
-	srcore.init_volt = regulator_get_voltage(srcore.reg);
-	srcore.curr_volt = srcore.init_volt;
+	sr_info->init_volt = regulator_get_voltage(sr_info->reg);
 
-	ret = request_irq(TI81XX_IRQ_SMRFLX0, srcore_class2_irq,
-				IRQF_DISABLED, "sr1", NULL);
-	if (ret) {
-		pr_err("Could not install SR1 ISR\n");
-		goto fail_hvt_req_irq;
-	}
+	platform_set_drvdata(pdev, sr_info);
 
-	ret = request_irq(TI81XX_IRQ_SMRFLX1, srcore_class2_irq,
-				IRQF_DISABLED, "sr2", NULL);
-	if (ret) {
-		pr_err("Could not install SR2 ISR\n");
-		goto fail_svt_req_irq;
-	}
+	if (pdata->enable_on_init)
+		sr_start_vddautocomp(sr_info);
 
-	ret = sysfs_create_file(power_kobj, &sr_core_autocomp.attr);
-	if (ret) {
-		pr_err("subsys_create_file failed: %d\n", ret);
-		goto fail_sysfs;
-	}
+	dev_info(&pdev->dev, "SmartReflex driver initialized\n");
 	return ret;
 
-fail_sysfs:
-	free_irq(TI81XX_IRQ_SMRFLX1, NULL);
-fail_svt_req_irq:
-	free_irq(TI81XX_IRQ_SMRFLX0, NULL);
-fail_hvt_req_irq:
-	clk_put(srcore.sen[1].fck);
-fail_svt_clk_get:
-	clk_put(srcore.sen[0].fck);
+err_debugfs_fail:
+	free_irq(sr_info->sen[SRHVT].irq, pdev);
+	free_irq(sr_info->sen[SRSVT].irq, pdev);
+	i = 0;
+err_req_irq:
+	if (i == 1)
+		free_irq(sr_info->sen[i-1].irq, pdev);
+
+	clk_put(sr_info->sen[SRHVT].fck);
+	clk_put(sr_info->sen[SRSVT].fck);
+	i = 0;
+err_clk_fail:
+	if (i == 1)
+		clk_put(sr_info->sen[i-1].fck);
+
+	release_mem_region(mem[SRHVT]->start, resource_size(mem[SRHVT]));
+	release_mem_region(mem[SRSVT]->start, resource_size(mem[SRSVT]));
+	i = 0;
+err_release_region:
+	if (i == 1)
+		release_mem_region(mem[i-1]->start, resource_size(mem[i-1]));
+	i = 0;
+err_free_devinfo:
+	kfree(sr_info);
 	return ret;
 }
 
-static void __exit sr_class2_exit(void)
+static int __devexit ti816x_sr_remove(struct platform_device *pdev)
 {
-	clk_put(srcore.sen[0].fck);
-	clk_put(srcore.sen[1].fck);
+	struct ti816x_sr *sr_info = dev_get_drvdata(&pdev->dev);
+	struct resource *mem;
+	int irq;
+	int i = 0;
 
-	free_irq(TI81XX_IRQ_SMRFLX0, NULL);
-	free_irq(TI81XX_IRQ_SMRFLX1, NULL);
+	if (!sr_info) {
+		dev_err(&pdev->dev, "%s: sr_info missing\n", __func__);
+		return -EINVAL;
+	}
 
-	sysfs_remove_file(power_kobj, &sr_core_autocomp.attr);
+	if (sr_info->autocomp_active)
+		sr_stop_vddautocomp(sr_info);
+
+	while (i < sr_info->sens_per_vd) {
+		iounmap(sr_info->sen[i].base);
+		clk_put(sr_info->sen[i].fck);
+
+		mem = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						sr_info->sen[i].name);
+		release_mem_region(mem->start, resource_size(mem));
+
+		irq = platform_get_irq_byname(pdev, sr_info->sen[i].name);
+		free_irq(irq, pdev);
+		i++;
+	}
+
+	kfree(sr_info);
+
+	return 0;
 }
 
-MODULE_AUTHOR("Texas Instruments, Inc.");
-MODULE_DESCRIPTION("SmartReflex Class2 driver");
-MODULE_LICENSE("GPL");
+static struct platform_driver smartreflex_driver = {
+	.driver		= {
+		.name	= "smartreflex",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= ti816x_sr_probe,
+	.remove         = ti816x_sr_remove,
+};
 
-module_init(sr_class2_init);
-module_exit(sr_class2_exit);
+static int __init sr_init(void)
+{
+	int ret;
+
+	ret = platform_driver_register(&smartreflex_driver);
+	if (ret) {
+		pr_err("%s: platform driver register failed\n", __func__);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void __exit sr_exit(void)
+{
+	platform_driver_unregister(&smartreflex_driver);
+}
+late_initcall(sr_init);
+module_exit(sr_exit);
+
+MODULE_DESCRIPTION("TI816X Smartreflex Class2 Driver");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:" DRIVER_NAME);
+MODULE_AUTHOR("Texas Instruments Inc");

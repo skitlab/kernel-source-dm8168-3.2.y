@@ -93,10 +93,13 @@ config TI816X_SMARTREFLEX
 	  consumption.
 
 	  Please note, that by default SmartReflex is only initialized.
-	  To enable the automatic voltage compensation for CORE from
-	  user space, user must write 1 to /sys/power/sr_core_autocomp.
+	  To enable the automatic voltage compensation for entire chip from
+	  user space, user must write 1 to /debugfs/smartreflex/autocomp
 
 	  Note: Don't enable if the device is not Characterized.
+	  Optionallly autocompensation can be enabled in the kernel
+	  by default during system init via the enable_on_init flag
+	  which an be passed as platform data to the smartreflex driver.
 
 config OMAP_MUX
 	bool "OMAP multiplexing support"

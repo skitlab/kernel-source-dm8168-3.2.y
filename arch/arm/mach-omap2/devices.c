@@ -35,6 +35,7 @@
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
 #include <plat/asp.h>
+#include <plat/smartreflex.h>
 
 #include "mux.h"
 #include "control.h"
@@ -1298,6 +1299,83 @@ void ti816x_ethernet_init(void)
 static inline void ti816x_ethernet_init(void) {}
 #endif
 
+#ifdef CONFIG_ARCH_TI816X
+
+/* smartreflex platform data */
+#define TI816X_SR_CNTRL_HVT_OFFSET	(0x06AC)
+#define TI816X_SR_CNTRL_SVT_OFFSET	(0x06A8)
+
+/* Refer TRM to know the Err2VoltGain factor and MinError Limits
+ * for different step sizes. Update this table for both the sensors
+ * (HVT and SVT) according to your step size, default step size is
+ * 15mV. Factor changing with step size are e2v_gain, err_minlimit.
+ * Don't forgot to change the step size in platform data structure.
+ */
+static struct ti816x_sr_sdata sr_sensor_data[] = {
+	{ TI816X_SR_CNTRL_HVT_OFFSET, 0, 0xD, 0xF6, 0x2},
+	{ TI816X_SR_CNTRL_SVT_OFFSET, 0, 0x12, 0xF8, 0x2},
+};
+
+static struct ti816x_sr_platform_data ti816x_sr_pdata = {
+	.vd_name		= "vdd_avs",
+	.ip_type		= 2,
+	.irq_delay		= 2000,
+	.no_of_vds		= 1,
+	.no_of_sens		= ARRAY_SIZE(sr_sensor_data),
+	.vstep_size		= 15000,
+	.enable_on_init		= 0,
+	.sr_sdata		= sr_sensor_data,
+};
+
+static struct resource ti816x_sr_resources[] = {
+	{
+		.name	=	"sr_hvt",
+		.start	=	TI816X_SR0_BASE,
+		.end	=	TI816X_SR0_BASE + SZ_4K - 1,
+		.flags	=	IORESOURCE_MEM,
+	},
+	{
+		.name	=	"sr_hvt",
+		.start	=	TI81XX_IRQ_SMRFLX0,
+		.end	=	TI81XX_IRQ_SMRFLX0,
+		.flags	=	IORESOURCE_IRQ,
+	},
+	{
+		.name	=	"sr_svt",
+		.start	=	TI816X_SR1_BASE,
+		.end	=	TI816X_SR1_BASE + SZ_4K - 1,
+		.flags	=	IORESOURCE_MEM,
+	},
+	{
+		.name	=	"sr_svt",
+		.start	=	TI81XX_IRQ_SMRFLX1,
+		.end	=	TI81XX_IRQ_SMRFLX0,
+		.flags	=	IORESOURCE_IRQ,
+	},
+};
+
+/* VCORE for SR regulator init */
+static struct platform_device ti816x_sr_device = {
+	.name		= "smartreflex",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(ti816x_sr_resources),
+	.resource	= ti816x_sr_resources,
+	.dev = {
+		.platform_data = &ti816x_sr_pdata,
+	},
+};
+
+static void __init ti816x_sr_init(void)
+{
+	if (platform_device_register(&ti816x_sr_device))
+		printk(KERN_ERR "failed to register ti816x_sr device\n");
+	else
+		printk(KERN_INFO "registered ti816x_sr device\n");
+}
+#else
+static inline void ti816x_sr_init(void) {}
+#endif
+
 #if defined(CONFIG_ARCH_TI81XX)
 
 #define TI81XX_TPCC_BASE		0x49000000
@@ -2053,6 +2131,7 @@ static int __init omap2_init_devices(void)
 	ti81xx_register_edma();
 	ti81xx_init_pcm();
 	ti81xx_init_ahci();
+	ti816x_sr_init();
 #endif
 	return 0;
 }

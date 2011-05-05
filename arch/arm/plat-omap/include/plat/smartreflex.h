@@ -237,8 +237,52 @@ int sr_register_class(struct omap_sr_class_data *class_data);
 #else
 
 #ifdef CONFIG_TI816X_SMARTREFLEX
-#define SRHVT				(1)
-#define SRSVT				(2)
+
+/**
+ * struct ti816x_sr_sdata	- Smartreflex sensors data
+ *
+ * @efuse_offs:	The offset of the efuse where n-target values are stored.
+ * @nvalue:		The n-target value.
+ * @e2v_gain:		Error to voltage gain for changing the percentage
+ *			error into voltage delta
+ * @err_minlimit:	Minimum error limit of the sensor
+ * @err_maxlimit:	Maximum error limit of the sensor
+ */
+struct ti816x_sr_sdata {
+	u32 efuse_offs;
+	u32 nvalue;
+	s32 e2v_gain;
+	u32 err_minlimit;
+	u32 err_maxlimit;
+};
+
+/**
+ * struct ti816x_sr_platform_data - Smartreflex platform data.
+ *
+ * @vd_name:		Name of the voltage domain.
+ * @ip_type:		Smartreflex IP type.
+ * @irq_delay:		Time delay to re-enable the interrupts, in msec
+ * @no_of_vds:		Number of voltage domains to which SR is applicable
+ * @no_of_sens:		Number of SR sensors
+ * @vstep_size:		Voltage step size of the PMIC
+ * @enable_on_init:	whether this sr module needs to enabled at
+ *			boot up or not.
+ * @sr_sdata:		SR IP details, contains the efuse off sets, error
+ *			to voltage gain factor, minimum error limits
+ */
+struct ti816x_sr_platform_data {
+	char *vd_name;
+	int ip_type;
+	int irq_delay;
+	int no_of_vds;
+	int no_of_sens;
+	int vstep_size;
+	int enable_on_init;
+	struct ti816x_sr_sdata *sr_sdata;
+};
+
+#define SRHVT				0
+#define SRSVT				1
 
 #define SRCONFIG_ACCUM_DATA		(0x3E8 << 22)
 
@@ -250,24 +294,10 @@ int sr_register_class(struct omap_sr_class_data *class_data);
 #define AVGWEIGHT_SENPAVGWEIGHT_MASK	(0x03 << 2)
 #define AVGWEIGHT_SENNAVGWEIGHT_MASK	(0x03 << 0)
 
-/* IRQSTATUS_RAW */
-#define IRQSTATUSRAW_MCUACCUMINT	BIT(3)
-#define IRQSTATUSRAW_MCVALIDINT		BIT(2)
-#define IRQSTATUSRAW_MCBOUNDSINT	BIT(1)
-#define IRQSTATUSRAW_MCUDISABLEACKINT	BIT(0)
-
 #define SRCLKLENGTH_27MHZ_SYSCLK	(0x271 << 12) /* SRClk = 100KHz */
 
 #define ERRCONFIG_ERRWEIGHT		(0x4 << 16)
-#define ERRCONFIG_ERRMAXLIMIT		(0x02 << 8)
 
-#define ERRCONFIG_HVT_ERRMINLIMIT	(0xF7 << 0)
-#define ERRCONFIG_SVT_ERRMINLIMIT	(0xFA << 0)
-
-#define CONTROL_FUSE_SMRT_SCALE		(TI81XX_CTRL_BASE + 0x06A0)
-#define CONTROL_FUSE_SMRT_SVT		(TI81XX_CTRL_BASE + 0x06A8)
-#define CONTROL_FUSE_SMRT_HVT		(TI81XX_CTRL_BASE + 0x06AC)
-#define NUM_VOLT_LEVELS			(16)
 #endif /* CONFIG_TI816X_SMARTREFLEX */
 
 static inline void omap_sr_enable(struct voltagedomain *voltdm) {}
