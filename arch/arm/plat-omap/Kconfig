@@ -82,7 +82,7 @@ config OMAP_RESET_CLOCKS
 
 config TI816X_SMARTREFLEX
 	bool "SmartReflex class2 support for ti816x"
-	depends on ARCH_TI816X && PM && REGULATOR_GPIO
+	depends on ARCH_TI816X && REGULATOR_GPIO
 	help
 	  Say Y if you want to enable SmartReflex.
 

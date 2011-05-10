@@ -238,37 +238,52 @@ int sr_register_class(struct omap_sr_class_data *class_data);
 
 #ifdef CONFIG_TI816X_SMARTREFLEX
 
+#define SRHVT				0
+#define SRSVT				1
+
+/* SRClk = 100KHz */
+#define SRCLKLENGTH_125MHZ_SYSCLK	(0x271 << 12)
+
 /**
  * struct ti816x_sr_sdata	- Smartreflex sensors data
  *
- * @efuse_offs:	The offset of the efuse where n-target values are stored.
+ * @efuse_offs:		The offset of the efuse where n-target values are
+ *			stored.
  * @nvalue:		The n-target value.
  * @e2v_gain:		Error to voltage gain for changing the percentage
  *			error into voltage delta
+ * @err_weight:		Average sensor error weight
  * @err_minlimit:	Minimum error limit of the sensor
  * @err_maxlimit:	Maximum error limit of the sensor
+ * @senn_mod:		Enable bit for N sensor
+ * @senp_mod:		Enable bit for P sensor
  */
 struct ti816x_sr_sdata {
 	u32 efuse_offs;
 	u32 nvalue;
 	s32 e2v_gain;
+	u32 err_weight;
 	u32 err_minlimit;
 	u32 err_maxlimit;
+	u32 senn_mod;
+	u32 senp_mod;
 };
 
 /**
  * struct ti816x_sr_platform_data - Smartreflex platform data.
  *
  * @vd_name:		Name of the voltage domain.
- * @ip_type:		Smartreflex IP type.
- * @irq_delay:		Time delay to re-enable the interrupts, in msec
- * @no_of_vds:		Number of voltage domains to which SR is applicable
- * @no_of_sens:		Number of SR sensors
- * @vstep_size:		Voltage step size of the PMIC
+ * @ip_type:		Smartreflex IP type, class1 or class2 or class3.
+ * @irq_delay:		Time delay between disable and re-enable the
+ *			interrupts, in msec
+ * @no_of_vds:		Number of voltage domains to which SR needed
+ * @no_of_sens:		Number of SR sensors used to monitor the device
+ *			performance, temp etc...
+ * @vstep_size:		PMIC voltage step size
  * @enable_on_init:	whether this sr module needs to enabled at
  *			boot up or not.
- * @sr_sdata:		SR IP details, contains the efuse off sets, error
- *			to voltage gain factor, minimum error limits
+ * @sr_sdata:		SR per sensor details, contains the efuse off-sets,
+ *			error to voltage gain factor, minimum error limits
  */
 struct ti816x_sr_platform_data {
 	char *vd_name;
@@ -280,23 +295,6 @@ struct ti816x_sr_platform_data {
 	int enable_on_init;
 	struct ti816x_sr_sdata *sr_sdata;
 };
-
-#define SRHVT				0
-#define SRSVT				1
-
-#define SRCONFIG_ACCUM_DATA		(0x3E8 << 22)
-
-/* SRCONFIG */
-#define SRCONFIG_SENNENABLE		(0x01 << 1)
-#define SRCONFIG_SENPENABLE		(0x01 << 0)
-
-/* AVGWEIGHT */
-#define AVGWEIGHT_SENPAVGWEIGHT_MASK	(0x03 << 2)
-#define AVGWEIGHT_SENNAVGWEIGHT_MASK	(0x03 << 0)
-
-#define SRCLKLENGTH_27MHZ_SYSCLK	(0x271 << 12) /* SRClk = 100KHz */
-
-#define ERRCONFIG_ERRWEIGHT		(0x4 << 16)
 
 #endif /* CONFIG_TI816X_SMARTREFLEX */
 

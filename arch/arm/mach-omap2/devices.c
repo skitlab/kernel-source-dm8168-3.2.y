@@ -1312,8 +1312,26 @@ static inline void ti816x_ethernet_init(void) {}
  * Don't forgot to change the step size in platform data structure.
  */
 static struct ti816x_sr_sdata sr_sensor_data[] = {
-	{ TI816X_SR_CNTRL_HVT_OFFSET, 0, 0xD, 0xF6, 0x2},
-	{ TI816X_SR_CNTRL_SVT_OFFSET, 0, 0x12, 0xF8, 0x2},
+	{
+		.efuse_offs	= TI816X_SR_CNTRL_HVT_OFFSET,
+		.nvalue		= 0,
+		.e2v_gain	= 0xD,
+		.err_weight	= 0x4,
+		.err_minlimit	= 0xF6,
+		.err_maxlimit	= 0x2,
+		.senn_mod	= 0x1,
+		.senp_mod	= 0x1,
+	},
+	{
+		.efuse_offs	= TI816X_SR_CNTRL_SVT_OFFSET,
+		.nvalue		= 0,
+		.e2v_gain	= 0x12,
+		.err_weight	= 0x4,
+		.err_minlimit	= 0xF8,
+		.err_maxlimit	= 0x2,
+		.senn_mod	= 0x1,
+		.senp_mod	= 0x1,
+	},
 };
 
 static struct ti816x_sr_platform_data ti816x_sr_pdata = {
