@@ -30,11 +30,10 @@
 #include <linux/slab.h>
 
 
-
+/*Linux specific headers*/
 #include <plat/iommu.h>
 #include <plat/iovmm.h>
 #include <asm/page.h>
-#include <linux/delay.h>
 #include <linux/pagemap.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
@@ -74,8 +73,6 @@
 #define IOPTE_SIZE      (1 << IOPTE_SHIFT)
 #define IOPTE_MASK      (~(IOPTE_SIZE - 1))
 #define IOPAGE_MASK     IOPTE_MASK
-
-#define CLEAR_BIT(num, pos)          ((num) &= ~(1u << (pos)))
 
 /* notify slave virtual address of dsp*/
 static  int  dsp_notify_va ;
@@ -206,10 +203,6 @@ static struct notify_map_table_info *notify_map_info;
 
 #define MAX_WAIT_COUNT          0x50000
 
-#define TI81XX_RM_DEFAULT_RSTCTRL     0x00000B10
-
-#define TI81XX_RM_DEFAULT_RSTST       0x00000B14
-
 
 int
 OMAP3530PWR_off(u32 cm, u32 prm)
@@ -255,161 +248,6 @@ exit:
 	return err;
 }
 
-static u32               prm_m3;
-/**
- * notify_ti81xx_prcm_on - to release ducati and sys mmu .
- */
-void
-notify_ti81xx_prcm_on(void)
-{
-	u32 i;
-
-	/* Enabling prcm to be able  to call iommu_get for ducati*/
-	/* Fix me to push this logic in to iommu driver*/
-	prm_m3     = (u32)ioremap(0x48180000, 0x00002FFF);
-
-	/*Enable the Ducati Logic*/
-	CLEAR_BIT(REG(prm_m3 + TI81XX_RM_DEFAULT_RSTCTRL), 0x4);
-
-	for (i = 0; i < MAX_WAIT_COUNT; i++) {
-		if ((REG(prm_m3 + TI81XX_RM_DEFAULT_RSTST)) & (1 << 4))
-			break;
-
-	}
-
-	if (cpu_is_ti814x())
-		/* This delay is required only in case of ti814x*/
-		udelay(2);
-
-}
-
-/**
- * notify_ti81xx_prcm_off - to release ducati and sys mmu .
- */
-void
-notify_ti81xx_prcm_off(void)
-{
-	iounmap((unsigned int *)prm_m3);
-}
-
-
-/*!
- *  @brief      This function sets up the mmu handles by calling io-mmu get.
- */
-
-int
-notify_ti81xx_get_iommu(struct omap_notify **list)
-{
-	int err = 0;
-	struct clk *clk_handle ;
-	struct iommu *mmu_handle;
-
-#if	0
-	/* Get the clock and enable it for dsp mmu */
-	clk_handle = clk_get(NULL, "mmu_cfg_ick");
-	if (IS_ERR(clk_handle)) {
-		err = PTR_ERR(clk_handle);
-		printk(KERN_ERR "notify_ti81xx_get_iommu: clk_get failed for"
-				"mmu_cfg_ick\n");
-		goto exit;
-	} else {
-		clk_enable(clk_handle);
-		list[0]->clk_handle = clk_handle;
-	}
-
-	mmu_handle = iommu_get("sys");
-	if (mmu_handle == NULL) {
-		err = PTR_ERR(list[0]->mmu_handle);
-		printk(KERN_ERR "notify_ti81xx_get_iommu: iommu_get failed for"
-			"sys\n");
-		goto exit;
-	} else {
-		list[0]->mmu_handle = mmu_handle;
-	}
-#endif
-
-	/* Get the clock and enable it for dsp mmu */
-	clk_handle = clk_get(NULL, "ducati_ick");
-	if (IS_ERR(clk_handle)) {
-		err = PTR_ERR(clk_handle);
-		printk(KERN_ERR "notify_ti81xx_get_iommu: clk_get failed for"
-				"ducati_ick\n");
-		goto exit;
-	} else {
-		clk_enable(clk_handle);
-		list[1]->clk_handle = list[2]->clk_handle = clk_handle;
-	}
-
-	mmu_handle = iommu_get("ducati");
-	if (mmu_handle == NULL) {
-		err = PTR_ERR(mmu_handle);
-		printk(KERN_ERR "notify_ti81xx_get_iommu: iommu_get failed for"
-			"ducati\n");
-		goto exit;
-	} else {
-		list[1]->mmu_handle = list[2]->mmu_handle = mmu_handle;
-	}
-
-
-	return err;
-
-exit:
-
-#if 0
-	if (list[0]->clk_handle) {
-		clk_disable(list[0]->clk_handle);
-		clk_put(list[0]->clk_handle);
-		list[0]->clk_handle = NULL;
-	}
-	if (list[0]->mmu_handle) {
-		iommu_put(list[0]->mmu_handle);
-		list[0]->mmu_handle = NULL;
-	}
-#endif
-
-	if (list[1]->clk_handle) {
-		clk_disable(list[1]->clk_handle);
-		clk_put(list[1]->clk_handle);
-		list[1]->clk_handle = list[1]->clk_handle = NULL;
-	}
-	if (list[1]->mmu_handle) {
-		iommu_put(list[1]->mmu_handle);
-		list[1]->mmu_handle = list[1]->mmu_handle = NULL;
-	}
-
-	return err;
-}
-
-/*!
- *  @brief      This function sets up the mmu handles by calling io-mmu get.
- */
-
-void
-notify_ti81xx_put_iommu(struct omap_notify **list)
-{
-#if 0
-	if (list[0]->clk_handle) {
-		clk_disable(list[0]->clk_handle);
-		clk_put(list[0]->clk_handle);
-		list[0]->clk_handle = NULL;
-	}
-	if (list[0]->mmu_handle) {
-		iommu_put(list[0]->mmu_handle);
-		list[0]->mmu_handle = NULL;
-	}
-#endif
-
-	if (list[1]->clk_handle) {
-		clk_disable(list[1]->clk_handle);
-		clk_put(list[1]->clk_handle);
-		list[1]->clk_handle = list[1]->clk_handle = NULL;
-	}
-	if (list[1]->mmu_handle) {
-		iommu_put(list[1]->mmu_handle);
-		list[1]->mmu_handle = list[1]->mmu_handle = NULL;
-	}
-}
-
 /*!
  *  @brief      This function adds an MMU entry for the specfied address and
  *              size.
@@ -442,7 +280,7 @@ notify_add_mmu_entry(void *mmu_handle, u32 slave_virt_addr, u32 size)
 					slave_virt_addr,
 					(u32 **) &ppgd,
 					(u32 **) &ppte);
-		if (!ppgd || !ppte) {
+		if (!*ppgd || !*ppte) {
 			/* Entry doesnot exists, insert this page */
 			tlb_entry.pgsz  = MMU_CAM_PGSZ_4K;
 			tlb_entry.prsvd  = MMU_CAM_PRESERVE;
@@ -457,7 +295,7 @@ notify_add_mmu_entry(void *mmu_handle, u32 slave_virt_addr, u32 size)
 					"notify_add_mmu_entry\n");
 				status = -1;
 			}
-		} else if (ppgd && ppte) {
+		} else if (*ppgd && *ppte) {
 			if (master_phys_addr != (*ppte & IOPTE_MASK)) {
 				/* Entry doesnot exists, insert this page */
 				tlb_entry.pgsz  = MMU_CAM_PGSZ_4K;
@@ -483,6 +321,7 @@ notify_add_mmu_entry(void *mmu_handle, u32 slave_virt_addr, u32 size)
 
 	return status;
 }
+
 
 unsigned int __initdata notify_pa;
 
@@ -522,13 +361,7 @@ static int __init notify_init(void)
 	else if (cpu_is_ti81xx()) {
 		list = ti81xx_notify;
 		notifies = list;
-		notify_ti81xx_prcm_on();
-		/* Get the iommu handles for ducati and dsp */
-		if (notify_ti81xx_get_iommu(list)) {
-			printk(KERN_ERR "notify_init: notify_ti81xx_get_iommu"
-				"\n");
-			goto setup_fail;
-		}
+	/* FIX Me Add mmu handles to do mappings  */
 	}
 #endif
 	notify_setup(NULL);
@@ -562,7 +395,6 @@ static int __init notify_init(void)
 					notify_map_info[i].actualAddress,
 					notify_map_info[i].size);
 		}
-		/* Fix me Add mmu entry  after sys mmu issues solved */
 	}
 
 #if defined(CONFIG_ARCH_TI81XX)
@@ -578,10 +410,7 @@ static int __init notify_init(void)
 			(void *)notify_map_info[i].actualAddress);
 			notify_map_info[i].size = memreq;
 
-			/* Add mmu mapping for this memory */
-			notify_add_mmu_entry(list[1]->mmu_handle,
-					notify_map_info[i].actualAddress,
-					notify_map_info[i].size);
+			/* Fix Me adde mmu mapping for this memory */
 		}
 
 		if (vpssm3_notify_va != 0) {
@@ -591,10 +420,8 @@ static int __init notify_init(void)
 			memreq = notify_shared_mem_req(i,                      \
 				(void *)notify_map_info[i].actualAddress);
 			notify_map_info[i].size = memreq;
-			notify_add_mmu_entry(list[1]->mmu_handle,
-					notify_map_info[i].actualAddress,
-					notify_map_info[i].size);
 
+			/* Fix Me adde mmu mapping for this memory */
 		}
 	}
 #endif
@@ -619,14 +446,12 @@ static int __init notify_init(void)
 				list[0]->attached = true;
 				list[0]->rproc_id = i;
 				printk(KERN_INFO  "notify_init : notify driver"
-					" created  for  remote proc id %d at "
+					"created  for  remote proc id %d at "
 					"physical Address 0x%x\n",
 					i, notify_map_info[i].actualAddress);
 			}
 		}
 	}
-
-	printk(KERN_INFO  "notify initialized\n");
 
 	return retval;
 
@@ -675,21 +500,9 @@ static void __exit notify_exit(void)
 		if (notifies[i]->attached == true)
 			notify_detach(notifies[i]->rproc_id);
 
-#if defined(CONFIG_ARCH_OMAP3430)
 		if (notifies[i]->mmu_handle)
 			iommu_put(notifies[i]->mmu_handle);
-#endif
-		i++;
 	}
-
-#if defined(CONFIG_ARCH_TI81XX)
-	/* put the iommu handles of ducati mmu and dsp mmu*/
-	if (cpu_is_ti81xx()) {
-		notify_ti81xx_put_iommu(notifies);
-		notify_ti81xx_prcm_off();
-	}
-#endif
-
 }
 
 module_init(notify_init);
