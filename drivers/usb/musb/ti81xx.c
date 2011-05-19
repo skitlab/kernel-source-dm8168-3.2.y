@@ -852,6 +852,7 @@ void musb_simulate_babble(struct musb *musb)
 	musb_writel(reg_base, USB_IRQ_STATUS_RAW_1,
 		MUSB_INTR_BABBLE);
 }
+EXPORT_SYMBOL(musb_simulate_babble);
 
 void musb_babble_workaround(struct musb *musb)
 {
