@@ -387,6 +387,7 @@ struct musb {
 
 	irqreturn_t		(*isr)(int, void *);
 	struct work_struct	irq_work;
+	struct work_struct	work;
 	u16			hwvers;
 
 /* this hub status bit is reserved by USB 2.0 and not seen by usbcore */
@@ -708,5 +709,11 @@ static inline void musb_debug_delete(char *name, struct musb *data)
 {
 }
 #endif
-
+#ifdef CONFIG_ARCH_TI81XX
+extern void musb_simulate_babble(struct musb *musb);
+#else
+void musb_simulate_babble(struct musb *musb)
+{
+}
+#endif
 #endif	/* __MUSB_CORE_H__ */

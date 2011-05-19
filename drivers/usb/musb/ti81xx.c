@@ -833,6 +833,73 @@ static irqreturn_t cppi41dma_Interrupt(int irq, void *hci)
 	return ret;
 }
 #endif
+
+void musb_simulate_babble(struct musb *musb)
+{
+	void __iomem *reg_base = musb->ctrl_base;
+	void __iomem *mbase = musb->mregs;
+	u8 reg;
+
+	/* during babble condition musb controller
+	 * remove the session
+	 */
+	reg = musb_readb(mbase, MUSB_DEVCTL);
+	reg &= ~MUSB_DEVCTL_SESSION;
+	musb_writeb(mbase, MUSB_DEVCTL, reg);
+	mdelay(100);
+
+	/* generate s/w babble interrupt */
+	musb_writel(reg_base, USB_IRQ_STATUS_RAW_1,
+		MUSB_INTR_BABBLE);
+}
+
+void musb_babble_workaround(struct musb *musb)
+{
+	void __iomem *reg_base = musb->ctrl_base;
+	struct device *dev = musb->controller;
+	struct musb_hdrc_platform_data *plat = dev->platform_data;
+	struct omap_musb_board_data *data = plat->board_data;
+
+	/* turn off the vbus */
+	ti81xx_source_power(musb, 0, 1);
+	mdelay(100);
+
+	/* Reset the controller */
+	musb_writel(reg_base, USB_CTRL_REG, USB_SOFT_RESET_MASK);
+	udelay(100);
+
+	/* Shutdown the on-chip PHY and its PLL. */
+	if (data->set_phy_power)
+		data->set_phy_power(musb->id, 0);
+	udelay(100);
+
+	musb_platform_set_mode(musb, MUSB_HOST);
+	udelay(100);
+
+	/* turn on the vbus */
+	ti81xx_source_power(musb, 1, 1);
+	mdelay(100);
+
+	/* enable the usbphy */
+	if (data->set_phy_power)
+		data->set_phy_power(musb->id, 1);
+	mdelay(100);
+
+	/* save the usbotgss register contents */
+	musb_platform_enable(musb);
+
+	musb_start(musb);
+}
+
+static void evm_deferred_musb_restart(struct work_struct *work)
+{
+	struct musb *musb =
+		container_of(work, struct musb, work);
+
+	ERR("deferred musb restart musbid(%d)\n", musb->id);
+	musb_babble_workaround(musb);
+}
+
 static irqreturn_t ti81xx_interrupt(int irq, void *hci)
 {
 	struct musb  *musb = hci;
@@ -841,6 +908,7 @@ static irqreturn_t ti81xx_interrupt(int irq, void *hci)
 	irqreturn_t ret = IRQ_NONE;
 	u32 pend1 = 0, pend2 = 0;
 	u32 epintr, usbintr;
+	u8  is_babble = 0;
 
 	spin_lock_irqsave(&musb->lock, flags);
 
@@ -876,6 +944,10 @@ static irqreturn_t ti81xx_interrupt(int irq, void *hci)
 		ERR("CAUTION: musb%d: Babble Interrupt Occured\n", musb->id);
 		ERR("Please issue long reset to make usb functional !!\n");
 	}
+
+	is_babble = is_host_capable() && (musb->int_usb & MUSB_INTR_BABBLE);
+	if (is_babble)
+		musb->int_usb |= MUSB_INTR_DISCONNECT;
 
 	if (usbintr & (USB_INTR_DRVVBUS << USB_INTR_USB_SHIFT)) {
 		int drvvbus = musb_readl(reg_base, USB_STAT_REG);
@@ -958,6 +1030,12 @@ static irqreturn_t ti81xx_interrupt(int irq, void *hci)
 			 */
 			DBG(2, "Spurious IRQ, CPPI 4.1 status %08x, %08x\n",
 					 pend1, pend2);
+	}
+
+	if (is_babble) {
+		ERR("Babble: devtcl(%x)Restarting musb....\n",
+			 musb_readb(musb->mregs, MUSB_DEVCTL));
+		schedule_work(&musb->work);
 	}
 	return ret;
 }
@@ -1048,6 +1126,8 @@ int ti81xx_musb_init(struct musb *musb)
 
 	/* set musb controller to host mode */
 	musb_platform_set_mode(musb, mode);
+
+	INIT_WORK(&musb->work, evm_deferred_musb_restart);
 
 	musb_writel(reg_base, USB_IRQ_EOI, 0);
 	usbss_write(USBSS_IRQ_EOI, 0);
