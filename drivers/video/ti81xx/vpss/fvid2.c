@@ -231,7 +231,7 @@ void *vps_fvid2_create(u32 drvid,
 	etime = stime;
 	while ((fctrl->fcrprms->fvid2handle ==
 		    (void *)VPS_FVID2_M3_INIT_VALUE)) {
-		schedule();
+		usleep_range(100, 300);
 		/*time out check*/
 		if (vps_timeout) {
 			do_gettimeofday(&etime);
@@ -327,7 +327,7 @@ int vps_fvid2_delete(void *handle, void *deleteargs)
 		etime = stime;
 		while ((fctrl->fdltprms->returnvalue ==
 			VPS_FVID2_M3_INIT_VALUE)) {
-			schedule();
+			usleep_range(100, 300);
 			/*time out check*/
 			if (vps_timeout) {
 				do_gettimeofday(&etime);
@@ -421,7 +421,7 @@ int vps_fvid2_control(void *handle,
 		while (fctrl->fctrlprms->returnvalue ==
 			VPS_FVID2_M3_INIT_VALUE) {
 
-			schedule();
+			usleep_range(100, 300);
 			if (vps_timeout) {
 				do_gettimeofday(&etime);
 				td = time_diff(stime, etime);
@@ -489,7 +489,7 @@ int vps_fvid2_queue(void *handle,
 		etime = stime;
 		while (fctrl->fqprms->returnvalue ==
 			VPS_FVID2_M3_INIT_VALUE) {
-			schedule();
+			usleep_range(100, 300);
 			/*time out check*/
 			if (vps_timeout) {
 				do_gettimeofday(&etime);
@@ -561,7 +561,7 @@ int vps_fvid2_dequeue(void *handle,
 		etime = stime;
 		while (fctrl->fdqprms->returnvalue ==
 			VPS_FVID2_M3_INIT_VALUE) {
-			schedule();
+			usleep_range(100, 300);
 			/*time out check*/
 			if (vps_timeout) {
 				do_gettimeofday(&etime);
@@ -630,7 +630,7 @@ static int get_firmware_version(struct platform_device *pdev, u32 procid)
 		etime = stime;
 		while (vps_verparams->returnvalue ==
 				VPS_FVID2_M3_INIT_VALUE) {
-			schedule();
+			usleep_range(100, 300);
 			if (vps_timeout) {
 				do_gettimeofday(&etime);
 				td = time_diff(stime, etime);

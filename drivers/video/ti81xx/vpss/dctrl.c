@@ -633,13 +633,31 @@ static int dc_set_vencmode(struct vps_dcvencinfo *vinfo)
 					vi.modeinfo[i].vencid);
 
 		} else {
-			memcpy(&disp_ctrl->vinfo->modeinfo \
-					[disp_ctrl->vinfo->numvencs++],
+			memcpy(&disp_ctrl->vinfo->modeinfo[0],
 			       &vinfo->modeinfo[i],
 			       sizeof(struct vps_dcmodeinfo));
 			vencs |= vinfo->modeinfo[i].vencid;
+			/*remove the below codes once firmware gets fix*/
+			disp_ctrl->vinfo->numvencs = 1;
+			if (disp_ctrl->vinfo->numvencs) {
+				mdelay(10);
+				/*set the VENC Mode*/
+				r = vps_fvid2_control(disp_ctrl->fvid2_handle,
+						IOCTL_VPS_DCTRL_SET_VENC_MODE,
+						(void *)disp_ctrl->vinfo_phy,
+						NULL);
+				if (r) {
+					VPSSERR("failed to set venc mdoe.\n");
+					goto exit;
+				}
+				disp_ctrl->enabled_venc_ids |= vencs;
+			}
+
+
 		}
 	}
+	/*comment out the code until firmware gets fix*/
+#if 0
 	if (vinfo->tiedvencs) {
 		if ((vencs & vinfo->tiedvencs) != vinfo->tiedvencs) {
 			r = -EINVAL;
@@ -662,6 +680,7 @@ static int dc_set_vencmode(struct vps_dcvencinfo *vinfo)
 		}
 		disp_ctrl->enabled_venc_ids |= vencs;
 	}
+#endif
 exit:
 	return r;
 
@@ -2583,7 +2602,7 @@ int TI81xx_register_display_panel(struct TI81xx_display_driver *panel_driver,
 	}
 	display_num = panel_driver->display;
 
-	if (display_num >= VPS_DC_MAX_VENC) {
+	if (display_num >= disp_ctrl->numvencs) {
 		r = -1;
 		goto exit;
 	}
@@ -2635,7 +2654,7 @@ int TI81xx_un_register_display_panel(struct TI81xx_display_driver *panel_driver)
 	}
 	display_num = panel_driver->display;
 
-	if (display_num >= VPS_DC_MAX_VENC) {
+	if (display_num >= disp_ctrl->numvencs) {
 		r = -1;
 		goto exit;
 	}
