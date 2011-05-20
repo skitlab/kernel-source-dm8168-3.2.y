@@ -49,13 +49,13 @@
 #include <linux/ioctl.h>
 #include <linux/uaccess.h>
 #include <linux/ti81xx_hdmi.h>
-#include "../vpss/display_interface.h" 
+#include "../vpss/display_interface.h"
 #include "hdmi.h"
 #include <linux/edid.h>
 
 #define DEBUG 1 /* FIXME : this should come from menuconfig */
 #ifdef DEBUG
-unsigned int ti81xxhdmi_debug; 
+unsigned int ti81xxhdmi_debug;
 module_param_named(debug, ti81xxhdmi_debug, bool, 0644);
 MODULE_PARM_DESC(ti81xxhdmi_debug, "debug on/off");
 #endif
@@ -102,8 +102,8 @@ struct hdmi {
 	struct kobject kobj;
 	void __iomem *base_phy;
 	void __iomem *base_pll;
-	void __iomem *base_prcm;				 
-	void __iomem *base_wp;				 
+	void __iomem *base_prcm;
+	void __iomem *base_wp;
 	struct mutex lock;
 	int code;
 	int mode;
@@ -114,6 +114,7 @@ struct hdmi {
 	enum ti81xx_display_status status;		/* added this for maintaining the status of the driver. */
 	struct hdmi_config cfg;
 	struct platform_device *pdev;
+	struct ti81xx_venc_info vencinfo;
 } hdmi;
 
 /* Structures for chardevice move this to panel */
@@ -178,7 +179,7 @@ static struct TI81xx_display_driver hdmi_driver = {
 	.disable	= hdmi_panel_disable,
 	.suspend	= hdmi_panel_suspend,
 	.resume		= hdmi_panel_resume,
-	.set_timing	= hdmi_set_timings,                
+	.set_timing	= hdmi_set_timings,
 	.get_edid	= hdmi_get_panel_edid,
 /*	.get_timings	= hdmi_get_timings,
 	.check_timings	= hdmi_check_timings,
@@ -261,7 +262,7 @@ static int ti816x_configure_hdmi_phy(volatile u32 phy_base, int deep_color)
 	}
 	#endif
 	rtn_value = 0x0;
-	temp |= (TI816x_HDMI_PHY_TMDS_CNTL3_CLKMULT_CTL_1_0X << 
+	temp |= (TI816x_HDMI_PHY_TMDS_CNTL3_CLKMULT_CTL_1_0X <<
 				TI816x_HDMI_PHY_TMDS_CNTL3_CLKMULT_CTL_SHIFT); /* ToDo : Currently assuming no pixel repitition. */
 	__raw_writel(temp, (phy_base + TI816x_PHY_TMDS_CNTL3_OFFSET));
 
@@ -346,7 +347,7 @@ static int ti816x_hdmi_phy_off(u32 name){
 
 /* hdmi_write_reg(), hdmi_read_reg(), macros
  *(REG_FLD_MOD, FLD_MOD,FLD_MASK,FLD_VAL, FLD_GET) ,
- *hdmi_phy_off(), hdmi_phy_init() borrowed from OMAP4 HDMI library 
+ *hdmi_phy_off(), hdmi_phy_init() borrowed from OMAP4 HDMI library
  * These functions are applicable to only TI814x SoC
  */
 
@@ -443,7 +444,7 @@ void ti814x_enable_hdmi_clocks(u32 prcm_base)
 	THDMIDBG("HDMI Clocks enabled successfully\n");
 }
 
-void ti814x_disable_hdmi_clocks(u32 prcm_base){ 
+void ti814x_disable_hdmi_clocks(u32 prcm_base){
 	/* ToDo : implement this function */
 	return;
 }
@@ -538,7 +539,7 @@ static int ti814x_hdmi_pll_power_on(void)
 }
 
 /*
- * ti814x_configure_hdmi_pll() funciton is borrowed from ti81xx HDMI librabry 
+ * ti814x_configure_hdmi_pll() funciton is borrowed from ti81xx HDMI librabry
  */
 static void ti814x_configure_hdmi_pll(volatile u32  b_addr,
 		u32 __n,
@@ -649,13 +650,13 @@ static struct hdmi_cm hdmi_get_code(struct TI81xx_video_timings *timing)
 	cm.mode = timing->dvi_hdmi;
 
 	/* Check if it maps to standard timings */
-	if(timing->standard == TI81xx_STD_720P_60)
+	if(timing->standard == FVID2_STD_720P_60)
 		cm.code = 4;
-	if(timing->standard == TI81xx_STD_1080I_60)
+	if(timing->standard == FVID2_STD_1080I_60)
 		cm.code = 5;
-	if(timing->standard == TI81xx_STD_1080P_30)
+	if(timing->standard == FVID2_STD_1080P_30)
 		cm.code = 34;
-	if(timing->standard == TI81xx_STD_1080P_60)
+	if(timing->standard == FVID2_STD_1080P_60)
 		cm.code = 16;
 
 /*
@@ -737,10 +738,10 @@ static int hdmi_get_edid(void)
 	e += 3;
 	 printk(KERN_INFO "Standard timings:\n%02x\t%02x\t%02x\t%02x\t%02x\t"
 			 "%02x\t%02x\t%02x\n",
-		e[0], e[1], e[2], e[3], e[4], e[5], e[6], e[7]); 
+		e[0], e[1], e[2], e[3], e[4], e[5], e[6], e[7]);
 	e += 8;
 	 printk(KERN_INFO "%02x\t%02x\t%02x\t%02x\t%02x\t%02x\t%02x\t%02x\n",
-		e[0], e[1], e[2], e[3], e[4], e[5], e[6], e[7]); 
+		e[0], e[1], e[2], e[3], e[4], e[5], e[6], e[7]);
 	e += 8;
 
 	for (i = 0; i < EDID_SIZE_BLOCK0_TIMING_DESCRIPTOR; i++) {
@@ -772,7 +773,7 @@ static int hdmi_get_edid(void)
 	hdmi_get_image_format(edid, img_format);
 	/* printk(KERN_INFO "%d audio length\n", img_format->length); */
 	/*for (i = 0 ; i < img_format->length ; i++)
-		 printk(KERN_INFO "%d %d pref code\n", 
+		 printk(KERN_INFO "%d %d pref code\n",
 			img_format->fmt[i].pref, img_format->fmt[i].code); */
 
 	hdmi_get_audio_format(edid, aud_format);
@@ -816,7 +817,7 @@ static int hdmi_display_suspend(void)
 {
 	THDMIDBG("hdmi_display_suspend\n");
 
-	if (hdmi.status != TI81xx_EXT_ENCODER_ENABLED) 
+	if (hdmi.status != TI81xx_EXT_ENCODER_ENABLED)
 		return -EINVAL;
 
 	mutex_lock(&hdmi.lock);
@@ -901,7 +902,7 @@ static long hdmi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			r = hdmi_enable_display();
 			is_hdmi_on = true;
 		}
-		else 
+		else
 			THDMIDBG("Display already enabled");
 		break;
 	case TI81XXHDMI_STOP:
@@ -930,7 +931,7 @@ static long hdmi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			THDMIDBG("Error : copy_to_user, r = %d ", r);
 			r = -EFAULT;
 		}
-		break;		
+		break;
 	default:
 		r = -EINVAL;
 		THDMIDBG("Un-recoganized command, cmd = %d", cmd);
@@ -946,7 +947,7 @@ static int hdmi_power_on(void)
 	int r = 0;
 	struct hdmi_pll_ctrl *pll_ctrl;
 	int tmds_freq;
-	
+
 	hdmi.power_state = HDMI_POWER_FULL;
 
 	hdmi.cfg.v_pol = 0;  /* TI81xx specific */
@@ -956,7 +957,7 @@ static int hdmi_power_on(void)
 
 	/* ti81xx_hdmi_set_mode(hdmi_mode, &hdmi_config); */
 
-	HDMI_W1_StopVideoFrame(TI81xx_HDMI_WP);		
+	HDMI_W1_StopVideoFrame(TI81xx_HDMI_WP);
 
 	HDMI_W1_SetWaitSoftReset();	/* Adding here based on DM816x, maybe move this to configure_phy function */
 
@@ -978,7 +979,7 @@ static int hdmi_power_on(void)
 
 		ti814x_configure_hdmi_pll( (volatile u32)hdmi.base_pll, pll_ctrl->__n, pll_ctrl->__m, pll_ctrl->__m2, pll_ctrl->clk_ctrl_value);
 	}
-	
+
 	/* Configure PHY */
 	if(cpu_is_ti814x()){
 		if(	hdmi.code == 16) /* 1080P-60 */
@@ -1021,12 +1022,12 @@ static int hdmi_power_on(void)
 
 	/* ToDo :  initial release , no deep color support */
 	  hdmi.cfg.deep_color = HDMI_DEEP_COLOR_24BIT;
-	  hdmi.cfg.hdmi_dvi   = hdmi.mode; 
+	  hdmi.cfg.hdmi_dvi   = hdmi.mode;
 
 	/* Start HDMI library */
 	hdmi_lib_enable(&hdmi.cfg);
 
-	/* ToDo : Support next release */ 
+	/* ToDo : Support next release */
 	/* hdmi_configure_lr_fr(); */
 
 	// Turn ON VENC Color bar.
@@ -1047,7 +1048,7 @@ err:
 }
 
 /* set power state depending on device state and HDMI state */
-static int hdmi_set_power(void)  
+static int hdmi_set_power(void)
 {
 	int r = 0;
 
@@ -1086,7 +1087,7 @@ static void hdmi_disable_display(void)
 }
 
 
-static int hdmi_start_display(void) 
+static int hdmi_start_display(void)
 {
 	int r;
 
@@ -1102,7 +1103,7 @@ err:
 
 
 /**
- * hdmi_init() - Initialize TI81XX HDMI Driver 
+ * hdmi_init() - Initialize TI81XX HDMI Driver
  */
 
 int __init hdmi_init(void)
@@ -1135,13 +1136,13 @@ int __init hdmi_init(void)
 			return -ENOMEM;
 		}
 	}
-	
+
 	hdmi.base_prcm =  ioremap(PRCM_0_REGS, 0x500);
 	if (!hdmi.base_prcm) {
 		ERR("can't ioremap PRCM 0 \n");
 		return -ENOMEM;
 	}
-	
+
 
 	if (cpu_is_ti816x())
 	    ti816x_enable_hdmi_clocks((u32)hdmi.base_prcm);
@@ -1182,13 +1183,31 @@ int __init hdmi_init(void)
 		goto err_remove_cdev;
 	}
 
-	r = TI81xx_register_display_panel(&hdmi_driver);
+	r = TI81xx_register_display_panel(&hdmi_driver, &hdmi.vencinfo);
 	if (r) {
 		THDMIDBG("TI81xx_hdmi: Could register driver to display controller \n");
+	goto err_remove_cdev;
+	}
+
+	r = hdmi_set_timings(&hdmi.vencinfo.vtimings, NULL);
+	if (r) {
+		THDMIDBG("TI81xx_hdmi: Not able to set timings on chip HDMI\n");
+		/*Do not exit since we need enable the HDMi even
+		 timing is not right for some other VESA format.
+		 with add proper code once we support all VESA mode*/
+		/* goto err_unregister_panel;*/
+	}
+	if (hdmi.vencinfo.enabled) {
+		r = hdmi_panel_enable(NULL);
+		if (r) {
+		    THDMIDBG("TI81xx_hdmi: Not able to enable HDMI\n");
+		    goto err_unregister_panel;
+		}
 	}
 	THDMIDBG("%s %d\n", __func__, __LINE__);
 	return r;
-
+err_unregister_panel:
+    TI81xx_un_register_display_panel(&hdmi_driver);
 err_remove_cdev:
 	cdev_del(&hdmi_cdev);
 
@@ -1209,8 +1228,9 @@ void hdmi_exit(void)
 {
 	hdmi_stop_display();
 	hdmi_lib_exit();
-//	device_destroy(ti81xx_hdmi_class, hdmi_dev_id); //is this needed ? Varada : ToDo : FIXME
-//	class_destroy(ti81xx_hdmi_class); //is this needed ? Varada : ToDo : FIXME
+	TI81xx_un_register_display_panel(&hdmi_driver);
+	device_destroy(ti81xx_hdmi_class, hdmi_dev_id); //is this needed ? Varada : ToDo : FIXME
+	class_destroy(ti81xx_hdmi_class); //is this needed ? Varada : ToDo : FIXME
 	cdev_del(&hdmi_cdev);
 	platform_driver_unregister(&ti81xx_hdmi_driver);
 
@@ -1275,10 +1295,10 @@ static int hdmi_set_timings(struct TI81xx_video_timings *timings, void *data)
 	THDMIDBG("\n Enter Panel function : hdmi_set_timings() \n ");
 
 	/* ToDo : Currently only 4 std resolutions supported. */
-	if(!((timings->standard == TI81xx_STD_1080P_60) ||
-	   (timings->standard == TI81xx_STD_1080P_30) ||
-	   (timings->standard == TI81xx_STD_1080I_60) ||
-	   (timings->standard == TI81xx_STD_720P_60)))
+	if(!((timings->standard == FVID2_STD_1080P_60) ||
+	   (timings->standard == FVID2_STD_1080P_30) ||
+	   (timings->standard == FVID2_STD_1080I_60) ||
+	   (timings->standard == FVID2_STD_720P_60)))
 		goto exit;
 
 	/* In OMAP, to change the resolutions, driver stopped and then restarted
@@ -1314,8 +1334,9 @@ static int ti81xx_hdmi_probe(struct platform_device *device)
 	if(IS_ERR(ti81xx_hdmi_device)) {
 		result = -EIO;
 		THDMIDBG("TI81xx_hdmi: Cound not create device file\n");
+		goto err_remove_class;
 	}
-
+	return result;
 err_remove_class:
 	class_destroy(ti81xx_hdmi_class);
 
@@ -1329,8 +1350,8 @@ static int ti81xx_hdmi_remove(struct platform_device *device)
 }
 
 
-module_init(hdmi_init);				
-module_exit(hdmi_exit);				
+module_init(hdmi_init);
+module_exit(hdmi_exit);
 MODULE_DESCRIPTION("TI TI81XX on-chip HDMI driver");
 MODULE_AUTHOR("Varada Bellary<varadab@ti.com>");
 MODULE_LICENSE("GPL v2");
