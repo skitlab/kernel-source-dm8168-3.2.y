@@ -1,6 +1,6 @@
 menuconfig TI81XX_VPSS
 	tristate "TI81XX Video Processing Subsystem (EXPERIMENTAL)"
-	depends on ARCH_TI81XX
+	depends on ARCH_TI81XX && Sys_Link
 	---help---
 	    TI81XX Video Processing Subsystem. This module is the lowest level
 	    driver to control HDVPSS HW Modules. Fbdev/V4l2 are all dependent on

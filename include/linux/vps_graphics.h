@@ -79,7 +79,8 @@ enum vps_grpxblendtype {
 	VPS_GRPX_BLEND_REGION_GLOBAL,
 	/**< global region blending, user_defined alpha value was applied  */
 	VPS_GRPX_BLEND_COLOR,
-	/**< color (palette) blending, alpha value in the CLUT is applied*/
+	/**< color (palette) blending, alpha value in the CLUT is applied
+	    input must be BIT MAP, CLUT LSB should be RGBA format	*/
 	VPS_GRPX_BLEND_PIXEL,
 	/**< pixel(embedding alpha)blending, embedded alpha value is applied */
 	VPS_GRPX_BLEND_MAX,
@@ -127,9 +128,9 @@ struct vps_grpxscparams {
 	u32				outheight;
 	/**< output region height */
 	u32				horfineoffset;
-	/**< horizontal fine offset */
+	/**< horizontal fine offset, set 0*/
 	u32				verfineoffset;
-	/**< vertical fine offset */
+	/**< vertical fine offset set 0*/
 	void				*sccoeff;
 	/**< coefficient memory location, if scCoeff is set to NULL,
 	     GRPX driver will load the preload scaling coefficients
@@ -142,7 +143,10 @@ struct vps_grpxscparams {
  *  struct Vps_GrpxScCoeff
  *  \brief This structure is used to define the coefficient for graphics
  *  pholyphase scaler by the application. The coefficient is in the order
- *  of tap0(phase 0-7), ... tapN(phase 0 - 7)
+ *  of tap0(phase 0-7), ... tapN(phase 0 - 7).
+ *  The valid values for coefficient
+ *  are [-256, 255], since it is 10bits register, bit9 should be set to 1 if
+ *  the coefficient is negative value.
  */
 struct vps_grpxsccoeff {
 	u16				hscoeff[VPS_GRPX_HOR_COEFF_SIZE];

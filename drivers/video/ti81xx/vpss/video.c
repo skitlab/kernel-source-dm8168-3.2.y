@@ -116,7 +116,11 @@ static inline int video_get_inputid(struct vps_video_ctrl *vctrl,
 	case VPS_DC_DVO2_BLEND:
 		if ((inputnode == VPS_DC_VCOMP) ||
 		    (inputnode == VPS_DC_VCOMP_MUX))
-			return VPS_DC_CIG_NON_CONSTRAINED_OUTPUT;
+			/*TI816X is different vs TI814X*/
+			if (cpu_is_ti816x())
+				return VPS_DC_CIG_NON_CONSTRAINED_OUTPUT;
+			else
+				return VPS_DC_CIG_CONSTRAINED_OUTPUT;
 		else if (inputnode == VPS_DC_HDCOMP_MUX)
 			return VPS_DC_CIG_PIP_OUTPUT;
 		else
@@ -406,13 +410,13 @@ static int video_set_buffer(struct vps_video_ctrl *vctrl, u32 addr, u8 idx)
 	break;
 	case FVID2_DF_YUV422SP_UV:
 		if (scfmt == FVID2_SF_PROGRESSIVE) {
-			frame->addr[FVID2_FIELD_EVEN_ADDR_IDX] \
+			frame->addr[FVID2_FRAME_ADDR_IDX] \
 				[FVID2_YUV_SP_Y_ADDR_IDX] = (void *)addr;
 
-			frame->addr[FVID2_FIELD_EVEN_ADDR_IDX] \
+			frame->addr[FVID2_FRAME_ADDR_IDX] \
 				[FVID2_YUV_SP_CBCR_ADDR_IDX] = (void *)(addr +
 				(dfmt->height *
-					dfmt->pitch[FVID2_YUV_INT_ADDR_IDX]));
+					dfmt->pitch[FVID2_FRAME_ADDR_IDX]));
 
 		} else {
 			if (fm) {
@@ -435,16 +439,34 @@ static int video_set_buffer(struct vps_video_ctrl *vctrl, u32 addr, u8 idx)
 					(void *)(addr +	((dfmt->height + 1) *
 					dfmt->pitch[FVID2_YUV_INT_ADDR_IDX]));
 			} else {
+				/*no field merge*/
+				frame->addr[FVID2_FIELD_EVEN_ADDR_IDX] \
+					[FVID2_YUV_SP_Y_ADDR_IDX] =
+						(void *)addr;
+				frame->addr[FVID2_FIELD_EVEN_ADDR_IDX] \
+					[FVID2_YUV_SP_CBCR_ADDR_IDX] = (void *)
+					(addr +	((dfmt->height >> 1) *
+					dfmt->pitch[FVID2_YUV_INT_ADDR_IDX]));
+				frame->addr[FVID2_FIELD_ODD_ADDR_IDX] \
+					[FVID2_YUV_SP_Y_ADDR_IDX] = (void *)
+					(addr + (dfmt->height *
+					dfmt->pitch[FVID2_YUV_INT_ADDR_IDX]));
+				frame->addr[FVID2_FIELD_ODD_ADDR_IDX] \
+					[FVID2_YUV_SP_CBCR_ADDR_IDX] = (void *)
+					(addr +
+					((dfmt->height + (dfmt->height >> 1)) *
+					dfmt->pitch[FVID2_YUV_INT_ADDR_IDX]));
+
 			}
 		}
 
 		break;
 	case FVID2_DF_YUV420SP_UV:
 		if (scfmt == FVID2_SF_PROGRESSIVE) {
-			frame->addr[FVID2_FIELD_EVEN_ADDR_IDX] \
+			frame->addr[FVID2_FRAME_ADDR_IDX] \
 				[FVID2_YUV_SP_Y_ADDR_IDX] = (void *)addr;
 
-			frame->addr[FVID2_FIELD_EVEN_ADDR_IDX] \
+			frame->addr[FVID2_FRAME_ADDR_IDX] \
 				[FVID2_YUV_SP_CBCR_ADDR_IDX] = (void *)(addr +
 					(dfmt->height *
 					dfmt->pitch[FVID2_YUV_INT_ADDR_IDX]));
@@ -545,8 +567,10 @@ static int video_check_format(struct vps_video_ctrl *vctrl,
 		     (fmt->width))) ||
 		     (fmt->pitch[FVID2_YUV_SP_CBCR_ADDR_IDX] <
 		     (fmt->width))) {
-			VPSSERR("Pitch (%d) less than Width (%d) in bytes!!\n",
+			VPSSERR("Y/UV Pitch (%d/%d) less than Width"
+				"(%d) in bytes!!\n",
 				fmt->pitch[FVID2_YUV_SP_Y_ADDR_IDX],
+				fmt->pitch[FVID2_YUV_SP_CBCR_ADDR_IDX],
 				(fmt->width));
 			r = -EINVAL;
 		}

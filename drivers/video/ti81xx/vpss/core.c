@@ -55,11 +55,11 @@ static char *def_sbsize;
 static char *def_sbaddr;
 /*time out value is 2 seconds*/
 static u32  def_timeout = 2000;
+bool   def_i2cmode = 0u;
 
 static int vps_probe(struct platform_device *pdev)
 {
 	int r;
-
 	r = vps_sbuf_init(def_sbaddr, def_sbsize);
 	if (r) {
 		VPSSERR("failed to allocate share buffer\n");
@@ -172,12 +172,17 @@ MODULE_PARM_DESC(def_plsize,
 module_param_named(timeout, def_timeout, uint, S_IRUGO);
 MODULE_PARM_DESC(def_timeout,
 	"timeout value to be set in the VPSS device \
-		for waiting the response from M3");
+for waiting the response from M3");
+module_param_named(i2c_mode, def_i2cmode, bool, S_IRUGO);
+MODULE_PARM_DESC(def_i2cmode,
+	"control of i2c-based external video devices in \
+A8 or M3, by default it is on A8, a special fimrware is required\
+if control is on M3");
 
 subsys_initcall(vps_init);
 module_exit(vps_cleanup);
 
 
-MODULE_AUTHOR("Yihe Hu <yihehu@ti.com");
+MODULE_AUTHOR("Yihe Hu <yihehu@ti.com>");
 MODULE_DESCRIPTION("TI81XX Video Processing Subsystem");
 MODULE_LICENSE("GPL v2");

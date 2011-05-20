@@ -432,9 +432,11 @@ static int check_fb_var(struct fb_info *fbi, struct fb_var_screeninfo *var)
 		return -EINVAL;
 	}
 
-	TFBDBG("xres = %d, yres = %d, vxres = %d, vyres = %d\n",
+	TFBDBG("xres = %d, yres = %d, vxres = %d, vyres = %d,"
+		"xoffset = %d, yoffset = %d\n",
 			var->xres, var->yres,
-			var->xres_virtual, var->yres_virtual);
+			var->xres_virtual, var->yres_virtual,
+			var->xoffset, var->yoffset);
 
 	var->height = -1;
 	var->width = -1;

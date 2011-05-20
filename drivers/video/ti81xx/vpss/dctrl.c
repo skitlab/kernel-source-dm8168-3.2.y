@@ -42,7 +42,8 @@
 static struct vps_dispctrl *disp_ctrl;
 static void *dc_handle;
 static struct vps_payload_info  *dc_payload_info;
-static struct ti81xx_external_encoder    external_encs[VPS_DC_MAX_VENC][MAX_EXT_VENCS_PER_DISPLAY];
+static struct ti81xx_external_encoder
+		external_encs[VPS_DC_MAX_VENC][MAX_EXT_VENCS_PER_DISPLAY];
 
 /*store the current VENC setting*/
 static struct vps_dcvencinfo venc_info = {
@@ -1063,6 +1064,8 @@ static ssize_t blender_mode_store(struct dc_blender_info *binfo,
 	int enc_status = 0;
 	int dummy = 0;
 	struct TI81xx_video_timings timings;
+	struct ti81xx_external_encoder *extenc =
+			&external_encs[binfo->idx][0];
 
 	dc_lock(binfo->dctrl);
 
@@ -1092,8 +1095,7 @@ static ssize_t blender_mode_store(struct dc_blender_info *binfo,
 	}
 	venc_info.modeinfo[idx].minfo.standard = mid;
 	dc_get_timing(mid, &venc_info.modeinfo[idx].minfo);
-#ifdef CONFIG_ARCH_TI816X
-	if (cpu_is_ti816x()) {
+	if (cpu_is_ti816x() && (!def_i2cmode)) {
 		if ((binfo->idx == HDCOMP) && (binfo->isdeviceon == true)) {
 			if ((mid == FVID2_STD_1080P_60) ||
 			    (mid == FVID2_STD_1080P_50))
@@ -1109,29 +1111,26 @@ static ssize_t blender_mode_store(struct dc_blender_info *binfo,
 
 		}
 	}
-#endif
-/* if an external encoder is registered to this blender, change the mode  */
-	enc_status = external_encs[binfo->idx][0].status;
-	if(enc_status == TI81xx_EXT_ENCODER_DISABLED ||
-	   enc_status == TI81xx_EXT_ENCODER_REGISTERED){
+	/* if an external encoder is registered to this blender,
+		change the mode  */
+	enc_status = extenc->status;
+	if ((enc_status == TI81xx_EXT_ENCODER_DISABLED) ||
+	    (enc_status == TI81xx_EXT_ENCODER_REGISTERED)) {
 		/* Change mode */
-		/* FIXME : 1. In later release two different enumerations will not be used. Only the FVID enumerations for resolutions.
-		 *         2. Currently only support 4 resolutions, till PLL locking is tested on other Std resolutions.
-		 */
-		if(mid == FVID2_STD_1080P_60)
-			timings.standard = TI81xx_STD_1080P_60;
-		if(mid == FVID2_STD_720P_60)
-			timings.standard = TI81xx_STD_720P_60;
-		if(mid == FVID2_STD_1080I_60)
-			timings.standard = TI81xx_STD_1080I_60;
-		if(mid == FVID2_STD_1080P_30)
-			timings.standard = TI81xx_STD_1080P_30;
-
-		timings.dvi_hdmi = TI81xx_MODE_HDMI;		// default
-		(*external_encs[binfo->idx][0].panel_driver->set_timing)(&timings, (void *)dummy);
-		/* Restart it */
-/*		(*external_encs[binfo->idx][0].panel_driver->enable)((void *)dummy);
-		external_encs[binfo->idx][0].status = TI81xx_EXT_ENCODER_RESUMED; */
+		/* FIXME :
+		   1. In later release two different enumerations will
+		   not be used. Only the FVID enumerations for
+		   resolutions.
+	 *         2. Currently only support 4 resolutions, till PLL
+		      locking is tested on other Std resolutions.
+	 */
+		timings.standard = mid;
+		timings.dvi_hdmi = TI81xx_MODE_HDMI;
+		if ((extenc->panel_driver) &&
+		    (extenc->panel_driver->set_timing))
+			extenc->panel_driver->set_timing(
+						&timings,
+						(void *)dummy);
 	}
 
 	r = size;
@@ -1251,6 +1250,8 @@ static ssize_t blender_enabled_store(struct dc_blender_info *binfo,
 	int r = 0;
 	int enc_status = 0;
 	int dummy = 0;
+	struct ti81xx_external_encoder *extenc =
+			&external_encs[binfo->idx][0];
 
 	enabled = simple_strtoul(buf, NULL, 10);
 
@@ -1258,7 +1259,8 @@ static ssize_t blender_enabled_store(struct dc_blender_info *binfo,
 	/*get vid id*/
 	vid = venc_name[binfo->idx].vid;
 
-	/* FIXME : If an external encoder is not registered per blender, we need not enable the VENC at all */
+	/* FIXME : If an external encoder is not registered per blender,
+	we need not enable the VENC at all */
 
 	if (enabled == 0) {
 		r = dc_venc_disable(vid);
@@ -1268,16 +1270,18 @@ static ssize_t blender_enabled_store(struct dc_blender_info *binfo,
 			r = -EINVAL;
 			goto exit;
 		}
-		/* If external encoder driver registered and enabled,disable it */
-		enc_status = external_encs[binfo->idx][0].status;
-		if(enc_status == TI81xx_EXT_ENCODER_ENABLED ||
-		   enc_status == TI81xx_EXT_ENCODER_RESUMED	){
-			(*external_encs[binfo->idx][0].panel_driver->disable)((void *)dummy);
-			external_encs[binfo->idx][0].status = TI81xx_EXT_ENCODER_DISABLED;
-		}
-		else{
-			VPSSERR("External already Disabled \n");
-		}
+		/* If external encoder driver registered and enabled
+			,disable it */
+		enc_status = extenc->status;
+		if (enc_status == TI81xx_EXT_ENCODER_ENABLED ||
+		   enc_status == TI81xx_EXT_ENCODER_RESUMED) {
+			if (extenc->panel_driver &&
+			    extenc->panel_driver->disable)
+				extenc->panel_driver->disable(
+							(void *)dummy);
+			extenc->status = TI81xx_EXT_ENCODER_DISABLED;
+		} else
+			VPSSDBG("External already Disabled\n");
 	} else {
 		int idx;
 		struct vps_dcvencinfo vinfo;
@@ -1295,22 +1299,24 @@ static ssize_t blender_enabled_store(struct dc_blender_info *binfo,
 			r = -EINVAL;
 			goto exit;
 		}
-		/* If external encoder driver registered, and not enabled yet ,enable it */
-		enc_status = external_encs[binfo->idx][0].status;
-		if( enc_status == TI81xx_EXT_ENCODER_UNREGISTERED ){
+		/* If external encoder driver registered,
+		   and not enabled yet, enable it */
+		enc_status = extenc->status;
+		if (enc_status == TI81xx_EXT_ENCODER_UNREGISTERED) {
 			r = size;
-			VPSSERR(" VENCON. No ext. encoder registered.\n");
+			VPSSDBG(" ext encoder un-registered.\n");
 			goto exit;
 		}
-		if(	enc_status == TI81xx_EXT_ENCODER_SUSPENDED ){
+		if (enc_status == TI81xx_EXT_ENCODER_SUSPENDED) {
 			r = size;
-			VPSSERR(" VENC ON. Ext. encoder currently suspended.\n");
+			VPSSDBG(" ext encoder suspended.\n");
 			goto exit;
 		}
-		(*external_encs[binfo->idx][0].panel_driver->enable)((void *)dummy);
-		external_encs[binfo->idx][0].status = TI81xx_EXT_ENCODER_ENABLED;
+		if (extenc->panel_driver &&
+		    extenc->panel_driver->enable)
+			extenc->panel_driver->enable((void *)dummy);
+		extenc->status = TI81xx_EXT_ENCODER_ENABLED;
 	}
-
 	r = size;
 exit:
 	dc_unlock(disp_ctrl);
@@ -1611,24 +1617,32 @@ static ssize_t blender_edid_show(struct dc_blender_info *binfo, char *buf)
 	int r = 0;
 	int enc_status = 0;
 	int dummy = 0;
+	struct ti81xx_external_encoder *extenc =
+				&external_encs[binfo->idx][0];
 
 	dc_lock(binfo->dctrl);
 
-	/* FIXME : In future, need to support multiple encoders that are registered */
-	enc_status = external_encs[binfo->idx][0].status;
-	if( enc_status != TI81xx_EXT_ENCODER_UNREGISTERED ){
-			r = (*external_encs[binfo->idx][0].panel_driver->get_edid)(buf, (void *)dummy);
-		}
-
-	printk("\nblender_edid_show : r = %d ",r);
-	printk("\n %x %x %x %x %x %x %x %x \n", buf[0], buf[1], buf[2], buf[3], buf[126], buf[127], buf[128], buf[129]);
+	/* FIXME : In future, need to support multiple encoders
+	that are registered */
+	enc_status = extenc->status;
+	if ((enc_status != TI81xx_EXT_ENCODER_UNREGISTERED) &&
+	    extenc->panel_driver &&
+	    extenc->panel_driver->get_edid) {
+		r = extenc->panel_driver->get_edid(buf, (void *)dummy);
+	}
+	printk(KERN_INFO "\nblender_edid_show : r = %d ", r);
+	printk(KERN_INFO "\n %x %x %x %x %x %x %x %x\n",
+		buf[0], buf[1], buf[2], buf[3],
+		buf[126], buf[127], buf[128], buf[129]);
 	if (r == -1) {
 		VPSSERR(" Failed to get EDID info\n");
 		r = -EINVAL;
 		goto exit;
 	}
-	memset(buf,0,r); // FIXME : doing this becasue we do not want any screen output
-//	r = snprintf(buf, PAGE_SIZE, "%d\n", vinfo.modeinfo[0].isvencrunning);
+	memset(buf, 0, r);
+	/* FIXME : doing this becasue we do not want any screen output
+	r = snprintf(buf, PAGE_SIZE, "%d\n", vinfo.modeinfo[0].isvencrunning);
+	*/
 
 exit:
 	dc_unlock(binfo->dctrl);
@@ -1639,22 +1653,6 @@ static ssize_t blender_edid_store(struct dc_blender_info *binfo,
 				     const char *buf,
 				     size_t size)
 {
-	return 0;
-}
-
-
-static ssize_t blender_deepcolor_store(struct dc_blender_info *binfo,
-				     const char *buf,
-				     size_t size)
-{
-	VPSSERR(" Not Implemented yet \n");
-	return 0;
-}
-
-
-static ssize_t blender_deepcolor_show(struct dc_blender_info *binfo, char *buf)
-{
-	VPSSERR(" Not Implemented yet \n");
 	return 0;
 }
 
@@ -1682,10 +1680,9 @@ static BLENDER_ATTR(clksrc, S_IRUGO | S_IWUSR,
 		blender_clksrc_show, blender_clksrc_store);
 static BLENDER_ATTR(order, S_IRUGO | S_IWUSR,
 		blender_order_show, blender_order_store);
+/* currently EDID read only */
 static BLENDER_ATTR(edid, S_IRUGO,
-		blender_edid_show, blender_edid_store);	// currently EDID read only
-static BLENDER_ATTR(deepcolor, S_IRUGO | S_IWUSR,
-		blender_deepcolor_show, blender_deepcolor_store);
+		blender_edid_show, blender_edid_store);
 
 static struct attribute *blender_sysfs_attrs[] = {
 	&blender_attr_mode.attr,
@@ -1696,7 +1693,6 @@ static struct attribute *blender_sysfs_attrs[] = {
 	&blender_attr_order.attr,
 	&blender_attr_name.attr,
 	&blender_attr_edid.attr,
-	&blender_attr_deepcolor.attr,
 	NULL
 };
 
@@ -2115,21 +2111,41 @@ static int parse_def_modes(const char *mode)
 void __init vps_dc_ctrl_init(struct vps_dispctrl *dctrl)
 {
 	struct vps_dcedeconfig *edecfg = dctrl->dcedecfg;
+	struct vps_cscconfig *hdccfg = dctrl->hdcompcsccfg;
+	struct vps_cscconfig *vccfg = dctrl->vcompcsccfg;
 
 	dctrl->dccreatecfg->edeconfig =
 		(struct vps_dcedeconfig *)dctrl->dcede_phy;
 	/*setup default ede values*/
-	edecfg->ltienable = 0;
-	edecfg->horzpeaking = 0;
-	edecfg->ctienable = 0;
-	edecfg->transadjustenable = 0;
-	edecfg->lumapeaking = 0;
-	edecfg->chromapeaking = 0;
+	edecfg->ltienable = 1;
+	edecfg->horzpeaking = 1;
+	edecfg->ctienable = 1;
+	edecfg->transadjustenable = 1;
+	edecfg->lumapeaking = 1;
+	edecfg->chromapeaking = 1;
 	edecfg->minclipluma = 0;
 	edecfg->maxclipluma = 1023;
 	edecfg->minclipchroma = 0;
 	edecfg->maxclipchroma = 1023;
 	edecfg->bypass = 0;
+
+
+	/*setup default CSC information for HDCOMP and VCOMP*/
+	dctrl->dccreatecfg->hdcompcscconfig =
+		(struct vps_cscconfig *)dctrl->hdcompcsccfg_phy;
+	if (cpu_is_ti814x())
+		dctrl->dccreatecfg->vcompcscconfig =
+			(struct vps_cscconfig *)dctrl->vcompcsccfg_phy;
+
+	hdccfg->bypass = 0;
+	hdccfg->coeff = NULL;
+	hdccfg->mode = VPS_CSC_MODE_HDTV_GRAPHICS_Y2R;
+
+	if (cpu_is_ti814x()) {
+		vccfg->bypass = 0;
+		vccfg->coeff = NULL;
+		vccfg->mode = VPS_CSC_MODE_HDTV_GRAPHICS_Y2R;
+	}
 
 }
 static inline int get_payload_size(void)
@@ -2147,6 +2163,10 @@ static inline int get_payload_size(void)
 	size += sizeof(struct vps_dccigrtconfig);
 	size += sizeof(struct vps_dcenumnodeinput);
 	size += sizeof(struct vps_dccomprtconfig);
+	size += sizeof(struct vps_cscconfig);  /*hdcomp*/
+	if (cpu_is_ti814x())
+		size += sizeof(struct vps_cscconfig);  /*vcomp(ti814x only) */
+	size += sizeof(struct vps_cscconfig);  /*sd*/
 	size += sizeof(u32);  /*this is for the disable venc command*/
 	/*FIXME add more here*/
 
@@ -2226,12 +2246,32 @@ static inline void assign_payload_addr(struct vps_dispctrl *dctrl,
 					&dctrl->dceninput_phy,
 					sizeof(struct vps_dcenumnodeinput));
 	/*COMP RT Config*/
-	dctrl->comprtcfg = (struct vps_dccomprtconfig *) setaddr(
+	dctrl->comprtcfg = (struct vps_dccomprtconfig *)setaddr(
 					pinfo,
 					&offset,
 					&dctrl->comprtcfg_phy,
 					sizeof(struct vps_dccomprtconfig));
 
+	/*hdcomp csc config*/
+	dctrl->hdcompcsccfg = (struct vps_cscconfig *)setaddr(
+					pinfo,
+					&offset,
+					&dctrl->hdcompcsccfg_phy,
+					sizeof(struct vps_cscconfig));
+
+	/*vcomp csc config*/
+	if (cpu_is_ti814x())
+		dctrl->vcompcsccfg = (struct vps_cscconfig *)setaddr(
+					pinfo,
+					&offset,
+					&dctrl->vcompcsccfg_phy,
+					sizeof(struct vps_cscconfig));
+	/*sd csc config*/
+	dctrl->sdcsccfg = (struct vps_cscconfig *)setaddr(
+					pinfo,
+					&offset,
+					&dctrl->sdcsccfg_phy,
+					sizeof(struct vps_cscconfig));
 	*buf_offset = offset;
 }
 
@@ -2245,6 +2285,9 @@ int __init vps_dc_init(struct platform_device *pdev,
 	int size = 0, offset = 0;
 
 	VPSSDBG("dctrl init\n");
+
+	if (cpu_is_ti816x() && (!def_i2cmode))
+		ti816x_pcf8575_init();
 
 	dc_payload_info = kzalloc(sizeof(struct vps_payload_info),
 				  GFP_KERNEL);
@@ -2364,8 +2407,8 @@ int __init vps_dc_init(struct platform_device *pdev,
 
 		case DVO2:
 			opinfo.vencnodenum = VPS_DC_VENC_DVO2;
-			opinfo.dvofmt = VPS_DC_DVOFMT_DOUBLECHAN;
-			opinfo.dataformat = FVID2_DF_YUV422SP_UV;
+			opinfo.dvofmt = VPS_DC_DVOFMT_TRIPLECHAN_DISCSYNC;
+			opinfo.dataformat = FVID2_DF_RGB24_888;
 
 
 			if (cpu_is_ti816x()) {
@@ -2385,7 +2428,7 @@ int __init vps_dc_init(struct platform_device *pdev,
 				opinfo.afmt = VPS_DC_A_OUTPUT_COMPOSITE;
 			else
 				opinfo.afmt = VPS_DC_A_OUTPUT_SVIDEO;
-			opinfo.dataformat = FVID2_DF_RGB24_888;
+			opinfo.dataformat = FVID2_DF_YUV422SP_UV;
 			break;
 	if (cpu_is_ti816x()) {
 		case HDCOMP:
@@ -2441,8 +2484,7 @@ int __init vps_dc_init(struct platform_device *pdev,
 	}
 	/*set the the THS filter, device is still registered even
 	if THS setup is failed*/
-#ifdef CONFIG_ARCH_TI816X
-	if (cpu_is_ti816x()) {
+	if (cpu_is_ti816x() && (!def_i2cmode)) {
 		r = pcf8575_ths7375_enable(TI816X_THSFILTER_ENABLE_MODULE);
 		if ((venc_info.modeinfo[HDCOMP].minfo.standard ==
 		    FVID2_STD_1080P_60)  ||
@@ -2465,7 +2507,6 @@ int __init vps_dc_init(struct platform_device *pdev,
 
 		}
 	}
-#endif
 	return 0;
 cleanup:
 	vps_dc_deinit(pdev);
@@ -2522,47 +2563,55 @@ int __exit vps_dc_deinit(struct platform_device *pdev)
 		dc_handle = NULL;
 	}
 
+	if (cpu_is_ti816x() && (!def_i2cmode))
+		ti816x_pcf8575_exit();
 
 	return r;
 }
 
-/*S*******************************  Sysfs extensions  *********************/
+/*S************************  EXTERNAL device registered *****************/
 
-#if 0
-/* FIXME : This will be called from the vps_dc_init function, to create data structures
- * to store info about external encoders
- */
-
-static int create_external_encoder_data(void)
+int TI81xx_register_display_panel(struct TI81xx_display_driver *panel_driver,
+				  struct ti81xx_venc_info *vencinfo)
 {
-	int i,j = 0;
-	/* Allocate memory for the register driver structures */
-/*	external_encs = (struct ti81xx_external_encoder   *) kzalloc(100, GFP_KERNEL); // Todo : fix this
-	if (external_encs == NULL){
+	int i, r = 0;
+	int display_num;
+
+	if (panel_driver == NULL) {
+		VPSSERR("pannel driver can not be NULL\n");
 		return -1;
-	}*/
-	for(i=0; i<VPS_DC_MAX_VENC; i++){
-		for(j=0; j<MAX_EXT_VENCS_PER_DISPLAY; j++){
-			external_encs[i][j].status = TI81xx_EXT_ENCODER_UNREGISTERED;
-		}
 	}
-	return 0;
-}
-#endif
-int TI81xx_register_display_panel(struct TI81xx_display_driver *panel_driver)
-{
-	int i,r = 0;
-	int display_num = panel_driver->display;
+	display_num = panel_driver->display;
 
-	if (display_num >= VPS_DC_MAX_VENC)
-	{
+	if (display_num >= VPS_DC_MAX_VENC) {
 		r = -1;
 		goto exit;
 	}
-	for(i=0; i<MAX_EXT_VENCS_PER_DISPLAY; i++){
-		if(external_encs[display_num][i].status == TI81xx_EXT_ENCODER_UNREGISTERED){
-			external_encs[display_num][i].panel_driver = panel_driver;
-			external_encs[display_num][i].status       = TI81xx_EXT_ENCODER_REGISTERED;
+	for (i = 0; i < MAX_EXT_VENCS_PER_DISPLAY; i++) {
+		struct ti81xx_external_encoder *extenc =
+				&external_encs[display_num][i];
+		if (extenc->status == TI81xx_EXT_ENCODER_UNREGISTERED) {
+			extenc->panel_driver =	panel_driver;
+			extenc->status = TI81xx_EXT_ENCODER_REGISTERED;
+			if (vencinfo) {
+				struct vps_dcmodeinfo *dcminfo =
+					&venc_info.modeinfo[display_num];
+				/*copy info to external video device*/
+				vencinfo->enabled =
+					dc_isvencrunning(dcminfo->vencid);
+				vencinfo->vtimings.standard =
+						dcminfo->minfo.standard;
+				vencinfo->vtimings.dvi_hdmi = TI81xx_MODE_HDMI;
+				/*FIX ME, this is a temp solution here,
+				will address later*/
+				if (vencinfo->vtimings.standard ==
+				    FVID2_STD_CUSTOM)
+					vencinfo->vtimings.standard =
+							FVID2_STD_1080P_60;
+				vencinfo->outinfo.vencnodenum =
+						venc_name[display_num].vid;
+				dc_get_output(&vencinfo->outinfo);
+			}
 			break;
 		}
 	}
@@ -2577,16 +2626,28 @@ EXPORT_SYMBOL(TI81xx_register_display_panel);
 
 int TI81xx_un_register_display_panel(struct TI81xx_display_driver *panel_driver)
 {
-	/**/
-	int r = 0;
-	int display_num = panel_driver->display;
+	int r = 0, i;
+	int display_num;
 
-	if (display_num >= VPS_DC_MAX_VENC)
-	{
+	if (panel_driver == NULL) {
+		VPSSERR("pannel driver can not be NULL\n");
+		return -1;
+	}
+	display_num = panel_driver->display;
+
+	if (display_num >= VPS_DC_MAX_VENC) {
 		r = -1;
 		goto exit;
 	}
-	external_encs[display_num][0].status = TI81xx_EXT_ENCODER_UNREGISTERED; //FIXME : Enhance to fit more than one encoder per blender.
+	for (i = 0; i < MAX_EXT_VENCS_PER_DISPLAY; i++) {
+		struct ti81xx_external_encoder *extenc =
+				&external_encs[display_num][i];
+		if (panel_driver ==
+		    extenc->panel_driver) {
+			extenc->status = TI81xx_EXT_ENCODER_UNREGISTERED;
+		}
+	}
+	/*FIXME : Enhance to fit more than one encoder per blender.*/
 	return 0;
 exit:
 	return r;
@@ -2594,4 +2655,3 @@ exit:
 EXPORT_SYMBOL(TI81xx_un_register_display_panel);
 
 
-/*E*******************************  Sysfs extensions  *********************/

@@ -230,6 +230,16 @@ static int grpx_scparams_check(struct vps_grpx_ctrl *gctrl,
 	else
 		hscaled = 0;
 
+	/*if it is scaling case and output is exact the same as VENC resolution
+	reduce horizontal or vertical by 2 if applicable.*/
+	if (vscaled)
+		if (scparam->outheight == fh)
+			scparam->outheight -= GRPX_SCALED_REGION_EXTRA_LINES;
+
+	if (hscaled)
+		if (scparam->outwidth == fw)
+			scparam->outwidth -= GRPX_SCALED_REGION_EXTRA_PIXES;
+
 	/*output at most 2 line and 2 pixes when scaled*/
 	if (0 != vscaled)
 		yend = regp.regionposy + scparam->outheight +
@@ -407,15 +417,20 @@ static int vps_grpx_check_regparams(struct vps_grpx_ctrl *gctrl,
 	}
 	/*output at most 2 line and 2 pixes when scaled*/
 	if (0 != vscaled)
-		yend = regp->regionposy + scparam.outheight +
+		if (scparam.outheight != fh)
+			yend = regp->regionposy + scparam.outheight +
 				GRPX_SCALED_REGION_EXTRA_LINES;
-
+		else
+			yend = regp->regionposy + scparam.outheight;
 	else
 		yend = regp->regionposy + regp->regionheight;
 
 	if (0 != hscaled)
-		xend = regp->regionposx + scparam.outwidth +
+		if (scparam.outwidth != fw)
+			xend = regp->regionposx + scparam.outwidth +
 				GRPX_SCALED_REGION_EXTRA_PIXES;
+		else
+			xend = regp->regionposx + scparam.outwidth;
 	else
 		xend = regp->regionposx + regp->regionwidth;
 
@@ -510,6 +525,14 @@ static int vps_grpx_get_scparams(struct vps_grpx_ctrl *gctrl,
 	VPSSDBG("(%d)- get sc params.\n", gctrl->grpx_num);
 
 	memcpy(sci, gctrl->gscparams, sizeof(struct vps_grpxscparams));
+	if ((gctrl->gscparams->outheight + GRPX_SCALED_REGION_EXTRA_LINES) ==
+		gctrl->frameheight)
+		sci->outheight = gctrl->frameheight;
+
+	if ((gctrl->gscparams->outwidth + GRPX_SCALED_REGION_EXTRA_PIXES) ==
+		gctrl->framewidth)
+		sci->outwidth = gctrl->framewidth;
+
 	return 0;
 
 }
@@ -593,8 +616,19 @@ static int vps_grpx_create(struct vps_grpx_ctrl *gctrl)
 {
 	u32				grpxinstid;
 	int r = 0;
-
+	int i;
 	VPSSDBG("create grpx%d\n", gctrl->grpx_num);
+	/*enable the node first*/
+	for (i = 0; i < gctrl->numends; i++) {
+		r = vps_dc_set_node(gctrl->enodes[i],
+				    gctrl->snode,
+				    1);
+		if (r) {
+			VPSSERR("failed to set grpx%d nodes\n",
+				i);
+			return r;
+		}
+	}
 	gctrl->cbparams->cbfxn = vps_grpx_vsync_cb;
 	gctrl->cbparams->appdata = NULL;
 	gctrl->cbparams->errlist = NULL;
@@ -623,7 +657,7 @@ static int vps_grpx_create(struct vps_grpx_ctrl *gctrl)
 static int vps_grpx_delete(struct vps_grpx_ctrl *gctrl)
 {
 	int r = 0;
-
+	int i;
 	if ((gctrl == NULL) || (gctrl->handle == NULL))
 		return -EINVAL;
 
@@ -647,6 +681,19 @@ static int vps_grpx_delete(struct vps_grpx_ctrl *gctrl)
 		gctrl->frames->perframecfg = NULL;
 
 		gctrl->handle = NULL;
+
+		/*remove nodes*/
+		for (i = 0; i < gctrl->numends; i++) {
+			r = vps_dc_set_node(gctrl->enodes[i],
+					    gctrl->snode,
+					    0);
+			if (r) {
+				VPSSERR("failed to clear grpx%d nodes\n",
+					i);
+				return r;
+			}
+		}
+
 	}
 	return r;
 }
@@ -1339,6 +1386,7 @@ int __init vps_grpx_init(struct platform_device *pdev)
 			gctrl->enodes[0] = VPS_DC_SDVENC_BLEND;
 			break;
 		}
+#if 0
 		r = vps_dc_set_node(gctrl->enodes[0],
 				    gctrl->snode,
 				    1);
@@ -1347,6 +1395,7 @@ int __init vps_grpx_init(struct platform_device *pdev)
 				i);
 			goto cleanup;
 		}
+#endif
 		gctrl->numends = numends;
 		r = vps_grpx_create_sysfs(gctrl);
 		if (r)

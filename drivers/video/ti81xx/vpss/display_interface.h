@@ -109,128 +109,7 @@ enum TI81xx_outputs
 	TI81xx_OUTPUT_VGA,
 };
 
-/**
- *  \brief Video standards.
- * Use FVID2 standards instead of defining new ones
- */
 
-enum TI81xx_standard
-{
-    TI81xx_STD_NTSC = 0u,
-    /**< 720x480 30FPS interlaced NTSC standard. */
-    TI81xx_STD_PAL,
-    /**< 720x576 30FPS interlaced PAL standard. */
-
-    TI81xx_STD_480I,
-    /**< 720x480 30FPS interlaced SD standard. */
-    TI81xx_STD_576I,
-    /**< 720x576 30FPS interlaced SD standard. */
-
-    TI81xx_STD_CIF,
-    /**< Interlaced, 360x120 per field NTSC, 360x144 per field PAL. */
-    TI81xx_STD_HALF_D1,
-    /**< Interlaced, 360x240 per field NTSC, 360x288 per field PAL. */
-    TI81xx_STD_D1,
-    /**< Interlaced, 720x240 per field NTSC, 720x288 per field PAL. */
-
-    TI81xx_STD_480P,
-    /**< 720x480 60FPS progressive ED standard. */
-    TI81xx_STD_576P,
-    /**< 720x576 60FPS progressive ED standard. */
-
-    TI81xx_STD_720P_60,
-    /**< 1280x720 60FPS progressive HD standard. */
-    TI81xx_STD_720P_50,
-    /**< 1280x720 50FPS progressive HD standard. */
-
-    TI81xx_STD_1080I_60,
-    /**< 1920x1080 30FPS interlaced HD standard. */
-    TI81xx_STD_1080I_50,
-    /**< 1920x1080 50FPS interlaced HD standard. */
-
-    TI81xx_STD_1080P_60,
-    /**< 1920x1080 60FPS progressive HD standard. */
-    TI81xx_STD_1080P_50,
-    /**< 1920x1080 50FPS progressive HD standard. */
-
-    TI81xx_STD_1080P_24,
-    /**< 1920x1080 24FPS progressive HD standard. */
-    TI81xx_STD_1080P_30,
-    /**< 1920x1080 30FPS progressive HD standard. */
-
-    TI81xx_STD_VGA_60,
-    /**< 640x480 60FPS VESA standard. */
-    TI81xx_STD_VGA_72,
-    /**< 640x480 72FPS VESA standard. */
-    TI81xx_STD_VGA_75,
-    /**< 640x480 75FPS VESA standard. */
-    TI81xx_STD_VGA_85,
-    /**< 640x480 85FPS VESA standard. */
-
-    TI81xx_STD_SVGA_60,
-    /**< 800x600 60FPS VESA standard. */
-    TI81xx_STD_SVGA_72,
-    /**< 800x600 72FPS VESA standard. */
-    TI81xx_STD_SVGA_75,
-    /**< 800x600 75FPS VESA standard. */
-    TI81xx_STD_SVGA_85,
-    /**< 800x600 85FPS VESA standard. */
-
-    TI81xx_STD_XGA_60,
-    /**< 1024x768 60FPS VESA standard. */
-    TI81xx_STD_XGA_70,
-    /**< 1024x768 72FPS VESA standard. */
-    TI81xx_STD_XGA_75,
-    /**< 1024x768 75FPS VESA standard. */
-    TI81xx_STD_XGA_85,
-    /**< 1024x768 85FPS VESA standard. */
-
-    TI81xx_STD_WXGA_60,
-    /**< 1280x768 60FPS VESA standard. */
-    TI81xx_STD_WXGA_75,
-    /**< 1280x768 75FPS VESA standard. */
-    TI81xx_STD_WXGA_85,
-    /**< 1280x768 85FPS VESA standard. */
-
-    TI81xx_STD_SXGA_60,
-    /**< 1280x1024 60FPS VESA standard. */
-    TI81xx_STD_SXGA_75,
-    /**< 1280x1024 75FPS VESA standard. */
-    TI81xx_STD_SXGA_85,
-    /**< 1280x1024 85FPS VESA standard. */
-
-    TI81xx_STD_SXGAP_60,
-    /**< 1400x1050 60FPS VESA standard. */
-    TI81xx_STD_SXGAP_75,
-    /**< 1400x1050 75FPS VESA standard. */
-
-    TI81xx_STD_UXGA_60,
-    /**< 1600x1200 60FPS VESA standard. */
-
-    TI81xx_STD_MUX_2CH_D1,
-    /**< Interlaced, 2Ch D1, NTSC or PAL. */
-    TI81xx_STD_MUX_4CH_D1,
-    /**< Interlaced, 4Ch D1, NTSC or PAL. */
-    TI81xx_STD_MUX_4CH_CIF,
-    /**< Interlaced, 4Ch CIF, NTSC or PAL. */
-    TI81xx_STD_MUX_4CH_HALF_D1,
-    /**< Interlaced, 4Ch Half-D1, NTSC or PAL. */
-    TI81xx_STD_MUX_8CH_CIF,
-    /**< Interlaced, 8Ch CIF, NTSC or PAL. */
-    TI81xx_STD_MUX_8CH_HALF_D1,
-    /**< Interlaced, 8Ch Half-D1, NTSC or PAL. */
-
-    TI81xx_STD_AUTO_DETECT,
-    /**< Auto-detect standard. Used in capture mode. */
-    TI81xx_STD_CUSTOM,
-    /**< Custom standard used when connecting to external LCD etc...
-         The video timing is provided by the application.
-         Used in display mode. */
-
-    TI81xx_STD_MAX
-    /**< Should be the last value of this enumeration.
-         Will be used by driver for validating the input parameters. */
-};
 
 /* Video timings for encoder. Will be mostly used for encoders which works
  * as master
@@ -238,9 +117,9 @@ enum TI81xx_standard
    HDMI where video_code and video_mode will be passed */
 struct TI81xx_video_timings
 {
-	    enum TI81xx_standard	standard;
+	    enum fvid2_standard	standard;
 	    /**< [IN] Standard for which to get the info.
-		 For valid values see #TI81xx_Standard. */
+		 For valid values see #fvid2_Standard. */
 	    unsigned int              	width;
 	    /**< Active video frame width in pixels. */
 	    unsigned int              	height;
@@ -274,6 +153,16 @@ struct TI81xx_video_timings
 	    /**< For future use. Not used currently. */
 };
 
+/*this structure contain the information of the VENC to be registered
+ external devcie can use this*/
+struct ti81xx_venc_info {
+	/*venc timing*/
+	struct TI81xx_video_timings vtimings;
+	/*venc enable or disable*/
+	u32 enabled;
+	/*current venc output info*/
+	struct vps_dcoutputinfo outinfo;
+};
 
 /* This is the data structure with which all the external encoders will be
  * registered to the display sub-system of TI81xx
@@ -329,5 +218,6 @@ struct ti81xx_external_encoder{
 };
 
 
-int TI81xx_register_display_panel(struct TI81xx_display_driver *panel_driver);
+int TI81xx_register_display_panel(struct TI81xx_display_driver *panel_driver,
+				struct ti81xx_venc_info *vencinfo);
 int TI81xx_un_register_display_panel(struct TI81xx_display_driver *panel_driver);

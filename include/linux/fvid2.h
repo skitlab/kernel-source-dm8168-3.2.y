@@ -440,6 +440,10 @@ enum  fvid2_standard {
 
 	FVID2_STD_MUX_2CH_D1,
 	/**< Interlaced, 2Ch D1, NTSC or PAL. */
+	FVID2_STD_MUX_2CH_HALF_D1,
+	/**< Interlaced, 2ch half D1, NTSC or PAL. */
+	FVID2_STD_MUX_2CH_CIF,
+	/**< Interlaced, 2ch CIF, NTSC or PAL. */
 	FVID2_STD_MUX_4CH_D1,
 	/**< Interlaced, 4Ch D1, NTSC or PAL. */
 	FVID2_STD_MUX_4CH_CIF,

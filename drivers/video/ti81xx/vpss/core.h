@@ -32,7 +32,7 @@
 #define DEBUG
 extern unsigned int vpss_debug;
 #endif
-
+#include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <plat/ti81xx-vpss.h>
 
@@ -55,6 +55,8 @@ extern unsigned int vpss_debug;
 #define VPSSDBG(format, ...)
 #define VPSSERR(format, ...)
 #endif
+
+extern bool   def_i2cmode;
 
 /*defined the memory informaton shared between A8 and M3 for each submodule*/
 struct vps_payload_info {

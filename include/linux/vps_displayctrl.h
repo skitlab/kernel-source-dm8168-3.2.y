@@ -105,6 +105,19 @@
  */
 #define IOCTL_VPS_DCTRL_GET_VENC_OUTPUT         (VPS_DCTRL_IOCTL_BASE + 0x4u)
 
+/**
+ *  \brief VENC brightness control IOCTL
+ *  Note: When setting the brightness, the VENC CSC should be bypassed i.e.
+ *        the output from VENC should be in RGB colorspace.
+ *
+ *  \param   cmdArgs [IN] Pointer to Vps_DcVencBrightness
+ *
+ *  \return  VPS_SOK if successful, else suitable error code
+ */
+#define IOCTL_VPS_DCTRL_SET_VENC_BRIGHTNESS                               \
+					(VPS_DCTRL_IOCTL_BASE + 0x5u)
+
+
 /** \brief maximum number of basic ioctl commands
  *
  *  marker used to denote the maximum number of basic ioctls supported
@@ -264,6 +277,16 @@ struct vps_dcoutputinfo {
 	/**< Polarity for the active video signal for the digital output only
 	 valid values see #vps_dcsignalpolarity */
 
+};
+
+/**
+ *  \brief Brightness control IOCTL command arguments.
+ */
+struct vps_dcvencbrightness {
+	u32  vencnodenum;
+	/**< Node Number of the Venc. */
+	u32  level;
+	/**< Brightness level, varies from -2047 to +2048. */
 };
 
 /**
@@ -867,7 +890,7 @@ struct vps_dccomprtconfig {
 /* macros for the vps blenders */
 /** \brief macro for the hdmi blender */
 #define VPS_DC_HDMI_BLEND                   (22u)
-#ifdef CONFIG_ARCH_TI816X
+
 /** \brief macro for the hdcomp blender */
 #define VPS_DC_HDCOMP_BLEND                 (23u)
 
@@ -876,17 +899,6 @@ struct vps_dccomprtconfig {
 
 /** \brief macro for the sdvenc blender */
 #define VPS_DC_SDVENC_BLEND                 (25u)
-#else
-/** \brief macro for the dvo2 blender */
-#define VPS_DC_DVO2_BLEND                   (23u)
-
-/** \brief macro for the sdvenc blender */
-#define VPS_DC_SDVENC_BLEND                 (24u)
-
-/** \brief macro for the hdcomp blender */
-#define VPS_DC_HDCOMP_BLEND                 (VPS_DC_MAX_EDGES)
-
-#endif
 
 /** \brief Maximum number of characters in the string for specifying
  *  node name */
@@ -1136,6 +1148,9 @@ struct vps_dccreateconfig {
 	/**< CSC Configuraton for the CSC on SD path */
 	struct vps_cscconfig           *hdcompcscconfig;
 	/**< CSC Configuraton for the CSC on HDComp */
+	struct vps_cscconfig           *vcompcscconfig;
+	/**< CSC Configuraton for the CSC on vcomp, ti814x only */
+
 };
 
 /* ========================================================================== */

@@ -370,7 +370,20 @@ static struct i2c_driver pcf8575_driver = {
         .id_table       = pcf8575_video_id,
 };
 
+int ti816x_pcf8575_init(void)
+{
+	i2c_add_driver(&pcf8575_driver);
+	return 0;
+}
 
+EXPORT_SYMBOL(ti816x_pcf8575_init);
+
+int ti816x_pcf8575_exit(void)
+{
+	i2c_del_driver(&pcf8575_driver);
+	return 0;
+}
+EXPORT_SYMBOL(ti816x_pcf8575_exit);
 /* FIX ME: Check on the Bit Value */
 
 #define TI816X_EVM_CIR_UART BIT(5)
@@ -423,7 +436,6 @@ static int __init ti816x_evm_i2c_init(void)
 		ARRAY_SIZE(ti816x_i2c_boardinfo0));
 	omap_register_i2c_bus(2, 100, ti816x_i2c_boardinfo1,
 		ARRAY_SIZE(ti816x_i2c_boardinfo1));
-
 	return 0;
 }
 
@@ -558,8 +570,6 @@ static struct platform_device vpss_device = {
 
 static void __init ti816x_vpss_init(void)
 {
-	i2c_add_driver(&pcf8575_driver);
-
 	if (platform_device_register(&vpss_device))
 		printk(KERN_ERR "failed to register ti816x_vpss device\n");
 	else

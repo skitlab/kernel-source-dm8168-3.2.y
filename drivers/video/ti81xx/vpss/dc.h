@@ -100,6 +100,12 @@ struct vps_dispctrl {
 	u32                         dceninput_phy;
 	struct vps_dccomprtconfig   *comprtcfg;
 	u32                          comprtcfg_phy;
+	struct vps_cscconfig        *hdcompcsccfg;
+	u32                         hdcompcsccfg_phy;
+	struct vps_cscconfig       *vcompcsccfg;
+	u32                         vcompcsccfg_phy;
+	struct vps_cscconfig        *sdcsccfg;
+	u32                          sdcsccfg_phy;
 	/*end of shared structure*/
 	int                        tiedvenc;
 	int                        enabled_venc_ids;

@@ -232,14 +232,9 @@ static const struct vps_sname_info dc_nodes[] = {
 	{"grpx1", VPS_DC_GRPX1_INPUT_PATH},			/*20*/
 	{"grpx2", VPS_DC_GRPX2_INPUT_PATH},			/*21*/
 	{"hdmi",  VPS_DC_HDMI_BLEND},				/*22*/
-#ifdef CONFIG_ARCH_TI816X
 	{"hdcomp", VPS_DC_HDCOMP_BLEND},			/*23*/
 	{"dvo2", VPS_DC_DVO2_BLEND},				/*24*/
 	{"sd", VPS_DC_SDVENC_BLEND},			        /*25*/
-#else
-	{"dvo2", VPS_DC_DVO2_BLEND},				/*23*/
-	{"sd", VPS_DC_SDVENC_BLEND},			        /*24*/
-#endif
 };
 #endif
 

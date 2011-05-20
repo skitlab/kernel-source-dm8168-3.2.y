@@ -29,17 +29,21 @@
 #include <linux/sched.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
-
 /* Syslink Module level headers */
+#ifdef CONFIG_TI81XX_VPSS_SYSNLINK_NOTIFY
 #include <ti/syslink/Std.h>
 #include <ti/ipc/MultiProc.h>
 #include <ti/ipc/Notify.h>
-
+#else
+#include <syslink/multiproc.h>
+#include <syslink/notify.h>
+#endif
 #include "core.h"
 
 
-/*3GRPX + 1 DISPCTRL +  SYSTEM + 5 display + 4 capature*/
-#define VPS_FVID2_NUM	  (5 + 5 + 4)
+
+/*3GRPX + 1 DISPCTRL +  SYSTEM + 5 display + 4 capature + 4 reserved*/
+#define VPS_FVID2_NUM	  (5 + 5 + 4 + 4)
 
 struct vps_fvid2_ctrl {
 	bool					isused;
@@ -76,7 +80,7 @@ static unsigned long    vps_timeout = 0u;
 #define VPS_FVID2_RESERVED_NOTIFY	0x09
 #define VPS_FVID2_M3_INIT_VALUE      (0xAAAAAAAA)
 #define VPS_FVID2_PS_LINEID          0
-#define CURRENT_VPS_FIRMWARE_VERSION        (0x01000125)
+#define CURRENT_VPS_FIRMWARE_VERSION        (0x01000127)
 
 static inline u32 time_diff(struct timeval stime, struct timeval etime)
 {
@@ -97,7 +101,6 @@ static void vps_callback(u16 procid,
 	struct vps_fvid2_ctrl *fctrl = (struct vps_fvid2_ctrl *)arg;
 
 	/*perform all kinds of sanity check*/
-
 	if (payload == 0) {
 		VPSSERR("Payload is empty.\n");
 		return;
@@ -205,12 +208,19 @@ void *vps_fvid2_create(u32 drvid,
 	fctrl->cmdprms->cmdtype = VPS_FVID2_CMDTYPE_SIMPLEX;
 	fctrl->cmdprms->simplexcmdarg = (void *)fctrl->fcrprms_phy;
 	/*set the event to M3*/
+	#ifdef CONFIG_TI81XX_VPSS_SYSNLINK_NOTIFY
 	status = Notify_sendEvent(fctrl->rmprocid,
 				  fctrl->lineid,
 				  VPS_FVID2_RESERVED_NOTIFY,
 				  fctrl->cmdprms_phy,
 				  1);
-
+	#else
+	status = notify_send_event(fctrl->rmprocid,
+				  fctrl->lineid,
+				  VPS_FVID2_RESERVED_NOTIFY,
+				  fctrl->cmdprms_phy,
+				  1);
+	#endif
 	if (status < 0) {
 		VPSSERR("send create event failed with status 0x%0x\n",
 			  status);
@@ -248,11 +258,19 @@ void *vps_fvid2_create(u32 drvid,
 	}
 	/*register the callback if successfully*/
 	if (cbparams != NULL) {
+		#ifdef CONFIG_TI81XX_VPSS_SYSNLINK_NOTIFY
 		status = Notify_registerEvent(fctrl->rmprocid,
 					fctrl->lineid,
 					fctrl->notifyno,
 					(Notify_FnNotifyCbck)vps_callback,
 					(void *)fctrl);
+		#else
+		status = notify_register_event(fctrl->rmprocid,
+					fctrl->lineid,
+					fctrl->notifyno,
+					(notify_fn_notify_cbck)vps_callback,
+					(void *)fctrl);
+		#endif
 		if (status < 0) {
 			VPSSERR("register event status 0x%08x\n", status);
 			/*since the registration is failed,
@@ -288,12 +306,19 @@ int vps_fvid2_delete(void *handle, void *deleteargs)
 	fctrl->cmdprms->simplexcmdarg = (void *)fctrl->fdltprms_phy;
 
 	/*send event to proxy in M3*/
+	#ifdef CONFIG_TI81XX_VPSS_SYSNLINK_NOTIFY
 	status = Notify_sendEvent(fctrl->rmprocid,
 				  fctrl->lineid,
 				  fctrl->notifyno,
 				  fctrl->cmdprms_phy,
 				  1);
-
+	#else
+	status = notify_send_event(fctrl->rmprocid,
+				  fctrl->lineid,
+				  fctrl->notifyno,
+				  fctrl->cmdprms_phy,
+				  1);
+	#endif
 	if (status < 0) {
 		VPSSERR("set delete event failed status 0x%08x\n", status);
 		return -EINVAL;
@@ -320,13 +345,22 @@ int vps_fvid2_delete(void *handle, void *deleteargs)
 
 	}
 	if (fctrl->fcrprms->cbparams != NULL) {
+		#ifdef CONFIG_TI81XX_VPSS_SYSNLINK_NOTIFY
 		status = Notify_unregisterEvent(
 					fctrl->rmprocid,
 					fctrl->lineid,
 					fctrl->notifyno,
 					(Notify_FnNotifyCbck)vps_callback,
 					(void *)fctrl);
+		#else
+		status = notify_unregister_event(
+					fctrl->rmprocid,
+					fctrl->lineid,
+					fctrl->notifyno,
+					(notify_fn_notify_cbck)vps_callback,
+					(void *)fctrl);
 
+		#endif
 		if (status < 0)
 			VPSSERR("unregister Event status 0x%08x\n", status);
 	}
@@ -363,11 +397,20 @@ int vps_fvid2_control(void *handle,
 	fctrl->cmdprms->cmdtype = VPS_FVID2_CMDTYPE_SIMPLEX;
 	fctrl->cmdprms->simplexcmdarg = (void *)fctrl->fctrlprms_phy;
 	/*send the event*/
+	#ifdef CONFIG_TI81XX_VPSS_SYSNLINK_NOTIFY
 	status = Notify_sendEvent(fctrl->rmprocid,
 				  fctrl->lineid,
 				  fctrl->notifyno,
 				  fctrl->cmdprms_phy,
 				  1);
+	#else
+	status = notify_send_event(fctrl->rmprocid,
+				  fctrl->lineid,
+				  fctrl->notifyno,
+				  fctrl->cmdprms_phy,
+				  1);
+	#endif
+
 	if (status < 0) {
 		VPSSERR("send control with cmd 0x%08x status 0x%08x\n",
 			  cmd, status);
@@ -425,12 +468,19 @@ int vps_fvid2_queue(void *handle,
 	fctrl->cmdprms->simplexcmdarg = (void *)fctrl->fqprms_phy;
 
 	/* send event to proxy in M3*/
+	#ifdef CONFIG_TI81XX_VPSS_SYSNLINK_NOTIFY
 	status = Notify_sendEvent(fctrl->rmprocid,
 				  fctrl->lineid,
 				  fctrl->notifyno,
 				  fctrl->cmdprms_phy,
 				  1);
-
+	#else
+	status = notify_send_event(fctrl->rmprocid,
+				  fctrl->lineid,
+				  fctrl->notifyno,
+				  fctrl->cmdprms_phy,
+				  1);
+	#endif
 	if (status < 0) {
 		VPSSERR("send Q event status 0x%08x\n", status);
 		return -EINVAL;
@@ -489,11 +539,20 @@ int vps_fvid2_dequeue(void *handle,
 
 
 	/* send event to proxy in M3*/
+	#ifdef CONFIG_TI81XX_VPSS_SYSNLINK_NOTIFY
 	status = Notify_sendEvent(fctrl->rmprocid,
 				  fctrl->lineid,
 				  fctrl->notifyno,
 				  fctrl->cmdprms_phy,
 				  1);
+	#else
+	status = notify_send_event(fctrl->rmprocid,
+				  fctrl->lineid,
+				  fctrl->notifyno,
+				  fctrl->cmdprms_phy,
+				  1);
+	#endif
+
 	if (status < 0) {
 		VPSSERR("send DQ event status 0x%08x\n", status);
 		return -EINVAL;
@@ -533,6 +592,7 @@ static int get_firmware_version(struct platform_device *pdev, u32 procid)
 	struct timeval stime, etime;
 	u32 td = 0;
 	/*get the M3 version number*/
+	VPSSDBG("Handshake...\n");
 	cmdstruct = (struct vps_psrvcommandstruct *)
 			vps_sbuf_alloc(PAGE_SIZE,
 				       &cmdstruct_phy);
@@ -547,14 +607,21 @@ static int get_firmware_version(struct platform_device *pdev, u32 procid)
 
 	vps_verparams->command = VPS_FVID2_GET_FIRMWARE_VERSION;
 	vps_verparams->returnvalue = VPS_FVID2_M3_INIT_VALUE;
+	#ifdef CONFIG_TI81XX_VPSS_SYSNLINK_NOTIFY
 	status = Notify_sendEvent(procid,
 				 VPS_FVID2_PS_LINEID,
 				 VPS_FVID2_RESERVED_NOTIFY,
 				 cmdstruct_phy,
 				 1);
-
+	#else
+	status = notify_send_event(procid,
+				 VPS_FVID2_PS_LINEID,
+				 VPS_FVID2_RESERVED_NOTIFY,
+				 cmdstruct_phy,
+				 1);
+	#endif
 	if (status < 0) {
-		VPSSERR("Failed to send version command to M3 %#x.\n",
+		VPSSDBG("Failed to send version command to M3 %#x.\n",
 			 status);
 		r = -EINVAL;
 		goto exit;
@@ -568,7 +635,8 @@ static int get_firmware_version(struct platform_device *pdev, u32 procid)
 				do_gettimeofday(&etime);
 				td = time_diff(stime, etime);
 				if (vps_timeout  < td) {
-					VPSSERR("get version timeout\n");
+					VPSSDBG("Get Firmware"
+						" Version Timeout\n");
 					r = -ETIMEDOUT;
 					goto exit;
 				}
@@ -666,7 +734,7 @@ static inline void assign_payload_addr(struct vps_fvid2_ctrl *fctrl,
 
 int vps_fvid2_init(struct platform_device *pdev, u32 timeout)
 {
-	int i, r;
+	int i, r = 0;
 	struct vps_fvid2_ctrl *fctrl;
 	u32  procid;
 	u32 size;
@@ -675,11 +743,20 @@ int vps_fvid2_init(struct platform_device *pdev, u32 timeout)
 
 	VPSSDBG("fvid2 init\n");
 	vps_timeout = timeout;
+	#ifdef CONFIG_TI81XX_VPSS_SYSNLINK_NOTIFY
 	procid = MultiProc_getId("VPSS-M3");
 	if (MultiProc_INVALIDID == procid) {
 		VPSSERR("failed to get the M3DSS processor ID.\n");
 		return -EINVAL;
 	}
+
+	#else
+	procid = multiproc_get_id("VPSS-M3");
+	if (MULTIPROC_INVALIDID == procid) {
+		VPSSERR("failed to get the M3DSS processor ID.\n");
+		return -EINVAL;
+	}
+	#endif
 
 	/*allocate payload info structure*/
 	fvid2_payload_info = kzalloc(sizeof(struct vps_payload_info),
@@ -710,8 +787,16 @@ int vps_fvid2_init(struct platform_device *pdev, u32 timeout)
 			((u32)pinfo->vaddr + offset);
 	vps_verparams_phy = pinfo->paddr + offset;
 	offset = sizeof(struct vps_psrvgetstatusvercmdparams);
-
-	if (get_firmware_version(pdev, procid) == 0) {
+	i = 0;
+	do {
+		/* this is kind of handshake to make sure
+		 that M3 is ready to receive the command from A8,
+		 10s is way enough to do*/
+		r = get_firmware_version(pdev, procid);
+		if (r)
+			msleep(500);
+	} while ((r != 0) && (++i < 20));
+	if (r == 0) {
 		if (vps_verparams->version != CURRENT_VPS_FIRMWARE_VERSION) {
 			if (vps_verparams->version <
 			     CURRENT_VPS_FIRMWARE_VERSION) {
@@ -724,7 +809,7 @@ int vps_fvid2_init(struct platform_device *pdev, u32 timeout)
 
 			if (vps_verparams->version >
 			    CURRENT_VPS_FIRMWARE_VERSION)
-				VPSSDBG("M3 firmware version 0x%x is newer,"
+				VPSSERR("M3 firmware version 0x%x is newer,"
 					"driver may not work properly.\n",
 					vps_verparams->version);
 		} else

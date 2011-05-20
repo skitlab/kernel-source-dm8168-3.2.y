@@ -118,6 +118,8 @@ enum  vps_platformcpurev {
 	/**< CPU revision 1.1. */
 	VPS_PLATFORM_CPU_REV_2_0,
 	/**< CPU revision 2.0. */
+	VPS_PLATFORM_CPU_REV_2_1,
+	/**< CPU revision 2.0. */
 	VPS_PLATFORM_CPU_REV_UNKNOWN,
 	/**< Unknown/unsupported CPU revision. */
 	VPS_PLATFORM_CPU_REV_MAX
