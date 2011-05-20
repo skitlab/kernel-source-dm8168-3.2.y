@@ -1171,7 +1171,7 @@ int __init hdmi_init(void)
 	r = cdev_add(&hdmi_cdev, hdmi_dev_id, 1);
 	if (r) {
 		THDMIDBG(KERN_WARNING "HDMI: Could not add hdmi char driver\n");
-		unregister_chrdev_region(hdmi_dev_id, 1);
+		goto err_unregister_chrdev;
 		return -ENOMEM;
 	}
 
@@ -1186,7 +1186,7 @@ int __init hdmi_init(void)
 	r = TI81xx_register_display_panel(&hdmi_driver, &hdmi.vencinfo);
 	if (r) {
 		THDMIDBG("TI81xx_hdmi: Could register driver to display controller \n");
-	goto err_remove_cdev;
+		goto err_unregister_platform_driver;
 	}
 
 	r = hdmi_set_timings(&hdmi.vencinfo.vtimings, NULL);
@@ -1200,16 +1200,20 @@ int __init hdmi_init(void)
 	if (hdmi.vencinfo.enabled) {
 		r = hdmi_panel_enable(NULL);
 		if (r) {
-		    THDMIDBG("TI81xx_hdmi: Not able to enable HDMI\n");
-		    goto err_unregister_panel;
+			THDMIDBG("TI81xx_hdmi: Not able to enable HDMI\n");
+			goto err_unregister_panel;
 		}
 	}
 	THDMIDBG("%s %d\n", __func__, __LINE__);
 	return r;
 err_unregister_panel:
-    TI81xx_un_register_display_panel(&hdmi_driver);
+	TI81xx_un_register_display_panel(&hdmi_driver);
+err_unregister_platform_driver:
+	platform_driver_unregister(&ti81xx_hdmi_driver);
 err_remove_cdev:
 	cdev_del(&hdmi_cdev);
+err_unregister_chrdev:
+	unregister_chrdev_region(hdmi_dev_id, 1);
 
 	return r;
 }
@@ -1233,6 +1237,7 @@ void hdmi_exit(void)
 	class_destroy(ti81xx_hdmi_class); //is this needed ? Varada : ToDo : FIXME
 	cdev_del(&hdmi_cdev);
 	platform_driver_unregister(&ti81xx_hdmi_driver);
+	unregister_chrdev_region(hdmi_dev_id, 1);
 
 
 	iounmap(hdmi.base_pll);
@@ -1296,9 +1301,9 @@ static int hdmi_set_timings(struct TI81xx_video_timings *timings, void *data)
 
 	/* ToDo : Currently only 4 std resolutions supported. */
 	if(!((timings->standard == FVID2_STD_1080P_60) ||
-	   (timings->standard == FVID2_STD_1080P_30) ||
-	   (timings->standard == FVID2_STD_1080I_60) ||
-	   (timings->standard == FVID2_STD_720P_60)))
+		(timings->standard == FVID2_STD_1080P_30) ||
+		(timings->standard == FVID2_STD_1080I_60) ||
+		(timings->standard == FVID2_STD_720P_60)))
 		goto exit;
 
 	/* In OMAP, to change the resolutions, driver stopped and then restarted
