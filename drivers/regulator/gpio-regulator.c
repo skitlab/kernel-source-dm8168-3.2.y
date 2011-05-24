@@ -31,20 +31,20 @@
 
 /* Regulator specific details */
 struct gpio_vr_info {
-	unsigned	min_uV;
-	unsigned	max_uV;
-	u8		table_len;
-	struct gpio_vr_data *table;
-	int		nr_gpio_pins;
-	struct gpio	*gpios;
+	unsigned		min_uV;
+	unsigned		max_uV;
+	u8			table_len;
+	struct gpio_vr_data	*table;
+	int			nr_gpio_pins;
+	struct			gpio *gpios;
 };
 
 /* PMIC details */
 struct gpio_vr_pmic {
-	struct regulator_desc desc;
-	struct regulator_dev *rdev;
-	struct gpio_vr_info info;
-	spinlock_t lock;
+	struct regulator_desc	desc;
+	struct regulator_dev	*rdev;
+	struct gpio_vr_info	info;
+	spinlock_t		lock;
 };
 
 static int gpio_vr_dcdc_enable(struct regulator_dev *dev)
@@ -75,10 +75,9 @@ static u8 gpio_read_value(struct gpio *gpios, int num_of_bits)
 	int gpio_val;
 	u8 cur_gpio_val = 0;
 
-	while (i < num_of_bits) {
+	for (i = 0; i < num_of_bits; i++) {
 		gpio_val = gpio_get_value(gpios[i].gpio);
 		cur_gpio_val = cur_gpio_val | (gpio_val << i);
-		i++;
 	}
 
 	return cur_gpio_val;
@@ -91,10 +90,8 @@ static int gpio_write_value(struct gpio *gpios, int num_of_bits,
 	unsigned long flags;
 
 	spin_lock_irqsave(lock, flags);
-	while (i < num_of_bits) {
+	for (i = 0; i < num_of_bits; i++)
 		gpio_direction_output(gpios[i].gpio, (gpio_val & (1 << i)));
-		i++;
-	}
 	spin_unlock_irqrestore(lock, flags);
 
 	return 0;
@@ -103,14 +100,14 @@ static int gpio_write_value(struct gpio *gpios, int num_of_bits,
 static int get_nearest_voltage(struct gpio_vr_pmic *tps, int uV)
 {
 	int vsel;
-	s32 temp[tps->info.table_len];
+	s32 volt_diff[tps->info.table_len];
 
 	/* Nearest GPIO val, nothing but picking the minimum diff
 	 * gpio values from a group of values
 	 */
 	for (vsel = 0; vsel < tps->info.table_len; vsel++) {
-		temp[vsel] = tps->info.table[vsel].uV - uV;
-		if (temp[vsel] >= 0)
+		volt_diff[vsel] = tps->info.table[vsel].uV - uV;
+		if (volt_diff[vsel] >= 0)
 			break;
 	}
 
@@ -121,8 +118,8 @@ static int get_nearest_voltage(struct gpio_vr_pmic *tps, int uV)
 }
 
 /*
- * The routine gets the current operating voltage
- * gpio voltage value
+ * The routine gets the current operating voltage in micro volt
+ * based on current gpio value
  */
 static int gpio_vr_get_uv(struct regulator_dev *dev)
 {
@@ -220,7 +217,7 @@ static int __devinit gpio_tps_probe(struct platform_device *pdev)
 	int error;
 
 	/**
-	 * init_data points to array of regulator_init structures
+	 * tps_board points to pmic related constants
 	 * coming from the board-evm file.
 	 */
 	tps_board = pdev->dev.platform_data;
@@ -278,6 +275,7 @@ static int __devinit gpio_tps_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, tps);
 
+	regulator_has_full_constraints();
 	return 0;
 
  fail:
@@ -289,7 +287,7 @@ static int __devinit gpio_tps_probe(struct platform_device *pdev)
 
 /**
  * gpio_vr_remove - GPIO volt reg driver remove handler
- * @client: gpio driver client device structure
+ * @client:	gpio driver client device structure
  *
  * Unregister TPS driver as an gpio client device driver
  */

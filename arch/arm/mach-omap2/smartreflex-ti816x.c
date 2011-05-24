@@ -35,20 +35,20 @@
 #define MAX_SENSORS_PER_VD	2
 
 struct ti816x_sr_sensors {
-	u32				irq;
-	s32				irq_status;
-	u32				efuse_offs;
-	u32				nvalue;
-	s32				e2v_gain;
-	u32				err_weight;
-	u32				err_minlimit;
-	u32				err_maxlimit;
-	u32				senn_en;
-	u32				senp_en;
-	char				*name;
-	void __iomem			*base;
-	struct clk			*fck;
-	struct timer_list		timer;
+	u32			irq;
+	s32			irq_status;
+	u32			efuse_offs;
+	u32			nvalue;
+	s32			e2v_gain;
+	u32			err_weight;
+	u32			err_minlimit;
+	u32			err_maxlimit;
+	u32			senn_en;
+	u32			senp_en;
+	char			*name;
+	void __iomem		*base;
+	struct clk		*fck;
+	struct timer_list	timer;
 };
 
 struct ti816x_sr {
@@ -89,6 +89,14 @@ static inline u32 sr_read_reg(struct ti816x_sr *sr, int offset, int srid)
 	return __raw_readl(sr->sen[srid].base + offset);
 }
 
+/* get_errvolt - get error voltage from SR error register
+ * @sr:		contains SR driver data
+ * @srid:	contains the srid, specify whether it is HVT or SVT
+ *
+ * Read the error from SENSOR error register and then convert
+ * to voltage delta, return value is the voltage delta in micro
+ * volt.
+ */
 static int get_errvolt(struct ti816x_sr *sr, s32 srid)
 {
 	u32 senerror_reg;
@@ -108,6 +116,23 @@ static int get_errvolt(struct ti816x_sr *sr, s32 srid)
 	return uvoltage;
 }
 
+/* set_voltage - Schedule task for setting the voltage
+ * @work:	pointer to the work structure
+ *
+ * Voltage is set based on previous voltage and corresponding
+ * voltage changes from two sensors. Make sure that the device
+ * voltage is such that it satisfies the sensor requesting for
+ * the higher voltage.
+ *
+ * Generic voltage regulator set voltage is used for changing
+ * the voltage to new value, both minimum and maximum voltage
+ * values are same in this case
+ *
+ * Disabling the module before changing the voltage, this is
+ * needed for not generating interrupt during voltage change,
+ * enabling after voltage change. This will also take care of
+ * resetting the nCount registers.
+ */
 static void set_voltage(struct work_struct *work)
 {
 	struct ti816x_sr *sr;
@@ -142,6 +167,13 @@ static void set_voltage(struct work_struct *work)
 			SRCONFIG_SRENABLE, SRSVT);
 }
 
+/* irq_sr_htimer - sr HVT timer callback
+ * @data:	data contains the SR driver structure
+ *
+ * While servicing the HVT IRQ, the timer gets added by HVT IRQ
+ * with some time delay and this is called once the timer elapses.
+ * This will re-enable the HVT interrupt
+ */
 static void irq_sr_htimer(unsigned long data)
 {
 	struct ti816x_sr *sr;
@@ -153,6 +185,13 @@ static void irq_sr_htimer(unsigned long data)
 			IRQENABLE_MCUBOUNDSINT, SRHVT);
 }
 
+/* irq_sr_stimer - sr SVT timer callback
+ * @data:	data contains the SR driver structure
+ *
+ * While servicing the SVT IRQ, the timer gets added by SVT IRQ
+ * with some time delay and this is called once the timer elapses.
+ * This will re-enable the SVT interrupt
+ */
 static void irq_sr_stimer(unsigned long data)
 {
 	struct ti816x_sr *sr;
@@ -164,6 +203,22 @@ static void irq_sr_stimer(unsigned long data)
 			IRQENABLE_MCUBOUNDSINT, SRSVT);
 }
 
+/* sr_class2_irq - sr irq handling
+ * @irq:	Number of the irq serviced
+ * @data:	data contains the SR driver structure
+ *
+ * Smartreflex IRQ handling for class2 IP, once the IRQ handler
+ * is here then disable the interrupt and re-enable after some
+ * time. This is the work around for handling both interrupts,
+ * while one got satisfied with the voltage change but not the
+ * other. The same logic helps the case where PMIC cannot set
+ * the exact voltage requested by SR IP
+ *
+ * Schedule work only if both interrupts are serviced
+ *
+ * Note that same irq handler is used for both the interrupts,
+ * needed for decision making for voltage change
+ */
 static irqreturn_t sr_class2_irq(int irq, void *data)
 {
 	int srid;
@@ -238,6 +293,13 @@ static int sr_set_nvalues(struct ti816x_sr *sr, int srid)
 	return 0;
 }
 
+/* sr_configure - Configure SR module to work in Error generator mode
+ * @sr:		contains SR driver data
+ * @srid:	contains the srid, specify whether it is HVT or SVT
+ *
+ * Configure the corresponding values to SR module registers for
+ * operating SR module in Error Generator mode.
+ */
 static void sr_configure(struct ti816x_sr *sr, int srid)
 {
 	/* Configuring the SR module with clock length, enabling the
@@ -259,6 +321,13 @@ static void sr_configure(struct ti816x_sr *sr, int srid)
 		srid);
 }
 
+/* sr_enable - Enable SR module
+ * @sr:		contains SR driver data
+ * @srid:	contains the srid, specify whether it is HVT or SVT
+ *
+ * Enable SR module by writing nTarget values to corresponding SR
+ * NVALUERECIPROCAL register, enable the interrupt and enable SR
+ */
 static void sr_enable(struct ti816x_sr *sr, int srid)
 {
 	/* Check if SR is already enabled. If yes do nothing */
@@ -281,6 +350,12 @@ static void sr_enable(struct ti816x_sr *sr, int srid)
 				SRCONFIG_SRENABLE, srid);
 }
 
+/* sr_disable - Disable SR module
+ * @sr:		contains SR driver data
+ * @srid:	contains the srid, specify whether it is HVT or SVT
+ *
+ * Disable SR module by disabling the interrupt and Smartrefelx module
+ */
 static void sr_disable(struct ti816x_sr *sr, int srid)
 {
 	/* Disable the interrupt */
@@ -292,6 +367,11 @@ static void sr_disable(struct ti816x_sr *sr, int srid)
 				~SRCONFIG_SRENABLE, srid);
 }
 
+/* sr_start_vddautocomp - Start VDD auto compensation
+ * @sr:		contains SR driver data
+ *
+ * This is the starting point for AVS enable from user space.
+ */
 static void sr_start_vddautocomp(struct ti816x_sr *sr)
 {
 	int i;
@@ -317,6 +397,11 @@ static void sr_start_vddautocomp(struct ti816x_sr *sr)
 	sr->autocomp_active = 1;
 }
 
+/* sr_stop_vddautocomp - Stop VDD auto compensation
+ * @sr:		contains SR driver data
+ *
+ * This is the ending point during SR disable from user space.
+ */
 static void sr_stop_vddautocomp(struct ti816x_sr *sr)
 {
 	int i;
@@ -338,7 +423,13 @@ static void sr_stop_vddautocomp(struct ti816x_sr *sr)
 	sr->autocomp_active = 0;
 }
 
-/* PM Debug Fs enteries to enable disable smartreflex. */
+/* ti816x_sr_autocomp_show - Store user input value and stop SR
+ * @data:		contains SR driver data
+ * @val:		pointer to store autocomp_active status
+ *
+ * This is the Debug Fs enteries to show whether SR is enabled
+ * or disabled
+ */
 static int ti816x_sr_autocomp_show(void *data, u64 *val)
 {
 	struct ti816x_sr *sr_info = (struct ti816x_sr *) data;
@@ -348,6 +439,13 @@ static int ti816x_sr_autocomp_show(void *data, u64 *val)
 	return 0;
 }
 
+/* ti816x_sr_autocomp_store - Store user input and start SR
+ * @data:		contains SR driver data
+ * @val:		contains the value pased by user
+ *
+ * This is the Debug Fs enteries to store user input and
+ * enable smartreflex.
+ */
 static int ti816x_sr_autocomp_store(void *data, u64 val)
 {
 	struct ti816x_sr *sr_info = (struct ti816x_sr *) data;
@@ -370,6 +468,13 @@ static int ti816x_sr_autocomp_store(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(sr_fops, ti816x_sr_autocomp_show,
 		ti816x_sr_autocomp_store, "%llu\n");
 
+/* sr_curr_volt_show - Show current voltage value
+ * @data:		contains SR driver data
+ * @val:		pointer to store current voltage value
+ *
+ * Read the current voltage value and display the same on console
+ * This is used in debugfs entries
+ */
 static int sr_curr_volt_show(void *data, u64 *val)
 {
 	struct ti816x_sr *sr_info = (struct ti816x_sr *) data;
@@ -382,6 +487,13 @@ static int sr_curr_volt_show(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(curr_volt_fops, sr_curr_volt_show,
 		NULL, "%llu\n");
 
+/* sr_debugfs_entries - Create debugfs entries
+ * @sr_info:		contains SR driver data
+ *
+ * Create debugfs entries, which is exposed to user for knowing
+ * the current status. Some of the parameters can change during
+ * run time
+ */
 static int sr_debugfs_entries(struct ti816x_sr *sr_info)
 {
 	struct dentry *dbg_dir, *sen_dir;

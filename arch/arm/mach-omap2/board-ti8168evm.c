@@ -180,7 +180,7 @@ static struct regulator_init_data gpio_pmic_init_data = {
 	.constraints = {
 		.min_uV		= 800000,
 		.max_uV		= 1025000,
-		.apply_uV	= true,
+		.always_on	= 1,
 		.valid_ops_mask	= (REGULATOR_CHANGE_VOLTAGE |
 			REGULATOR_CHANGE_STATUS),
 	},
@@ -190,17 +190,17 @@ static struct regulator_init_data gpio_pmic_init_data = {
 
 /* Supported voltage values for regulators */
 static struct gpio_vr_data ti816x_vsel_table[] = {
-	{0x0, 800000}, {0x1, 815000}, {0x2, 830000}, {0x3, 845000},
-	{0x4, 860000}, {0x5, 875000}, {0x6, 890000}, {0x7, 905000},
-	{0x8, 920000}, {0x9, 935000}, {0xA, 950000}, {0xB, 965000},
-	{0xC, 980000}, {0xD, 995000}, {0xE, 1010000}, {0xF, 1025000},
+	{0x0, 800000}, {0x8, 815000}, {0x4, 830000}, {0xC, 845000},
+	{0x2, 860000}, {0xA, 875000}, {0x6, 890000}, {0xE, 905000},
+	{0x1, 920000}, {0x9, 935000}, {0x5, 950000}, {0xD, 965000},
+	{0x3, 980000}, {0xB, 995000}, {0x7, 1010000}, {0xF, 1025000},
 };
 
 static struct gpio vcore_gpios[] = {
-	{ (VR_GPIO_INSTANCE * 32) + 0, GPIOF_OUT_INIT_LOW, "vgpio 0"},
-	{ (VR_GPIO_INSTANCE * 32) + 1, GPIOF_OUT_INIT_HIGH, "vgpio 1"},
-	{ (VR_GPIO_INSTANCE * 32) + 2, GPIOF_OUT_INIT_HIGH, "vgpio 2"},
-	{ (VR_GPIO_INSTANCE * 32) + 3, GPIOF_OUT_INIT_HIGH, "vgpio 3"},
+	{ (VR_GPIO_INSTANCE * 32) + 0, GPIOF_IN, "vgpio 0"},
+	{ (VR_GPIO_INSTANCE * 32) + 1, GPIOF_IN, "vgpio 1"},
+	{ (VR_GPIO_INSTANCE * 32) + 2, GPIOF_IN, "vgpio 2"},
+	{ (VR_GPIO_INSTANCE * 32) + 3, GPIOF_IN, "vgpio 3"},
 };
 
 /* GPIO regulator platform data */

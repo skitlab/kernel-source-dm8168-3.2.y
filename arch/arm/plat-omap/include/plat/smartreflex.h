@@ -246,7 +246,6 @@ int sr_register_class(struct omap_sr_class_data *class_data);
 
 /**
  * struct ti816x_sr_sdata	- Smartreflex sensors data
- *
  * @efuse_offs:		The offset of the efuse where n-target values are
  *			stored.
  * @nvalue:		The n-target value.
@@ -259,19 +258,20 @@ int sr_register_class(struct omap_sr_class_data *class_data);
  * @senp_mod:		Enable bit for P sensor
  */
 struct ti816x_sr_sdata {
-	u32 efuse_offs;
-	u32 nvalue;
-	s32 e2v_gain;
-	u32 err_weight;
-	u32 err_minlimit;
-	u32 err_maxlimit;
-	u32 senn_mod;
-	u32 senp_mod;
+	u32	efuse_offs;
+	u32	nvalue;
+	s32	e2v_gain;
+	u32	err_weight;
+	u32	err_minlimit;
+	u32	err_maxlimit;
+	u32	senn_mod;
+	u32	senp_mod;
 };
 
 /**
  * struct ti816x_sr_platform_data - Smartreflex platform data.
- *
+ * @sr_sdata:		SR per sensor details, contains the efuse off-sets,
+ *			error to voltage gain factor, minimum error limits
  * @vd_name:		Name of the voltage domain.
  * @ip_type:		Smartreflex IP type, class1 or class2 or class3.
  * @irq_delay:		Time delay between disable and re-enable the
@@ -282,18 +282,16 @@ struct ti816x_sr_sdata {
  * @vstep_size:		PMIC voltage step size
  * @enable_on_init:	whether this sr module needs to enabled at
  *			boot up or not.
- * @sr_sdata:		SR per sensor details, contains the efuse off-sets,
- *			error to voltage gain factor, minimum error limits
  */
 struct ti816x_sr_platform_data {
-	char *vd_name;
-	int ip_type;
-	int irq_delay;
-	int no_of_vds;
-	int no_of_sens;
-	int vstep_size;
-	int enable_on_init;
-	struct ti816x_sr_sdata *sr_sdata;
+	struct ti816x_sr_sdata	*sr_sdata;
+	char			*vd_name;
+	int			ip_type;
+	int			irq_delay;
+	int			no_of_vds;
+	int			no_of_sens;
+	int			vstep_size;
+	int			enable_on_init;
 };
 
 #endif /* CONFIG_TI816X_SMARTREFLEX */
