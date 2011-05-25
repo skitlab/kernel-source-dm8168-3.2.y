@@ -48,7 +48,7 @@
 #include <linux/fs.h>
 #include <linux/ioctl.h>
 #include <linux/uaccess.h>
-#include <linux/ti81xx_hdmi.h>
+#include <linux/ti81xxhdmi.h>
 #include "../vpss/display_interface.h"
 #include "hdmi.h"
 #include <linux/edid.h>
@@ -716,36 +716,36 @@ static int hdmi_get_edid(void)
 		goto exit;
 	}
 	e = edid;
-	 printk(KERN_INFO "\nHeader:\n%02x\t%02x\t%02x\t%02x\t%02x\t%02x\t"
+	 THDMIDBG(KERN_INFO "\nHeader:\n%02x\t%02x\t%02x\t%02x\t%02x\t%02x\t"
 		"%02x\t%02x\n", e[0], e[1], e[2], e[3], e[4], e[5], e[6], e[7]);
 	e += 8;
-	printk(KERN_INFO "Vendor & Product:\n%02x\t%02x\t%02x\t%02x\t%02x\t"
+	THDMIDBG(KERN_INFO "Vendor & Product:\n%02x\t%02x\t%02x\t%02x\t%02x\t"
 		"%02x\t%02x\t%02x\t%02x\t%02x\n",
 		e[0], e[1], e[2], e[3], e[4], e[5], e[6], e[7], e[8], e[9]);
 	e += 10;
-	 printk(KERN_INFO "EDID Structure:\n%02x\t%02x\n",
+	 THDMIDBG(KERN_INFO "EDID Structure:\n%02x\t%02x\n",
 		e[0], e[1]);
 	e += 2;
-	printk(KERN_INFO "Basic Display Parameter:\n%02x\t%02x\t%02x\t%02x\t%02x\n",
+	THDMIDBG(KERN_INFO "Basic Display Parameter:\n%02x\t%02x\t%02x\t%02x\t%02x\n",
 		e[0], e[1], e[2], e[3], e[4]);
 	e += 5;
-	printk(KERN_INFO "Color Characteristics:\n%02x\t%02x\t%02x\t%02x\t"
+	THDMIDBG(KERN_INFO "Color Characteristics:\n%02x\t%02x\t%02x\t%02x\t"
 		"%02x\t%02x\t%02x\t%02x\t%02x\t%02x\n",
 		e[0], e[1], e[2], e[3], e[4], e[5], e[6], e[7], e[8], e[9]);
 	e += 10;
-	printk(KERN_INFO "Established timings:\n%02x\t%02x\t%02x\n",
+	THDMIDBG(KERN_INFO "Established timings:\n%02x\t%02x\t%02x\n",
 		e[0], e[1], e[2]);
 	e += 3;
-	 printk(KERN_INFO "Standard timings:\n%02x\t%02x\t%02x\t%02x\t%02x\t"
+	 THDMIDBG(KERN_INFO "Standard timings:\n%02x\t%02x\t%02x\t%02x\t%02x\t"
 			 "%02x\t%02x\t%02x\n",
 		e[0], e[1], e[2], e[3], e[4], e[5], e[6], e[7]);
 	e += 8;
-	 printk(KERN_INFO "%02x\t%02x\t%02x\t%02x\t%02x\t%02x\t%02x\t%02x\n",
+	 THDMIDBG(KERN_INFO "%02x\t%02x\t%02x\t%02x\t%02x\t%02x\t%02x\t%02x\n",
 		e[0], e[1], e[2], e[3], e[4], e[5], e[6], e[7]);
 	e += 8;
 
 	for (i = 0; i < EDID_SIZE_BLOCK0_TIMING_DESCRIPTOR; i++) {
-		printk(KERN_INFO "Extension 0 Block %d\n", i);
+		THDMIDBG(KERN_INFO "Extension 0 Block %d\n", i);
 		get_edid_timing_info(&edid_st->DTD[i], &timings);
 /*		mark = dss_debug;
 		dss_debug = 1;
@@ -754,13 +754,13 @@ static int hdmi_get_edid(void)
 	}
 	if (edid[0x7e] != 0x00) {
 		offset = edid[EDID_DESCRIPTOR_BLOCK1_ADDRESS + 2];
-		/* printk(KERN_INFO "offset %x\n", offset); */
+		/* THDMIDBG(KERN_INFO "offset %x\n", offset); */
 		if (offset != 0) {
 			addr = EDID_DESCRIPTOR_BLOCK1_ADDRESS + offset;
 			/*to determine the number of descriptor blocks */
 			for (i = 0; i < EDID_SIZE_BLOCK1_TIMING_DESCRIPTOR;
 									i++) {
-				printk(KERN_INFO "Extension 1 Block %d", i);
+				THDMIDBG(KERN_INFO "Extension 1 Block %d", i);
 				get_eedid_timing_info(addr, edid, &timings);
 				addr += EDID_TIMING_DESCRIPTOR_SIZE;
 /*				mark = dss_debug;
@@ -771,30 +771,30 @@ static int hdmi_get_edid(void)
 		}
 	}
 	hdmi_get_image_format(edid, img_format);
-	/* printk(KERN_INFO "%d audio length\n", img_format->length); */
+	/* THDMIDBG(KERN_INFO "%d audio length\n", img_format->length); */
 	/*for (i = 0 ; i < img_format->length ; i++)
-		 printk(KERN_INFO "%d %d pref code\n",
+		 THDMIDBG(KERN_INFO "%d %d pref code\n",
 			img_format->fmt[i].pref, img_format->fmt[i].code); */
 
 	hdmi_get_audio_format(edid, aud_format);
-	/* printk(KERN_INFO "%d audio length\n", aud_format->length); */
+	/* THDMIDBG(KERN_INFO "%d audio length\n", aud_format->length); */
 	/* for (i = 0 ; i < aud_format->length ; i++)
-		 printk(KERN_INFO "%d %d format num_of_channels\n",
+		 THDMIDBG(KERN_INFO "%d %d format num_of_channels\n",
 			aud_format->fmt[i].format,
 			aud_format->fmt[i].num_of_ch); */
 
 	hdmi_deep_color_support_info(edid, vsdb_format);
-	/* printk(KERN_INFO "%d deep color bit 30 %d  deep color 36 bit "
+	/* THDMIDBG(KERN_INFO "%d deep color bit 30 %d  deep color 36 bit "
 		"%d max tmds freq", vsdb_format->bit_30, vsdb_format->bit_36,
 		vsdb_format->max_tmds_freq); */
 
 	hdmi_get_av_delay(edid, lat);
-	/* printk(KERN_INFO "%d vid_latency %d aud_latency "
+	/* THDMIDBG(KERN_INFO "%d vid_latency %d aud_latency "
 		"%d interlaced vid latency %d interlaced aud latency",
 		lat->vid_latency, lat->aud_latency,
 		lat->int_vid_latency, lat->int_aud_latency); */
 
-	/* printk(KERN_INFO "YUV supported %d", hdmi_tv_yuv_supported(edid)); */
+	/* THDMIDBG(KERN_INFO "YUV supported %d", hdmi_tv_yuv_supported(edid)); */
 
 	exit:
 		kfree(img_format);
@@ -891,8 +891,6 @@ static long hdmi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int r = 0;
 	struct ti81xxhdmi_status  *status;
-
-	THDMIDBG("\n .................................................................... \n");/*Varada delete*/
 
 	switch (cmd) {
 	case TI81XXHDMI_START:
