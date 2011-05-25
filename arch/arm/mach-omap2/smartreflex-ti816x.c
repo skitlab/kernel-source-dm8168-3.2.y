@@ -536,10 +536,11 @@ static int __init ti816x_sr_probe(struct platform_device *pdev)
 {
 	struct ti816x_sr *sr_info;
 	struct ti816x_sr_platform_data *pdata;
-	struct resource *mem[MAX_SENSORS_PER_VD];
+	struct resource *res[MAX_SENSORS_PER_VD];
+	char *name[MAX_SENSORS_PER_VD];
 	int irq;
 	int ret;
-	int i = 0;
+	int i;
 
 	sr_info = kzalloc(sizeof(struct ti816x_sr), GFP_KERNEL);
 	if (!sr_info) {
@@ -554,8 +555,6 @@ static int __init ti816x_sr_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	INIT_WORK(&sr_info->work, set_voltage);
-
 	sr_info->pdev = pdev;
 	sr_info->sen[SRHVT].name = "sr_hvt";
 	sr_info->sen[SRSVT].name = "sr_svt";
@@ -565,39 +564,67 @@ static int __init ti816x_sr_probe(struct platform_device *pdev)
 	sr_info->voltage_step_size = pdata->vstep_size;
 	sr_info->autocomp_active = false;
 
-	while (i < sr_info->sens_per_vd) {
-		char *name;
+	/* Reading nTarget Values */
+	for (i = 0; i < sr_info->sens_per_vd; i++) {
+		sr_info->sen[i].efuse_offs = pdata->sr_sdata[i].efuse_offs;
+		sr_set_nvalues(sr_info, i);
+	}
 
-		name = kzalloc(CLK_NAME_LEN + 1, GFP_KERNEL);
+	if ((sr_info->sen[SRHVT].nvalue == 0) ||
+			(sr_info->sen[SRSVT].nvalue == 0)) {
+		dev_err(&pdev->dev, "Driver is not initialized,"
+				" nTarget values are not found\n");
+		ret = 0;
+		goto err_free_sr_info;
+	}
+
+	INIT_WORK(&sr_info->work, set_voltage);
+
+	for (i = 0; i < sr_info->sens_per_vd; i++) {
+
+		name[i] = kzalloc(CLK_NAME_LEN + 1, GFP_KERNEL);
 		/* resources */
-		mem[i] = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						sr_info->sen[i].name);
-		if (!mem[i]) {
+		res[i] = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+					sr_info->sen[i].name);
+		if (!res[i]) {
 			dev_err(&pdev->dev, "%s: no mem resource\n", __func__);
-			ret = -ENODEV;
-			goto err_free_devinfo;
-		}
-
-		sr_info->sen[i].base = ioremap(mem[i]->start,
-						resource_size(mem[i]));
-		if (!sr_info->sen[i].base) {
-			dev_err(&pdev->dev, "%s: ioremap fail\n", __func__);
-			ret = -ENOMEM;
-			goto err_release_region;
+			ret = -ENOENT;
+			goto err_free_mem;
 		}
 
 		irq = platform_get_irq_byname(pdev, sr_info->sen[i].name);
+		if (irq < 0) {
+			dev_err(&pdev->dev, "Can't get interrupt resource\n");
+			ret = irq;
+			goto err_free_mem;
+		}
 		sr_info->sen[i].irq = irq;
 
-		strcat(name, sr_info->sen[i].name);
-		strcat(name, "_fck");
+		res[i] = request_mem_region(res[i]->start,
+				resource_size(res[i]), pdev->name);
+		if (!res[i]) {
+			dev_err(&pdev->dev, "can't request mem region\n");
+			ret = -EBUSY;
+			goto err_free_reg;
+		}
 
-		sr_info->sen[i].fck = clk_get(NULL, name);
+		sr_info->sen[i].base = ioremap(res[i]->start,
+				resource_size(res[i]));
+		if (!sr_info->sen[i].base) {
+			dev_err(&pdev->dev, "%s: ioremap fail\n", __func__);
+			ret = -ENOMEM;
+			goto err_release_mem;
+		}
+
+		strcat(name[i], sr_info->sen[i].name);
+		strcat(name[i], "_fck");
+
+		sr_info->sen[i].fck = clk_get(NULL, name[i]);
 		if (IS_ERR(sr_info->sen[i].fck)) {
 			dev_err(&pdev->dev, "%s: Could not get sr fck\n",
 						__func__);
 			ret = PTR_ERR(sr_info->sen[i].fck);
-			goto err_clk_fail;
+			goto err_unmap;
 		}
 
 		ret = request_irq(sr_info->sen[i].irq, sr_class2_irq,
@@ -605,21 +632,15 @@ static int __init ti816x_sr_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(&pdev->dev, "%s: Could not install SR ISR\n",
 						__func__);
-			goto err_req_irq;
+			goto err_put_clock;
 		}
 
-		sr_info->sen[i].efuse_offs = pdata->sr_sdata[i].efuse_offs;
-		sr_info->sen[i].nvalue = pdata->sr_sdata[i].nvalue;
 		sr_info->sen[i].e2v_gain = pdata->sr_sdata[i].e2v_gain;
 		sr_info->sen[i].err_weight = pdata->sr_sdata[i].err_weight;
 		sr_info->sen[i].err_minlimit = pdata->sr_sdata[i].err_minlimit;
 		sr_info->sen[i].err_maxlimit = pdata->sr_sdata[i].err_maxlimit;
 		sr_info->sen[i].senn_en = pdata->sr_sdata[i].senn_mod;
 		sr_info->sen[i].senp_en = pdata->sr_sdata[i].senp_mod;
-
-		sr_set_nvalues(sr_info, i);
-
-		i++;
 	}
 
 	/* debugfs entries */
@@ -627,58 +648,70 @@ static int __init ti816x_sr_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "%s: Failed to create Debugfs entries\n",
 						__func__);
-		goto err_debugfs_fail;
+		goto err_free_irq;
 	}
 
 	sr_info->reg = regulator_get(NULL, pdata->vd_name);
 	if (IS_ERR(sr_info->reg))
-		goto err_debugfs_fail;
+		goto err_free_irq;
 
 	/* Read current GPIO value and voltage */
 	sr_info->init_volt = regulator_get_voltage(sr_info->reg);
 
 	platform_set_drvdata(pdev, sr_info);
 
+	dev_info(&pdev->dev, "Driver initialized\n");
+
 	if (pdata->enable_on_init)
 		sr_start_vddautocomp(sr_info);
 
-	dev_info(&pdev->dev, "SmartReflex driver initialized\n");
 	return ret;
 
-err_debugfs_fail:
-	free_irq(sr_info->sen[SRHVT].irq, pdev);
-	free_irq(sr_info->sen[SRSVT].irq, pdev);
-	i = 0;
-err_req_irq:
+err_free_irq:
+	for (i = 0; i < sr_info->sens_per_vd; i++)
+		free_irq(sr_info->sen[i].irq, (void *)sr_info);
+
+err_put_clock:
 	if (i == 1)
 		free_irq(sr_info->sen[i-1].irq, pdev);
+	for (i = 0; i < sr_info->sens_per_vd; i++)
+		clk_put(sr_info->sen[i].fck);
 
-	clk_put(sr_info->sen[SRHVT].fck);
-	clk_put(sr_info->sen[SRSVT].fck);
-	i = 0;
-err_clk_fail:
+err_unmap:
 	if (i == 1)
 		clk_put(sr_info->sen[i-1].fck);
+	for (i = 0; i < sr_info->sens_per_vd; i++)
+		iounmap(sr_info->sen[i].base);
 
-	release_mem_region(mem[SRHVT]->start, resource_size(mem[SRHVT]));
-	release_mem_region(mem[SRSVT]->start, resource_size(mem[SRSVT]));
-	i = 0;
-err_release_region:
+err_release_mem:
 	if (i == 1)
-		release_mem_region(mem[i-1]->start, resource_size(mem[i-1]));
-	i = 0;
-err_free_devinfo:
+		iounmap(sr_info->sen[i-1].base);
+	for (i = 0; i < sr_info->sens_per_vd; i++)
+		release_mem_region(res[i]->start, resource_size(res[i]));
+
+err_free_reg:
+	if (i == 1)
+		release_mem_region(res[i-1]->start, resource_size(res[i-1]));
+
+err_free_mem:
+	if (i == 1)
+		kfree(name[i-1]);
+	for (i = 0; i < sr_info->sens_per_vd; i++)
+		kfree(name[i]);
+
+err_free_sr_info:
 	kfree(sr_info);
 	return ret;
 }
 
 static int __devexit ti816x_sr_remove(struct platform_device *pdev)
 {
-	struct ti816x_sr *sr_info = dev_get_drvdata(&pdev->dev);
-	struct resource *mem;
+	struct ti816x_sr *sr_info;
+	struct resource *res[MAX_SENSORS_PER_VD];
 	int irq;
 	int i;
 
+	sr_info = dev_get_drvdata(&pdev->dev);
 	if (!sr_info) {
 		dev_err(&pdev->dev, "%s: sr_info missing\n", __func__);
 		return -EINVAL;
@@ -688,15 +721,16 @@ static int __devexit ti816x_sr_remove(struct platform_device *pdev)
 		sr_stop_vddautocomp(sr_info);
 
 	for (i = 0; i < sr_info->sens_per_vd; i++) {
-		iounmap(sr_info->sen[i].base);
 		clk_put(sr_info->sen[i].fck);
 
-		mem = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						sr_info->sen[i].name);
-		release_mem_region(mem->start, resource_size(mem));
+		iounmap(sr_info->sen[i].base);
+		res[i] = platform_get_resource_byname(pdev,
+				IORESOURCE_MEM, sr_info->sen[i].name);
+
+		release_mem_region(res[i]->start, resource_size(res[i]));
 
 		irq = platform_get_irq_byname(pdev, sr_info->sen[i].name);
-		free_irq(irq, pdev);
+		free_irq(irq, (void *)sr_info);
 	}
 
 	kfree(sr_info);
@@ -710,7 +744,7 @@ static struct platform_driver smartreflex_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ti816x_sr_probe,
-	.remove         = ti816x_sr_remove,
+	.remove		= ti816x_sr_remove,
 };
 
 static int __init sr_init(void)

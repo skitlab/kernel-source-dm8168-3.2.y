@@ -1341,7 +1341,7 @@ static struct ti816x_sr_platform_data ti816x_sr_pdata = {
 	.no_of_vds		= 1,
 	.no_of_sens		= ARRAY_SIZE(sr_sensor_data),
 	.vstep_size		= 15000,
-	.enable_on_init		= 1,
+	.enable_on_init		= 0,
 	.sr_sdata		= sr_sensor_data,
 };
 
