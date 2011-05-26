@@ -1,4 +1,4 @@
-menuconfig TI81XX_HDMI
+config TI81XX_HDMI
 	tristate "TI81XX HDMI Driver"
 	help
 		This option builds driver required for booting TI81XX HDMI
