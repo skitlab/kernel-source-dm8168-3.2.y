@@ -13,6 +13,9 @@
  * GNU General Public License for more details.
  *
  */
+
+#include <linux/gpio.h>
+
 #include <plat/omap_hwmod.h>
 #include <mach/irqs.h>
 #include <plat/cpu.h>
@@ -20,7 +23,6 @@
 #include <plat/serial.h>
 #include <plat/l4_3xxx.h>
 #include <plat/ti81xx.h>
-#include <plat/gpio.h>
 
 #include "omap_hwmod_common_data.h"
 
@@ -85,8 +87,10 @@ static struct omap_hwmod ti814x_uart6_hwmod;
 static struct omap_hwmod ti816x_wd_timer2_hwmod;
 static struct omap_hwmod ti816x_i2c1_hwmod;
 static struct omap_hwmod ti816x_i2c2_hwmod;
-static struct omap_hwmod ti816x_gpio1_hwmod;
-static struct omap_hwmod ti816x_gpio2_hwmod;
+static struct omap_hwmod ti81xx_gpio1_hwmod;
+static struct omap_hwmod ti81xx_gpio2_hwmod;
+static struct omap_hwmod ti814x_gpio3_hwmod;
+static struct omap_hwmod ti814x_gpio4_hwmod;
 
 /* L4 SLOW -> UART1 interface */
 static struct omap_hwmod_addr_space ti816x_uart1_addr_space[] = {
@@ -251,36 +255,70 @@ static struct omap_hwmod_ocp_if ti816x_l4_slow__i2c2 = {
 };
 
 /* L4 SLOW -> GPIO1 */
-static struct omap_hwmod_addr_space ti816x_gpio1_addrs[] = {
+static struct omap_hwmod_addr_space ti81xx_gpio1_addrs[] = {
 	{
-		.pa_start	= TI816X_GPIO0_BASE,
-		.pa_end		= TI816X_GPIO0_BASE + SZ_4K - 1,
+		.pa_start	= TI81XX_GPIO0_BASE,
+		.pa_end		= TI81XX_GPIO0_BASE + SZ_4K - 1,
 		.flags		= ADDR_MAP_ON_INIT | ADDR_TYPE_RT,
 	},
 };
 
-static struct omap_hwmod_ocp_if ti816x_l4_slow__gpio1 = {
+static struct omap_hwmod_ocp_if ti81xx_l4_slow__gpio1 = {
 	.master		= &ti816x_l4_slow_hwmod,
-	.slave		= &ti816x_gpio1_hwmod,
-	.addr		= ti816x_gpio1_addrs,
-	.addr_cnt	= ARRAY_SIZE(ti816x_gpio1_addrs),
+	.slave		= &ti81xx_gpio1_hwmod,
+	.addr		= ti81xx_gpio1_addrs,
+	.addr_cnt	= ARRAY_SIZE(ti81xx_gpio1_addrs),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
 /* L4 SLOW -> GPIO2 */
-static struct omap_hwmod_addr_space ti816x_gpio2_addrs[] = {
+static struct omap_hwmod_addr_space ti81xx_gpio2_addrs[] = {
 	{
-		.pa_start	= TI816X_GPIO1_BASE,
-		.pa_end		= TI816X_GPIO1_BASE + SZ_4K - 1,
+		.pa_start	= TI81XX_GPIO1_BASE,
+		.pa_end		= TI81XX_GPIO1_BASE + SZ_4K - 1,
 		.flags		= ADDR_MAP_ON_INIT | ADDR_TYPE_RT,
 	},
 };
 
-static struct omap_hwmod_ocp_if ti816x_l4_slow__gpio2 = {
+static struct omap_hwmod_ocp_if ti81xx_l4_slow__gpio2 = {
 	.master		= &ti816x_l4_slow_hwmod,
-	.slave		= &ti816x_gpio2_hwmod,
-	.addr		= ti816x_gpio2_addrs,
-	.addr_cnt	= ARRAY_SIZE(ti816x_gpio2_addrs),
+	.slave		= &ti81xx_gpio2_hwmod,
+	.addr		= ti81xx_gpio2_addrs,
+	.addr_cnt	= ARRAY_SIZE(ti81xx_gpio2_addrs),
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/* L4 SLOW -> GPIO3 */
+static struct omap_hwmod_addr_space ti814x_gpio3_addrs[] = {
+	{
+		.pa_start	= TI814X_GPIO2_BASE,
+		.pa_end		= TI814X_GPIO2_BASE + SZ_4K - 1,
+		.flags		= ADDR_MAP_ON_INIT | ADDR_TYPE_RT,
+	},
+};
+
+static struct omap_hwmod_ocp_if ti814x_l4_slow__gpio3 = {
+	.master		= &ti816x_l4_slow_hwmod,
+	.slave		= &ti814x_gpio3_hwmod,
+	.addr		= ti814x_gpio3_addrs,
+	.addr_cnt	= ARRAY_SIZE(ti814x_gpio3_addrs),
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/* L4 SLOW -> GPIO4 */
+static struct omap_hwmod_addr_space ti814x_gpio4_addrs[] = {
+	{
+		.pa_start	= TI814X_GPIO3_BASE,
+		.pa_end		= TI814X_GPIO3_BASE + SZ_4K - 1,
+		.flags		= ADDR_MAP_ON_INIT | ADDR_TYPE_RT,
+	},
+};
+
+static struct omap_hwmod_ocp_if ti814x_l4_slow__gpio4 = {
+	.master		= &ti816x_l4_slow_hwmod,
+	.slave		= &ti814x_gpio4_hwmod,
+	.addr		= ti814x_gpio4_addrs,
+	.addr_cnt	= ARRAY_SIZE(ti814x_gpio4_addrs),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -300,8 +338,10 @@ static struct omap_hwmod_ocp_if *ti816x_l4_slow_masters[] = {
 	&ti816x_l4_slow__wd_timer2,
 	&ti816x_l4_slow__i2c1,
 	&ti816x_l4_slow__i2c2,
-	&ti816x_l4_slow__gpio1,
-	&ti816x_l4_slow__gpio2,
+	&ti81xx_l4_slow__gpio1,
+	&ti81xx_l4_slow__gpio2,
+	&ti814x_l4_slow__gpio3,
+	&ti814x_l4_slow__gpio4,
 };
 
 /* L4 SLOW */
@@ -392,7 +432,7 @@ static struct omap_hwmod_class i2c_class = {
  * 'gpio' class
  * general purpose io module
  */
-static struct omap_hwmod_class_sysconfig ti816x_gpio_sysc = {
+static struct omap_hwmod_class_sysconfig ti81xx_gpio_sysc = {
 	.rev_offs	= 0x0000,
 	.sysc_offs	= 0x0010,
 	.syss_offs	= 0x0114,
@@ -404,9 +444,9 @@ static struct omap_hwmod_class_sysconfig ti816x_gpio_sysc = {
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
-static struct omap_hwmod_class ti816x_gpio_hwmod_class = {
+static struct omap_hwmod_class ti81xx_gpio_hwmod_class = {
 	.name	= "gpio",
-	.sysc	= &ti816x_gpio_sysc,
+	.sysc	= &ti81xx_gpio_sysc,
 	.rev	= 2,
 };
 
@@ -707,27 +747,27 @@ static struct omap_hwmod ti816x_i2c2_hwmod = {
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X),
 };
 
-/* GPIO1 */
+/* GPIO1 TI81XX */
 
-static struct omap_hwmod_irq_info ti816x_gpio1_irqs[] = {
+static struct omap_hwmod_irq_info ti81xx_gpio1_irqs[] = {
 	{ .irq = TI81XX_IRQ_GPIO_0A },
 	{ .irq = TI81XX_IRQ_GPIO_0B },
 };
 
 /* gpio1 slave ports */
-static struct omap_hwmod_ocp_if *ti816x_gpio1_slaves[] = {
-	&ti816x_l4_slow__gpio1,
+static struct omap_hwmod_ocp_if *ti81xx_gpio1_slaves[] = {
+	&ti81xx_l4_slow__gpio1,
 };
 
 static struct omap_hwmod_opt_clk gpio1_opt_clks[] = {
 	{ .role = "dbclk", .clk = "gpio1_dbck" },
 };
 
-static struct omap_hwmod ti816x_gpio1_hwmod = {
+static struct omap_hwmod ti81xx_gpio1_hwmod = {
 	.name		= "gpio1",
-	.class		= &ti816x_gpio_hwmod_class,
-	.mpu_irqs	= ti816x_gpio1_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(ti816x_gpio1_irqs),
+	.class		= &ti81xx_gpio_hwmod_class,
+	.mpu_irqs	= ti81xx_gpio1_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(ti81xx_gpio1_irqs),
 	.main_clk	= "gpio1_ick",
 	.prcm = {
 		.omap4 = {
@@ -737,32 +777,32 @@ static struct omap_hwmod ti816x_gpio1_hwmod = {
 	.opt_clks	= gpio1_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio1_opt_clks),
 	.dev_attr	= &gpio_dev_attr,
-	.slaves		= ti816x_gpio1_slaves,
-	.slaves_cnt	= ARRAY_SIZE(ti816x_gpio1_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X),
+	.slaves		= ti81xx_gpio1_slaves,
+	.slaves_cnt	= ARRAY_SIZE(ti81xx_gpio1_slaves),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
 };
 
-/* GPIO2 */
+/* GPIO2 TI81XX*/
 
-static struct omap_hwmod_irq_info ti816x_gpio2_irqs[] = {
+static struct omap_hwmod_irq_info ti81xx_gpio2_irqs[] = {
 	{ .irq = TI81XX_IRQ_GPIO_1A },
 	{ .irq = TI81XX_IRQ_GPIO_1B },
 };
 
 /* gpio2 slave ports */
-static struct omap_hwmod_ocp_if *ti816x_gpio2_slaves[] = {
-	&ti816x_l4_slow__gpio2,
+static struct omap_hwmod_ocp_if *ti81xx_gpio2_slaves[] = {
+	&ti81xx_l4_slow__gpio2,
 };
 
 static struct omap_hwmod_opt_clk gpio2_opt_clks[] = {
 	{ .role = "dbclk", .clk = "gpio2_dbck" },
 };
 
-static struct omap_hwmod ti816x_gpio2_hwmod = {
+static struct omap_hwmod ti81xx_gpio2_hwmod = {
 	.name		= "gpio2",
-	.class		= &ti816x_gpio_hwmod_class,
-	.mpu_irqs	= ti816x_gpio2_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(ti816x_gpio2_irqs),
+	.class		= &ti81xx_gpio_hwmod_class,
+	.mpu_irqs	= ti81xx_gpio2_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(ti81xx_gpio2_irqs),
 	.main_clk	= "gpio2_ick",
 	.prcm = {
 		.omap4 = {
@@ -772,9 +812,79 @@ static struct omap_hwmod ti816x_gpio2_hwmod = {
 	.opt_clks	= gpio2_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio2_opt_clks),
 	.dev_attr	= &gpio_dev_attr,
-	.slaves		= ti816x_gpio2_slaves,
-	.slaves_cnt	= ARRAY_SIZE(ti816x_gpio2_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X),
+	.slaves		= ti81xx_gpio2_slaves,
+	.slaves_cnt	= ARRAY_SIZE(ti81xx_gpio2_slaves),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
+};
+
+/* GPIO3 TI814X */
+
+static struct omap_hwmod_irq_info ti814x_gpio3_irqs[] = {
+	{ .irq = TI814X_IRQ_GPIO_2A },
+	{ .irq = TI814X_IRQ_GPIO_2B },
+};
+
+/* gpio3 slave ports */
+static struct omap_hwmod_ocp_if *ti814x_gpio3_slaves[] = {
+	&ti814x_l4_slow__gpio3,
+};
+
+static struct omap_hwmod_opt_clk gpio3_opt_clks[] = {
+	{ .role = "dbclk", .clk = "gpio3_dbck" },
+};
+
+static struct omap_hwmod ti814x_gpio3_hwmod = {
+	.name		= "gpio3",
+	.class		= &ti81xx_gpio_hwmod_class,
+	.mpu_irqs	= ti814x_gpio3_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(ti814x_gpio3_irqs),
+	.main_clk	= "gpio3_ick",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_reg = TI81XX_CM_ALWON_GPIO_1_CLKCTRL,
+		},
+	},
+	.opt_clks	= gpio3_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(gpio3_opt_clks),
+	.dev_attr	= &gpio_dev_attr,
+	.slaves		= ti814x_gpio3_slaves,
+	.slaves_cnt	= ARRAY_SIZE(ti814x_gpio3_slaves),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X),
+};
+
+/* GPIO4 TI814X*/
+
+static struct omap_hwmod_irq_info ti814x_gpio4_irqs[] = {
+	{ .irq = TI814X_IRQ_GPIO_3A },
+	{ .irq = TI814X_IRQ_GPIO_3B },
+};
+
+/* gpio4 slave ports */
+static struct omap_hwmod_ocp_if *ti814x_gpio4_slaves[] = {
+	&ti814x_l4_slow__gpio4,
+};
+
+static struct omap_hwmod_opt_clk gpio4_opt_clks[] = {
+	{ .role = "dbclk", .clk = "gpio4_dbck" },
+};
+
+static struct omap_hwmod ti814x_gpio4_hwmod = {
+	.name		= "gpio4",
+	.class		= &ti81xx_gpio_hwmod_class,
+	.mpu_irqs	= ti814x_gpio4_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(ti814x_gpio4_irqs),
+	.main_clk	= "gpio4_ick",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_reg = TI81XX_CM_ALWON_GPIO_1_CLKCTRL,
+		},
+	},
+	.opt_clks	= gpio4_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(gpio4_opt_clks),
+	.dev_attr	= &gpio_dev_attr,
+	.slaves		= ti814x_gpio4_slaves,
+	.slaves_cnt	= ARRAY_SIZE(ti814x_gpio4_slaves),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X),
 };
 
 static __initdata struct omap_hwmod *ti81xx_hwmods[] = {
@@ -790,8 +900,10 @@ static __initdata struct omap_hwmod *ti81xx_hwmods[] = {
 	&ti816x_wd_timer2_hwmod,
 	&ti816x_i2c1_hwmod,	/* Note: In TI814X this enables I2C0/2 */
 	&ti816x_i2c2_hwmod,
-	&ti816x_gpio1_hwmod,
-	&ti816x_gpio2_hwmod,
+	&ti81xx_gpio1_hwmod,
+	&ti81xx_gpio2_hwmod,
+	&ti814x_gpio3_hwmod,
+	&ti814x_gpio4_hwmod,
 	NULL,
 };
 

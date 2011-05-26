@@ -1070,6 +1070,17 @@ static struct clk gpt8_ick = {
 	.recalc		= &followparent_recalc,
 };
 
+/* GPIO1 Clock(final), feeding to 2, 3 and 4 instances of GPIO */
+static struct clk gpio234_ick = {
+	.name		= "gpio234_ick",
+	.parent		= &sysclk6_ck,
+	.ops		= &clkops_ti81xx_dflt_wait,
+	.enable_reg	= TI81XX_CM_ALWON_GPIO_1_CLKCTRL,
+	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
 /* GPIO0 Clock(final) */
 static struct clk gpio1_ick = {
 	.name		= "gpio1_ick",
@@ -1084,10 +1095,26 @@ static struct clk gpio1_ick = {
 /* GPIO1 Clock(final) */
 static struct clk gpio2_ick = {
 	.name		= "gpio2_ick",
-	.parent		= &sysclk6_ck,
-	.ops		= &clkops_ti81xx_dflt_wait,
-	.enable_reg	= TI81XX_CM_ALWON_GPIO_1_CLKCTRL,
-	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
+	.parent		= &gpio234_ick,
+	.ops		= &clkops_null,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
+/* GPIO2 Clock(final) */
+static struct clk gpio3_ick = {
+	.name		= "gpio3_ick",
+	.parent		= &gpio234_ick,
+	.ops		= &clkops_null,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
+/* GPIO3 Clock(final) */
+static struct clk gpio4_ick = {
+	.name		= "gpio4_ick",
+	.parent		= &gpio234_ick,
+	.ops		= &clkops_null,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &followparent_recalc,
 };
@@ -2580,6 +2607,16 @@ static struct clk atl_fck = {
 	.recalc		= &omap2_clksel_recalc,
 };
 
+/* gpio234 debounce clk (MUX out), which is
+ * feeding to 2,3 and 4 instances of GPIO*/
+static struct clk gpio234_dbck = {
+	.name		= "gpio234_dbck",
+	.parent		= &sysclk18_ck,
+	.ops		= &clkops_null,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
 /* gpio0 debounce clk (MUX out) */
 static struct clk gpio1_dbck = {
 	.name		= "gpio1_dbck",
@@ -2592,7 +2629,25 @@ static struct clk gpio1_dbck = {
 /* gpio1 debounce clk (MUX out) */
 static struct clk gpio2_dbck = {
 	.name		= "gpio2_dbck",
-	.parent		= &sysclk18_ck,
+	.parent		= &gpio234_dbck,
+	.ops		= &clkops_null,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
+/* gpio2 debounce clk (MUX out) */
+static struct clk gpio3_dbck = {
+	.name		= "gpio3_dbck",
+	.parent		= &gpio234_dbck,
+	.ops		= &clkops_null,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
+/* gpio3 debounce clk (MUX out) */
+static struct clk gpio4_dbck = {
+	.name		= "gpio4_dbck",
+	.parent		= &gpio234_dbck,
 	.ops		= &clkops_null,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &followparent_recalc,
@@ -3290,8 +3345,11 @@ static struct omap_clk ti814x_clks[] = {
 	CLK(NULL,		"gpt6_ick",			&gpt6_ick,			CK_TI814X),
 	CLK(NULL,		"gpt7_ick",			&gpt7_ick,			CK_TI814X),
 	CLK(NULL,		"gpt8_ick",			&gpt8_ick,			CK_TI814X),
+	CLK(NULL,		"gpio234_ick",			&gpio234_ick,			CK_TI814X),
 	CLK(NULL,		"gpio1_ick",			&gpio1_ick,			CK_TI814X),
 	CLK(NULL,		"gpio2_ick",			&gpio2_ick,			CK_TI814X),
+	CLK(NULL,		"gpio3_ick",			&gpio3_ick,			CK_TI814X),
+	CLK(NULL,		"gpio4_ick",			&gpio4_ick,			CK_TI814X),
 	CLK(NULL,		"prcm_ick",			&prcm_ick,			CK_TI814X),
 	CLK(NULL,		"smartcard1_ick",		&smartcard1_ick,		CK_TI814X),
 	CLK(NULL,		"smartcard2_ick",		&smartcard2_ick,		CK_TI814X),
@@ -3419,8 +3477,11 @@ static struct omap_clk ti814x_clks[] = {
 	CLK(NULL,		"hdmi_i2s_fck",			&hdmi_i2s_fck,			CK_TI814X),
 	CLK(NULL,		"tppss_tso_fck",		&tppss_tso_fck,			CK_TI814X),
 	CLK(NULL,		"atl_fck",			&atl_fck,			CK_TI814X),
+	CLK(NULL,		"gpio234_dbck",			&gpio234_dbck,			CK_TI814X),
 	CLK(NULL,		"gpio1_dbck",			&gpio1_dbck,			CK_TI814X),
 	CLK(NULL,		"gpio2_dbck",			&gpio2_dbck,			CK_TI814X),
+	CLK(NULL,		"gpio3_dbck",			&gpio3_dbck,			CK_TI814X),
+	CLK(NULL,		"gpio4_dbck",			&gpio4_dbck,			CK_TI814X),
 	CLK(NULL,		"rtc_fck",			&rtc_fck,			CK_TI814X),
 	CLK("mmci-omap-hs.0",	"mmchs1_dbck",			&mmchs1_dbck,			CK_TI814X),
 	CLK("mmci-omap-hs.1",	"mmchs2_dbck",			&mmchs2_dbck,			CK_TI814X),
