@@ -112,6 +112,7 @@
 #define PSTATE_WP_SHIFT		19
 #define IE_CINS			0x00000040
 #define IE_CINS_SHIFT		6
+#define PSTATE_CINS     (1 << 16)
 
 /*
  * FIXME: Most likely all the data using these _DEVID defines should come
@@ -624,9 +625,17 @@ static void omap_hsmmc_enable_irq(struct omap_hsmmc_host *host,
 
 static void omap_hsmmc_disable_irq(struct omap_hsmmc_host *host)
 {
-	OMAP_HSMMC_WRITE(host->base, ISE, 0);
-	OMAP_HSMMC_WRITE(host->base, IE, 0);
-	OMAP_HSMMC_WRITE(host->base, STAT, STAT_CLEAR);
+	if (cpu_is_ti81xx()) {
+		OMAP_HSMMC_WRITE(host->base, ISE, 0xC0);
+		OMAP_HSMMC_WRITE(host->base, IE, 0xC0);
+		OMAP_HSMMC_WRITE(host->base, STAT, STAT_CLEAR);
+	}
+
+	else {
+		OMAP_HSMMC_WRITE(host->base, ISE, 0);
+		OMAP_HSMMC_WRITE(host->base, IE, 0);
+		OMAP_HSMMC_WRITE(host->base, STAT, STAT_CLEAR);
+	}
 }
 
 #ifdef CONFIG_PM
@@ -1086,6 +1095,12 @@ static void omap_hsmmc_do_irq(struct omap_hsmmc_host *host, int status, int irq)
 	struct mmc_data *data;
 	int end_cmd = 0, end_trans = 0;
 
+	/* Schedule card detect here ONLY if irq for CD isn't registerted*/
+	if ((host->pdata->version == MMC_CTRL_VERSION_2) &&
+				((status & CINS) || (status & 0x80))) {
+		omap_hsmmc_cd_handler(irq, host);
+	}
+
 	if (!host->req_in_progress) {
 		do {
 			OMAP_HSMMC_WRITE(host->base, STAT, status);
@@ -1147,11 +1162,6 @@ static void omap_hsmmc_do_irq(struct omap_hsmmc_host *host, int status, int irq)
 		}
 	}
 
-	/* Schedule card detect here ONLY if irq for CD isn't registerted*/
-	if ((host->pdata->version == MMC_CTRL_VERSION_2) &&
-					((status & CINS) || (status & 0x80)))
-		omap_hsmmc_cd_handler(irq, host);
-
 	OMAP_HSMMC_WRITE(host->base, STAT, status);
 
 	if (end_cmd || ((status & CC) && host->cmd))
@@ -1167,6 +1177,9 @@ static irqreturn_t omap_hsmmc_irq(int irq, void *dev_id)
 {
 	struct omap_hsmmc_host *host = dev_id;
 	int status;
+
+	OMAP_HSMMC_WRITE(host->base, HCTL,
+			OMAP_HSMMC_READ(host->base, HCTL) | SDBP);
 
 	status = OMAP_HSMMC_READ(host->base, STAT);
 	do {
@@ -1538,6 +1551,7 @@ static void omap_hsmmc_request(struct mmc_host *mmc, struct mmc_request *req)
 {
 	struct omap_hsmmc_host *host = mmc_priv(mmc);
 	int err;
+	u32 pstate = 0;
 
 	BUG_ON(host->req_in_progress);
 	BUG_ON(host->dma_ch != -1);
@@ -1562,6 +1576,7 @@ static void omap_hsmmc_request(struct mmc_host *mmc, struct mmc_request *req)
 		host->reqs_blocked = 0;
 	WARN_ON(host->mrq != NULL);
 	host->mrq = req;
+
 	err = omap_hsmmc_prepare_data(host, req);
 	if (err) {
 		req->cmd->error = err;
@@ -1569,6 +1584,18 @@ static void omap_hsmmc_request(struct mmc_host *mmc, struct mmc_request *req)
 			req->data->error = err;
 		host->mrq = NULL;
 		mmc_request_done(mmc, req);
+		return;
+	}
+
+	pstate = OMAP_HSMMC_READ(host->base, PSTATE);
+
+	if ((host->pdata->version == MMC_CTRL_VERSION_2) &&
+				((pstate & PSTATE_CINS) == 0)) {
+		int status;
+		omap_hsmmc_reset_controller_fsm(host, SRC);
+		host->cmd = req->cmd;
+		host->cmd->error = -ETIMEDOUT;
+		omap_hsmmc_cmd_done(host, host->cmd);
 		return;
 	}
 
@@ -2156,6 +2183,8 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 		host->iclk = NULL;
 		goto err1;
 	}
+	clk_enable(host->iclk);
+
 	host->fclk = clk_get(&pdev->dev, "fck");
 	if (IS_ERR(host->fclk)) {
 		ret = PTR_ERR(host->fclk);
@@ -2163,6 +2192,7 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 		clk_put(host->iclk);
 		goto err1;
 	}
+	clk_enable(host->fclk);
 
 	omap_hsmmc_context_save(host);
 
@@ -2199,6 +2229,7 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 			if (clk_enable(host->dbclk) != 0)
 				dev_dbg(mmc_dev(host->mmc), "Enabling debounce"
 							" clk failed\n");
+		clk_enable(host->dbclk);
 	}
 
 	/* Since we do only SG emulation, we can have as many segs
