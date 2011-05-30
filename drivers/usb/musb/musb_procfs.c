@@ -744,7 +744,7 @@ static int musb_proc_write(struct file *file, const char __user *buffer,
 
 	case 'b':
 		/* generate software babble interrupt */
-		musb_simulate_babble(musb);
+		musb_simulate_babble_intr(musb);
 		break;
 
 	case '?':

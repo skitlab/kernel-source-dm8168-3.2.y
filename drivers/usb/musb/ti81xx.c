@@ -834,7 +834,7 @@ static irqreturn_t cppi41dma_Interrupt(int irq, void *hci)
 }
 #endif
 
-void musb_simulate_babble(struct musb *musb)
+int musb_simulate_babble(struct musb *musb)
 {
 	void __iomem *reg_base = musb->ctrl_base;
 	void __iomem *mbase = musb->mregs;
@@ -851,6 +851,7 @@ void musb_simulate_babble(struct musb *musb)
 	/* generate s/w babble interrupt */
 	musb_writel(reg_base, USB_IRQ_STATUS_RAW_1,
 		MUSB_INTR_BABBLE);
+	return 0;
 }
 EXPORT_SYMBOL(musb_simulate_babble);
 
@@ -1224,6 +1225,7 @@ static struct musb_platform_ops ti81xx_ops = {
 
 	.dma_controller_create	= cppi41_dma_controller_create,
 	.dma_controller_destroy	= cppi41_dma_controller_destroy,
+	.simulate_babble_intr	= musb_simulate_babble,
 };
 
 static int __init ti81xx_probe(struct platform_device *pdev)
