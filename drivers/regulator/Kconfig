@@ -212,7 +212,7 @@ config REGULATOR_TPS65023
 
 config REGULATOR_GPIO
 	tristate "GPIO voltage regulator"
-	depends on GPIOLIB
+	depends on ARCH_TI816X && GPIOLIB
 	default y
 	help
 	  This is a GPIO based voltage controller driver, which controls the voltage

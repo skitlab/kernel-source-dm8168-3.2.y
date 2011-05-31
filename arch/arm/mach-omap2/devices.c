@@ -1299,7 +1299,7 @@ void ti816x_ethernet_init(void)
 static inline void ti816x_ethernet_init(void) {}
 #endif
 
-#ifdef CONFIG_ARCH_TI816X
+#ifdef CONFIG_TI816X_SMARTREFLEX
 
 /* smartreflex platform data */
 #define TI816X_SR_CNTRL_HVT_OFFSET	(0x06AC)
@@ -1308,13 +1308,13 @@ static inline void ti816x_ethernet_init(void) {}
 /* Refer TRM to know the Err2VoltGain factor and MinError Limits
  * for different step sizes. Update this table for both the sensors
  * (HVT and SVT) according to your step size, default step size is
- * 15mV. Factor changing with step size are e2v_gain, err_minlimit.
- * Don't forgot to change the step size in platform data structure.
+ * 15mV. Factors changing with step-size are e2v_gain, err_minlimit.
+ * Don't forgot to change the step size in platform data structure,
+ * ti816x_sr_pdata.
  */
 static struct ti816x_sr_sdata sr_sensor_data[] = {
 	{
 		.efuse_offs	= TI816X_SR_CNTRL_HVT_OFFSET,
-		.nvalue		= 0,
 		.e2v_gain	= 0xD,
 		.err_weight	= 0x4,
 		.err_minlimit	= 0xF6,
@@ -1324,7 +1324,6 @@ static struct ti816x_sr_sdata sr_sensor_data[] = {
 	},
 	{
 		.efuse_offs	= TI816X_SR_CNTRL_SVT_OFFSET,
-		.nvalue		= 0,
 		.e2v_gain	= 0x12,
 		.err_weight	= 0x4,
 		.err_minlimit	= 0xF8,
@@ -1340,8 +1339,8 @@ static struct ti816x_sr_platform_data ti816x_sr_pdata = {
 	.irq_delay		= 2000,
 	.no_of_vds		= 1,
 	.no_of_sens		= ARRAY_SIZE(sr_sensor_data),
-	.vstep_size		= 15000,
-	.enable_on_init		= 0,
+	.vstep_size_mv		= 15000,
+	.enable_on_init		= true,
 	.sr_sdata		= sr_sensor_data,
 };
 

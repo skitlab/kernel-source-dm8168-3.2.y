@@ -30,16 +30,16 @@
 
 #include "control.h"
 
-#define MARGIN			0
+#define MARGIN_PERCEN_ERROR	0
 #define CLK_NAME_LEN		40
 #define MAX_SENSORS_PER_VD	2
 
-struct ti816x_sr_sensors {
+struct ti816x_sr_sensor {
 	u32			irq;
-	s32			irq_status;
+	u32			irq_status;
 	u32			efuse_offs;
 	u32			nvalue;
-	s32			e2v_gain;
+	u32			e2v_gain;
 	u32			err_weight;
 	u32			err_minlimit;
 	u32			err_maxlimit;
@@ -53,27 +53,26 @@ struct ti816x_sr_sensors {
 
 struct ti816x_sr {
 	u32				autocomp_active;
-	int				init_volt;
-	int				sens_per_vd;
-	int				irq_delay;
-	int				ip_type;
-	int				voltage_step_size;
+	u32				sens_per_vd;
+	u32				irq_delay;
+	u32				ip_type;
+	int				init_volt_mv;
+	int				mvoltage_step_size;
 	struct regulator		*reg;
 	struct work_struct		work;
 	struct sr_platform_data		*sr_data;
-	struct ti816x_sr_sensors	sen[MAX_SENSORS_PER_VD];
+	struct ti816x_sr_sensor		sen[MAX_SENSORS_PER_VD];
 	struct platform_device		*pdev;
-	unsigned long			data;
 };
 
 static inline void sr_write_reg(struct ti816x_sr *sr, int offset, u32 value,
-					int srid)
+					u32 srid)
 {
 	__raw_writel(value, sr->sen[srid].base + offset);
 }
 
 static inline void sr_modify_reg(struct ti816x_sr *sr, int offset, u32 mask,
-				u32 value, int srid)
+				u32 value, u32 srid)
 {
 	u32 reg_val;
 
@@ -84,7 +83,7 @@ static inline void sr_modify_reg(struct ti816x_sr *sr, int offset, u32 mask,
 	__raw_writel(reg_val, sr->sen[srid].base + offset);
 }
 
-static inline u32 sr_read_reg(struct ti816x_sr *sr, int offset, int srid)
+static inline u32 sr_read_reg(struct ti816x_sr *sr, int offset, u32 srid)
 {
 	return __raw_readl(sr->sen[srid].base + offset);
 }
@@ -100,18 +99,22 @@ static inline u32 sr_read_reg(struct ti816x_sr *sr, int offset, int srid)
 static int get_errvolt(struct ti816x_sr *sr, s32 srid)
 {
 	u32 senerror_reg;
-	s32 uvoltage;
+	int uvoltage;
 	s8 terror;
 
 	senerror_reg = sr_read_reg(sr, SENERROR_V2, srid);
 	senerror_reg = (senerror_reg & 0x0000FF00);
-	senerror_reg = senerror_reg >> 8;
+	terror = (s8)(senerror_reg >> 8);
 
-	terror = senerror_reg & 0x000000FF;
+	/* converting binary to percentage error */
+	uvoltage = (int)((terror * 25) >> 5);
 
-	/* convert from binary to percentage error and then to deltaV */
-	uvoltage = ((terror + MARGIN) * sr->voltage_step_size) >> 7;
+	uvoltage = (uvoltage + MARGIN_PERCEN_ERROR) *
+				sr->mvoltage_step_size;
 	uvoltage = uvoltage * sr->sen[srid].e2v_gain;
+
+	/* converting percentage to value by dividing 100 */
+	uvoltage = uvoltage/100;
 
 	return uvoltage;
 }
@@ -221,7 +224,7 @@ static void irq_sr_stimer(unsigned long data)
  */
 static irqreturn_t sr_class2_irq(int irq, void *data)
 {
-	int srid;
+	u32 srid;
 	struct ti816x_sr *sr = (struct ti816x_sr *)data;
 
 	if (irq == TI81XX_IRQ_SMRFLX0)
@@ -266,7 +269,7 @@ static irqreturn_t sr_class2_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int sr_clk_enable(struct ti816x_sr *sr, int srid)
+static int sr_clk_enable(struct ti816x_sr *sr, u32 srid)
 {
 	if (clk_enable(sr->sen[srid].fck) != 0) {
 		dev_err(&sr->pdev->dev, "%s: Could not enable sr_fck\n",
@@ -277,14 +280,14 @@ static int sr_clk_enable(struct ti816x_sr *sr, int srid)
 	return 0;
 }
 
-static int sr_clk_disable(struct ti816x_sr *sr, int srid)
+static int sr_clk_disable(struct ti816x_sr *sr, u32 srid)
 {
 	clk_disable(sr->sen[srid].fck);
 
 	return 0;
 }
 
-static int sr_set_nvalues(struct ti816x_sr *sr, int srid)
+static inline int sr_set_nvalues(struct ti816x_sr *sr, u32 srid)
 {
 	/* Read nTarget value form EFUSE register*/
 	sr->sen[srid].nvalue = __raw_readl(TI81XX_CTRL_REGADDR
@@ -300,7 +303,7 @@ static int sr_set_nvalues(struct ti816x_sr *sr, int srid)
  * Configure the corresponding values to SR module registers for
  * operating SR module in Error Generator mode.
  */
-static void sr_configure(struct ti816x_sr *sr, int srid)
+static void sr_configure(struct ti816x_sr *sr, u32 srid)
 {
 	/* Configuring the SR module with clock length, enabling the
 	 * error generator, enable SR module, enable individual N and P
@@ -328,7 +331,7 @@ static void sr_configure(struct ti816x_sr *sr, int srid)
  * Enable SR module by writing nTarget values to corresponding SR
  * NVALUERECIPROCAL register, enable the interrupt and enable SR
  */
-static void sr_enable(struct ti816x_sr *sr, int srid)
+static void sr_enable(struct ti816x_sr *sr, u32 srid)
 {
 	/* Check if SR is already enabled. If yes do nothing */
 	if (sr_read_reg(sr, SRCONFIG, srid) & SRCONFIG_SRENABLE)
@@ -356,7 +359,7 @@ static void sr_enable(struct ti816x_sr *sr, int srid)
  *
  * Disable SR module by disabling the interrupt and Smartrefelx module
  */
-static void sr_disable(struct ti816x_sr *sr, int srid)
+static void sr_disable(struct ti816x_sr *sr, u32 srid)
 {
 	/* Disable the interrupt */
 	sr_modify_reg(sr, IRQENABLE_CLR, IRQENABLE_MCUBOUNDSINT,
@@ -375,6 +378,7 @@ static void sr_disable(struct ti816x_sr *sr, int srid)
 static void sr_start_vddautocomp(struct ti816x_sr *sr)
 {
 	int i;
+	int ret;
 
 	if ((sr->sen[SRHVT].nvalue == 0) || (sr->sen[SRSVT].nvalue == 0)) {
 		dev_err(&sr->pdev->dev, "SR module not enabled, nTarget"
@@ -384,6 +388,12 @@ static void sr_start_vddautocomp(struct ti816x_sr *sr)
 
 	if (sr->autocomp_active == 1) {
 		dev_warn(&sr->pdev->dev, "SR VDD autocomp is already active\n");
+		return;
+	}
+
+	ret = regulator_enable(sr->reg);
+	if (ret) {
+		dev_err(&sr->pdev->dev, "Failed to enable supply: %d\n", ret);
 		return;
 	}
 
@@ -413,13 +423,14 @@ static void sr_stop_vddautocomp(struct ti816x_sr *sr)
 
 	cancel_work_sync(&sr->work);
 
+	regulator_disable(sr->reg);
 	for (i = 0; i < sr->sens_per_vd; i++) {
 		sr_disable(sr, i);
 		del_timer_sync(&sr->sen[i].timer);
 		sr_clk_disable(sr, i);
 	}
 
-	regulator_set_voltage(sr->reg, sr->init_volt, sr->init_volt);
+	regulator_set_voltage(sr->reg, sr->init_volt_mv, sr->init_volt_mv);
 	sr->autocomp_active = 0;
 }
 
@@ -509,7 +520,7 @@ static int sr_debugfs_entries(struct ti816x_sr *sr_info)
 	(void) debugfs_create_file("autocomp", S_IRUGO | S_IWUGO, dbg_dir,
 				(void *)sr_info, &sr_fops);
 	(void) debugfs_create_u32("initial_voltage", S_IRUGO, dbg_dir,
-				&sr_info->init_volt);
+				&sr_info->init_volt_mv);
 	(void) debugfs_create_file("current_voltage", S_IRUGO, dbg_dir,
 				(void *)sr_info, &curr_volt_fops);
 	(void) debugfs_create_u32("interrupt_delay", S_IRUGO | S_IWUGO,
@@ -526,7 +537,7 @@ static int sr_debugfs_entries(struct ti816x_sr *sr_info)
 
 		(void) debugfs_create_x32("err2voltgain", S_IRUGO,
 					sen_dir, &sr_info->sen[i].e2v_gain);
-		(void) debugfs_create_x32("nvalue", S_IRUGO | S_IWUGO,
+		(void) debugfs_create_x32("nvalue", S_IRUGO,
 					sen_dir, &sr_info->sen[i].nvalue);
 	}
 	return 0;
@@ -552,7 +563,8 @@ static int __init ti816x_sr_probe(struct platform_device *pdev)
 	pdata = pdev->dev.platform_data;
 	if (!pdata) {
 		dev_err(&pdev->dev, "%s: platform data missing\n", __func__);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_free_sr_info;
 	}
 
 	sr_info->pdev = pdev;
@@ -561,7 +573,7 @@ static int __init ti816x_sr_probe(struct platform_device *pdev)
 	sr_info->ip_type = pdata->ip_type;
 	sr_info->irq_delay = pdata->irq_delay;
 	sr_info->sens_per_vd = pdata->no_of_sens/pdata->no_of_vds;
-	sr_info->voltage_step_size = pdata->vstep_size;
+	sr_info->mvoltage_step_size = pdata->vstep_size_mv;
 	sr_info->autocomp_active = false;
 
 	/* Reading nTarget Values */
@@ -656,7 +668,7 @@ static int __init ti816x_sr_probe(struct platform_device *pdev)
 		goto err_free_irq;
 
 	/* Read current GPIO value and voltage */
-	sr_info->init_volt = regulator_get_voltage(sr_info->reg);
+	sr_info->init_volt_mv = regulator_get_voltage(sr_info->reg);
 
 	platform_set_drvdata(pdev, sr_info);
 

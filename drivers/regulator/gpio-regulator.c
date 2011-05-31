@@ -27,16 +27,14 @@
 #include <linux/slab.h>
 #include <linux/gpio.h>
 
-#define GPIO_REG_DCDC_1	0
-
 /* Regulator specific details */
 struct gpio_vr_info {
-	unsigned		min_uV;
-	unsigned		max_uV;
-	u8			table_len;
+	int			min_uV;
+	int			max_uV;
+	u32			table_len;
+	u32			nr_gpio_pins;
+	struct gpio		*gpios;
 	struct gpio_vr_data	*table;
-	int			nr_gpio_pins;
-	struct			gpio *gpios;
 };
 
 /* PMIC details */
@@ -45,35 +43,26 @@ struct gpio_vr_pmic {
 	struct regulator_dev	*rdev;
 	struct gpio_vr_info	info;
 	spinlock_t		lock;
+	u32			current_gpio_val;
 };
 
 static int gpio_vr_dcdc_enable(struct regulator_dev *dev)
 {
-	int dcdc = rdev_get_id(dev);
-
-	if (dcdc != GPIO_REG_DCDC_1)
-		return -EINVAL;
-
 	/* Add your PMIC specific enable code */
 	return 0;
 }
 
 static int gpio_vr_dcdc_disable(struct regulator_dev *dev)
 {
-	int dcdc = rdev_get_id(dev);
-
-	if (dcdc != GPIO_REG_DCDC_1)
-		return -EINVAL;
-
 	/* Add your PMIC specific disable code */
 	return 0;
 }
 
-static u8 gpio_read_value(struct gpio *gpios, int num_of_bits)
+static u32 gpio_read_value(struct gpio *gpios, u32 num_of_bits)
 {
 	int i = 0;
 	int gpio_val;
-	u8 cur_gpio_val = 0;
+	u32 cur_gpio_val = 0;
 
 	for (i = 0; i < num_of_bits; i++) {
 		gpio_val = gpio_get_value(gpios[i].gpio);
@@ -83,38 +72,51 @@ static u8 gpio_read_value(struct gpio *gpios, int num_of_bits)
 	return cur_gpio_val;
 }
 
-static int gpio_write_value(struct gpio *gpios, int num_of_bits,
-					int gpio_val, spinlock_t *lock)
+static int gpio_write_value(struct gpio_vr_pmic *tps, u32 gpio_value)
 {
 	int i = 0;
 	unsigned long flags;
+	struct gpio *gpios = tps->info.gpios;
 
-	spin_lock_irqsave(lock, flags);
-	for (i = 0; i < num_of_bits; i++)
-		gpio_direction_output(gpios[i].gpio, (gpio_val & (1 << i)));
-	spin_unlock_irqrestore(lock, flags);
+	tps->current_gpio_val = gpio_value;
+
+	spin_lock_irqsave(&tps->lock, flags);
+	/* Writing from higher gpio pin to lower, make sure that
+	 * voltage variation is less */
+	for (i = tps->info.nr_gpio_pins; i > 0; i--)
+		gpio_direction_output(gpios[i-1].gpio,
+			(tps->current_gpio_val & (1 << (i-1))));
+	spin_unlock_irqrestore(&tps->lock, flags);
 
 	return 0;
 }
 
-static int get_nearest_voltage(struct gpio_vr_pmic *tps, int uV)
+static u32 get_nearest_gpio_val(struct gpio_vr_pmic *tps, int uV)
 {
 	int vsel;
-	s32 volt_diff[tps->info.table_len];
+	int volt_diff;
+	int volt_diff_prev = 0;
+	int index = 0;
+	int j = 0;
 
 	/* Nearest GPIO val, nothing but picking the minimum diff
 	 * gpio values from a group of values
 	 */
 	for (vsel = 0; vsel < tps->info.table_len; vsel++) {
-		volt_diff[vsel] = tps->info.table[vsel].uV - uV;
-		if (volt_diff[vsel] >= 0)
-			break;
+		volt_diff = tps->info.table[vsel].uV - uV;
+		if (volt_diff >= 0) {
+			if (j == 0) {
+				volt_diff_prev = volt_diff;
+				j++;
+			}
+			if (volt_diff_prev >= volt_diff) {
+				index = vsel;
+				volt_diff_prev = volt_diff;
+			}
+		}
 	}
 
-	if (vsel == tps->info.table_len)
-		return -EINVAL;
-
-	return tps->info.table[vsel].uV;
+	return tps->info.table[index].gpio_value;
 }
 
 /*
@@ -124,43 +126,36 @@ static int get_nearest_voltage(struct gpio_vr_pmic *tps, int uV)
 static int gpio_vr_get_uv(struct regulator_dev *dev)
 {
 	struct gpio_vr_pmic *tps = rdev_get_drvdata(dev);
-	u8 gpio_val;
-	int uV, vsel;
+	u32 gpio_val;
+	u32 vsel;
 
-	gpio_val = gpio_read_value(tps->info.gpios, tps->info.nr_gpio_pins);
+	if (tps->current_gpio_val == 0) {
+		gpio_val = gpio_read_value(tps->info.gpios,
+					tps->info.nr_gpio_pins);
+		tps->current_gpio_val = gpio_val;
+	}
 
 	/* Get the voltage from the table based on gpio_val */
 	for (vsel = 0; vsel < tps->info.table_len; vsel++) {
-		if (tps->info.table[vsel].gpio_value == gpio_val) {
-			uV = tps->info.table[vsel].uV;
-			break;
+		if (tps->info.table[vsel].gpio_value ==
+				tps->current_gpio_val) {
+			return tps->info.table[vsel].uV;
 		}
 	}
 
-	return uV;
+	return -EINVAL;
 }
 
 static int gpio_vr_dcdc_get_voltage(struct regulator_dev *dev)
 {
-	struct gpio_vr_pmic *tps = rdev_get_drvdata(dev);
-	int uV, dcdc = rdev_get_id(dev);
-
-	if (dcdc == GPIO_REG_DCDC_1) {
-		uV = gpio_vr_get_uv(dev);
-		return uV;
-	} else
-		return tps->info.min_uV;
+	return gpio_vr_get_uv(dev);
 }
 
 static int gpio_vr_dcdc_set_voltage(struct regulator_dev *dev,
 				int min_uV, int max_uV)
 {
 	struct gpio_vr_pmic *tps = rdev_get_drvdata(dev);
-	int vsel, uV = 0;
-	int dcdc = rdev_get_id(dev);
-
-	if (dcdc != GPIO_REG_DCDC_1)
-		return -EINVAL;
+	u32 gpio_val;
 
 	if (min_uV < tps->info.min_uV ||
 			min_uV > tps->info.max_uV)
@@ -169,33 +164,20 @@ static int gpio_vr_dcdc_set_voltage(struct regulator_dev *dev,
 			max_uV > tps->info.max_uV)
 		return -EINVAL;
 
-	uV = get_nearest_voltage(tps, min_uV);
+	gpio_val = get_nearest_gpio_val(tps, min_uV);
 
-	for (vsel = 0; vsel < tps->info.table_len; vsel++) {
-		if (tps->info.table[vsel].uV == uV)
-			break;
-	}
-
-	if (vsel == tps->info.table_len)
-		return -EINVAL;
-
-	return gpio_write_value(tps->info.gpios, tps->info.nr_gpio_pins,
-				tps->info.table[vsel].gpio_value, &tps->lock);
+	return gpio_write_value(tps, gpio_val);
 }
 
 static int gpio_vr_dcdc_list_voltage(struct regulator_dev *dev,
 					unsigned selector)
 {
 	struct gpio_vr_pmic *tps = rdev_get_drvdata(dev);
-	int dcdc = rdev_get_id(dev);
 
-	if (dcdc == GPIO_REG_DCDC_1) {
-		if (selector >= tps->info.table_len)
-			return -EINVAL;
-		else
-			return tps->info.table[selector].uV;
-	} else
-		return tps->info.min_uV;
+	if (selector >= tps->info.table_len)
+		return -EINVAL;
+	else
+		return tps->info.table[selector].uV;
 }
 
 /* Operations permitted on VDCDCx */
@@ -209,7 +191,6 @@ static struct regulator_ops gpio_vr_dcdc_ops = {
 
 static int __devinit gpio_tps_probe(struct platform_device *pdev)
 {
-	static int desc_id;
 	struct gpio_reg_platform_data *tps_board;
 	struct regulator_init_data *init_data;
 	struct regulator_dev *rdev;
@@ -241,12 +222,13 @@ static int __devinit gpio_tps_probe(struct platform_device *pdev)
 
 	/* Store regulator specific information */
 	tps->desc.name = tps_board->name;
-	tps->desc.id = desc_id++;
+	tps->desc.id = 1;
 	tps->desc.n_voltages = tps_board->num_voltages;
 	tps->desc.ops = &gpio_vr_dcdc_ops;
 	tps->desc.type = REGULATOR_VOLTAGE;
 	tps->desc.owner = THIS_MODULE;
 
+	tps->current_gpio_val = 0;
 	tps->info.min_uV = init_data->constraints.min_uV;
 	tps->info.max_uV = init_data->constraints.max_uV;
 	tps->info.table = tps_board->gpio_vsel_table;
@@ -257,7 +239,7 @@ static int __devinit gpio_tps_probe(struct platform_device *pdev)
 	error = gpio_request_array(tps->info.gpios, tps->info.nr_gpio_pins);
 	if (error) {
 		dev_err(&pdev->dev, "failed to get the gpios");
-		return -EINVAL;
+		goto err_free_tps;
 	}
 
 	/* Register the regulators */
@@ -267,7 +249,7 @@ static int __devinit gpio_tps_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to register %s\n",
 			tps_board->name);
 		error = PTR_ERR(rdev);
-		goto fail;
+		goto err_free_gpios;
 	}
 
 	/* Save regulator for cleanup */
@@ -278,8 +260,10 @@ static int __devinit gpio_tps_probe(struct platform_device *pdev)
 	regulator_has_full_constraints();
 	return 0;
 
- fail:
-	regulator_unregister(tps->rdev);
+err_free_gpios:
+	gpio_free_array(tps->info.gpios, tps->info.nr_gpio_pins);
+
+err_free_tps:
 	kfree(tps);
 
 	return error;
@@ -298,6 +282,7 @@ static int __devexit gpio_vr_remove(struct platform_device *pdev)
 	gpio_free_array(tps->info.gpios, tps->info.nr_gpio_pins);
 
 	regulator_unregister(tps->rdev);
+
 	kfree(tps);
 
 	return 0;

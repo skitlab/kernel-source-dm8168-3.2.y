@@ -29,29 +29,29 @@
  * @uV:		Micro voltage corresponds to each gpio value
  */
 struct gpio_vr_data {
-	u8	gpio_value;
-	s32	uV;
+	u32	gpio_value;
+	int	uV;
 };
 
 /**
  * gpio_reg_platform_data - platform data for gpio regulator
  * @name:		name of the pmic output
+ * @gpios:		array of GPIOs, needed for voltage control
+ * @num_gpio_pins:	number of gpio pins for voltage control
+ * @num_voltages:	number of voltage steps
+ * @pmic_vout:		pmic output voltage value
  * @pmic_init_data:	regulator platform inititialization data
  * @gpio_vsel_table:	gpio voltage regulator, gpio value and its
- *			coresponding voltage
- * @num_voltages:	number of voltage levels
- * @gpios:		array of GPIOs, needed for voltage control
- * @num_gpio_pins:	number of gpio pins
- * @pmic_vout:		pmic output voltage value
+ *			corresponding voltage
  */
 struct gpio_reg_platform_data {
 	const	char			*name;
+	struct	gpio			*gpios;
+	u32				num_gpio_pins;
+	u32				num_voltages;
+	u32				pmic_vout;
 	struct	regulator_init_data	*pmic_init_data;
 	struct	gpio_vr_data		*gpio_vsel_table;
-	int				num_voltages;
-	struct	gpio			*gpios;
-	int				num_gpio_pins;
-	int				pmic_vout;
 };
 
 #endif
