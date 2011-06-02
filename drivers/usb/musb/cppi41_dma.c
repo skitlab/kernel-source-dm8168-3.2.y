@@ -1401,10 +1401,8 @@ static void usb_process_rx_queue(struct cppi41 *cppi, unsigned index)
 		if (curr_pd->eop) {
 			curr_pd->eop = 0;
 			/* disable the rx dma schedular */
-			if (is_peripheral_active(cppi->musb)) {
+			if (is_peripheral_active(cppi->musb))
 				cppi41_schedtbl_remove_dma_ch(0, 0, ch_num, 0);
-				musb_dma_completion(cppi->musb, ep_num, 0);
-			}
 		}
 
 		/*
