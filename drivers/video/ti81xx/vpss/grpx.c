@@ -327,6 +327,8 @@ static int vps_grpx_set_format(struct vps_grpx_ctrl *gctrl,
 
 	gctrl->gparams->format = df;
 	gctrl->gparams->pitch[FVID2_RGB_ADDR_IDX] = pitch;
+	gctrl->grtparam->format = df;
+	gctrl->grtparam->pitch[FVID2_RGB_ADDR_IDX] = pitch;
 
 	gctrl->inputf->bpp = fbpp;
 	gctrl->inputf->channelnum = 0;
