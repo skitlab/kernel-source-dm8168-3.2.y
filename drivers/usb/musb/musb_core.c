@@ -2309,7 +2309,7 @@ void musb_save_context(struct musb *musb)
 		}
 	}
 
-	musb_platform_save_context(musb, &musb->context);
+	musb_platform_suspend(musb);
 }
 
 void musb_restore_context(struct musb *musb)
@@ -2319,7 +2319,7 @@ void musb_restore_context(struct musb *musb)
 	void __iomem *ep_target_regs;
 	void __iomem *epio;
 
-	musb_platform_restore_context(musb, &musb->context);
+	musb_platform_resume(musb);
 
 	if (is_host_enabled(musb)) {
 		musb_writew(musb_base, MUSB_FRAME, musb->context.frame);
