@@ -39,7 +39,12 @@ struct gpio_vr_data {
  * @gpios:		array of GPIOs, needed for voltage control
  * @num_gpio_pins:	number of gpio pins for voltage control
  * @num_voltages:	number of voltage steps
- * @pmic_vout:		pmic output voltage value
+ * @pmic_vout:		pmic output voltage in mV
+ * @gpio_single_bank:	Flag to notify to voltage regulator that
+ *			the GPIO lines for voltage control belonging
+ *			to single bank or not
+ * @gpio_arr_mask:	Mask for GPIO lines if the voltage control GPIO
+ *			lines are belonging to single bank
  * @pmic_init_data:	regulator platform inititialization data
  * @gpio_vsel_table:	gpio voltage regulator, gpio value and its
  *			corresponding voltage
@@ -50,6 +55,8 @@ struct gpio_reg_platform_data {
 	u32				num_gpio_pins;
 	u32				num_voltages;
 	u32				pmic_vout;
+	bool				gpio_single_bank;
+	u32				gpio_arr_mask;
 	struct	regulator_init_data	*pmic_init_data;
 	struct	gpio_vr_data		*gpio_vsel_table;
 };

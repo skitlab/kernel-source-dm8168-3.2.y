@@ -52,6 +52,12 @@ static inline int gpio_direction_output(unsigned gpio, int value)
 	return -ENOSYS;
 }
 
+static inline int gpio_direction_output_array(struct gpio *array,
+			u32 num_gpios, unsigned value, unsigned mask)
+{
+	return -ENOSYS;
+}
+
 static inline int gpio_set_debounce(unsigned gpio, unsigned debounce)
 {
 	return -ENOSYS;

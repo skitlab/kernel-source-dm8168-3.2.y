@@ -1568,6 +1568,44 @@ static int gpio_output(struct gpio_chip *chip, unsigned offset, int value)
 	return 0;
 }
 
+static int gpio_output_array(struct gpio_chip *chip, unsigned value,
+				unsigned mask)
+{
+	struct gpio_bank *bank;
+	unsigned long flags;
+	void __iomem *reg;
+	u32 reg_val;
+
+	bank = container_of(chip, struct gpio_bank, chip);
+
+	spin_lock_irqsave(&bank->lock, flags);
+
+	/* If we want to write data 0010'b to GPIO then
+	 * Set 0010'b output data and clear 1101'b data*/
+	reg = bank->base + OMAP4_GPIO_SETDATAOUT;
+	reg_val = __raw_readl(reg);
+	reg_val &= ~mask;
+	reg_val |= value & mask;
+	__raw_writel(reg_val, reg);
+
+	/* Clear output data */
+	reg = bank->base + OMAP4_GPIO_CLEARDATAOUT;
+	reg_val = __raw_readl(reg);
+	reg_val &= ~mask;
+	reg_val |= (~value) & mask;
+	__raw_writel(reg_val, reg);
+
+	/* Put requested lines in output direction */
+	reg = bank->base + OMAP4_GPIO_OE;
+
+	reg_val = __raw_readl(reg);
+	reg_val &= ~mask;
+	__raw_writel(reg_val, reg);
+	spin_unlock_irqrestore(&bank->lock, flags);
+
+	return 0;
+}
+
 static int gpio_debounce(struct gpio_chip *chip, unsigned offset,
 		unsigned debounce)
 {
@@ -1796,6 +1834,7 @@ static void __init omap_gpio_chip_init(struct gpio_bank *bank)
 	bank->chip.direction_input = gpio_input;
 	bank->chip.get = gpio_get;
 	bank->chip.direction_output = gpio_output;
+	bank->chip.direction_output_array = gpio_output_array;
 	bank->chip.set_debounce = gpio_debounce;
 	bank->chip.set = gpio_set;
 	bank->chip.to_irq = gpio_2irq;

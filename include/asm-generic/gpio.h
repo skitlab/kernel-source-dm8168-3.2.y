@@ -103,6 +103,8 @@ struct gpio_chip {
 						unsigned offset);
 	int			(*direction_output)(struct gpio_chip *chip,
 						unsigned offset, int value);
+	int			(*direction_output_array)(struct gpio_chip
+					*chip, unsigned value, unsigned mask);
 	int			(*set_debounce)(struct gpio_chip *chip,
 						unsigned offset, unsigned debounce);
 
@@ -195,6 +197,8 @@ struct gpio {
 extern int gpio_request_one(unsigned gpio, unsigned long flags, const char *label);
 extern int gpio_request_array(struct gpio *array, size_t num);
 extern void gpio_free_array(struct gpio *array, size_t num);
+extern int gpio_direction_output_array(struct gpio *array,
+			u32 num_gpios, unsigned value, unsigned mask);
 
 #ifdef CONFIG_GPIO_SYSFS
 

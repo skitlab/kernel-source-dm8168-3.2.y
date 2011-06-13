@@ -33,6 +33,8 @@ struct gpio_vr_info {
 	int			max_uV;
 	u32			table_len;
 	u32			nr_gpio_pins;
+	u32			gpio_arr_mask;
+	bool			gpio_single_bank;
 	struct gpio		*gpios;
 	struct gpio_vr_data	*table;
 };
@@ -72,20 +74,23 @@ static u32 gpio_read_value(struct gpio *gpios, u32 num_of_bits)
 	return cur_gpio_val;
 }
 
-static int gpio_write_value(struct gpio_vr_pmic *tps, u32 gpio_value)
+static int gpio_write_value(struct gpio_vr_pmic *tps)
 {
-	int i = 0;
+	int i;
 	unsigned long flags;
 	struct gpio *gpios = tps->info.gpios;
-
-	tps->current_gpio_val = gpio_value;
+	u32 num_of_bits = tps->info.nr_gpio_pins;
 
 	spin_lock_irqsave(&tps->lock, flags);
-	/* Writing from higher gpio pin to lower, make sure that
-	 * voltage variation is less */
-	for (i = tps->info.nr_gpio_pins; i > 0; i--)
-		gpio_direction_output(gpios[i-1].gpio,
-			(tps->current_gpio_val & (1 << (i-1))));
+
+	if (!tps->info.gpio_single_bank) {
+		for (i = 0; i < num_of_bits; i++)
+			gpio_direction_output(gpios[i].gpio,
+				(tps->current_gpio_val & (1 << i)));
+	} else
+		gpio_direction_output_array(gpios, num_of_bits,
+			tps->current_gpio_val, tps->info.gpio_arr_mask);
+
 	spin_unlock_irqrestore(&tps->lock, flags);
 
 	return 0;
@@ -155,7 +160,6 @@ static int gpio_vr_dcdc_set_voltage(struct regulator_dev *dev,
 				int min_uV, int max_uV)
 {
 	struct gpio_vr_pmic *tps = rdev_get_drvdata(dev);
-	u32 gpio_val;
 
 	if (min_uV < tps->info.min_uV ||
 			min_uV > tps->info.max_uV)
@@ -164,9 +168,9 @@ static int gpio_vr_dcdc_set_voltage(struct regulator_dev *dev,
 			max_uV > tps->info.max_uV)
 		return -EINVAL;
 
-	gpio_val = get_nearest_gpio_val(tps, min_uV);
+	tps->current_gpio_val = get_nearest_gpio_val(tps, min_uV);
 
-	return gpio_write_value(tps, gpio_val);
+	return gpio_write_value(tps);
 }
 
 static int gpio_vr_dcdc_list_voltage(struct regulator_dev *dev,
@@ -234,6 +238,8 @@ static int __devinit gpio_tps_probe(struct platform_device *pdev)
 	tps->info.table = tps_board->gpio_vsel_table;
 	tps->info.table_len = tps_board->num_voltages;
 	tps->info.gpios = tps_board->gpios;
+	tps->info.gpio_single_bank = tps_board->gpio_single_bank;
+	tps->info.gpio_arr_mask = tps_board->gpio_arr_mask;
 	tps->info.nr_gpio_pins = tps_board->num_gpio_pins;
 
 	error = gpio_request_array(tps->info.gpios, tps->info.nr_gpio_pins);

@@ -210,6 +210,8 @@ static struct gpio_reg_platform_data gpio_vr_init_data = {
 	.gpio_vsel_table	= ti816x_vsel_table,
 	.num_voltages		= ARRAY_SIZE(ti816x_vsel_table),
 	.gpios			= vcore_gpios,
+	.gpio_single_bank	= true,
+	.gpio_arr_mask		= 0xF,
 	.num_gpio_pins		= ARRAY_SIZE(vcore_gpios),
 	.pmic_vout		= 600000,
 };

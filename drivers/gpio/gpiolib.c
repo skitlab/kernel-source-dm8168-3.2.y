@@ -1468,6 +1468,56 @@ fail:
 }
 EXPORT_SYMBOL_GPL(gpio_direction_output);
 
+/* GPIO lines should be belonging to single bank */
+int gpio_direction_output_array(struct gpio *array,
+			u32 num_gpios, unsigned value, unsigned mask)
+{
+	unsigned long		flags;
+	struct gpio_chip	*chip = NULL;
+	int			i;
+	int			status = -EINVAL;
+
+	spin_lock_irqsave(&gpio_lock, flags);
+
+	for (i = 0; i < num_gpios; i++) {
+		unsigned gpio = array[i].gpio;
+		struct gpio_desc *desc = &gpio_desc[gpio];
+
+		if (!gpio_is_valid(gpio))
+			goto fail;
+		chip = desc->chip;
+		if (!chip || !chip->set || !chip->direction_output_array)
+			goto fail;
+		gpio -= chip->base;
+		if (gpio >= chip->ngpio)
+			goto fail;
+		status = gpio_ensure_requested(desc, gpio);
+		if (status < 0)
+			goto fail;
+	}
+
+	/* now we know the gpio is valid and chip won't vanish */
+	spin_unlock_irqrestore(&gpio_lock, flags);
+
+	/* gpio_chip data we are passing based on last gpio */
+	status = chip->direction_output_array(chip, value, mask);
+
+	if (status == 0) {
+		for (i = 0; i < num_gpios; i++) {
+			struct gpio_desc *desc = &gpio_desc[array[i].gpio];
+			set_bit(FLAG_IS_OUT, &desc->flags);
+		}
+	}
+
+	return status;
+fail:
+	spin_unlock_irqrestore(&gpio_lock, flags);
+	if (status)
+		pr_debug("%s: gpio status %d\n", __func__, status);
+	return status;
+}
+EXPORT_SYMBOL_GPL(gpio_direction_output_array);
+
 /**
  * gpio_set_debounce - sets @debounce time for a @gpio
  * @gpio: the gpio to set debounce time
