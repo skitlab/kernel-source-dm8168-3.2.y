@@ -2,6 +2,7 @@
 # Generic video config states
 #
 
+
 config VIDEO_V4L2
 	tristate
 	depends on VIDEO_DEV && VIDEO_V4L2_COMMON

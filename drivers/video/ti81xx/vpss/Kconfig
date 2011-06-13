@@ -8,6 +8,7 @@ menuconfig TI81XX_VPSS
 	    Use 'M' to build as module.
 
 
+
 if TI81XX_VPSS
 
 config TI81XX_VPSS_VRAM_SIZE

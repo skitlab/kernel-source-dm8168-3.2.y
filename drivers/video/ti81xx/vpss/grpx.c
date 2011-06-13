@@ -1454,4 +1454,3 @@ void __exit vps_grpx_deinit(struct platform_device *pdev)
 	num_gctrl = 0;
 	grpx_dev = NULL;
 }
-

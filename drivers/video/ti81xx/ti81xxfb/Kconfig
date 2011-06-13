@@ -27,4 +27,3 @@ config FB_TI81XX_NUM_FBS
 	     Select the number of FB node to create. Inside of TI81XX HDVPSS,
 	     there are 3 indepentdent GRPX pipelines. Each GRPX pipeline is a
 	     standalone FB node.
-

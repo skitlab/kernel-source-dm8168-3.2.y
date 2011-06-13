@@ -125,9 +125,9 @@ static struct mtd_partition ti816x_evm_norflash_partitions[] = {
 #define VPS_THS7360_SD_MASK             (VPS_PCF8575_PIN2 | VPS_PCF8575_PIN5)
 
 #define VPS_THS7360_SF_MASK             (VPS_PCF8575_PIN0 |                    \
-                                         VPS_PCF8575_PIN1 |                    \
-                                         VPS_PCF8575_PIN3 |                    \
-                                         VPS_PCF8575_PIN4)
+					 VPS_PCF8575_PIN1 |                    \
+					 VPS_PCF8575_PIN3 |                    \
+					 VPS_PCF8575_PIN4)
 
 #define NAND_BLOCK_SIZE                SZ_128K
 
@@ -249,7 +249,7 @@ static struct i2c_board_info __initdata ti816x_i2c_boardinfo0[] = {
 };
 
 static struct i2c_board_info __initdata ti816x_i2c_boardinfo1[] = {
-        {
+	{
 		I2C_BOARD_INFO("pcf8575_1", 0x20),
 	},
 	{
@@ -272,7 +272,7 @@ int pcf8575_ths7375_enable(enum ti816x_ths_filter_ctrl ctrl)
 	pcf8575_port[1] |= (ctrl & VPS_THS7375_MASK);
 	msg.buf = pcf8575_port;
 
-	return (i2c_transfer(pcf8575_1_client->adapter, &msg, 1));
+	return i2c_transfer(pcf8575_1_client->adapter, &msg, 1);
 }
 EXPORT_SYMBOL(pcf8575_ths7375_enable);
 
@@ -285,24 +285,23 @@ int pcf8575_ths7360_sd_enable(enum ti816x_ths_filter_ctrl ctrl)
 	};
 
 	pcf8575_port[0] &= ~VPS_THS7360_SD_MASK;
-	switch (ctrl)
-	{
-		case TI816X_THSFILTER_ENABLE_MODULE:
-			pcf8575_port[0] &= ~(VPS_THS7360_SD_MASK);
-			break;
-		case TI816X_THSFILTER_BYPASS_MODULE:
-			pcf8575_port[0] |= VPS_PCF8575_PIN2;
-			break;
-		case TI816X_THSFILTER_DISABLE_MODULE:
-			pcf8575_port[0] |= VPS_THS7360_SD_MASK;
-			break;
-		default:
-			return -EINVAL;
+	switch (ctrl)	{
+	case TI816X_THSFILTER_ENABLE_MODULE:
+		pcf8575_port[0] &= ~(VPS_THS7360_SD_MASK);
+		break;
+	case TI816X_THSFILTER_BYPASS_MODULE:
+		pcf8575_port[0] |= VPS_PCF8575_PIN2;
+		break;
+	case TI816X_THSFILTER_DISABLE_MODULE:
+		pcf8575_port[0] |= VPS_THS7360_SD_MASK;
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	msg.buf = pcf8575_port;
 
-	return (i2c_transfer(pcf8575_1_client->adapter, &msg, 1));
+	return i2c_transfer(pcf8575_1_client->adapter, &msg, 1);
 }
 EXPORT_SYMBOL(pcf8575_ths7360_sd_enable);
 
@@ -316,33 +315,32 @@ int pcf8575_ths7360_hd_enable(enum ti816x_ths7360_sf_ctrl ctrl)
 
 	pcf8575_port[0] &= ~VPS_THS7360_SF_MASK;
 
-	switch(ctrl)
-	{
-		case TI816X_THS7360_DISABLE_SF:
-			pcf8575_port[0] |= VPS_PCF8575_PIN4;
-			break;
-		case TI816X_THS7360_BYPASS_SF:
-			pcf8575_port[0] |= VPS_PCF8575_PIN3;
-			break;
-		case TI816X_THS7360_SF_SD_MODE:
-			pcf8575_port[0] &= ~(VPS_THS7360_SF_MASK);
-			break;
-		case TI816X_THS7360_SF_ED_MODE:
-			pcf8575_port[0] |= VPS_PCF8575_PIN0;
-			break;
-		case TI816X_THS7360_SF_HD_MODE:
-			pcf8575_port[0] |= VPS_PCF8575_PIN1;
-			break;
-		case TI816X_THS7360_SF_TRUE_HD_MODE:
-			pcf8575_port[0] |= VPS_PCF8575_PIN0|VPS_PCF8575_PIN1;
-			break;
-		default:
+	switch (ctrl) {
+	case TI816X_THS7360_DISABLE_SF:
+		pcf8575_port[0] |= VPS_PCF8575_PIN4;
+		break;
+	case TI816X_THS7360_BYPASS_SF:
+		pcf8575_port[0] |= VPS_PCF8575_PIN3;
+		break;
+	case TI816X_THS7360_SF_SD_MODE:
+		pcf8575_port[0] &= ~(VPS_THS7360_SF_MASK);
+		break;
+	case TI816X_THS7360_SF_ED_MODE:
+		pcf8575_port[0] |= VPS_PCF8575_PIN0;
+		break;
+	case TI816X_THS7360_SF_HD_MODE:
+		pcf8575_port[0] |= VPS_PCF8575_PIN1;
+		break;
+	case TI816X_THS7360_SF_TRUE_HD_MODE:
+		pcf8575_port[0] |= VPS_PCF8575_PIN0|VPS_PCF8575_PIN1;
+		break;
+	default:
 			return -EINVAL;
 	}
 
 	msg.buf = pcf8575_port;
 
-	return (i2c_transfer(pcf8575_1_client->adapter, &msg, 1));
+	return i2c_transfer(pcf8575_1_client->adapter, &msg, 1);
 }
 EXPORT_SYMBOL(pcf8575_ths7360_hd_enable);
 
@@ -360,17 +358,17 @@ static int __devexit pcf8575_video_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id pcf8575_video_id[] = {
-        { "pcf8575_1", 0 },
-        { }
+	{ "pcf8575_1", 0 },
+	{ }
 };
 
 static struct i2c_driver pcf8575_driver = {
-        .driver = {
-                .name   = "pcf8575_1",
-        },
-        .probe          = pcf8575_video_probe,
-        .remove         = pcf8575_video_remove,
-        .id_table       = pcf8575_video_id,
+	.driver = {
+		.name   = "pcf8575_1",
+	},
+	.probe          = pcf8575_video_probe,
+	.remove         = pcf8575_video_remove,
+	.id_table       = pcf8575_video_id,
 };
 
 int ti816x_pcf8575_init(void)
@@ -378,7 +376,6 @@ int ti816x_pcf8575_init(void)
 	i2c_add_driver(&pcf8575_driver);
 	return 0;
 }
-
 EXPORT_SYMBOL(ti816x_pcf8575_init);
 
 int ti816x_pcf8575_exit(void)
@@ -576,7 +573,7 @@ static void __init ti816x_vpss_init(void)
 	if (platform_device_register(&vpss_device))
 		printk(KERN_ERR "failed to register ti816x_vpss device\n");
 	else
-		printk(KERN_INFO "registered ti816x_vpss device \n");
+		printk(KERN_INFO "registered ti816x_vpss device\n");
 	/*FIXME add platform data here*/
 }
 
@@ -585,7 +582,7 @@ static struct platform_device ti816x_hdmi_plat_device = {
 	.id = -1,
 	.num_resources = 0,
 	.dev = {
-//		.release = ti81xx_hdmi_platform_release,
+		/*.release = ti81xx_hdmi_platform_release,*/
 		.platform_data = NULL,
 	}
 };
@@ -593,8 +590,8 @@ static struct platform_device ti816x_hdmi_plat_device = {
 static void __init ti816x_hdmi_init(void)
 {
 
-	if(platform_device_register(&ti816x_hdmi_plat_device))
-		printk("KERN_ERR: Could not register TI816x onchip-HDMI device\n");
+	if (platform_device_register(&ti816x_hdmi_plat_device))
+		printk(KERN_ERR "Could not register TI816x onchip-HDMI device\n");
 	else
 		printk(KERN_INFO "registered TI816x on-chip HDMI device\n");
 	/*FIXME add platform data here*/

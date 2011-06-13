@@ -21,6 +21,7 @@
 #include <plat/vram.h>
 #include <plat/dsp.h>
 
+
 #include <plat/ti81xx_ram.h>
 
 #define NO_LENGTH_CHECK 0xffffffff
@@ -64,7 +65,7 @@ EXPORT_SYMBOL(omap_get_var_config);
 
 void  __init ti81xx_reserve(void)
 {
-   ti81xxfb_reserve_sdram_memblock();
+	ti81xxfb_reserve_sdram_memblock();
 }
 
 void __init omap_reserve(void)

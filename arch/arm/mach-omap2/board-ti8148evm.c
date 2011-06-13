@@ -243,7 +243,7 @@ static struct platform_device ti814x_hdmi_plat_device = {
 	.id = -1,
 	.num_resources = 0,
 	.dev = {
-//		.release = ti81xx_hdmi_platform_release,
+		/*.release = ti81xx_hdmi_platform_release,*/
 		.platform_data = NULL,
 	}
 };
@@ -251,8 +251,8 @@ static struct platform_device ti814x_hdmi_plat_device = {
 static void __init ti814x_hdmi_init(void)
 {
 
-	if(platform_device_register(&ti814x_hdmi_plat_device))
-		printk("KERN_ERR: Could not register TI814x onchip-HDMI device\n");
+	if (platform_device_register(&ti814x_hdmi_plat_device))
+		printk(KERN_ERR "Could not register TI814x onchip-HDMI device\n");
 	else
 		printk(KERN_INFO "registered TI814x on-chip HDMI device\n");
 	/*FIXME add platform data here*/

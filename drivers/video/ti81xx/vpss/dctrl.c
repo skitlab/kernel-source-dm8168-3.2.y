@@ -2672,5 +2672,3 @@ exit:
 	return r;
 }
 EXPORT_SYMBOL(TI81xx_un_register_display_panel);
-
-

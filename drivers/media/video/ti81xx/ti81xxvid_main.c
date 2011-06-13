@@ -37,6 +37,7 @@
 
 #include <mach/tiler.h>
 
+
 /* Driver Configuration macros */
 #define VIDOUT_NAME		"t81xx_vidout"
 

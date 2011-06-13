@@ -19,16 +19,14 @@
 #define _BOARD_TI816X_H
 
 
-enum ti816x_ths_filter_ctrl
-{
+enum ti816x_ths_filter_ctrl {
 	TI816X_THSFILTER_ENABLE_MODULE = 0,
 	TI816X_THSFILTER_BYPASS_MODULE,
 	TI816X_THSFILTER_DISABLE_MODULE
 };
 
 /* \brief Enum for selecting filter for component input/output in THS7360 */
-enum ti816x_ths7360_sf_ctrl
-{
+enum ti816x_ths7360_sf_ctrl {
 	TI816X_THS7360_DISABLE_SF = 0,
 	TI816X_THS7360_BYPASS_SF,
 	TI816X_THS7360_SF_SD_MODE,

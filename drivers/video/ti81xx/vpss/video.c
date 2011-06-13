@@ -1822,4 +1822,3 @@ void __exit vps_video_deinit(struct platform_device *pdev)
 	video_dev = NULL;
 }
 
-

@@ -3,6 +3,7 @@
 # Linux/arm 2.6.37 Kernel Configuration
 # Thu Apr 14 15:06:38 2011
 #
+
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
 CONFIG_GENERIC_GPIO=y

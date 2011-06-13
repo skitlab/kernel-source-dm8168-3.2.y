@@ -29,11 +29,6 @@
 #define FVID2_VPS_VID_SYSTEM_DRV          (VPS_VID_SYSTEM_DRV_BASE + 0x0000)
 
 /**
-  * \addtogroup FVID2_VPS_VID_SYSTEM_DRV
-  * @{
-*/
-
-/**
   * \brief ioclt for setting video pll.
   *
   *
@@ -72,7 +67,6 @@
 #define IOCTL_VPS_VID_SYSTEM_GET_PLATFORM_ID                             \
 	(VPS_VID_SYSTEM_IOCTL_BASE + 0x0002)
 
-/* @} */
 
 /**
  *  \brief Enum for the output clock modules

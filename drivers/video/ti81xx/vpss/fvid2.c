@@ -41,7 +41,6 @@
 #include "core.h"
 
 
-
 /*3GRPX + 1 DISPCTRL +  SYSTEM + 5 display + 4 capature + 4 reserved*/
 #define VPS_FVID2_NUM	  (5 + 5 + 4 + 4)
 

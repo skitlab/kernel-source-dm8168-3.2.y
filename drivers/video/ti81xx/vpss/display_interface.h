@@ -19,10 +19,6 @@
  * TI81xx display.  All the external encoders will register to the Display
  * sub-system of TI81xx SoCs through APIs provided by this file.
  */
-
-
-
-
 #include <linux/platform_device.h>
 #include <plat/ti81xx-vpss.h>
 
@@ -34,8 +30,7 @@
  * Power management info is also kept inside those individual drivers.
  */
 
-enum ti81xx_display_status
-{
+enum ti81xx_display_status {
 	TI81xx_EXT_ENCODER_UNREGISTERED = 0,
 	TI81xx_EXT_ENCODER_REGISTERED,
 	TI81xx_EXT_ENCODER_ENABLED,
@@ -50,8 +45,7 @@ enum ti81xx_display_status
 /* Display encoders of the TI81xx SoCs. All the display will not be valid for
  * all the variants of TI81xx SoCs. This is the super set of all
  */
-enum TI81xx_displays
-{
+enum TI81xx_displays {
 	TI81xx_DISPLAY_HDMI = 0,
 	TI81xx_DISPLAY_DVO2,
 	TI81xx_DISPLAY_SD,
@@ -60,8 +54,7 @@ enum TI81xx_displays
 /* Type of panel which is interfaced to SoCs. Whether the panel behaves as
  * as master or slave. Based on these timing parameters needs to be configured
  * for the panel */
-enum TI81xx_device_type
-{
+enum TI81xx_device_type {
 	TI81xx_DEVICE_TYPE_MASTER = 0,
 	TI81xx_DEVICE_TYPE_SLAVE,
 };
@@ -70,8 +63,7 @@ enum TI81xx_device_type
  * discrete sync, and 8/10/12 bits etc */
  /* Clear the mapping between the displaycontroller and this data */
 
-enum TI81xx_InterfaceFormat
-{
+enum TI81xx_InterfaceFormat {
 	TI81xx_DF_16BIT_EMB_SYNC = 0,
 	TI81xx_DF_16BIT_DISC_SYNC,
 	TI81xx_DF_24BIT_EMB_SYNC,
@@ -83,15 +75,13 @@ enum TI81xx_InterfaceFormat
 /* What is the expected polarity for each of the sync, data and clock signals
  * for the external encoder connected
    Directly use the display controller rather than defining new.*/
-enum TI81xx_polarity
-{
+enum TI81xx_polarity {
 	TI81xx_POLARITY_HIGH = 0,
 	TI81xx_POLARITY_LOW,
 };
 
 /* What is the output mode, from HDMI out. DVI for monitors or HDMI for TVs.*/
-enum TI81xx_dvi_hmdi
-{
+enum TI81xx_dvi_hmdi {
 	TI81xx_MODE_DVI = 0,
 	TI81xx_MODE_HDMI,
 };
@@ -99,8 +89,7 @@ enum TI81xx_dvi_hmdi
 /* What is the output required in the externally connected encoder. Externally
  * connected encoder may required more than one output
    Directly use from display controller */
-enum TI81xx_outputs
-{
+enum TI81xx_outputs {
 	TI81xx_OUTPUT_SVIDEO = 0,
 	TI81xx_OUTPUT_COMPOSITE,
 	TI81xx_OUTPUT_COMPONENT,
@@ -109,48 +98,46 @@ enum TI81xx_outputs
 	TI81xx_OUTPUT_VGA,
 };
 
-
-
 /* Video timings for encoder. Will be mostly used for encoders which works
  * as master
    Change this to FVID2 timing and create one more structure for
    HDMI where video_code and video_mode will be passed */
-struct TI81xx_video_timings
-{
-	    enum fvid2_standard	standard;
-	    /**< [IN] Standard for which to get the info.
-		 For valid values see #fvid2_Standard. */
-	    unsigned int              	width;
-	    /**< Active video frame width in pixels. */
-	    unsigned int              	height;
-	    /**< Active video frame height in lines. */
-	    unsigned int              	scanformat;
-	    /**< Scan format of standard. For valid values see #TI81xx_ScanFormat. */
-	    unsigned int              	pixel_clock;
-	    /**< Pixel clock of standard in KHz. */
-	    unsigned int              	hfp;
-	    /**< Horizontal front porch. Same for both fields in case of interlaced
-	    display */
-	    unsigned int              	hbp;
-	    /**< Horizontal back porch */
-	    unsigned int              	hsw;
-	    /**< Horizontal sync length. Same for both fields in case of interlaced
-	    display */
-	    unsigned int              	vfp;
-	    /**< Vertical front porch for each field or frame */
-	    unsigned int              	vbp;
-	    /**< Vertical back porch for each field or frame */
-	    unsigned int              	vsw;
-	    /**< Vertical sync length for each field */
-//	    unsigned int 		video_code;
-	    /**< video code. Typicall used for HDMI encoders
-	    Remove this from this structure.*/
-	    enum TI81xx_dvi_hmdi		dvi_hdmi; //video_mode;
-	    /**< video mode. DVI  mode or HDMI mode. Typically all external
-	         HDMI encoders support sending data in DVI/HDMI mode
-		 Find a better name for this*/
-	    unsigned int              	reserved[4u];
-	    /**< For future use. Not used currently. */
+struct TI81xx_video_timings {
+	enum fvid2_standard	standard;
+	/**< [IN] Standard for which to get the info.
+	 For valid values see #fvid2_Standard. */
+	unsigned int                    width;
+	/**< Active video frame width in pixels. */
+	unsigned int                    height;
+	/**< Active video frame height in lines. */
+	unsigned int                    scanformat;
+	/**< Scan format of standard.
+		For valid values see #TI81xx_ScanFormat. */
+	unsigned int                    pixel_clock;
+	/**< Pixel clock of standard in KHz. */
+	unsigned int                    hfp;
+	/**< Horizontal front porch. Same for both fields in case
+	    of interlaced display */
+	unsigned int                    hbp;
+	/**< Horizontal back porch */
+	unsigned int                    hsw;
+	/**< Horizontal sync length. Same for both fields in case
+	    of interlaced display */
+	unsigned int                    vfp;
+	/**< Vertical front porch for each field or frame */
+	unsigned int                    vbp;
+	/**< Vertical back porch for each field or frame */
+	unsigned int                   vsw;
+	/**< Vertical sync length for each field */
+	/* unsigned int                  video_code;*/
+	/**< video code. Typicall used for HDMI encoders
+	Remove this from this structure.*/
+	enum TI81xx_dvi_hmdi	      dvi_hdmi;
+	/**< video mode. DVI  mode or HDMI mode. Typically all external
+	 HDMI encoders support sending data in DVI/HDMI mode
+	 Find a better name for this*/
+	unsigned int                   reserved[4u];
+	/**< For future use. Not used currently. */
 };
 
 /*this structure contain the information of the VENC to be registered
@@ -167,8 +154,7 @@ struct ti81xx_venc_info {
 /* This is the data structure with which all the external encoders will be
  * registered to the display sub-system of TI81xx
  */
-struct TI81xx_display_driver
-{
+struct TI81xx_display_driver {
 	/* Display to which this panel is connected */
 	enum TI81xx_displays 		display;
 	/* Whether display works in master mode or slave mode.
@@ -220,4 +206,5 @@ struct ti81xx_external_encoder{
 
 int TI81xx_register_display_panel(struct TI81xx_display_driver *panel_driver,
 				struct ti81xx_venc_info *vencinfo);
-int TI81xx_un_register_display_panel(struct TI81xx_display_driver *panel_driver);
+int TI81xx_un_register_display_panel(
+			struct TI81xx_display_driver *panel_driver);

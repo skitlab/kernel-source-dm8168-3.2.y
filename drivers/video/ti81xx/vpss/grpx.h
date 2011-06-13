@@ -20,7 +20,6 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 59 Temple Place - Suite 330, Boston, MA	02111-1307, USA.
  */
-
 #ifndef __DRIVRS_VIDEO_TI81XX_VPSS_GRPX_H__
 #define __DRIVRS_VIDEO_TI81XX_VPSS_GRPX_H__
 

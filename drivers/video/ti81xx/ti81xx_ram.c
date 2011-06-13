@@ -20,7 +20,6 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/*#define DEBUG*/
 #include <asm/setup.h>
 #include <linux/vmalloc.h>
 #include <linux/kernel.h>
