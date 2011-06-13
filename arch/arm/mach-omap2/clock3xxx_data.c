@@ -3313,8 +3313,9 @@ static struct omap_clk omap3xxx_clks[] = {
 	CLK(NULL,	"ssi_sst_fck",	&ssi_sst_fck_3430es1,	CK_3430ES1),
 	CLK(NULL,	"ssi_sst_fck",	&ssi_sst_fck_3430es2,	CK_3430ES2PLUS | CK_36XX),
 	CLK(NULL,	"core_l3_ick",	&core_l3_ick,	CK_3XXX),
-	CLK("musb-hdrc",	"ick",	&hsotgusb_ick_3430es1,	CK_3430ES1),
-	CLK("musb-hdrc",	"ick",	&hsotgusb_ick_3430es2,	CK_3430ES2),
+	CLK("musb-omap2430",	"ick",	&hsotgusb_ick_3430es1,	CK_3430ES1),
+	CLK("musb-omap2430",	"ick",	&hsotgusb_ick_3430es2,	CK_3430ES2PLUS
+								| CK_36XX),
 	CLK(NULL,	"sdrc_ick",	&sdrc_ick,	CK_3XXX),
 	CLK(NULL,	"gpmc_fck",	&gpmc_fck,	CK_3XXX),
 	CLK(NULL,	"security_l3_ick", &security_l3_ick, CK_34XX | CK_36XX),
