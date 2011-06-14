@@ -92,10 +92,10 @@
 #define EDMA_DCHMAP	0x0100  /* 64 registers */
 #define CHMAP_EXIST	BIT(24)
 
-#define EDMA_MAX_DMACH           64
-#define EDMA_MAX_PARAMENTRY     512
-#define EDMA_MAX_CC               2
 
+/*function that maps the cross bar events to channels */
+int (*xbar_event_to_channel_map)(unsigned event, unsigned *channel,
+			struct event_to_channel_map *xbar_event_map) = NULL;
 
 /*****************************************************************************/
 
@@ -216,41 +216,7 @@ static inline void clear_bits(int offset, int len, unsigned long *p)
 
 /*****************************************************************************/
 
-/* actual number of DMA channels and slots on this silicon */
-struct edma {
-	/* how many dma resources of each type */
-	unsigned	num_channels;
-	unsigned	num_region;
-	unsigned	num_slots;
-	unsigned	num_tc;
-	unsigned	num_cc;
-	enum dma_event_q	default_queue;
-
-	/* list of channels with no even trigger; terminated by "-1" */
-	const s8	*noevent;
-
-	/* The edma_inuse bit for each PaRAM slot is clear unless the
-	 * channel is in use ... by ARM or DSP, for QDMA, or whatever.
-	 */
-	DECLARE_BITMAP(edma_inuse, EDMA_MAX_PARAMENTRY);
-
-	/* The edma_unused bit for each channel is clear unless
-	 * it is not being used on this platform. It uses a bit
-	 * of SOC-specific initialization code.
-	 */
-	DECLARE_BITMAP(edma_unused, EDMA_MAX_DMACH);
-
-	unsigned	irq_res_start;
-	unsigned	irq_res_end;
-
-	struct dma_interrupt_data {
-		void (*callback)(unsigned channel, unsigned short ch_status,
-				void *data);
-		void *data;
-	} intr_data[EDMA_MAX_DMACH];
-};
-
-static struct edma *edma_info[EDMA_MAX_CC];
+struct edma *edma_info[EDMA_MAX_CC];
 static int arch_num_cc;
 
 /* dummy param set used to (re)initialize parameter RAM slots */
@@ -622,8 +588,15 @@ int edma_alloc_channel(int channel,
 	}
 
 	if (channel >= 0) {
-		ctlr = EDMA_CTLR(channel);
-		channel = EDMA_CHAN_SLOT(channel);
+			ctlr = EDMA_CTLR(channel);
+			channel = EDMA_CHAN_SLOT(channel);
+			if (xbar_event_to_channel_map) {
+				ret = xbar_event_to_channel_map(channel,
+						&channel, edma_info[ctlr]->
+						xbar_event_mapping);
+				if (ret != 0)
+					return ret;
+			}
 	}
 
 	if (channel < 0) {
@@ -1513,6 +1486,16 @@ static int __init edma_probe(struct platform_device *pdev)
 			edma_write_array2(j, EDMA_DRAE, i, 1, 0x0);
 			edma_write_array(j, EDMA_QRAE, i, 0x0);
 		}
+
+		edma_info[j]->is_xbar = info[j].is_xbar;
+
+		if (edma_info[j]->is_xbar) {
+			edma_info[j]->num_events = info[j].n_events;
+			edma_info[j]->xbar_event_mapping =
+						info[j].xbar_event_mapping;
+			xbar_event_to_channel_map = info[j].map_xbar_channel;
+		}
+
 		arch_num_cc++;
 	}
 

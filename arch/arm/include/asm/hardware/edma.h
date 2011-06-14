@@ -118,6 +118,57 @@ enum sync_dimension {
 #define EDMA_CONT_PARAMS_FIXED_EXACT	 1002
 #define EDMA_CONT_PARAMS_FIXED_NOT_EXACT 1003
 
+#define EDMA_MAX_DMACH           64
+#define EDMA_MAX_PARAMENTRY     512
+#define EDMA_MAX_CC               2
+
+
+/* Mapping of crossbar event numbers to actual DMA channels*/
+struct event_to_channel_map {
+	unsigned        xbar_event_no;
+	int		channel_no;
+};
+
+/* actual number of DMA channels and slots on this silicon */
+struct edma {
+	/* how many dma resources of each type */
+	unsigned	num_channels;
+	unsigned	num_region;
+	unsigned	num_slots;
+	unsigned	num_tc;
+	unsigned	num_cc;
+	enum dma_event_q	default_queue;
+
+	/* list of channels with no even trigger; terminated by "-1" */
+	const s8	*noevent;
+
+	/* The edma_inuse bit for each PaRAM slot is clear unless the
+	 * channel is in use ... by ARM or DSP, for QDMA, or whatever.
+	 */
+	DECLARE_BITMAP(edma_inuse, EDMA_MAX_PARAMENTRY);
+
+	/* The edma_unused bit for each channel is clear unless
+	 * it is not being used on this platform. It uses a bit
+	 * of SOC-specific initialization code.
+	 */
+	DECLARE_BITMAP(edma_unused, EDMA_MAX_DMACH);
+
+	unsigned	irq_res_start;
+	unsigned	irq_res_end;
+
+	struct dma_interrupt_data {
+		void (*callback)(unsigned channel, unsigned short ch_status,
+				void *data);
+		void *data;
+	} intr_data[EDMA_MAX_DMACH];
+
+	unsigned	is_xbar;
+	unsigned	num_events;
+	struct event_to_channel_map	*xbar_event_mapping;
+};
+
+extern struct edma *edma_info[EDMA_MAX_CC];
+
 /* alloc/free DMA channels and their dedicated parameter RAM slots */
 int edma_alloc_channel(int channel,
 	void (*callback)(unsigned channel, u16 ch_status, void *data),
@@ -172,6 +223,11 @@ struct edma_soc_info {
 	const s16	(*rsv_slots)[2];
 	const s8	(*queue_tc_mapping)[2];
 	const s8	(*queue_priority_mapping)[2];
+	unsigned	is_xbar;
+	unsigned	n_events;
+	struct event_to_channel_map    *xbar_event_mapping;
+	int		(*map_xbar_channel)(unsigned event, unsigned *channel,
+				struct event_to_channel_map *xbar_event_map);
 };
 
 #endif
