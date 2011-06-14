@@ -236,6 +236,7 @@ enum musb_g_ep0_state {
 #define		MUSB_GLUE_DMA_INVENTRA				0x0008
 #define		MUSB_GLUE_DMA_CPPI					0x0010
 #define		MUSB_GLUE_DMA_TUSB					0x0020
+#define		MUSB_GLUE_DMA_CPPI41					0x0040
 
 
 /**
@@ -672,6 +673,8 @@ static inline const char *get_dma_name(struct musb *musb)
 		return "dma-inventra";
 	else if (musb->ops->flags & MUSB_GLUE_DMA_CPPI)
 		return "dma-cppi3";
+	else if (musb->ops->flags & MUSB_GLUE_DMA_CPPI41)
+		return "dma-cppi41";
 	else if (musb->ops->flags & MUSB_GLUE_DMA_TUSB)
 		return "dma-tusb-omap";
 	else

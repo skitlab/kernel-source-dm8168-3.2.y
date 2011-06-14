@@ -396,7 +396,7 @@ static void txstate(struct musb *musb, struct musb_request *req)
 
 				musb_writew(epio, MUSB_TXCSR, csr);
 			}
-		} else if (is_cppi_enabled(musb)) {
+		} else if (is_cppi_enabled(musb) || is_cppi41_enabled(musb)) {
 			/* program endpoint CSR first, then setup DMA */
 			csr &= ~(MUSB_TXCSR_P_UNDERRUN | MUSB_TXCSR_TXPKTRDY);
 			csr |= MUSB_TXCSR_DMAENAB | MUSB_TXCSR_DMAMODE |
@@ -634,7 +634,8 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 		return;
 	}
 
-	if (is_cppi_enabled(musb) && musb_ep->dma) {
+	if ((is_cppi_enabled(musb) || is_cppi41_enabled(musb)) &&
+					musb_ep->dma) {
 		struct dma_controller	*c = musb->dma_controller;
 		struct dma_channel	*channel = musb_ep->dma;
 
