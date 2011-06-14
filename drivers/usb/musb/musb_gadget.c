@@ -415,7 +415,7 @@ static void txstate(struct musb *musb, struct musb_request *req)
 				musb_writew(epio, MUSB_TXCSR, csr);
 				/* invariant: prequest->buf is non-null */
 			}
-		} else if (tusb_dma_omap()) {
+		} else if (tusb_dma_omap(musb)) {
 			use_dma = use_dma && c->channel_program(
 					musb_ep->dma, musb_ep->packet_sz,
 					request->zero,
@@ -728,7 +728,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 
 			fifo_count = min_t(unsigned, len, fifo_count);
 
-			if (tusb_dma_omap() && musb_ep->dma) {
+			if (tusb_dma_omap(musb) && musb_ep->dma) {
 				struct dma_controller *c = musb->dma_controller;
 				struct dma_channel *channel = musb_ep->dma;
 				u32 dma_addr = request->dma + request->actual;
@@ -852,7 +852,7 @@ void musb_g_rx(struct musb *musb, u8 epnum)
 			musb_readw(epio, MUSB_RXCSR),
 			musb_ep->dma->actual_len, request);
 
-		if (is_inventra_dma(musb) || tusb_dma_omap()) {
+		if (is_inventra_dma(musb) || tusb_dma_omap(musb)) {
 			/* Autoclear doesn't clear RxPktRdy for short packets */
 			if ((dma->desired_mode == 0 &&
 				!hw_ep->rx_double_buffered) ||
