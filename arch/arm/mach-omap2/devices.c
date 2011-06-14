@@ -21,6 +21,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 #include <asm/pmu.h>
+#include <asm/hardware/edma.h>
 
 #include <plat/tc.h>
 #include <plat/board.h>
@@ -959,6 +960,327 @@ static inline void omap_init_vout(void) {}
 
 /*-------------------------------------------------------------------------*/
 
+#if defined(CONFIG_ARCH_TI81XX)
+
+#define TI81XX_TPCC_BASE		0x49000000
+#define TI81XX_TPTC0_BASE		0x49800000
+#define TI81XX_TPTC1_BASE		0x49900000
+#define TI81XX_TPTC2_BASE		0x49a00000
+#define TI81XX_TPTC3_BASE		0x49b00000
+
+#define TI81XX_SCM_BASE_EDMA		0x00000f90
+
+static struct resource ti81xx_edma_resources[] = {
+	{
+		.name	= "edma_cc0",
+		.start	= TI81XX_TPCC_BASE,
+		.end	= TI81XX_TPCC_BASE + SZ_32K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "edma_tc0",
+		.start	= TI81XX_TPTC0_BASE,
+		.end	= TI81XX_TPTC0_BASE + SZ_1K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "edma_tc1",
+		.start	= TI81XX_TPTC1_BASE,
+		.end	= TI81XX_TPTC1_BASE + SZ_1K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "edma_tc2",
+		.start	= TI81XX_TPTC2_BASE,
+		.end	= TI81XX_TPTC2_BASE + SZ_1K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "edma_tc3",
+		.start	= TI81XX_TPTC3_BASE,
+		.end	= TI81XX_TPTC3_BASE + SZ_1K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "edma0",
+		.start	= TI81XX_IRQ_EDMA_COMP,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.name	= "edma0_err",
+		.start	= TI81XX_IRQ_EDMA_ERR,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static const s16 ti816x_dma_rsv_chans[][2] = {
+	/* (offset, number) */
+	{0, 4},
+	{26, 6},
+	{48, 4},
+	{56, 8},
+	{-1, -1}
+};
+
+static const s16 ti816x_dma_rsv_slots[][2] = {
+	/* (offset, number) */
+	{0, 4},
+	{26, 6},
+	{48, 4},
+	{56, 8},
+	{64, 127},
+	{-1, -1}
+};
+
+/* Four Transfer Controllers on TI816X */
+static const s8 ti816x_queue_tc_mapping[][2] = {
+	/* {event queue no, TC no} */
+	{0, 0},
+	{1, 1},
+	{2, 2},
+	{3, 3},
+	{-1, -1}
+};
+
+static const s8 ti816x_queue_priority_mapping[][2] = {
+	/* {event queue no, Priority} */
+	{0, 0},
+	{1, 1},
+	{2, 2},
+	{3, 3},
+	{-1, -1}
+};
+
+static struct edma_soc_info ti816x_edma_info[] = {
+	{
+		.n_channel		= 64,
+		.n_region		= 5,	/* 0-2, 4-5 */
+		.n_slot			= 512,
+		.n_tc			= 4,
+		.n_cc			= 1,
+		.rsv_chans		= ti816x_dma_rsv_chans,
+		.rsv_slots		= ti816x_dma_rsv_slots,
+		.queue_tc_mapping	= ti816x_queue_tc_mapping,
+		.queue_priority_mapping	= ti816x_queue_priority_mapping,
+	},
+};
+
+static struct platform_device ti816x_edma_device = {
+	.name		= "edma",
+	.id		= -1,
+	.dev = {
+		.platform_data = ti816x_edma_info,
+	},
+	.num_resources	= ARRAY_SIZE(ti81xx_edma_resources),
+	.resource	= ti81xx_edma_resources,
+};
+
+static const s16 ti814x_dma_rsv_chans[][2] = {
+	/* (offset, number) */
+	{0, 2},
+	{14, 2},
+	{26, 6},
+	{48, 4},
+	{56, 8},
+	{-1, -1}
+};
+
+static const s16 ti814x_dma_rsv_slots[][2] = {
+	/* (offset, number) */
+	{0, 2},
+	{14, 2},
+	{26, 6},
+	{48, 4},
+	{56, 8},
+	{64, 127},
+	{-1, -1}
+};
+
+/* Four Transfer Controllers on TI814X */
+static const s8 ti814x_queue_tc_mapping[][2] = {
+	/* {event queue no, TC no} */
+	{0, 0},
+	{1, 1},
+	{2, 2},
+	{3, 3},
+	{-1, -1}
+};
+
+static const s8 ti814x_queue_priority_mapping[][2] = {
+	/* {event queue no, Priority} */
+	{0, 0},
+	{1, 1},
+	{2, 2},
+	{3, 3},
+	{-1, -1}
+};
+
+static struct event_to_channel_map ti814x_xbar_event_mapping[] = {
+	/* {xbar event no, Channel} */
+	{1, -1},
+	{2, -1},
+	{3, -1},
+	{4, -1},
+	{5, -1},
+	{6, -1},
+	{7, -1},
+	{8, -1},
+	{9, -1},
+	{10, -1},
+	{11, -1},
+	{12, -1},
+	{13, -1},
+	{14, -1},
+	{15, -1},
+	{16, -1},
+	{17, -1},
+	{18, -1},
+	{19, -1},
+	{20, -1},
+	{21, -1},
+	{22, -1},
+	{23, -1},
+	{24, -1},
+	{25, -1},
+	{26, -1},
+	{27, -1},
+	{28, -1},
+	{29, -1},
+	{30, -1},
+	{31, -1},
+	{-1, -1}
+};
+
+/**
+ * map_xbar_event_to_channel - maps a crossbar event to a DMA channel
+ * according to the configuration provided
+ * @event: the event number for which mapping is required
+ * @channel: channel being activated
+ * @xbar_event_mapping: array that has the event to channel map
+ *
+ * Events that are routed by default are not mapped. Only events that
+ * are crossbar mapped are routed to available channels according to
+ * the configuration provided
+ *
+ * Returns zero on success, else negative errno.
+ */
+int map_xbar_event_to_channel(unsigned event, unsigned *channel,
+			struct event_to_channel_map *xbar_event_mapping)
+{
+	unsigned ctrl = 0;
+	unsigned xbar_evt_no = 0;
+	unsigned val = 0;
+	unsigned offset = 0;
+	unsigned mask = 0;
+
+	ctrl = EDMA_CTLR(event);
+	xbar_evt_no = event - (edma_info[ctrl]->num_channels);
+
+	if (event < edma_info[ctrl]->num_channels) {
+		*channel = event;
+	} else if (event < edma_info[ctrl]->num_events) {
+		*channel = xbar_event_mapping[xbar_evt_no].channel_no;
+		offset = (*channel)/4;
+		val = (unsigned)__raw_readl(TI81XX_CTRL_REGADDR(
+					TI81XX_SCM_BASE_EDMA + offset));
+		mask = (*channel)%4;
+		val = val & (~((0xFF) << mask));
+		val = val | (xbar_event_mapping[xbar_evt_no].xbar_event_no
+								<< mask);
+		__raw_writel(val, TI81XX_CTRL_REGADDR(TI81XX_SCM_BASE_EDMA
+								+ offset));
+		return 0;
+	} else {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(map_xbar_event_to_channel);
+
+static struct edma_soc_info ti814x_edma_info[] = {
+	{
+		.n_channel		= 64,
+		.n_region		= 5,	/* 0-2, 4-5 */
+		.n_slot			= 512,
+		.n_tc			= 4,
+		.n_cc			= 1,
+		.rsv_chans		= ti814x_dma_rsv_chans,
+		.rsv_slots		= ti814x_dma_rsv_slots,
+		.queue_tc_mapping	= ti814x_queue_tc_mapping,
+		.queue_priority_mapping	= ti814x_queue_priority_mapping,
+		.is_xbar		= 1,
+		.n_events		= 95,
+		.xbar_event_mapping	= ti814x_xbar_event_mapping,
+		.map_xbar_channel	= map_xbar_event_to_channel,
+	},
+};
+
+static struct platform_device ti814x_edma_device = {
+	.name		= "edma",
+	.id		= -1,
+	.dev = {
+		.platform_data = ti814x_edma_info,
+	},
+	.num_resources	= ARRAY_SIZE(ti81xx_edma_resources),
+	.resource	= ti81xx_edma_resources,
+};
+
+int __init ti81xx_register_edma(void)
+{
+	struct platform_device *pdev;
+	static struct clk *edma_clk;
+
+	if (cpu_is_ti816x())
+		pdev = &ti816x_edma_device;
+	else if (cpu_is_ti814x())
+		pdev = &ti814x_edma_device;
+	else {
+		pr_err("%s: platform not supported\n", __func__);
+		return -ENODEV;
+	}
+
+	edma_clk = clk_get(NULL, "tpcc_ick");
+	if (IS_ERR(edma_clk)) {
+		printk(KERN_ERR "EDMA: Failed to get clock\n");
+		return -EBUSY;
+	}
+	clk_enable(edma_clk);
+	edma_clk = clk_get(NULL, "tptc0_ick");
+	if (IS_ERR(edma_clk)) {
+		printk(KERN_ERR "EDMA: Failed to get clock\n");
+		return -EBUSY;
+	}
+	clk_enable(edma_clk);
+	edma_clk = clk_get(NULL, "tptc1_ick");
+	if (IS_ERR(edma_clk)) {
+		printk(KERN_ERR "EDMA: Failed to get clock\n");
+		return -EBUSY;
+	}
+	clk_enable(edma_clk);
+	edma_clk = clk_get(NULL, "tptc2_ick");
+	if (IS_ERR(edma_clk)) {
+		printk(KERN_ERR "EDMA: Failed to get clock\n");
+		return -EBUSY;
+	}
+	clk_enable(edma_clk);
+	edma_clk = clk_get(NULL, "tptc3_ick");
+	if (IS_ERR(edma_clk)) {
+		printk(KERN_ERR "EDMA: Failed to get clock\n");
+		return -EBUSY;
+	}
+	clk_enable(edma_clk);
+
+
+	return platform_device_register(pdev);
+}
+
+#else
+static inline void ti81xx_register_edma(void) {}
+#endif
+
+/*-------------------------------------------------------------------------*/
+
 #if defined(CONFIG_ARCH_TI816X) && defined(CONFIG_PCI)
 static struct ti816x_pcie_data ti816x_pcie_data = {
 	.msi_irq_base	= MSI_IRQ_BASE,
@@ -1054,6 +1376,7 @@ static int __init omap2_init_devices(void)
 	omap_init_aes();
 	omap_init_vout();
 	ti816x_init_pcie();
+	ti81xx_register_edma();
 
 	return 0;
 }
