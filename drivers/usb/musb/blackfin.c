@@ -420,7 +420,8 @@ static int bfin_musb_exit(struct musb *musb)
 
 static const struct musb_platform_ops bfin_ops = {
 	.fifo_mode	= 2,
-	.flags		= MUSB_GLUE_EP_ADDR_FLAT_MAPPING,
+	.flags		= MUSB_GLUE_EP_ADDR_FLAT_MAPPING |
+				MUSB_GLUE_DMA_INVENTRA,
 	.init		= bfin_musb_init,
 	.exit		= bfin_musb_exit,
 
@@ -435,6 +436,9 @@ static const struct musb_platform_ops bfin_ops = {
 
 	.read_fifo	= bfin_musb_read_fifo,
 	.write_fifo	= bfin_musb_write_fifo,
+
+	.dma_controller_create = inventra_dma_controller_create,
+	.dma_controller_destroy = inventra_dma_controller_destroy,
 };
 
 static u64 bfin_dmamask = DMA_BIT_MASK(32);

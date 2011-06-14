@@ -30,6 +30,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+#include <linux/module.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
@@ -357,7 +358,7 @@ done:
 	return retval;
 }
 
-void dma_controller_destroy(struct dma_controller *c)
+void inventra_dma_controller_destroy(struct dma_controller *c)
 {
 	struct musb_dma_controller *controller = container_of(c,
 			struct musb_dma_controller, controller);
@@ -370,9 +371,10 @@ void dma_controller_destroy(struct dma_controller *c)
 
 	kfree(controller);
 }
+EXPORT_SYMBOL(inventra_dma_controller_destroy);
 
 struct dma_controller *__devinit
-dma_controller_create(struct musb *musb, void __iomem *base)
+inventra_dma_controller_create(struct musb *musb, void __iomem *base)
 {
 	struct musb_dma_controller *controller;
 	struct device *dev = musb->controller;
@@ -402,7 +404,7 @@ dma_controller_create(struct musb *musb, void __iomem *base)
 	if (request_irq(irq, dma_controller_irq, IRQF_DISABLED,
 			dev_name(musb->controller), &controller->controller)) {
 		dev_err(dev, "request_irq %d failed!\n", irq);
-		dma_controller_destroy(&controller->controller);
+		inventra_dma_controller_destroy(&controller->controller);
 
 		return NULL;
 	}
@@ -411,3 +413,18 @@ dma_controller_create(struct musb *musb, void __iomem *base)
 
 	return &controller->controller;
 }
+EXPORT_SYMBOL(inventra_dma_controller_create);
+
+MODULE_DESCRIPTION("MUSB Inventra dma controller driver");
+MODULE_LICENSE("GPL v2");
+
+static int __init inventra_dma_init(void)
+{
+	return 0;
+}
+module_init(inventra_dma_init);
+
+static void __exit inventra_dma__exit(void)
+{
+}
+module_exit(inventra_dma__exit);

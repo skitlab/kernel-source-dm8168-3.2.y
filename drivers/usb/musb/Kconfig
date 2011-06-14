@@ -179,28 +179,44 @@ config MUSB_PIO_ONLY
 	  you can still disable it at run time using the "use_dma=n" module
 	  parameter.
 
-config USB_INVENTRA_DMA
-	bool
+config USB_INVENTRA_DMA_HW
+	select USB_INVENTRA_DMA
+	tristate
 	depends on USB_MUSB_HDRC && !MUSB_PIO_ONLY
 	default USB_MUSB_OMAP2PLUS || USB_MUSB_BLACKFIN
 	help
 	  Enable DMA transfers using Mentor's engine.
 
-config USB_TI_CPPI_DMA
-	bool
+config USB_TI_CPPI_DMA_HW
+	select USB_TI_CPPI_DMA
+	tristate
 	depends on USB_MUSB_HDRC && !MUSB_PIO_ONLY
 	default USB_MUSB_DAVINCI
 	help
 	  Enable DMA transfers when TI CPPI DMA is available.
 
-config USB_TUSB_OMAP_DMA
-	bool
+config USB_TUSB_OMAP_DMA_HW
+	select USB_TUSB_OMAP_DMA
+	tristate
 	depends on USB_MUSB_HDRC && !MUSB_PIO_ONLY
 	depends on USB_MUSB_TUSB6010
 	depends on ARCH_OMAP
 	default y
 	help
 	  Enable DMA transfers on TUSB 6010 when OMAP DMA is available.
+
+config USB_INVENTRA_DMA
+	bool
+	default n
+
+config USB_TI_CPPI_DMA
+	bool
+	default n
+
+config USB_TUSB_OMAP_DMA
+	bool
+	default n
+
 
 config	USB_MUSB_DEBUG
 	depends on USB_MUSB_HDRC
