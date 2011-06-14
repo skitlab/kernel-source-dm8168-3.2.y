@@ -94,6 +94,58 @@ void usb_musb_disable_autoidle(void)
 
 #if defined(CONFIG_USB_MUSB_OMAP2PLUS) || defined(CONFIG_USB_MUSB_AM35X)
 
+static void ti81xx_musb_phy_power(u8 id, u8 on)
+{
+	u32 usbphycfg, ctrl_offs;
+
+	ctrl_offs = id ? TI81XX_USBCTRL1 : TI81XX_USBCTRL0;
+	usbphycfg = omap_ctrl_readl(ctrl_offs);
+
+	if (on) {
+		if (cpu_is_ti816x()) {
+			usbphycfg |= (TI816X_USBPHY0_NORMAL_MODE
+					| TI816X_USBPHY1_NORMAL_MODE);
+			usbphycfg &= ~(TI816X_USBPHY_REFCLK_OSC);
+		} else if (cpu_is_ti814x()) {
+			usbphycfg &= ~(TI814X_USBPHY_CM_PWRDN
+				| TI814X_USBPHY_OTG_PWRDN
+				| TI814X_USBPHY_DMPULLUP
+				| TI814X_USBPHY_DPPULLUP
+				| TI814X_USBPHY_DPINPUT
+				| TI814X_USBPHY_DMINPUT
+				| TI814X_USBPHY_DATA_POLARITY);
+			usbphycfg |= (TI814X_USBPHY_SRCONDM
+				| TI814X_USBPHY_SINKONDP
+				| TI814X_USBPHY_CHGISINK_EN
+				| TI814X_USBPHY_CHGVSRC_EN
+				| TI814X_USBPHY_CDET_EXTCTL
+				| TI814X_USBPHY_DPOPBUFCTL
+				| TI814X_USBPHY_DMOPBUFCTL
+				| TI814X_USBPHY_DPGPIO_PD
+				| TI814X_USBPHY_DMGPIO_PD
+				| TI814X_USBPHY_OTGVDET_EN
+				| TI814X_USBPHY_OTGSESSEND_EN);
+		}
+
+		omap_ctrl_writel(usbphycfg, ctrl_offs);
+		pr_info(KERN_INFO "usbphy_ctrl%d=%x\n", id,
+			omap_ctrl_readl(ctrl_offs));
+		pr_info(KERN_INFO "usbphy_stat%d=%x\n", id, omap_ctrl_readl(id ?
+			TI81XX_USBSTAT0 : TI81XX_USBSTAT1));
+
+	} else {
+		if (cpu_is_ti816x())
+			usbphycfg &= ~(TI816X_USBPHY0_NORMAL_MODE
+				| TI816X_USBPHY1_NORMAL_MODE
+				| TI816X_USBPHY_REFCLK_OSC);
+		else if (cpu_is_ti814x())
+			usbphycfg |= TI814X_USBPHY_CM_PWRDN
+				| TI814X_USBPHY_OTG_PWRDN;
+
+		omap_ctrl_writel(usbphycfg, ctrl_offs);
+	}
+}
+
 static void am35x_musb_reset(void)
 {
 	u32	regval;
@@ -110,7 +162,7 @@ static void am35x_musb_reset(void)
 	regval = omap_ctrl_readl(AM35XX_CONTROL_IP_SW_RESET);
 }
 
-static void am35x_musb_phy_power(u8 on)
+static void am35x_musb_phy_power(u8 id, u8 on)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(100);
 	u32 devconf2;
@@ -298,6 +350,7 @@ void __init usb_musb_init(struct omap_musb_board_data *board_data)
 		}
 
 		musb_config.fifo_mode = 4;
+		board_data->set_phy_power = ti81xx_musb_phy_power;
 	}
 
 	if (cpu_is_omap3517() || cpu_is_omap3505())
