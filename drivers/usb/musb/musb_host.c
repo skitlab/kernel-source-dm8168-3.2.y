@@ -881,9 +881,9 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 		} else {
 			csr = musb_readw(hw_ep->regs, MUSB_RXCSR);
 
-			if (csr & (MUSB_RXCSR_RXPKTRDY
-					| MUSB_RXCSR_DMAENAB
-					| MUSB_RXCSR_H_REQPKT))
+			if (csr & (MUSB_RXCSR_RXPKTRDY | (is_cppi_enabled(musb)
+			|| is_cppi41_enabled(musb)) ? 0 : MUSB_RXCSR_DMAENAB
+			| MUSB_RXCSR_H_REQPKT))
 				ERR("broken !rx_reinit, ep%d csr %04x\n",
 						hw_ep->epnum, csr);
 
@@ -1641,7 +1641,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 		musb_ep_select(musb, mbase, epnum);
 		musb_writew(epio, MUSB_RXCSR,
 				MUSB_RXCSR_H_WZC_BITS | rx_csr);
-	}
+
 	if (dma && (rx_csr & MUSB_RXCSR_DMAENAB)) {
 		xfer_len = dma->actual_len;
 
@@ -1651,45 +1651,62 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			| MUSB_RXCSR_RXPKTRDY);
 		musb_writew(hw_ep->regs, MUSB_RXCSR, val);
 
-		if (is_inventra_dma(musb)) {
-			if (usb_pipeisoc(pipe)) {
-				struct usb_iso_packet_descriptor *d;
+		if (is_cppi_enabled(musb) || is_cppi41_enabled(musb))
+			val |= MUSB_RXCSR_DMAENAB;
 
-				d = urb->iso_frame_desc + qh->iso_idx;
-				d->actual_length = xfer_len;
+		musb_writew(hw_ep->regs, MUSB_RXCSR, val);
 
-				/* even if there was an error, we did the dma
-				 * for iso_frame_desc->length
-				 */
-				if (d->status != EILSEQ &&
-					d->status != -EOVERFLOW)
-					d->status = 0;
+		if (usb_pipeisoc(pipe)) {
+			struct usb_iso_packet_descriptor *d;
 
-				if (++qh->iso_idx >= urb->number_of_packets)
-					done = true;
-				else
-					done = false;
+			d = urb->iso_frame_desc + qh->iso_idx;
+			d->actual_length = xfer_len;
 
-			} else  {
-			/* done if urb buffer is full or short packet is recd */
-			done = (urb->actual_length + xfer_len >=
-					urb->transfer_buffer_length
-				|| dma->actual_len < qh->maxpacket);
+			/* even if there was an error, we did the dma
+			 * for iso_frame_desc->length
+			 */
+			if (d->status != EILSEQ && d->status != -EOVERFLOW)
+				d->status = 0;
+
+			if (++qh->iso_idx >= urb->number_of_packets)
+				done = true;
+			else if (is_cppi_enabled(musb) ||
+				is_cppi41_enabled(musb)) {
+				struct dma_controller   *c;
+				void *buf;
+				u32 length, ret;
+
+				c = musb->dma_controller;
+				buf = (void *)
+					urb->iso_frame_desc[qh->iso_idx].offset
+					+ (u32)urb->transfer_dma;
+
+				length =
+					urb->iso_frame_desc[qh->iso_idx].length;
+
+				ret = c->channel_program(dma, qh->maxpacket,
+						0, (u32) buf, length);
+			} else {
+				done = false;
 			}
+		} else  {
+		/* done if urb buffer is full or short packet is recd */
+		done = (urb->actual_length + xfer_len >=
+				urb->transfer_buffer_length
+			|| dma->actual_len < qh->maxpacket);
+		}
 
-			/* send IN token for next packet, without AUTOREQ */
-			if (!done) {
-				val |= MUSB_RXCSR_H_REQPKT;
-				musb_writew(epio, MUSB_RXCSR,
-					MUSB_RXCSR_H_WZC_BITS | val);
-			}
+		/* send IN token for next packet, without AUTOREQ */
+		if (!done) {
+			val |= MUSB_RXCSR_H_REQPKT;
+			musb_writew(epio, MUSB_RXCSR,
+				MUSB_RXCSR_H_WZC_BITS | val);
+		}
 
-			DBG(4, "ep %d dma %s, rxcsr %04x, rxcount %d\n", epnum,
-				done ? "off" : "reset",
-				musb_readw(epio, MUSB_RXCSR),
-				musb_readw(epio, MUSB_RXCOUNT));
-		} else {
-			done = true;
+		DBG(4, "ep %d dma %s, rxcsr %04x, rxcount %d\n", epnum,
+			done ? "off" : "reset",
+			musb_readw(epio, MUSB_RXCSR),
+			musb_readw(epio, MUSB_RXCOUNT));
 		}
 	} else if (urb->status == -EINPROGRESS) {
 		/* if no errors, be sure a packet is ready for unloading */
@@ -1708,7 +1725,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 		}
 
 		/* we are expecting IN packets */
-		if (is_inventra_dma(musb) && dma) {
+		if (dma) {
 			struct dma_controller	*c;
 			u16			rx_count;
 			int			ret, length;
