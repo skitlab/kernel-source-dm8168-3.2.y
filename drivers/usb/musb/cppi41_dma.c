@@ -328,11 +328,6 @@ static int cppi41_controller_stop(struct dma_controller *controller)
 	cppi = container_of(controller, struct cppi41, controller);
 	cppi_info = cppi->cppi_info;
 
-	/*
-	 * pop all the teardwon descriptor queued to tdQueue
-	 */
-	cppi41_free_teardown_queue(0);
-
 	/* Free the teardown completion queue */
 	if (cppi41_queue_free(cppi_info->q_mgr, cppi->teardownQNum))
 		DBG(1, "ERROR: failed to free teardown completion queue\n");

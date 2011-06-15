@@ -473,7 +473,7 @@ int __init cppi41_init(struct musb *musb)
 	return 0;
 }
 
-void cppi41_free(struct musb *musb)
+void cppi41_free(void)
 {
 	if (!cppi41_init_done)
 		return ;
@@ -1103,10 +1103,6 @@ int ti81xx_musb_exit(struct musb *musb)
 
 	phy_off(musb->id);
 
-#ifdef CONFIG_USB_TI_CPPI41_DMA
-	cppi41_exit();
-	cppi41_free(musb);
-#endif
 	return 0;
 }
 
@@ -1260,6 +1256,7 @@ subsys_initcall(ti81xx_glue_init);
 
 static void __exit ti81xx_glue_exit(void)
 {
+	cppi41_exit();
 	platform_driver_unregister(&ti81xx_musb_driver);
 }
 module_exit(ti81xx_glue_exit);
