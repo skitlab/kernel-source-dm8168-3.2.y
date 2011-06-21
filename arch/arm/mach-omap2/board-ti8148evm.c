@@ -209,8 +209,8 @@ static struct omap_musb_board_data musb_board_data = {
 #elif defined(CONFIG_USB_GADGET_MUSB_HDRC)
 	.mode           = MUSB_PERIPHERAL,
 #endif
-	.power			= 500,
-	.instances              = 1,
+	.power		= 500,
+	.instances	= 1,
 };
 
 static struct platform_device vpss_device = {

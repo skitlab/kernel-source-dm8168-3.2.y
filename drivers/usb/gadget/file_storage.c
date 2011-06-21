@@ -1319,6 +1319,11 @@ static int do_write(struct fsg_dev *fsg)
 			amount = min((loff_t) amount, curlun->file_length -
 					usb_offset);
 			partial_page = usb_offset & (PAGE_CACHE_SIZE - 1);
+			/* TBD: commented the below lines
+			 * the performance of file write from host is low due
+			 * to file stroage gadget driver submits two fetch
+			 * reques and performs two writes to storage media
+			 */
 			/*
 			if (partial_page > 0)
 				amount = min(amount,
