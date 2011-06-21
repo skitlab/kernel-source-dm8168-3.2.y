@@ -347,13 +347,17 @@ void __init usb_musb_init(struct omap_musb_board_data *board_data)
 		musb_resources[2].start = OMAP44XX_IRQ_HS_USB_DMA_N;
 	} else if (cpu_is_ti81xx()) {
 
+		musb_config.fifo_mode = 4;
+
 		/* disable musb multipoint support for ti8168 */
 		if (cpu_is_ti816x())
 			musb_config.multipoint = 0;
 
 		/* only usb0 port enabled in peripheral mode*/
-		if (board_data->mode == MUSB_PERIPHERAL)
+		if (board_data->mode == MUSB_PERIPHERAL) {
 			board_data->instances = 0;
+			musb_config.fifo_mode = 6;
+		}
 
 		musb_resources[0].start = TI81XX_USB0_BASE;
 		musb_resources[1].start = TI81XX_IRQ_USB0;
@@ -364,7 +368,6 @@ void __init usb_musb_init(struct omap_musb_board_data *board_data)
 			musb_device[i].num_resources = 0;
 		}
 
-		musb_config.fifo_mode = 4;
 		board_data->set_phy_power = ti81xx_musb_phy_power;
 	}
 
