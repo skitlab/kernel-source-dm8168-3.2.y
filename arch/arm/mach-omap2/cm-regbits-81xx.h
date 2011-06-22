@@ -333,7 +333,21 @@
 
 #define TI816X_PLL_MAX_MULT				0x1FF
 #define TI816X_PLL_MAX_DIV				0xFF
+#define TI816X_PLL_MIN_DIV				1
 #define TI816X_PLL_RATE_TOLARANCE			10000000
+
+/* Flag to specify FREQ, M values are contributing for
+ * synthesizer frequency change
+ */
+#define TI816X_SYN_FREQ_VALUE_PRESENT			0x1
+
+#define TI816X_SYNTHESIZER_ID1				1
+#define TI816X_SYNTHESIZER_ID2				2
+#define TI816X_SYNTHESIZER_ID3				3
+#define TI816X_SYNTHESIZER_ID4				4
+#define TI816X_SYNTHESIZER_ID5				5
+#define TI816X_SYNTHESIZER_ID6				6
+#define TI816X_SYNTHESIZER_ID7				7
 
 /* Main PLL */
 #define TI816X_MAINPLL_ID				1
@@ -509,14 +523,6 @@
 
 #define TI816X_VIDEOPLL_PWD_CLK3_SHIFT			3
 #define TI816X_VIDEOPLL_PWD_CLK3_MASK			(1 << 3)
-
-#define TI816X_SYNTHESIZER_ID1				1
-#define TI816X_SYNTHESIZER_ID2				2
-#define TI816X_SYNTHESIZER_ID3				3
-#define TI816X_SYNTHESIZER_ID4				4
-#define TI816X_SYNTHESIZER_ID5				5
-#define TI816X_SYNTHESIZER_ID6				6
-#define TI816X_SYNTHESIZER_ID7				7
 
 /* Audio PLL */
 #define TI816X_AUDIOPLL_ID				4

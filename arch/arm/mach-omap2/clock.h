@@ -43,10 +43,8 @@
 #define OMAP4XXX_EN_DPLL_LOCKED			0x7
 
 /* TI816X FAPLL_CTRL bits - for ti816x_get_fapll_rate() */
-#define TI816X_FAPLL_LOCKED_SHIFT		0x0
-#define TI816X_FAPLL_LOCKED_MASK		(1 << 0x0)
-#define TI816X_FAPLL_BYPASS_SHIFT		0x2
-#define TI816X_FAPLL_BYPASS_MASK		(1 << 0x2)
+#define FAPLL_LOW_POWER_STOP			0x1
+#define FAPLL_LOW_POWER_BYPASS			0x1
 
 /* CM_CLKEN_PLL*.EN* bit values - not all are available for every DPLL */
 #define DPLL_LOW_POWER_STOP	0x1

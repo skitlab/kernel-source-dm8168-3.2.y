@@ -44,6 +44,22 @@
 #define TI816X_FAPLL_FREQ_MAX_VALUE	15
 #define TI816X_FAPLL_K			8
 
+/* Enable disable flags */
+#define TI816X_FAPLL_DISABLE		0x0
+#define TI816X_FAPLL_ENABLE		0x1
+
+#define TI816X_FAPLL_SYN_POWER_DOWN	0x1
+#define TI816X_FAPLL_SYN_POWER_UP	0x0
+
+#define TI816X_FAPLL_LOCKED		0x1
+
+#define TI816X_FAPLL_BYPASS_EN		0x1
+#define TI816X_FAPLL_BYPASS_DIS		0x0
+
+#define TI816X_LOAD_DIV1_VALUE		0x1
+#define TI816X_LOAD_FREQ_VALUE		0x1
+#define TI816X_TRUNC_FREQ_VALUE_EN	0x1
+
 struct ti816x_fapll_def {
 	char		*clk_name;
 	unsigned long	freq;
@@ -98,7 +114,7 @@ static struct ti816x_fapll_def __initdata ti816x_freq_def_list[] = {
  * @clk: pointer to a FAPLL struct clk
  * @state: locked state
  *
- * Checks the FAPLL status whether it is in locked stste or not
+ * Checks the FAPLL status whether it is in locked state or not
  * If the FAPLL locked successfully, return 0; if the FAPLL
  * did not lock in the time allotted, or FAPLL was passed in,
  * return -EINVAL.
@@ -151,7 +167,7 @@ static int _ti816x_rel_fapll_bypass(struct clk *clk)
 
 	v = __raw_readl(fd->control_reg);
 	v &= ~fd->bypass_mask;
-	v |= (0 << __ffs(fd->bypass_mask));
+	v |= TI816X_FAPLL_BYPASS_DIS << __ffs(fd->bypass_mask);
 	__raw_writel(v, fd->control_reg);
 
 	return 0;
@@ -175,7 +191,7 @@ static int _ti816x_put_fapll_bypass(struct clk *clk)
 	const struct fapll_data *fd;
 	fd = clk->fapll_data;
 
-	if (!(clk->fapll_data->modes & TI816X_FAPLL_BYPASS_MASK))
+	if (!(clk->fapll_data->modes & FAPLL_LOW_POWER_BYPASS))
 		return -EINVAL;
 
 	pr_debug("clock: configuring FAPLL %s for bypass\n",
@@ -183,7 +199,7 @@ static int _ti816x_put_fapll_bypass(struct clk *clk)
 
 	v = __raw_readl(fd->control_reg);
 	v &= ~fd->bypass_mask;
-	v |= (1 << __ffs(fd->bypass_mask));
+	v |= TI816X_FAPLL_BYPASS_EN << __ffs(fd->bypass_mask);
 	__raw_writel(v, fd->control_reg);
 
 	return 0;
@@ -201,21 +217,10 @@ static int _ti816x_put_fapll_bypass(struct clk *clk)
 static int _ti816x_fapll_lock(struct clk *clk)
 {
 	int r;
-	u32 v;
 	const struct fapll_data *fd;
 	fd = clk->fapll_data;
 
-	if (!(clk->fapll_data->modes & TI816X_FAPLL_LOCKED_MASK))
-		return -EINVAL;
-
-	pr_debug("clock: locking FAPLL %s\n", clk->name);
-
-	v = __raw_readl(fd->control_reg);
-	v &= ~fd->lock_mask;
-	v |= (1 << __ffs(fd->lock_mask));
-	__raw_writel(v, fd->control_reg);
-
-	r = _ti816x_wait_fapll_status(clk, 1);
+	r = _ti816x_wait_fapll_status(clk, TI816X_FAPLL_LOCKED);
 
 	return r;
 }
@@ -234,16 +239,12 @@ static int _ti816x_fapll_syn_pwr_up(struct clk *clk)
 	const struct fapll_data *fd;
 	fd = clk->fapll_data;
 
-	if (!(clk->fapll_data->modes & (1 << TI816X_FAPLL_PWD_SHIFT)))
-		return -EINVAL;
-
-	pr_debug("clock: stopping FAPLL %s\n", clk->name);
+	pr_debug("clock: stopping FAPLL synthesizer %s\n", clk->name);
 
 	v = __raw_readl(fd->pwd_reg);
 	v &= ~clk->pwd_mask;
-	v |= (0 << clk->synthesizer_id) << __ffs(clk->pwd_mask);
+	v |= TI816X_FAPLL_SYN_POWER_UP << __ffs(clk->pwd_mask);
 	__raw_writel(v, fd->pwd_reg);
-
 
 	return 0;
 }
@@ -262,18 +263,42 @@ static int _ti816x_fapll_syn_pwr_down(struct clk *clk)
 	const struct fapll_data *fd;
 	fd = clk->fapll_data;
 
-	if (!(clk->fapll_data->modes & (1 << TI816X_FAPLL_PWD_SHIFT)))
-		return -EINVAL;
-
-	pr_debug("clock: stopping FAPLL %s\n", clk->name);
+	pr_debug("clock: stopping FAPLL synthesizer %s\n", clk->name);
 
 	v = __raw_readl(fd->pwd_reg);
 	v &= ~clk->pwd_mask;
-	v |= (1 << clk->synthesizer_id) << __ffs(clk->pwd_mask);
+	v |= TI816X_FAPLL_SYN_POWER_DOWN << __ffs(clk->pwd_mask);
 	__raw_writel(v, fd->pwd_reg);
 
 
 	return 0;
+}
+
+/**
+ * _ti816x_fapll_stop - instruct a FAPLL to enter low-power stop
+ * @clk: pointer to a FAPLL struct clk
+ *
+ * Instructs a FAPLL synthesizer to enter into power down mode. Also
+ * diable the fapll to go to low power state. This function is
+ * intended for use in struct clkops. No return value.
+ */
+void _ti816x_fapll_stop(struct clk *clk)
+{
+	u32 v;
+	struct fapll_data *fd = clk->fapll_data;
+
+	_ti816x_fapll_syn_pwr_down(clk);
+
+	v = __raw_readl(fd->pwd_reg);
+
+	if (v == 0) {
+		/* Power down FAPLL if all the synthesizers are
+		 * in power down mode */
+		v = __raw_readl(fd->control_reg);
+		v &= ~fd->enable_mask;
+		v |= TI816X_FAPLL_DISABLE << __ffs(fd->enable_mask);
+		__raw_writel(v, fd->control_reg);
+	}
 }
 
 /*
@@ -325,7 +350,7 @@ static int _fapll_get_rounded_vals(struct clk *clk, unsigned long target_rate)
 	reminder = freq_val%target_rate;
 	quotient = freq_val/target_rate;
 
-	if (clk->frac_flag != 1) {
+	if (clk->freq_flag != 1) {
 		fd->last_rounded_freq_int = 0;
 		fd->last_rounded_freq_frac = 0;
 		fd->last_rounded_m = freq_val/(target_rate * TI816X_FAPLL_K);
@@ -434,7 +459,7 @@ u32 ti816x_fapll_get_rate(struct clk *clk)
 	fapll_p >>= __ffs(fd->div_mask);
 
 	/* freq value from sythesizer reg, fractional and integer parts */
-	if (clk->frac_flag == 1) {
+	if (clk->freq_flag == 1) {
 		v = __raw_readl(clk->freq_reg);
 		frac = v & fd->freq_frac_mask;
 		frac >>= __ffs(fd->freq_frac_mask);
@@ -447,7 +472,7 @@ u32 ti816x_fapll_get_rate(struct clk *clk)
 	fapll_m = v & fd->post_div_mask;
 	fapll_m >>= __ffs(fd->post_div_mask);
 
-	if (clk->frac_flag == 1) {
+	if (clk->freq_flag == 1) {
 		fapll_num = (TI816X_FAPLL_K * fapll_n);
 		/* Truncating last 8 bits to reach all the freq's */
 		fapll_num <<= 16;
@@ -462,6 +487,7 @@ u32 ti816x_fapll_get_rate(struct clk *clk)
 	fapll_clk = (long long)fd->clk_ref->rate * fapll_num;
 	do_div(fapll_clk, fapll_den);
 	do_div(fapll_clk, fapll_p);
+
 
 	return fapll_clk;
 }
@@ -483,6 +509,7 @@ static int ti816x_fapll_program(struct clk *clk, u16 n, u8 p, u8 m,
 	struct fapll_data *fd = clk->fapll_data;
 	u32 v;
 
+	/* Put FAPLL in bypass mode */
 	_ti816x_put_fapll_bypass(clk);
 
 	/* Set FAPLL multiplier, divider */
@@ -496,16 +523,17 @@ static int ti816x_fapll_program(struct clk *clk, u16 n, u8 p, u8 m,
 	v = __raw_readl(clk->post_div_reg);
 	v &= ~(fd->post_div_mask);
 	v |= m << __ffs(fd->post_div_mask);
-	v |= fd->lddiv1_mask;
+	v |= TI816X_LOAD_DIV1_VALUE << __ffs(fd->lddiv1_mask);
 	__raw_writel(v, clk->post_div_reg);
 
 	/* set FAPLL fractional and integer part of freq */
-	if (clk->frac_flag == 1) {
+	if (clk->freq_flag == 1) {
 		v = __raw_readl(clk->freq_reg);
 		v &= ~(fd->freq_int_mask | fd->freq_frac_mask);
 		v |= freq_int << __ffs(fd->freq_int_mask);
 		v |= freq_frac << __ffs(fd->freq_frac_mask);
-		v |= fd->ldfreq_mask;
+		v |= TI816X_TRUNC_FREQ_VALUE_EN << __ffs(fd->trunc_mask);
+		v |= TI816X_LOAD_FREQ_VALUE << __ffs(fd->ldfreq_mask);
 		__raw_writel(v, clk->freq_reg);
 	}
 
@@ -513,6 +541,7 @@ static int ti816x_fapll_program(struct clk *clk, u16 n, u8 p, u8 m,
 
 	/* REVISIT: Set ramp-up delay? */
 
+	/* Release FAPLL from bypass mode */
 	_ti816x_rel_fapll_bypass(clk);
 
 	_ti816x_fapll_lock(clk);
@@ -549,22 +578,28 @@ unsigned long ti816x_fapll_recalc(struct clk *clk)
 int ti816x_fapll_enable(struct clk *clk)
 {
 	int r;
+	u32 v;
 	struct fapll_data *fd;
 
 	fd = clk->fapll_data;
 	if (!fd)
 		return -EINVAL;
 
+	/* Enable FAPLL */
+	v = __raw_readl(fd->control_reg);
+	v &= ~fd->enable_mask;
+	v |= TI816X_FAPLL_ENABLE << __ffs(fd->enable_mask);
+	__raw_writel(v, fd->control_reg);
+
 	r = _ti816x_fapll_syn_pwr_up(clk);
-	if (!r)
+	if (r) {
 		pr_err("Failed to power up the synthesizer\n");
+		return r;
+	}
 
 	if (clk->rate == fd->clk_bypass->rate) {
 		WARN_ON(clk->parent != fd->clk_bypass);
 		r = _ti816x_put_fapll_bypass(clk);
-	} else {
-		WARN_ON(clk->parent != fd->clk_ref);
-		r = _ti816x_fapll_lock(clk);
 	}
 
 	/*
@@ -581,14 +616,13 @@ int ti816x_fapll_enable(struct clk *clk)
  * ti816x_fapll_disable - instruct a FAPLL to enter low-power stop
  * @clk: pointer to a FAPLL struct clk
  *
- * Instructs a FAPLL synthesizer to enter into power down mode. This
- * function is intended for use in struct clkops. No return value.
+ * Instructs a FAPLL to enter into power down state. This function is
+ * intended for use in struct clkops. No return value.
  */
 void ti816x_fapll_disable(struct clk *clk)
 {
-	_ti816x_fapll_syn_pwr_down(clk);
+	_ti816x_fapll_stop(clk);
 }
-
 
 /**
  * ti816x_fapll_set_rate - set non-core FAPLL rate
@@ -630,7 +664,7 @@ int ti816x_fapll_set_rate(struct clk *clk, unsigned long rate)
 	omap2_clk_enable(fd->clk_ref);
 
 	if (fd->clk_bypass->rate == rate &&
-		(clk->fapll_data->modes & TI816X_FAPLL_BYPASS_MASK)) {
+		(clk->fapll_data->modes & FAPLL_LOW_POWER_BYPASS)) {
 		pr_debug("clock: %s: set rate: entering bypass.\n", clk->name);
 
 		ret = _ti816x_put_fapll_bypass(clk);

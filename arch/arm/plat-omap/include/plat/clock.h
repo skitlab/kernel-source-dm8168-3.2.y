@@ -189,7 +189,7 @@ struct dpll_data {
  * @post_div_mask: mask of the FAPLL post divider bitfield
  * @ldfreq_mask: mask of the load freq value to synthesizer
  * @lddiv1_mask: mask to load M value to synthesizer
- * @trunk_mask: mask of the FAPLL trunk bitfield in @freq_reg
+ * @trunc_mask: mask for enabling the truncate correction @freq_reg
  * @bypass_en: Enable value for checking the bypass mode of FAPLL
  * @modes: possible values of @enable_mask
  * @rate_tolerance: maximum variance allowed from target rate (in Hz)
@@ -228,7 +228,7 @@ struct fapll_data {
 	u32			post_div_mask;
 	u32			ldfreq_mask;
 	u32			lddiv1_mask;
-	u32			trunk_mask;
+	u32			trunc_mask;
 	u32			bypass_en;
 	u8			modes;
 	unsigned int		rate_tolerance;
@@ -280,7 +280,7 @@ struct fapll_data {
  * @src_offset: bitshift for source selection bitfield (OMAP1 only)
  * @synthesizer_id: synthesizer id in a particular FAPLL
  * @pwd_mask: mask of the FAPLL to put all syn's in power down
- * @frac_flag: Flag for setting the frac part is persent or not
+ * @freq_flag: Flag for setting the freq part is persent or not
  * @fapll_data: for FAPLLs, pointer to struct fapll_data for this clock
  * @freq_reg: for synthesizer clks, output rate is based on this value
  * @post_div_reg: register containing M value of FAPLL
@@ -334,7 +334,7 @@ struct clk {
 #ifdef CONFIG_ARCH_TI81XX
 	u32			synthesizer_id;
 	u32			pwd_mask;
-	u32			frac_flag;
+	u32			freq_flag;
 	struct fapll_data	*fapll_data;
 	void __iomem		*freq_reg;
 	void __iomem		*post_div_reg;
