@@ -666,6 +666,7 @@ static struct omap_hwmod omap3xxx_uart4_hwmod = {
 static struct omap_hwmod_class i2c_class = {
 	.name = "i2c",
 	.sysc = &i2c_sysc,
+	.reset = &omap_i2c_reset,
 };
 
 /* I2C1 */

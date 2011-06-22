@@ -22,6 +22,7 @@
 
 #include <plat/omap_hwmod.h>
 #include <plat/cpu.h>
+#include <plat/i2c.h>
 #include <plat/gpio.h>
 #include <plat/dma.h>
 
@@ -1111,6 +1112,7 @@ static struct omap_hwmod_class_sysconfig omap44xx_i2c_sysc = {
 static struct omap_hwmod_class omap44xx_i2c_hwmod_class = {
 	.name	= "i2c",
 	.sysc	= &omap44xx_i2c_sysc,
+	.reset = &omap_i2c_reset,
 };
 
 /* i2c1 */
