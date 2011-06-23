@@ -1893,122 +1893,157 @@ static void ti81xx_ethernet_init(void)
 }
 #endif
 
-#define P0PHYCR		0x178	/* SATA PHY0 Control Register offset
-				 * from AHCI base)
-				 */
-#define P1PHYCR		0x1F8	/* SATA PHY0 Control Register offset
-				 * from AHCI base)
-				 */
+#if defined(CONFIG_SATA_AHCI_PLATFORM) || \
+	defined(CONFIG_SATA_AHCI_PLATFORM_MODULE)
 
-#define PHY_ENPLL	1 /* bit0        1 */
-#define PHY_MPY		8 /* bits4:1     4 Clock Sources at 100MHz */
-#define PHY_LB		0 /* bits6:5     2 */
-#define PHY_CLKBYP	0 /* bits8:7     2 */
-#define PHY_RXINVPAIR	0 /* bit9        1 */
-#define PHY_LBK		0 /* bits11:10   2 */
-#define PHY_RXLOS	1 /* bit12	 1 */
-#define PHY_RXCDR	4 /* bits15:13   3 */
-#define PHY_RXEQ	1 /* bits19:16   4 */
-#define PHY_RxENOC	1 /* bit20       1 */
-#define PHY_TXINVPAIR	0 /* bit21	 1 */
-#define PHY_TXCM	0 /* bit22       1 */
-#define PHY_TXSWING	0x7 /* bits26:23   4 */
-#define PHY_TXDE	0x0 /* bits31:27   5 */
+static struct ahci_platform_data omap_sata_pdata;
+static u64 omap_sata_dmamask = DMA_BIT_MASK(32);
+static struct clk *omap_sata_clk;
 
-#define PHY_CFGRX0_VAL		0x00C7CC22
-#define PHY_CFGRX1_VAL		0x008E0500
-#define PHY_CFGRX2_VAL		0x7BDEF000
-#define PHY_CFGRX3_VAL		0x1F180B0F
-#define PHY_CFGTX0_VAL		0x01001622
-#define PHY_CFGTX1_VAL		0x40000002
-#define PHY_CFGTX2_VAL		0x073CE39E
+/* SATA PHY control register offsets */
+#define SATA_P0PHYCR_REG	0x178
+#define SATA_P1PHYCR_REG	0x1F8
 
-static int ti81xx_ahci_plat_init(void)
+#define SATA_PHY_ENPLL(x)	((x) << 0)
+#define SATA_PHY_MPY(x)		((x) << 1)
+#define SATA_PHY_LB(x)		((x) << 5)
+#define SATA_PHY_CLKBYP(x)	((x) << 7)
+#define SATA_PHY_RXINVPAIR(x)	((x) << 9)
+#define SATA_PHY_LBK(x)		((x) << 10)
+#define SATA_PHY_RXLOS(x)	((x) << 12)
+#define SATA_PHY_RXCDR(x)	((x) << 13)
+#define SATA_PHY_RXEQ(x)	((x) << 16)
+#define SATA_PHY_RXENOC(x)	((x) << 20)
+#define SATA_PHY_TXINVPAIR(x)	((x) << 21)
+#define SATA_PHY_TXCM(x)	((x) << 22)
+#define SATA_PHY_TXSWING(x)	((x) << 23)
+#define SATA_PHY_TXDE(x)	((x) << 27)
+
+#define TI81XX_SATA_BASE	0x4A140000
+
+/* These values are tried and tested and not expected to change.
+ * Hence not using a macro to generate them.
+ */
+#define TI814X_SATA_PHY_CFGRX0_VAL		0x00C7CC22
+#define TI814X_SATA_PHY_CFGRX1_VAL		0x008E0500
+#define TI814X_SATA_PHY_CFGRX2_VAL		0x7BDEF000
+#define TI814X_SATA_PHY_CFGRX3_VAL		0x1F180B0F
+#define TI814X_SATA_PHY_CFGTX0_VAL		0x01001622
+#define TI814X_SATA_PHY_CFGTX1_VAL		0x40000002
+#define TI814X_SATA_PHY_CFGTX2_VAL		0x073CE39E
+
+static int ti81xx_ahci_plat_init(struct device *dev, void __iomem *base)
 {
-	u32 phy_val = 0;
-	void __iomem *base;
-	struct clk *sata_clk;
+	unsigned int phy_val;
+	int ret;
 
-	sata_clk = clk_get(NULL, "sata_ick");
-	if (IS_ERR(sata_clk)) {
-		pr_err("ahci : Failed to get AHCI clock\n");
-		return -1;
+	omap_sata_clk = clk_get(dev, NULL);
+	if (IS_ERR(omap_sata_clk)) {
+		pr_err("ahci : Failed to get SATA clock\n");
+		return PTR_ERR(omap_sata_clk);
 	}
 
-	if (clk_enable(sata_clk)) {
-		pr_err("ahci : Clock Enable Failed\n");
-		return -1;
-	}
-
-	phy_val = PHY_ENPLL << 0 | PHY_MPY << 1 | PHY_LB << 5 |
-			PHY_CLKBYP << 7 | PHY_RXINVPAIR << 9 |
-			PHY_LBK  << 10 | PHY_RXLOS << 12 |
-			PHY_RXCDR << 13 | PHY_RXEQ << 16 |
-			PHY_RxENOC << 20 | PHY_TXINVPAIR << 21 |
-			PHY_TXCM << 22 | PHY_TXSWING  << 23 | PHY_TXDE << 27;
-	base = ioremap(TI81XX_SATA_BASE, 0x10ffff);
 	if (!base) {
-		printk(KERN_WARNING
-				"%s: Unable to map SATA, "
-				"cannot turn on PHY.\n",  __func__);
-		return -1;
+		pr_err("ahci : SATA reg space not mapped, PHY enable failed\n");
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	ret = clk_enable(omap_sata_clk);
+	if (ret) {
+		pr_err("ahci : Clock enable failed\n");
+		goto err;
 	}
 
 	if (cpu_is_ti816x()) {
-		/* Initialize the SATA PHY */
-		writel(phy_val,	base + P0PHYCR);
+		phy_val = SATA_PHY_ENPLL(1) |
+			SATA_PHY_MPY(8) |
+			SATA_PHY_LB(0) |
+			SATA_PHY_CLKBYP(0) |
+			SATA_PHY_RXINVPAIR(0) |
+			SATA_PHY_LBK(0) |
+			SATA_PHY_RXLOS(1) |
+			SATA_PHY_RXCDR(4) |
+			SATA_PHY_RXEQ(1) |
+			SATA_PHY_RXENOC(1) |
+			SATA_PHY_TXINVPAIR(0) |
+			SATA_PHY_TXCM(0) |
+			SATA_PHY_TXSWING(7) |
+			SATA_PHY_TXDE(0);
 
-		/* ti816x platform has 2 SATA PHY's.
-		 * Initialize the second instance
-		 */
-		if (cpu_is_ti81xx())
-			writel(phy_val, base + P1PHYCR);
+		writel(phy_val, base + SATA_P0PHYCR_REG);
+		writel(phy_val, base + SATA_P1PHYCR_REG);
+	} else if (cpu_is_ti814x()) {
+		/* Configuring TI814X SATA PHY */
+		writel(TI814X_SATA_PHY_CFGRX0_VAL,
+			base + TI814X_SATA_PHY_CFGRX0_OFFSET);
+		writel(TI814X_SATA_PHY_CFGRX1_VAL,
+			base + TI814X_SATA_PHY_CFGRX1_OFFSET);
+		writel(TI814X_SATA_PHY_CFGRX2_VAL,
+			base + TI814X_SATA_PHY_CFGRX2_OFFSET);
+		writel(TI814X_SATA_PHY_CFGRX3_VAL,
+			base + TI814X_SATA_PHY_CFGRX3_OFFSET);
+		writel(TI814X_SATA_PHY_CFGTX0_VAL,
+			base + TI814X_SATA_PHY_CFGTX0_OFFSET);
+		writel(TI814X_SATA_PHY_CFGTX1_VAL,
+			base + TI814X_SATA_PHY_CFGTX1_OFFSET);
+		writel(TI814X_SATA_PHY_CFGTX2_VAL,
+			base + TI814X_SATA_PHY_CFGTX2_OFFSET);
 	}
-
-	if (cpu_is_ti814x()) {
-		/* Configuring PHY registers for SATA */
-		writel(PHY_CFGRX0_VAL, base + TI814X_SATA_PHY_CFGRX0_OFFSET);
-		writel(PHY_CFGRX1_VAL, base + TI814X_SATA_PHY_CFGRX1_OFFSET);
-		writel(PHY_CFGRX2_VAL, base + TI814X_SATA_PHY_CFGRX2_OFFSET);
-		writel(PHY_CFGRX3_VAL, base + TI814X_SATA_PHY_CFGRX3_OFFSET);
-		writel(PHY_CFGTX0_VAL, base + TI814X_SATA_PHY_CFGTX0_OFFSET);
-		writel(PHY_CFGTX1_VAL, base + TI814X_SATA_PHY_CFGTX1_OFFSET);
-		writel(PHY_CFGTX2_VAL, base + TI814X_SATA_PHY_CFGTX2_OFFSET);
-	}
-
-	iounmap(base);
 
 	return 0;
+err:
+	clk_put(omap_sata_clk);
+	return ret;
 }
 
-static struct resource ti81xx_ahci_resources[] = {
+static void ti81xx_ahci_plat_exit(struct device *dev)
+{
+	clk_disable(omap_sata_clk);
+	clk_put(omap_sata_clk);
+}
+
+/* resources will be filled by soc specific init routine */
+static struct resource omap_ahci_resources[] = {
 	{
-		.start	=	TI81XX_SATA_BASE,
-		.end	=	TI81XX_SATA_BASE + 0x10fff,
-		.flags	=	IORESOURCE_MEM,
+		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	=	TI81XX_IRQ_SATA,
-		.flags	=	IORESOURCE_IRQ,
+		.flags	= IORESOURCE_IRQ,
 	}
 };
 
-static struct platform_device ti81xx_ahci_device = {
-	.name	=	"ahci",
-	.dev	=	{
-				.coherent_dma_mask = DMA_BIT_MASK(32),
-			},
-	.num_resources = ARRAY_SIZE(ti81xx_ahci_resources),
-	.resource	= ti81xx_ahci_resources,
+static struct platform_device omap_ahci_device = {
+	.name	= "ahci",
+	.dev	= {
+		.platform_data = &omap_sata_pdata,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.dma_mask		= &omap_sata_dmamask,
+	},
+	.num_resources	= ARRAY_SIZE(omap_ahci_resources),
+	.resource	= omap_ahci_resources,
 };
 
-int __init ti81xx_init_ahci(void)
+static void ti81xx_ahci_init(void)
 {
-	if (ti81xx_ahci_plat_init() != 0)
-		return -1;
-
-	return platform_device_register(&ti81xx_ahci_device);
+	/* fixup platform device info for TI81XX */
+	omap_ahci_resources[0].start	= TI81XX_SATA_BASE;
+	omap_ahci_resources[0].end	= TI81XX_SATA_BASE + 0x10fff;
+	omap_ahci_resources[1].start	= TI81XX_IRQ_SATA; /* SATA IRQ */
+	omap_sata_pdata.init		= ti81xx_ahci_plat_init;
+	omap_sata_pdata.exit		= ti81xx_ahci_plat_exit;
 }
+
+static inline void omap_init_ahci(void)
+{
+	if (cpu_is_ti81xx()) {
+		ti81xx_ahci_init();
+		platform_device_register(&omap_ahci_device);
+	}
+}
+#else
+static inline void omap_init_ahci(void) {}
+#endif
 
 #if defined(CONFIG_ARCH_TI81XX)
 
@@ -2148,9 +2183,9 @@ static int __init omap2_init_devices(void)
 	ti816x_init_pcie();
 	ti81xx_register_edma();
 	ti81xx_init_pcm();
-	ti81xx_init_ahci();
 	ti816x_sr_init();
 #endif
+	omap_init_ahci();
 	return 0;
 }
 arch_initcall(omap2_init_devices);

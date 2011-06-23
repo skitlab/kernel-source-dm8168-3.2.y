@@ -3250,7 +3250,7 @@ static struct omap_clk ti814x_clks[] = {
 	CLK(NULL,		"l4_fast_ick",			&l4_fast_ick,			CK_TI814X),
 	CLK(NULL,		"securess_ick",			&securess_ick,			CK_TI814X),
 	CLK(NULL,		"tpgsw_ick",			&tpgsw_ick,			CK_TI814X),
-	CLK(NULL,		"sata_ick",			&sata_ick,			CK_TI814X),
+	CLK("ahci.0",		NULL,				&sata_ick,			CK_TI814X),
 	CLK(NULL,		"pcie_ick",			&pcie_ick,			CK_TI814X),
 	CLK(NULL,		"vcp2_fck",			&vcp2_fck,			CK_TI814X),
 	CLK(NULL,		"mlb_ick",			&mlb_ick,			CK_TI814X),
