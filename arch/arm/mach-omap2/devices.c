@@ -1727,12 +1727,12 @@ struct cpsw_slave_data cpsw_slaves[] = {
 	{
 		.slave_reg_ofs  = 0x50,
 		.sliver_reg_ofs = 0x700,
-		.phy_id		= "0:01",
+		.phy_id		= "0:00",
 	},
 	{
 		.slave_reg_ofs  = 0x90,
 		.sliver_reg_ofs = 0x740,
-		.phy_id		= "0:00",
+		.phy_id		= "0:01",
 	},
 };
 
