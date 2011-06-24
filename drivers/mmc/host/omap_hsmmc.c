@@ -126,7 +126,6 @@
 #define OMAP_MMC5_DEVID		4
 
 #define MMC_TIMEOUT_MS		20
-#define OMAP_MMC_MASTER_CLOCK	96000000
 #define DRIVER_NAME		"mmci-omap-hs"
 
 /* Timeouts for entering power saving states on inactivity, msec */
@@ -730,11 +729,11 @@ static int omap_hsmmc_context_restore(struct omap_hsmmc_host *host)
 	}
 
 	if (ios->clock) {
-		dsor = OMAP_MMC_MASTER_CLOCK / ios->clock;
+		dsor = (clk_get_rate(host->fclk)) / ios->clock;
 		if (dsor < 1)
 			dsor = 1;
 
-		if (OMAP_MMC_MASTER_CLOCK / dsor > ios->clock)
+		if ((clk_get_rate(host->fclk)) / dsor > ios->clock)
 			dsor++;
 
 		if (dsor > 250)
@@ -1484,7 +1483,6 @@ static void set_data_timeout(struct omap_hsmmc_host *host,
 	clkd = (reg & CLKD_MASK) >> CLKD_SHIFT;
 	if (clkd == 0)
 		clkd = 1;
-
 	cycle_ns = 1000000000 / (clk_get_rate(host->fclk) / clkd);
 	timeout = timeout_ns / cycle_ns;
 	timeout += timeout_clks;
@@ -1671,11 +1669,11 @@ static void omap_hsmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 
 	if (ios->clock) {
-		dsor = OMAP_MMC_MASTER_CLOCK / ios->clock;
+		dsor = (clk_get_rate(host->fclk)) / ios->clock;
 		if (dsor < 1)
 			dsor = 1;
 
-		if (OMAP_MMC_MASTER_CLOCK / dsor > ios->clock)
+		if ((clk_get_rate(host->fclk)) / dsor > ios->clock)
 			dsor++;
 
 		if (dsor > 250)
