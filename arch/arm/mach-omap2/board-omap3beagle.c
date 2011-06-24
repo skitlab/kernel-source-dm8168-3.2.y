@@ -580,7 +580,10 @@ static void __init omap3_beagle_init_irq(void)
 	omap_init_irq();
 	gpmc_init();
 #ifdef CONFIG_OMAP_32K_TIMER
-	omap2_gp_clockevent_set_gptimer(12);
+	if (omap3_beagle_version == OMAP3BEAGLE_BOARD_AXBX)
+		omap2_gp_clockevent_set_gptimer(12);
+	else
+		omap2_gp_clockevent_set_gptimer(1);
 #endif
 }
 
