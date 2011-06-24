@@ -194,7 +194,7 @@ struct spi_board_info __initdata ti8148_spi_slave_info[] = {
 	},
 };
 
-void ti8148_spi_init(void)
+void __init ti8148_spi_init(void)
 {
 	spi_register_board_info(ti8148_spi_slave_info,
 				ARRAY_SIZE(ti8148_spi_slave_info));
