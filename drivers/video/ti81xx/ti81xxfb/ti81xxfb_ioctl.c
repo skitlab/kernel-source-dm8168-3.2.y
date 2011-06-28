@@ -147,17 +147,11 @@ static int ti81xxfb_setup_plane(struct fb_info *fbi,
 	/*update position*/
 	if (regupdate && !r) {
 		r = gctrl->check_params(gctrl, &regp, 0);
-		if (!r)
+		if (0 == r)
 			gctrl->set_regparams(gctrl, &regp);
 	}
 
-	if ((regupdate || scupdate) && (!r))
-		if (gctrl->gstate.isstarted)
-			r = vps_fvid2_queue(gctrl->handle,
-					    (struct fvid2_framelist *)
-						gctrl->frmls_phy,
-					    0);
-	if (!r)
+	if (0 == r)
 		r = gctrl->start(gctrl);
 
 exit:
@@ -245,21 +239,12 @@ static int ti81xxfb_set_region_params(struct fb_info *fbi,
 	set_trans_key(fbi, regparam, &regp);
 
 	r = gctrl->check_params(gctrl, &regp, regparam->ridx);
-
-	if (r == 0)
+	if (0 == r)
 		r = gctrl->set_regparams(gctrl, &regp);
 
 	if (0 == r) {
-		TFBDBG("set params handle %x\n", (u32)gctrl->handle);
-		if (gctrl->gstate.isstarted)
-			r = vps_fvid2_queue(gctrl->handle,
-					    (struct fvid2_framelist *)
-						gctrl->frmls_phy,
-					    0);
-		if (r == 0) {
-			fbi->var.xres = regp.regionwidth;
-			fbi->var.yres = regp.regionheight;
-		}
+		fbi->var.xres = regp.regionwidth;
+		fbi->var.yres = regp.regionheight;
 	}
 
 	ti81xxfb_unlock(tfbi);
@@ -339,13 +324,7 @@ static int ti81xxfb_set_scparams(struct fb_info *fbi,
 	gscp.outheight = scp->outheight;
 	gscp.sccoeff = scp->coeff;
 	r = gctrl->set_scparams(gctrl, &gscp);
-	if (0 == r) {
-		if (gctrl->gstate.isstarted)
-			r = vps_fvid2_queue(gctrl->handle,
-					    (struct fvid2_framelist *)
-						gctrl->frmls_phy,
-					    0);
-	}
+
 	ti81xxfb_unlock(tfbi);
 
 	return r;
@@ -487,10 +466,6 @@ static int ti81xxfb_set_sten(struct fb_info *fbi,
 
 	ti81xxfb_lock(tfbi);
 	r = gctrl->set_stenparams(gctrl, offset, stparams->pitch);
-	if ((r == 0) && (gctrl->gstate.isstarted))
-		vps_fvid2_queue(gctrl->handle,
-				(struct fvid2_framelist *)gctrl->frmls_phy,
-				0);
 	ti81xxfb_unlock(tfbi);
 	return r;
 

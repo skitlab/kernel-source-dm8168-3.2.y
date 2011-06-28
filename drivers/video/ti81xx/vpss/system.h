@@ -164,7 +164,19 @@ static inline enum vps_platformcpurev  vps_system_getcpurev(void)
 			return VPS_PLATFORM_CPU_REV_MAX;
 	case 2:
 		return VPS_PLATFORM_CPU_REV_MAX;
+	case 3:
+	case 0xc:
+	/*some device has 0xC while the
+	final should have 0x3*/
+		if (cpu_is_ti814x())
+			return VPS_PLATFORM_CPU_REV_2_1;
+		else
+			return VPS_PLATFORM_CPU_REV_MAX;
 	default:
+		/*somehow some device has different revision
+		number in the register*/
+		if (cpu_is_ti814x())
+			return VPS_PLATFORM_CPU_REV_2_1;
 		return VPS_PLATFORM_CPU_REV_MAX;
 	}
 

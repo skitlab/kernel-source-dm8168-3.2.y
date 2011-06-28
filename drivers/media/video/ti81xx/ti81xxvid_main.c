@@ -467,8 +467,7 @@ static void ti81xx_vidout_free_buffers(struct ti81xx_vidout_dev *vout)
 
 /*
  * Calculate the buffer offsets from which the streaming should
- * start. This offset calculation is mainly required because of
- * the VRFB 32 pixels alignment with rotation.
+ * start.
  */
 static int ti81xx_vidout_calculate_offset(struct ti81xx_vidout_dev *vout)
 {
@@ -773,7 +772,7 @@ static int ti81xx_vidout_buffer_setup(struct videobuf_queue *q,
 
 /*
  * Free the V4L2 buffers additionally allocated than default
- * number of buffers and free all the VRFB buffers
+ * number of buffers.
  */
 static void ti81xx_vidout_free_allbuffers(struct ti81xx_vidout_dev *vout)
 {
@@ -799,8 +798,7 @@ static void ti81xx_vidout_free_allbuffers(struct ti81xx_vidout_dev *vout)
  * This function will be called when VIDIOC_QBUF ioctl is called.
  * It prepare buffers before give out for the display. This function
  * converts user space virtual address into physical address if userptr memory
- * exchange mechanism is used. If rotation is enabled, it copies entire
- * buffer into VRFB memory space before giving it to the DSS.
+ * exchange mechanism is used.
  */
 static int ti81xx_vidout_buffer_prepare(struct videobuf_queue *q,
 			    struct videobuf_buffer *vb,
@@ -1115,6 +1113,12 @@ static int vidioc_enum_fmt_vid_out(struct file *file, void *priv,
 		"VIDOUT%d: enum format ioctl\n",
 		vout->vid);
 
+	if (type != V4L2_BUF_TYPE_VIDEO_OUTPUT) {
+		v4l2_err(&vout->vid_dev->v4l2_dev,
+			"VIDOUT%d: wrong buf type %d\n",
+			vout->vid, type);
+		return -EINVAL;
+	}
 
 	fmt->index = index;
 	fmt->type = type;
@@ -1139,6 +1143,12 @@ static int vidioc_g_fmt_vid_out(struct file *file, void *priv,
 		"VIDOUT%d: Get format ioctl\n",
 		vout->vid);
 
+	if (f->type != V4L2_BUF_TYPE_VIDEO_OUTPUT) {
+		v4l2_err(&vout->vid_dev->v4l2_dev,
+			"VIDOUT%d: wrong buf type %d\n",
+			vout->vid, f->type);
+		return -EINVAL;
+	}
 
 	f->fmt.pix = vout->pix;
 	return 0;
@@ -1162,6 +1172,14 @@ static int vidioc_try_fmt_vid_out(struct file *file, void *priv,
 
 	if (!vctrl)
 		return -EINVAL;
+
+	if (f->type != V4L2_BUF_TYPE_VIDEO_OUTPUT) {
+		v4l2_err(&vout->vid_dev->v4l2_dev,
+			"VIDOUT%d: wrong buf type %d\n",
+			vout->vid, f->type);
+		return -EINVAL;
+	}
+
 	/* get the display device attached to the overlay */
 	vctrl->get_resolution(vctrl, &width, &height, &isp);
 
@@ -1183,6 +1201,16 @@ static int vidioc_s_fmt_vid_out(struct file *file, void *priv,
 
 	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev,
 		"VIDOUT%d: set format ioctl\n", vout->vid);
+
+
+	if (f->type != V4L2_BUF_TYPE_VIDEO_OUTPUT) {
+		v4l2_err(&vout->vid_dev->v4l2_dev,
+			"VIDOUT%d: wrong buf type %d\n",
+			vout->vid, f->type);
+		return -EINVAL;
+	}
+
+
 	if (vout->streaming) {
 		v4l2_err(&vout->vid_dev->v4l2_dev,
 			"VIDOUT%d: stop streaming before seting format\n",
@@ -1241,6 +1269,16 @@ static int vidioc_try_fmt_vid_overlay(struct file *file, void *priv,
 	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev,
 		"VIDOUT%d: try fmt overlay ioctl\n",
 		vout->vid);
+
+
+	if (f->type != V4L2_BUF_TYPE_VIDEO_OVERLAY) {
+		v4l2_err(&vout->vid_dev->v4l2_dev,
+			"VIDOUT%d: wrong buf type %d",
+			vout->vid, f->type);
+		return -EINVAL;
+	}
+
+
 	ret = ti81xx_vidout_try_window(&vout->fbuf, win);
 
 	if (!ret)
@@ -1264,6 +1302,13 @@ static int vidioc_s_fmt_vid_overlay(struct file *file, void *priv,
 	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev,
 		"VIDOUT%d: set fmt overlay ioctl\n",
 		vout->vid);
+
+	if (f->type != V4L2_BUF_TYPE_VIDEO_OVERLAY) {
+		v4l2_err(&vout->vid_dev->v4l2_dev,
+			"VIDOUT%d: wrong buf type %d",
+			vout->vid, f->type);
+		return -EINVAL;
+	}
 
 	/*overlay fmt should be the same as crop for the non-scaling dispaly*/
 	if (((vout->vctrl->caps & VPSS_VID_CAPS_SCALING) == 0) &&
@@ -1332,6 +1377,13 @@ static int vidioc_enum_fmt_vid_overlay(struct file *file, void *priv,
 		"VIDOUT%d: enum overlay format ioctl\n",
 		vout->vid);
 
+	if (fmt->type != V4L2_BUF_TYPE_VIDEO_OVERLAY) {
+		v4l2_err(&vout->vid_dev->v4l2_dev,
+			"VIDOUT%d: wrong buf type %d",
+			vout->vid, fmt->type);
+		return -EINVAL;
+	}
+
 	fmt->index = index;
 	fmt->type = type;
 	if (index >= NUM_OUTPUT_FORMATS)
@@ -1356,6 +1408,13 @@ static int vidioc_g_fmt_vid_overlay(struct file *file, void *priv,
 	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev,
 		"VIDOUT%d: get overlay format ioctl\n",
 		vout->vid);
+
+	if (f->type != V4L2_BUF_TYPE_VIDEO_OVERLAY) {
+		v4l2_err(&vout->vid_dev->v4l2_dev,
+			"VIDOUT%d: wrong buf type %d",
+			vout->vid, f->type);
+		return -EINVAL;
+	}
 
 	win->w = vout->win.w;
 	win->field = vout->win.field;
@@ -1843,10 +1902,10 @@ static int vidioc_s_fbuf(struct file *file, void *priv,
 		vout->vid);
 
 	if (!(vctrl->caps & VPSS_VID_CAPS_COLOR)) {
-		v4l2_err(&vout->vid_dev->v4l2_dev,
+		v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev,
 			"VIDOUT%d: does not support color feature\n",
 			vout->vid);
-		return -EINVAL;
+		return 0;
 	}
 	if (vctrl->get_color) {
 		r = vctrl->get_color(vctrl, &color);
@@ -1897,8 +1956,10 @@ static int vidioc_g_fbuf(struct file *file, void *priv,
 		vout->vid);
 
 	a->flags = 0x0;
-	if (!(vctrl->caps & VPSS_VID_CAPS_COLOR))
+	if (!(vctrl->caps & VPSS_VID_CAPS_COLOR)) {
 		a->capability = 0;
+		return 0;
+	}
 	else
 		a->capability = V4L2_FBUF_CAP_LOCAL_ALPHA |
 			V4L2_FBUF_CAP_SRC_CHROMAKEY;

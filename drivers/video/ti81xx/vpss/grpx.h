@@ -34,7 +34,7 @@
 /* two lines gap for the downscaled except first region*/
 #define GRPX_REGION_DOWN_SCALED_GAP         0x02
 
-
+static u32  grpx_critical_section[VPS_DISP_GRPX_MAX_INST];
 
 static inline void grpx_lock(struct vps_grpx_ctrl *gctrl)
 {
@@ -46,6 +46,15 @@ static inline void grpx_unlock(struct vps_grpx_ctrl *gctrl)
 	mutex_unlock(&gctrl->gmutex);
 }
 
+static inline void grpx_cs_lock(struct vps_grpx_ctrl *gctrl)
+{
+	grpx_critical_section[gctrl->grpx_num] = VPS_CRITICAL_SECTION_LOCK;
+}
+
+static inline void grpx_cs_free(struct vps_grpx_ctrl *gctrl)
+{
+	grpx_critical_section[gctrl->grpx_num] = VPS_CRITICAL_SECTION_FREE;
+}
 
 #endif
 #endif

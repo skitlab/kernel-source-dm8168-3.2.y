@@ -34,6 +34,7 @@ extern unsigned int vpss_debug;
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <plat/ti81xx-vpss.h>
+#include "system.h"
 
 #ifdef DEBUG
 #define VPSSDBG(format, ...) \
@@ -56,6 +57,10 @@ extern unsigned int vpss_debug;
 #endif
 
 extern bool   def_i2cmode;
+extern enum vps_platformcpurev cpuver;
+
+#define VPS_CRITICAL_SECTION_LOCK  0xAAAA5555
+#define VPS_CRITICAL_SECTION_FREE  0x0
 
 /*defined the memory informaton shared between A8 and M3 for each submodule*/
 struct vps_payload_info {
@@ -103,6 +108,7 @@ int __init vps_sbuf_init(const char *sbaddr, const char *sbsize);
 int __exit vps_sbuf_deinit(void);
 void *vps_sbuf_alloc(size_t size, u32 *paddr);
 int vps_sbuf_free(u32 paddr, void *vaddr, size_t size);
+void vps_sbuf_usage(void);
 
 
 int __init vps_system_init(struct platform_device *pdev);

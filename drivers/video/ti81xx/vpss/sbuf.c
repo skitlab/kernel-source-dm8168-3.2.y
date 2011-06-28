@@ -53,7 +53,7 @@ struct sbuf_alloc {
 static struct sbuf_info *sbinfo;
 static DEFINE_MUTEX(sbuf_mutex);
 
-
+static u32 used_mem_size;
 /******************NOTE***************************
 The following are the sharing buffer address based
 on different platform. All these buffer should be
@@ -129,7 +129,8 @@ found:
 
 	vaddr = sbinfo->vaddr + (start - sbinfo->paddr);
 
-	VPSSDBG("FOUND 0x%x, end 0x%x, map vir 0x%p\n", start, end, vaddr);
+	VPSSDBG("FOUND 0x%x, end 0x%x, map vir 0x%p size %d\n",
+		start, end, vaddr, (pages << PAGE_SHIFT));
 
 	return vaddr;
 
@@ -145,6 +146,8 @@ void *vps_sbuf_alloc(size_t size, u32 *paddr)
 	mutex_lock(&sbuf_mutex);
 
 	vaddr = _vps_sbuf_alloc(pages, paddr);
+	if (vaddr)
+		used_mem_size += PAGE_ALIGN(size);
 
 	mutex_unlock(&sbuf_mutex);
 
@@ -169,7 +172,7 @@ int vps_sbuf_free(u32 paddr, void *vaddr, size_t size)
 			sbuf_free_allocation(sba);
 			VPSSDBG("free mem paddr 0x%x vaddr 0x%p size %d\n",
 				paddr, vaddr, size);
-
+			used_mem_size -= size;
 			break;
 		}
 
@@ -178,6 +181,12 @@ int vps_sbuf_free(u32 paddr, void *vaddr, size_t size)
 	return 0;
 }
 
+void vps_sbuf_usage(void)
+{
+	VPSSDBG("sharing buffer used %d byte, left %d bytes",
+		used_mem_size,
+		((sbinfo->pages << PAGE_SHIFT) - used_mem_size));
+}
 int __init vps_sbuf_init(const char *sbaddr, const char *sbsize)
 {
 	int r = 0;
@@ -230,7 +239,7 @@ int __init vps_sbuf_init(const char *sbaddr, const char *sbsize)
 		sbinfo->pages << PAGE_SHIFT);
 
 	INIT_LIST_HEAD(&sbinfo->alloc_list);
-
+	used_mem_size = 0;
 	return 0;
 exit:
 	vps_sbuf_deinit();

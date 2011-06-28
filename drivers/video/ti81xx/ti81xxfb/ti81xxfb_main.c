@@ -52,12 +52,12 @@ module_param_named(debug, fb_debug, bool, 0644);
 #endif
 
 
-u32 ti81xxfb_get_fb_paddr(struct ti81xxfb_info *tfbi)
+static inline u32 ti81xxfb_get_fb_paddr(struct ti81xxfb_info *tfbi)
 {
 	return tfbi->mreg.paddr;
 }
 
-void __iomem *ti81xxfb_get_fb_vaddr(struct ti81xxfb_info *tfbi)
+static inline void __iomem *ti81xxfb_get_fb_vaddr(struct ti81xxfb_info *tfbi)
 {
 	return tfbi->mreg.vaddr;
 }
@@ -563,8 +563,10 @@ static int ti81xxfb_apply_changes(struct fb_info *fbi, int init)
 
 	}
 	/* make sure that the new changes are valid size*/
-	gctrl->set_format(gctrl, var->bits_per_pixel,
+	r = gctrl->set_format(gctrl, var->bits_per_pixel,
 		df, fbi->fix.line_length);
+	if (r)
+		return -EINVAL;
 
 	gctrl->get_regparams(gctrl, &regp);
 

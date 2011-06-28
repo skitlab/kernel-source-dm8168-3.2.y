@@ -109,8 +109,6 @@ struct vps_dispctrl {
 	int                        tiedvenc;
 	int                        enabled_venc_ids;
 	void                       *fvid2_handle;
-	/*automode: will set pll clock auto*/
-	bool                       automode;
 };
 
 int vps_dc_get_id(char *name, int *id, enum dc_idtype type);

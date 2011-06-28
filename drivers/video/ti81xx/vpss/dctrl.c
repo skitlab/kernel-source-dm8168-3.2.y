@@ -1107,11 +1107,10 @@ static ssize_t blender_mode_store(struct dc_blender_info *binfo,
 
 
 	/*only set the PLL if it is auto mode*/
-	if (binfo->dctrl->automode) {
-		r = dc_set_pll_by_mid(binfo->idx, mid);
-		if (r)
-			goto exit;
-	}
+	r = dc_set_pll_by_mid(binfo->idx, mid);
+	if (r)
+		goto exit;
+
 	venc_info.modeinfo[idx].minfo.standard = mid;
 	dc_get_timing(mid, &venc_info.modeinfo[idx].minfo);
 	if (cpu_is_ti816x() && (!def_i2cmode)) {
@@ -1762,123 +1761,6 @@ static struct kobj_type blender_ktype = {
 
 /*sysfs for the display controller*/
 
-static ssize_t dctrl_pllclks_show(struct vps_dispctrl *dctrl, char *buf)
-{
-	int r = 0, l = 0, i;
-	struct vps_systemvpllclk  pllclk;
-
-	for (i = 0; i < VPS_SYSTEM_VPLL_OUTPUT_MAX_VENC; i++) {
-		pllclk.outputvenc = (enum vps_vplloutputclk)i;
-		/*no need for APLL for TI814X*/
-		if ((pllclk.outputvenc == VPS_SYSTEM_VPLL_OUTPUT_VENC_A) &&
-			cpu_is_ti814x())
-			continue;
-		r = vps_system_getpll(&pllclk);
-		if (r)
-			return -EINVAL;
-		if (i == 0)
-			l += snprintf(buf + l,
-				      PAGE_SIZE - l,
-				      "%s:%d",
-				      pllvenc_name[i].name,
-				      pllclk.outputclk);
-		else
-			l += snprintf(buf + l,
-				      PAGE_SIZE - l,
-				      ",%s:%d",
-				      pllvenc_name[i].name,
-				      pllclk.outputclk);
-
-	}
-	l += snprintf(buf + l,
-		      PAGE_SIZE - l,
-		      "\n");
-
-	return l;
-}
-
-static ssize_t dctrl_pllclks_store(struct vps_dispctrl *dctrl,
-				   const char *buf,
-				   size_t size)
-{
-	struct vps_systemvpllclk pllclk;
-	char *input = (char *)buf, *this_opt;
-	int r = 0;
-	if (dctrl->automode) {
-		VPSSERR("please turn off automode first\n");
-		return -EINVAL;
-	}
-
-	dc_lock(dctrl);
-	while (!r && (this_opt = strsep(&input, ",")) != NULL) {
-		char *p, *venc_str, *clk_str;
-		int i;
-		p = strchr(this_opt, ':');
-		if (!p)
-			break;
-
-		*p = 0;
-		venc_str = this_opt;
-		clk_str = p + 1;
-		pllclk.outputvenc = VPS_SYSTEM_VPLL_OUTPUT_MAX_VENC;
-		pllclk.outputclk = 0xFFFFFFFF;
-		/*get the output venc*/
-		for (i = 0; i < VPS_SYSTEM_VPLL_OUTPUT_MAX_VENC; i++) {
-			if (sysfs_streq(venc_str, pllvenc_name[i].name))  {
-				pllclk.outputvenc = pllvenc_name[i].value;
-				break;
-			}
-		}
-
-		if (i == VPS_SYSTEM_VPLL_OUTPUT_MAX_VENC) {
-			VPSSERR("wrong venc %s\n", venc_str);
-			r = -EINVAL;
-			goto exit;
-		}
-
-		if ((pllclk.outputvenc == VPS_SYSTEM_VPLL_OUTPUT_VENC_A) &&
-			cpu_is_ti814x()) {
-			VPSSERR("Invalid VENCA PLL\n");
-			r = -EINVAL;
-			goto exit;
-
-		}
-		/*get the pll clk*/
-		pllclk.outputclk = simple_strtoul((const char *)clk_str,
-						NULL,
-						10);
-
-		r = vps_system_setpll(&pllclk);
-		if (r)
-			VPSSERR("set freq %s for %s failed\n",
-				clk_str, venc_str);
-
-		if (input == NULL)
-			break;
-	}
-	if (!r)
-		r = size;
-exit:
-	dc_unlock(dctrl);
-	return r;
-}
-
-static ssize_t dctrl_automode_show(struct vps_dispctrl *dctrl, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%d\n", dctrl->automode);
-}
-
-static ssize_t dctrl_automode_store(struct vps_dispctrl *dctrl,
-				    const char *buf,
-				    size_t size)
-{
-	int enabled;
-	enabled = simple_strtoul(buf, NULL, 10);
-
-	dctrl->automode = (bool)enabled;
-	return size;
-}
-
 static ssize_t dctrl_tiedvencs_show(struct vps_dispctrl *dctrl, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n", disp_ctrl->tiedvenc);
@@ -1953,15 +1835,9 @@ struct dctrl_attribute {
 
 static DCTRL_ATTR(tiedvencs, S_IRUGO | S_IWUSR,
 		dctrl_tiedvencs_show, dctrl_tiedvencs_store);
-static DCTRL_ATTR(pllclks, S_IRUGO | S_IWUSR,
-		dctrl_pllclks_show, dctrl_pllclks_store);
-static DCTRL_ATTR(automode, S_IRUGO | S_IWUSR,
-		dctrl_automode_show, dctrl_automode_store);
 
 static struct attribute *dctrl_sysfs_attrs[] = {
 	&dctrl_attr_tiedvencs.attr,
-	&dctrl_attr_pllclks.attr,
-	&dctrl_attr_automode.attr,
 	NULL
 };
 
@@ -2333,7 +2209,6 @@ int __init vps_dc_init(struct platform_device *pdev,
 		r = -ENOMEM;
 		goto cleanup;
 	}
-	disp_ctrl->automode = true;
 	disp_ctrl->numvencs = vps_get_numvencs();
 	venc_info.numvencs = disp_ctrl->numvencs;
 	disp_ctrl->vencmask = (1 << VPS_DC_MAX_VENC) - 1;
@@ -2418,7 +2293,7 @@ int __init vps_dc_init(struct platform_device *pdev,
 			opinfo.dvofmt = VPS_DC_DVOFMT_TRIPLECHAN_DISCSYNC;
 			opinfo.dataformat = FVID2_DF_RGB24_888;
 			if (cpu_is_ti816x() && (VPS_PLATFORM_CPU_REV_1_0 ==
-			    vps_system_getcpurev()))
+			    cpuver))
 				clksrcp->clksrc = VPS_DC_CLKSRC_VENCD_DIV2;
 			else
 				clksrcp->clksrc = VPS_DC_CLKSRC_VENCD;
@@ -2429,10 +2304,8 @@ int __init vps_dc_init(struct platform_device *pdev,
 			opinfo.dvofmt = VPS_DC_DVOFMT_TRIPLECHAN_DISCSYNC;
 			opinfo.dataformat = FVID2_DF_RGB24_888;
 
-
 			if (cpu_is_ti816x()) {
-				if (VPS_PLATFORM_CPU_REV_1_0 ==
-				    vps_system_getcpurev())
+				if (VPS_PLATFORM_CPU_REV_1_0 == cpuver)
 					clksrcp->clksrc =
 						VPS_DC_CLKSRC_VENCD_DIV2;
 				else

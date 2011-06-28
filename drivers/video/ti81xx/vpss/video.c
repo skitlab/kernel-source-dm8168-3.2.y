@@ -206,7 +206,7 @@ static int video_create(struct vps_video_ctrl *vctrl,
 	vctrl->cbparams->cbfxn = video_vsync_cb;
 
 	vctrl->vcparams->memtype = mtype;
-	/*set the numframe back to 1*/
+	/*init the numframe to 1*/
 	vctrl->framelist->numframes = 1;
 
 	if (vctrl->idx == 0)
@@ -282,11 +282,14 @@ static int video_start(struct vps_video_ctrl *vctrl)
 
 	if ((vctrl == NULL) || (vctrl->handle == NULL))
 		return -EINVAL;
+
+	video_lock(vctrl);
 	if (!vctrl->isstarted) {
 		r = vps_fvid2_start(vctrl->handle, NULL);
 		if (!r)
 			vctrl->isstarted = true;
 	}
+	video_unlock(vctrl);
 	return r;
 
 }
@@ -300,11 +303,14 @@ static int video_stop(struct vps_video_ctrl *vctrl)
 
 	if ((vctrl == NULL) || (vctrl->handle == NULL))
 		return -EINVAL;
+
+	video_lock(vctrl);
 	if (vctrl->isstarted) {
 		r = vps_fvid2_stop(vctrl->handle, NULL);
 		if (!r)
 			vctrl->isstarted = false;
 	}
+	video_unlock(vctrl);
 	return r;
 
 }
@@ -371,7 +377,7 @@ static int video_set_buffer(struct vps_video_ctrl *vctrl, u32 addr, u8 idx)
 {
 	struct fvid2_format *dfmt;
 	struct fvid2_frame *frame;
-	u32 scfmt, fm;
+	u32 scfmt, fm, pitch;
 	int r = 0;
 
 	VPSSDBG("set buffer\n");
@@ -385,6 +391,7 @@ static int video_set_buffer(struct vps_video_ctrl *vctrl, u32 addr, u8 idx)
 	fm = vctrl->fmt->fieldmerged[FVID2_YUV_INT_ADDR_IDX];
 	switch (vctrl->fmt->dataformat) {
 	case FVID2_DF_YUV422I_YUYV:
+		pitch = dfmt->pitch[FVID2_YUV_INT_ADDR_IDX];
 		if (scfmt == FVID2_SF_PROGRESSIVE) {
 			frame->addr[FVID2_FRAME_ADDR_IDX] \
 				[FVID2_YUV_INT_ADDR_IDX] = (void *)addr;
@@ -396,27 +403,26 @@ static int video_set_buffer(struct vps_video_ctrl *vctrl, u32 addr, u8 idx)
 				    [FVID2_YUV_INT_ADDR_IDX] = (void *)addr;
 				frame->addr[FVID2_FIELD_ODD_ADDR_IDX] \
 				    [FVID2_YUV_INT_ADDR_IDX] = (void *)(addr
-					+ dfmt->pitch[FVID2_YUV_INT_ADDR_IDX]);
+					+ pitch);
 			} else {
 				/*field non-merged*/
 				frame->addr[FVID2_FIELD_EVEN_ADDR_IDX] \
 				    [FVID2_YUV_INT_ADDR_IDX] = (void *)addr;
 				frame->addr[FVID2_FIELD_ODD_ADDR_IDX] \
-				    [FVID2_YUV_INT_ADDR_IDX] = (void *)(addr
-					+ dfmt->height *
-					dfmt->pitch[FVID2_YUV_INT_ADDR_IDX]);
+				    [FVID2_YUV_INT_ADDR_IDX] = (void *)(addr +
+				    dfmt->height * pitch);
 			}
 		}
 	break;
 	case FVID2_DF_YUV422SP_UV:
+		pitch = dfmt->pitch[FVID2_YUV_SP_Y_ADDR_IDX];
 		if (scfmt == FVID2_SF_PROGRESSIVE) {
 			frame->addr[FVID2_FRAME_ADDR_IDX] \
 				[FVID2_YUV_SP_Y_ADDR_IDX] = (void *)addr;
 
 			frame->addr[FVID2_FRAME_ADDR_IDX] \
 				[FVID2_YUV_SP_CBCR_ADDR_IDX] = (void *)(addr +
-				(dfmt->height *
-					dfmt->pitch[FVID2_FRAME_ADDR_IDX]));
+				(dfmt->height * pitch));
 
 		} else {
 			if (fm) {
@@ -426,18 +432,17 @@ static int video_set_buffer(struct vps_video_ctrl *vctrl, u32 addr, u8 idx)
 
 				frame->addr[FVID2_FIELD_ODD_ADDR_IDX] \
 					[FVID2_YUV_SP_Y_ADDR_IDX] =
-						(void *)(addr +
-					dfmt->pitch[FVID2_YUV_INT_ADDR_IDX]);
+						(void *)(addr + pitch);
 
 				frame->addr[FVID2_FIELD_EVEN_ADDR_IDX] \
 					[FVID2_YUV_SP_CBCR_ADDR_IDX] =
-						(void *)(addr +	dfmt->height *
-					dfmt->pitch[FVID2_YUV_INT_ADDR_IDX]);
+						(void *)(addr +
+							dfmt->height * pitch);
 
 				frame->addr[FVID2_FIELD_ODD_ADDR_IDX] \
 					[FVID2_YUV_SP_CBCR_ADDR_IDX] =
-					(void *)(addr +	((dfmt->height + 1) *
-					dfmt->pitch[FVID2_YUV_INT_ADDR_IDX]));
+						(void *)(addr +
+						((dfmt->height + 1) * pitch));
 			} else {
 				/*no field merge*/
 				frame->addr[FVID2_FIELD_EVEN_ADDR_IDX] \
@@ -445,31 +450,29 @@ static int video_set_buffer(struct vps_video_ctrl *vctrl, u32 addr, u8 idx)
 						(void *)addr;
 				frame->addr[FVID2_FIELD_EVEN_ADDR_IDX] \
 					[FVID2_YUV_SP_CBCR_ADDR_IDX] = (void *)
-					(addr +	((dfmt->height >> 1) *
-					dfmt->pitch[FVID2_YUV_INT_ADDR_IDX]));
+					(addr +
+					    ((dfmt->height >> 1) * pitch));
 				frame->addr[FVID2_FIELD_ODD_ADDR_IDX] \
 					[FVID2_YUV_SP_Y_ADDR_IDX] = (void *)
-					(addr + (dfmt->height *
-					dfmt->pitch[FVID2_YUV_INT_ADDR_IDX]));
+					(addr + (dfmt->height *	pitch));
 				frame->addr[FVID2_FIELD_ODD_ADDR_IDX] \
 					[FVID2_YUV_SP_CBCR_ADDR_IDX] = (void *)
-					(addr +
-					((dfmt->height + (dfmt->height >> 1)) *
-					dfmt->pitch[FVID2_YUV_INT_ADDR_IDX]));
+					(addr + ((dfmt->height +
+					 (dfmt->height >> 1)) * pitch));
 
 			}
 		}
 
 		break;
 	case FVID2_DF_YUV420SP_UV:
+		pitch = dfmt->pitch[FVID2_YUV_SP_Y_ADDR_IDX];
 		if (scfmt == FVID2_SF_PROGRESSIVE) {
 			frame->addr[FVID2_FRAME_ADDR_IDX] \
 				[FVID2_YUV_SP_Y_ADDR_IDX] = (void *)addr;
 
 			frame->addr[FVID2_FRAME_ADDR_IDX] \
 				[FVID2_YUV_SP_CBCR_ADDR_IDX] = (void *)(addr +
-					(dfmt->height *
-					dfmt->pitch[FVID2_YUV_INT_ADDR_IDX]));
+					(dfmt->height * pitch));
 
 		} else {
 			/*interlaced display*/
@@ -482,19 +485,18 @@ static int video_set_buffer(struct vps_video_ctrl *vctrl, u32 addr, u8 idx)
 
 				frame->addr[FVID2_FIELD_ODD_ADDR_IDX] \
 					 [FVID2_YUV_SP_Y_ADDR_IDX] =
-						 (void *)(addr +
-					dfmt->pitch[FVID2_YUV_INT_ADDR_IDX]);
+						 (void *)(addr + pitch);
 
 				frame->addr[FVID2_FIELD_EVEN_ADDR_IDX] \
 					[FVID2_YUV_SP_CBCR_ADDR_IDX] =
-						(void *)(addr + dfmt->height *
-					dfmt->pitch[FVID2_YUV_INT_ADDR_IDX]);
+						(void *)(addr +
+							dfmt->height * pitch);
 
 
 				frame->addr[FVID2_FIELD_ODD_ADDR_IDX] \
 					[FVID2_YUV_SP_CBCR_ADDR_IDX] = (void *)
-						(addr +	(dfmt->height + 1) *
-					dfmt->pitch[FVID2_YUV_INT_ADDR_IDX]);
+						(addr +
+						(dfmt->height + 1) * pitch);
 			} else {
 				/*field non-merged*/
 				frame->addr[FVID2_FIELD_EVEN_ADDR_IDX] \
@@ -503,20 +505,19 @@ static int video_set_buffer(struct vps_video_ctrl *vctrl, u32 addr, u8 idx)
 
 				frame->addr[FVID2_FIELD_EVEN_ADDR_IDX] \
 					[FVID2_YUV_SP_CBCR_ADDR_IDX] = (void *)
-					(addr +	((dfmt->height >> 1) *
-					dfmt->pitch[FVID2_YUV_INT_ADDR_IDX]));
+					(addr +
+					    ((dfmt->height >> 1) *	pitch));
 
 				frame->addr[FVID2_FIELD_ODD_ADDR_IDX] \
 					[FVID2_YUV_SP_Y_ADDR_IDX] = (void *)
-					(addr +	(((dfmt->height * 3) / 4) *
-					dfmt->pitch[FVID2_YUV_INT_ADDR_IDX]));
+					(addr +
+					    (((dfmt->height * 3) / 4) * pitch));
 
 
 				frame->addr[FVID2_FIELD_ODD_ADDR_IDX] \
 					[FVID2_YUV_SP_CBCR_ADDR_IDX] = (void *)
-					(addr +
-					(((dfmt->height + dfmt->height / 4) *
-					dfmt->pitch[FVID2_YUV_INT_ADDR_IDX])));
+					(addr +	(((dfmt->height +
+						dfmt->height / 4) * pitch)));
 
 			}
 		}
@@ -651,6 +652,11 @@ static int video_try_format(struct vps_video_ctrl *vctrl, u32 width,
 		fmt->fieldmerged[FVID2_YUV_SP_Y_ADDR_IDX] = fieldmerged;
 		fmt->fieldmerged[FVID2_YUV_SP_CBCR_ADDR_IDX] = fieldmerged;
 
+		VPSSDBG("try format %dx%d df %d pitch %d %d\n",
+			width, height, df,
+			fmt->pitch[FVID2_YUV_SP_Y_ADDR_IDX],
+			fmt->pitch[FVID2_YUV_SP_CBCR_ADDR_IDX]);
+
 		break;
 	case FVID2_DF_YUV422I_YUYV:
 		fmt->pitch[FVID2_YUV_INT_ADDR_IDX] = pitch;
@@ -660,12 +666,13 @@ static int video_try_format(struct vps_video_ctrl *vctrl, u32 width,
 			fieldmerged = 1;
 
 		fmt->fieldmerged[FVID2_YUV_INT_ADDR_IDX] = fieldmerged;
+		VPSSDBG("try format %dx%d df %d pitch %d\n",
+			width, height, df, fmt->pitch[FVID2_YUV_INT_ADDR_IDX]);
+
 		break;
 
 
 	}
-	VPSSDBG("try format %dx%d df %d pitch %d\n",
-		width, height, df, fmt->pitch[FVID2_YUV_INT_ADDR_IDX]);
 
 	return r;
 

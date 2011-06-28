@@ -38,7 +38,6 @@ static struct list_head gctrl_list;
 
 static struct platform_device *grpx_dev;
 static struct vps_payload_info  *grpx_payload_info;
-
 static struct vps_grpx_ctrl *get_grpx_ctrl_from_handle(void * handle)
 {
 	struct vps_grpx_ctrl *gctrl;
@@ -98,8 +97,11 @@ static int vps_grpx_vsync_cb(void *handle, void *appdata, void * reserved)
 
 	if (gctrl->gstate.isstarted) {
 		struct vps_isr_data *isrd;
+		/*clear only if it is not locked*/
+		if (grpx_critical_section[gctrl->grpx_num] ==
+		    VPS_CRITICAL_SECTION_FREE)
+			grpx_status_reset(gctrl);
 
-		grpx_status_reset(gctrl);
 		/*call all registered function*/
 		list_for_each_entry(isrd, &gctrl->cb_list, list) {
 			if (isrd->isr)
@@ -141,6 +143,12 @@ static int vps_grpx_apply_changes(struct vps_grpx_ctrl *gctrl)
 		if (gstate->stenset)
 			gctrl->frames->perframecfg =
 				(struct vps_grpxrtparams *)gctrl->grtp_phy;
+
+		r = vps_fvid2_queue(
+			gctrl->handle,
+			(struct fvid2_framelist *)gctrl->frmls_phy,
+			0);
+
 
 	} else {
 		if (gstate->scset)
@@ -321,6 +329,7 @@ static int vps_grpx_set_format(struct vps_grpx_ctrl *gctrl,
 	u8 bpp, u32 df, u32 pitch)
 {
 	enum fvid2_bitsperpixel fbpp;
+	int r;
 
 
 	fbpp = vps_get_fbpp(bpp);
@@ -335,30 +344,30 @@ static int vps_grpx_set_format(struct vps_grpx_ctrl *gctrl,
 	gctrl->inputf->dataformat = df;
 	gctrl->inputf->pitch[FVID2_RGB_ADDR_IDX] = pitch;
 
-	if (gctrl->gstate.isstarted == false) {
+	grpx_cs_lock(gctrl);
+	if (gctrl->gstate.isstarted == false)
 		gctrl->gstate.varset = true;
 
-		VPSSDBG("(%d)- set format bpp %d df %d, pitch %d.\n",
-			gctrl->grpx_num, bpp, df, pitch);
 
-	} else {
+	else {
 		if (df != gctrl->grtparam->format) {
 			gctrl->grtparam->format = df;
 			gctrl->gstate.varset = true;
-			VPSSDBG("(%d)- set format df %d.\n",
-				gctrl->grpx_num, df);
 		}
 		if (pitch != gctrl->grtparam->pitch[FVID2_RGB_ADDR_IDX]) {
 			gctrl->grtparam->pitch[FVID2_RGB_ADDR_IDX] = pitch;
 			gctrl->gstate.varset = true;
-			VPSSDBG("(%d)- set format pitch %d.\n",
-				gctrl->grpx_num, pitch);
 		}
 	}
 
 
-	vps_grpx_apply_changes(gctrl);
-	return 0;
+	r = vps_grpx_apply_changes(gctrl);
+	grpx_cs_free(gctrl);
+	if (!r)
+		VPSSDBG("(%d)- set format bpp %d df %d, pitch %d.\n",
+			gctrl->grpx_num, bpp, df, pitch);
+
+	return r;
 }
 
 static int vps_grpx_check_regparams(struct vps_grpx_ctrl *gctrl,
@@ -470,15 +479,18 @@ static int vps_grpx_set_stenparams(struct vps_grpx_ctrl *gctrl,
 	gctrl->grtparam->stenptr = (void *)stenptr;
 	gctrl->gparams->stenpitch = pitch;
 	gctrl->grtparam->stenpitch = pitch;
+	grpx_cs_lock(gctrl);
 	if (stenptr == 0)
 		gctrl->gstate.stenset = false;
 	else
 		gctrl->gstate.stenset = true;
 
-
-	VPSSDBG("(%d)-) set stenciling %#x\n",
-		gctrl->grpx_num, (u32)gctrl->gparams->stenptr);
 	r = vps_grpx_apply_changes(gctrl);
+	grpx_cs_free(gctrl);
+	if (!r)
+		VPSSDBG("(%d)-) set stenciling %#x\n",
+			gctrl->grpx_num, (u32)gctrl->gparams->stenptr);
+
 	return r;
 }
 
@@ -508,6 +520,7 @@ static int vps_grpx_set_scparams(struct vps_grpx_ctrl *gctrl,
 		sci->inheight, sci->outwidth, sci->outheight);
 	/*set the scaling information*/
 	memcpy(gctrl->gscparams, sci, sizeof(struct vps_grpxscparams));
+	grpx_cs_lock(gctrl);
 	/*load app's own coefficients if available*/
 	if (sci->sccoeff) {
 		memcpy(gctrl->gsccoeff,
@@ -518,6 +531,7 @@ static int vps_grpx_set_scparams(struct vps_grpx_ctrl *gctrl,
 	gctrl->gstate.scset = true;
 
 	r = vps_grpx_apply_changes(gctrl);
+	grpx_cs_free(gctrl);
 	return r;
 }
 
@@ -561,6 +575,7 @@ static int vps_grpx_set_regparams(struct vps_grpx_ctrl *gctrl,
 	int r = 0;
 
 	VPSSDBG("(%d)- set region params.\n", gctrl->grpx_num);
+	grpx_cs_lock(gctrl);
 	memcpy(&gctrl->grtparam->regparams, gparams,
 	       sizeof(struct vps_grpxregionparams));
 	memcpy(&gctrl->gparams->regparams, gparams,
@@ -573,6 +588,7 @@ static int vps_grpx_set_regparams(struct vps_grpx_ctrl *gctrl,
 	gctrl->gstate.regset = true;
 
 	r = vps_grpx_apply_changes(gctrl);
+	grpx_cs_free(gctrl);
 	return r;
 }
 
@@ -582,11 +598,13 @@ static int vps_grpx_set_clutptr(struct vps_grpx_ctrl  *gctrl, u32 pclut)
 	int r = 0;
 	VPSSDBG("(%d)- set clut %#x\n", gctrl->grpx_num, pclut);
 
+	grpx_cs_lock(gctrl);
 	gctrl->glist->clutptr = (void *)pclut;
 	gctrl->grtlist->clutptr = (void *)pclut;
 
 	gctrl->gstate.clutSet = true;
 	r = vps_grpx_apply_changes(gctrl);
+	grpx_cs_free(gctrl);
 	return 0;
 }
 
@@ -603,12 +621,13 @@ static int vps_grpx_set_buffer(struct vps_grpx_ctrl *gctrl,
 
 	VPSSDBG("(%d)- add buffer %#x\n", gctrl->grpx_num, buffer_addr);
 
-
+	grpx_cs_lock(gctrl);
 	gctrl->buffer_addr = buffer_addr;
 	gctrl->frames->addr[FVID2_RGB_ADDR_IDX]
 		[FVID2_RGB_ADDR_IDX] = (void *)buffer_addr;
 
 	r = vps_grpx_apply_changes(gctrl);
+	grpx_cs_free(gctrl);
 	return r;
 }
 

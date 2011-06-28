@@ -630,15 +630,14 @@ static int get_firmware_version(struct platform_device *pdev, u32 procid)
 		while (vps_verparams->returnvalue ==
 				VPS_FVID2_M3_INIT_VALUE) {
 			usleep_range(100, 300);
-			if (vps_timeout) {
-				do_gettimeofday(&etime);
-				td = time_diff(stime, etime);
-				if (vps_timeout  < td) {
-					VPSSDBG("Get Firmware"
-						" Version Timeout\n");
-					r = -ETIMEDOUT;
-					goto exit;
-				}
+			do_gettimeofday(&etime);
+			td = time_diff(stime, etime);
+			/*one second timeout*/
+			if (1000  < td) {
+				VPSSDBG("Get Firmware"
+					" Version Timeout\n");
+				r = -ETIMEDOUT;
+				goto exit;
 			}
 		}
 	}

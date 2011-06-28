@@ -32,6 +32,8 @@
 #include <linux/list.h>
 #include <linux/err.h>
 #include <linux/mm.h>
+#include <linux/dma-mapping.h>
+#include <linux/slab.h>
 
 #include <linux/vmalloc.h>
 
@@ -55,6 +57,7 @@ static char *def_sbaddr;
 /*time out value is 2 seconds*/
 static u32  def_timeout = 2000;
 bool   def_i2cmode = 0u;
+enum   vps_platformcpurev cpuver;
 
 static int vps_probe(struct platform_device *pdev)
 {
@@ -91,6 +94,9 @@ static int vps_probe(struct platform_device *pdev)
 		VPSSERR("failed to int video.\n");
 		goto exit4;
 	}
+	vps_sbuf_usage();
+	cpuver = vps_system_getcpurev();
+
 	return 0;
 
 exit4:

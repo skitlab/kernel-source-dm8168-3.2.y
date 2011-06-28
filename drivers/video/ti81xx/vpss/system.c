@@ -99,7 +99,7 @@ int vps_system_setpll(struct vps_systemvpllclk *pll)
 
 	/*if it is pg1 and ti816x and digital clock source, double it*/
 	if (cpu_is_ti816x() &&
-	    (VPS_PLATFORM_CPU_REV_1_0 == vps_system_getcpurev())
+	    (VPS_PLATFORM_CPU_REV_1_0 == cpuver)
 	    && (VPS_SYSTEM_VPLL_OUTPUT_VENC_D == sctrl->pllclk->outputvenc))
 		sctrl->pllclk->outputclk <<= 1;
 
@@ -136,7 +136,7 @@ int vps_system_getpll(struct vps_systemvpllclk *pll)
 		VPSSERR("get pll failed\n");
 	else {
 		if (cpu_is_ti816x() &&
-		    (VPS_PLATFORM_CPU_REV_1_0 == vps_system_getcpurev())
+		    (VPS_PLATFORM_CPU_REV_1_0 == cpuver)
 		    && (sctrl->pllclk->outputvenc ==
 		    VPS_SYSTEM_VPLL_OUTPUT_VENC_D))
 			sctrl->pllclk->outputclk >>= 1;
@@ -292,7 +292,6 @@ int __init vps_system_init(struct platform_device *pdev)
 			goto exit;
 		}
 	}
-
 	return 0;
 exit:
 	vps_system_deinit(pdev);
