@@ -1433,12 +1433,20 @@ static ssize_t blender_output_show(struct dc_blender_info *binfo, char *buf)
 			      PAGE_SIZE - l, "%s",
 			      afmt_name[oinfo.afmt].name);
 
-	for (i = 0 ; i < ARRAY_SIZE(datafmt_name); i++) {
-		if (datafmt_name[i].value == oinfo.dataformat)
-			l += snprintf(buf + l,
-				      PAGE_SIZE - l, ",%s\n",
-				      datafmt_name[i].name);
+	if (binfo->idx != SDVENC) {
+		for (i = 0 ; i < ARRAY_SIZE(datafmt_name); i++) {
+			if (datafmt_name[i].value == oinfo.dataformat)
+				l += snprintf(buf + l,
+					      PAGE_SIZE - l, ",%s",
+					      datafmt_name[i].name);
+		}
 	}
+	if (isdigitalvenc(oinfo.vencnodenum))
+		l += snprintf(buf + l, PAGE_SIZE - 1, ",%d/%d/%d/%d\n",
+			oinfo.dvoactvidpolarity, oinfo.dvofidpolarity,
+			oinfo.dvohspolarity, oinfo.dvovspolarity);
+	else
+		l += snprintf(buf + l, PAGE_SIZE - l, "\n");
 
 	return l;
 
@@ -1455,7 +1463,8 @@ static ssize_t blender_output_store(struct dc_blender_info *binfo,
 	enum vps_dcdigitalfmt dfmt = VPS_DC_DVOFMT_MAX;
 	enum vps_dcanalogfmt afmt = VPS_DC_A_OUTPUT_MAX;
 	enum fvid2_dataformat fmt = FVID2_DF_MAX;
-
+	u8   pol = 0;
+	int   polarity[4];
 	oinfo.vencnodenum = venc_name[binfo->idx].vid;
 
 	dc_lock(binfo->dctrl);
@@ -1501,28 +1510,43 @@ static ssize_t blender_output_store(struct dc_blender_info *binfo,
 						break;
 					}
 			}
+		}
 
-			if (found == false) {
+		if (!found) {
+			r = sscanf(ptr, "%u/%u/%u/%u",
+				  &polarity[0],
+				  &polarity[1],
+				  &polarity[2],
+				  &polarity[3]);
+			if (r != 4) {
 				VPSSERR("invalid output value %s\n", ptr);
 				r = -EINVAL;
 				goto exit;
 			}
-
+			pol = 0xFF;
 		}
 
 		if (input == NULL)
 			break;
 	}
 
-	/*make sure the input is right  before send out to M3*/
+	/*make sure the input is right before sending out to M3*/
 	if (isdigitalvenc(oinfo.vencnodenum)) {
-		if ((dfmt == VPS_DC_DVOFMT_MAX) && (fmt == FVID2_DF_MAX)) {
+		if ((dfmt == VPS_DC_DVOFMT_MAX) && (fmt == FVID2_DF_MAX)
+		    && (pol == 0)) {
 			VPSSERR("no valid digital output settings\n");
 			r = -EINVAL;
 			goto exit;
 		}
 		if (dfmt != VPS_DC_DVOFMT_MAX)
 			oinfo.dvofmt = dfmt;
+
+		if (pol == 0xFF) {
+			oinfo.dvoactvidpolarity = polarity[0];
+			oinfo.dvofidpolarity = polarity[1];
+			oinfo.dvohspolarity = polarity[2];
+			oinfo.dvovspolarity = polarity[3];
+		}
 
 	} else {
 		if ((afmt == VPS_DC_A_OUTPUT_MAX) && (fmt == FVID2_DF_MAX)) {
@@ -1544,6 +1568,7 @@ static ssize_t blender_output_store(struct dc_blender_info *binfo,
 
 	if (fmt != FVID2_DF_MAX)
 		oinfo.dataformat = fmt;
+
 	r = dc_set_output(&oinfo);
 	if (!r)
 		r = size;
