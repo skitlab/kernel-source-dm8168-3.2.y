@@ -263,7 +263,6 @@ static int __devinit gpio_tps_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, tps);
 
-	regulator_has_full_constraints();
 	return 0;
 
 err_free_gpios:

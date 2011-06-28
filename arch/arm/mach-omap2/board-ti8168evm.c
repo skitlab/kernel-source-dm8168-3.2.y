@@ -621,6 +621,7 @@ static void __init ti8168_evm_init(void)
 	ti816x_vpss_init();
 	ti816x_gpio_vr_init();
 	ti816x_hdmi_init();
+	regulator_has_full_constraints();
 	regulator_use_dummy_regulator();
 }
 
