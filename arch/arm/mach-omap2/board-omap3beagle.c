@@ -48,6 +48,7 @@
 #include "mux.h"
 #include "hsmmc.h"
 #include "timer-gp.h"
+#include "board-flash.h"
 
 #define NAND_BLOCK_SIZE		SZ_128K
 
@@ -167,15 +168,6 @@ static struct mtd_partition omap3beagle_nand_partitions[] = {
 		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x680000 */
 		.size		= MTDPART_SIZ_FULL,
 	},
-};
-
-static struct omap_nand_platform_data omap3beagle_nand_data = {
-	.options	= NAND_BUSWIDTH_16,
-	.parts		= omap3beagle_nand_partitions,
-	.nr_parts	= ARRAY_SIZE(omap3beagle_nand_partitions),
-	.dma_channel	= -1,		/* disable DMA in OMAP NAND driver */
-	.nand_setup	= NULL,
-	.dev_ready	= NULL,
 };
 
 /* DSS */
@@ -618,11 +610,10 @@ static void __init omap3beagle_flash_init(void)
 	}
 
 	if (nandcs < GPMC_CS_NUM) {
-		omap3beagle_nand_data.cs = nandcs;
-
 		printk(KERN_INFO "Registering NAND on CS%d\n", nandcs);
-		if (gpmc_nand_init(&omap3beagle_nand_data) < 0)
-			printk(KERN_ERR "Unable to register NAND device\n");
+		board_nand_init(omap3beagle_nand_partitions,
+			ARRAY_SIZE(omap3beagle_nand_partitions),
+			nandcs, NAND_BUSWIDTH_16);
 	}
 }
 
