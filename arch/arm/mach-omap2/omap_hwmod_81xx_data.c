@@ -85,6 +85,7 @@ static struct omap_hwmod ti814x_uart4_hwmod;
 static struct omap_hwmod ti814x_uart5_hwmod;
 static struct omap_hwmod ti814x_uart6_hwmod;
 static struct omap_hwmod ti816x_wd_timer2_hwmod;
+static struct omap_hwmod ti814x_wd_timer1_hwmod;
 static struct omap_hwmod ti816x_i2c1_hwmod;
 static struct omap_hwmod ti816x_i2c2_hwmod;
 static struct omap_hwmod ti81xx_gpio1_hwmod;
@@ -209,12 +210,29 @@ static struct omap_hwmod_addr_space ti816x_wd_timer2_addrs[] = {
 	},
 };
 
+static struct omap_hwmod_addr_space ti814x_wd_timer1_addrs[] = {
+	{
+		.pa_start	= 0x481C7000,
+		.pa_end		= 0x481C7FFF,
+		.flags		= ADDR_TYPE_RT,
+	},
+};
+
 static struct omap_hwmod_ocp_if ti816x_l4_slow__wd_timer2 = {
 	.master		= &ti816x_l4_slow_hwmod,
 	.slave		= &ti816x_wd_timer2_hwmod,
 	.clk		= "wdt2_ick",
 	.addr		= ti816x_wd_timer2_addrs,
 	.addr_cnt	= ARRAY_SIZE(ti816x_wd_timer2_addrs),
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_ocp_if ti814x_l4_slow__wd_timer1 = {
+	.master		= &ti816x_l4_slow_hwmod,
+	.slave		= &ti814x_wd_timer1_hwmod,
+	.clk		= "wdt1_ick",
+	.addr		= ti814x_wd_timer1_addrs,
+	.addr_cnt	= ARRAY_SIZE(ti814x_wd_timer1_addrs),
 	.user		= OCP_USER_MPU,
 };
 
@@ -666,6 +684,10 @@ static struct omap_hwmod_ocp_if *ti816x_wd_timer2_slaves[] = {
 	&ti816x_l4_slow__wd_timer2,
 };
 
+static struct omap_hwmod_ocp_if *ti814x_wd_timer1_slaves[] = {
+	&ti814x_l4_slow__wd_timer1,
+};
+
 static struct omap_hwmod ti816x_wd_timer2_hwmod = {
 	.name		= "wd_timer2",
 	.main_clk	= "wdt2_fck",
@@ -678,6 +700,22 @@ static struct omap_hwmod ti816x_wd_timer2_hwmod = {
 	.slaves_cnt	= ARRAY_SIZE(ti816x_wd_timer2_slaves),
 	.class		= &wd_timer_class,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X),
+	.flags          = HWMOD_INIT_NO_RESET,
+};
+
+
+static struct omap_hwmod ti814x_wd_timer1_hwmod = {
+	.name		= "wd_timer1",
+	.main_clk	= "wdt1_fck",
+	.prcm		= {
+	.omap4		= {
+			.clkctrl_reg = TI81XX_CM_ALWON_WDTIMER_CLKCTRL,
+		},
+	},
+	.slaves		= ti814x_wd_timer1_slaves,
+	.slaves_cnt	= ARRAY_SIZE(ti814x_wd_timer1_slaves),
+	.class		= &wd_timer_class,
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X),
 	.flags          = HWMOD_INIT_NO_RESET,
 };
 
@@ -898,6 +936,7 @@ static __initdata struct omap_hwmod *ti81xx_hwmods[] = {
 	&ti814x_uart5_hwmod,
 	&ti814x_uart6_hwmod,
 	&ti816x_wd_timer2_hwmod,
+	&ti814x_wd_timer1_hwmod,
 	&ti816x_i2c1_hwmod,	/* Note: In TI814X this enables I2C0/2 */
 	&ti816x_i2c2_hwmod,
 	&ti81xx_gpio1_hwmod,

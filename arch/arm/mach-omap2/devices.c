@@ -2203,8 +2203,13 @@ static int __init omap_init_wdt(void)
 	int id = -1;
 	struct omap_device *od;
 	struct omap_hwmod *oh;
-	char *oh_name = "wd_timer2";
+	char *oh_name;
 	char *dev_name = "omap_wdt";
+
+	if (cpu_is_ti814x())
+		oh_name = "wd_timer1";
+	else
+		oh_name = "wd_timer2";
 
 	if (!cpu_class_is_omap2())
 		return 0;
