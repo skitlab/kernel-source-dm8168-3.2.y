@@ -1004,7 +1004,7 @@ static struct clk mcspi1_fck = {
 
 static struct clk gpmc_fck = {
 	.name		= "gpmc_fck",
-	.parent		= &sysclk10_ck,
+	.parent		= &sysclk6_ck,
 	.ops		= &clkops_ti81xx_dflt_wait,
 	.enable_reg	= TI81XX_CM_ALWON_GPMC_CLKCTRL,
 	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
