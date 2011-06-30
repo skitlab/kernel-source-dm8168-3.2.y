@@ -2235,6 +2235,35 @@ static struct clk video0_dpll_clkin_ck = {
 	.recalc		= &omap2_clksel_recalc,
 };
 
+/* DPLL_VIDEO0 ADPLLLJ data */
+static struct dpll_data video0_dpll_dd = {
+	.flags		= TI814X_ADPLL_LJ_TYPE,
+	.mult_div1_reg	= TI814X_ADPLL_REGADDR(VIDEO0_PLL_BASE, ADPLLJ_MN2DIV),
+	.mult_mask	= TI814X_ADPLL_M_MULT_MASK,
+	.div1_mask	= TI814X_ADPLL_N2_DIV_MASK,
+	.clk_bypass	= &video0_dpll_clkin_ck,
+	.clk_ref	= &video0_dpll_clkin_ck,
+	.control_reg	= TI814X_ADPLL_REGADDR(VIDEO0_PLL_BASE, ADPLLJ_CLKCTRL),
+	.enable_mask	= TI814X_EN_ADPLL_CLKOUT_MASK,
+	.modes		= (1 << ADPLL_LOW_POWER_BYPASS) | (1 << ADPLL_LOCKED) |
+			(1 << ADPLL_LOW_POWER_STOP),
+	.idlest_reg	= TI814X_ADPLL_REGADDR(VIDEO0_PLL_BASE, ADPLLJ_STATUS),
+	.idlest_mask	= TI814X_ST_ADPLL_MASK,
+	.max_multiplier	= TI814X_ADPLLJ_MAX_MULT,
+	.rate_tolerance	= DEFAULT_DPLL_RATE_TOLERANCE,
+	.div_m2n_reg	= TI814X_ADPLL_REGADDR(VIDEO0_PLL_BASE, ADPLLJ_M2NDIV),
+	.div_m2_mask	= TI814X_ADPLL_M2_DIV_MASK,
+	.div_n_mask	= TI814X_ADPLL_N_DIV_MASK,
+	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
+	.frac_mult_reg	= TI814X_ADPLL_REGADDR(VIDEO0_PLL_BASE, ADPLLJ_FRACDIV),
+	.frac_mult_mask	= TI814X_ADPLL_FRACT_MULT_MASK,
+	.bypass_bit	= TI814X_EN_ADPLL_BYPASS_SHIFT,
+	.stby_ret_bit	= TI814X_EN_ADPLL_STBYRET_SHIFT,
+	.load_mn_reg	= TI814X_ADPLL_REGADDR(VIDEO0_PLL_BASE, ADPLLJ_TENABLE),
+	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(VIDEO0_PLL_BASE, ADPLLJ_TENDIV),
+};
+
 /* Video0 DPLL clock(DPLL out) */
 /* Video0 DPLL for clock1(PRCM in) */
 static struct clk video0_dpll_ck = {
@@ -2261,6 +2290,36 @@ static struct clk video1_dpll_clkin_ck = {
 	.recalc		= &omap2_clksel_recalc,
 };
 
+/* DPLL_VIDEO1 ADPLLLJ data */
+static struct dpll_data video1_dpll_dd = {
+	.flags		= TI814X_ADPLL_LJ_TYPE,
+	.mult_div1_reg	= TI814X_ADPLL_REGADDR(VIDEO1_PLL_BASE, ADPLLJ_MN2DIV),
+	.mult_mask	= TI814X_ADPLL_M_MULT_MASK,
+	.div1_mask	= TI814X_ADPLL_N2_DIV_MASK,
+	.clk_bypass	= &video1_dpll_clkin_ck,
+	.clk_ref	= &video1_dpll_clkin_ck,
+	.control_reg	= TI814X_ADPLL_REGADDR(VIDEO1_PLL_BASE, ADPLLJ_CLKCTRL),
+	.enable_mask	= TI814X_EN_ADPLL_CLKOUT_MASK,
+	.modes		= (1 << ADPLL_LOW_POWER_BYPASS) | (1 << ADPLL_LOCKED) |
+			(1 << ADPLL_LOW_POWER_STOP),
+	.idlest_reg	= TI814X_ADPLL_REGADDR(VIDEO1_PLL_BASE, ADPLLJ_STATUS),
+	.idlest_mask	= TI814X_ST_ADPLL_MASK,
+	.max_multiplier	= TI814X_ADPLLJ_MAX_MULT,
+	.min_divider	= TI814X_ADPLL_MIN_DIV,
+	.max_divider	= TI814X_ADPLLJ_MAX_DIV,
+	.rate_tolerance	= DEFAULT_DPLL_RATE_TOLERANCE,
+	.div_m2n_reg	= TI814X_ADPLL_REGADDR(VIDEO1_PLL_BASE, ADPLLJ_M2NDIV),
+	.div_m2_mask	= TI814X_ADPLL_M2_DIV_MASK,
+	.div_n_mask	= TI814X_ADPLL_N_DIV_MASK,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
+	.frac_mult_reg	= TI814X_ADPLL_REGADDR(VIDEO1_PLL_BASE, ADPLLJ_FRACDIV),
+	.frac_mult_mask	= TI814X_ADPLL_FRACT_MULT_MASK,
+	.bypass_bit	= TI814X_EN_ADPLL_BYPASS_SHIFT,
+	.stby_ret_bit	= TI814X_EN_ADPLL_STBYRET_SHIFT,
+	.load_mn_reg	= TI814X_ADPLL_REGADDR(VIDEO1_PLL_BASE, ADPLLJ_TENABLE),
+	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(VIDEO1_PLL_BASE, ADPLLJ_TENDIV),
+};
+
 /* Video1 DPLL clock (DPLL out) */
 /* Video1 DPLL for clock3(PRCM in) */
 static struct clk video1_dpll_ck = {
@@ -2285,6 +2344,35 @@ static struct clk hdmi_dpll_clkin_ck = {
 	.clksel_reg	= TI814X_PLL_CMGC_OSC_SRC,
 	.clksel_mask	= TI814X_OSC_HDMI_PLL_CLKS_MASK,
 	.recalc		= &omap2_clksel_recalc,
+};
+
+/* DPLL_HDMI ADPLLLJ data */
+static struct dpll_data hdmi_dpll_dd = {
+	.flags		= TI814X_ADPLL_LJ_TYPE,
+	.mult_div1_reg	= TI814X_ADPLL_REGADDR(HDMI_PLL_BASE, ADPLLJ_MN2DIV),
+	.mult_mask	= TI814X_ADPLL_M_MULT_MASK,
+	.div1_mask	= TI814X_ADPLL_N2_DIV_MASK,
+	.clk_bypass	= &hdmi_dpll_clkin_ck,
+	.clk_ref	= &hdmi_dpll_clkin_ck,
+	.control_reg	= TI814X_ADPLL_REGADDR(HDMI_PLL_BASE, ADPLLJ_CLKCTRL),
+	.enable_mask	= TI814X_EN_ADPLL_CLKOUT_MASK,
+	.modes		= (1 << ADPLL_LOW_POWER_BYPASS) | (1 << ADPLL_LOCKED) |
+				(1 << ADPLL_LOW_POWER_STOP),
+	.idlest_reg	= TI814X_ADPLL_REGADDR(HDMI_PLL_BASE, ADPLLJ_STATUS),
+	.idlest_mask	= TI814X_ST_ADPLL_MASK,
+	.max_multiplier = TI814X_ADPLLJ_MAX_MULT,
+	.rate_tolerance = DEFAULT_DPLL_RATE_TOLERANCE,
+	.div_m2n_reg	= TI814X_ADPLL_REGADDR(HDMI_PLL_BASE, ADPLLJ_M2NDIV),
+	.div_m2_mask	= TI814X_ADPLL_M2_DIV_MASK,
+	.div_n_mask	= TI814X_ADPLL_N_DIV_MASK,
+	.pre_div_n      = TI814X_ADPLLJ_FIX_N,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
+	.frac_mult_reg	= TI814X_ADPLL_REGADDR(HDMI_PLL_BASE, ADPLLJ_FRACDIV),
+	.frac_mult_mask	= TI814X_ADPLL_FRACT_MULT_MASK,
+	.bypass_bit	= TI814X_EN_ADPLL_BYPASS_SHIFT,
+	.stby_ret_bit	= TI814X_EN_ADPLL_STBYRET_SHIFT,
+	.load_mn_reg	= TI814X_ADPLL_REGADDR(HDMI_PLL_BASE, ADPLLJ_TENABLE),
+	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(HDMI_PLL_BASE, ADPLLJ_TENDIV),
 };
 
 /* HDMI DPLL for clock2 (mux in) */
@@ -2539,6 +2627,35 @@ static struct clk audio_dpll_clkin_ck = {
 	.clksel_reg	= TI814X_PLL_CMGC_OSC_SRC,
 	.clksel_mask	= TI814X_OSC_AUDIO_PLL_CLKS_MASK,
 	.recalc		= &omap2_clksel_recalc,
+};
+
+/* DPLL_AUDIO ADPLLLJ data */
+static struct dpll_data audio_dpll_dd = {
+	.flags		= TI814X_ADPLL_LJ_TYPE,
+	.mult_div1_reg	= TI814X_ADPLL_REGADDR(AUDIO_PLL_BASE, ADPLLJ_MN2DIV),
+	.mult_mask	= TI814X_ADPLL_M_MULT_MASK,
+	.div1_mask	= TI814X_ADPLL_N2_DIV_MASK,
+	.clk_bypass	= &audio_dpll_clkin_ck,
+	.clk_ref	= &audio_dpll_clkin_ck,
+	.control_reg	= TI814X_ADPLL_REGADDR(AUDIO_PLL_BASE, ADPLLJ_CLKCTRL),
+	.enable_mask	= TI814X_EN_ADPLL_CLKOUT_MASK,
+	.modes		= (1 << ADPLL_LOW_POWER_BYPASS) | (1 << ADPLL_LOCKED) |
+				(1 << ADPLL_LOW_POWER_STOP),
+	.idlest_reg	= TI814X_ADPLL_REGADDR(AUDIO_PLL_BASE, ADPLLJ_STATUS),
+	.idlest_mask	= TI814X_ST_ADPLL_MASK,
+	.max_multiplier = TI814X_ADPLLJ_MAX_MULT,
+	.rate_tolerance = DEFAULT_DPLL_RATE_TOLERANCE,
+	.div_m2n_reg	= TI814X_ADPLL_REGADDR(AUDIO_PLL_BASE, ADPLLJ_M2NDIV),
+	.div_m2_mask	= TI814X_ADPLL_M2_DIV_MASK,
+	.div_n_mask	= TI814X_ADPLL_N_DIV_MASK,
+	.pre_div_n      = TI814X_ADPLLJ_FIX_N,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
+	.frac_mult_reg	= TI814X_ADPLL_REGADDR(AUDIO_PLL_BASE, ADPLLJ_FRACDIV),
+	.frac_mult_mask	= TI814X_ADPLL_FRACT_MULT_MASK,
+	.bypass_bit	= TI814X_EN_ADPLL_BYPASS_SHIFT,
+	.stby_ret_bit	= TI814X_EN_ADPLL_STBYRET_SHIFT,
+	.load_mn_reg	= TI814X_ADPLL_REGADDR(AUDIO_PLL_BASE, ADPLLJ_TENABLE),
+	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(AUDIO_PLL_BASE, ADPLLJ_TENDIV),
 };
 
 /* Audio DPLL for clock3(PRCM in) */
