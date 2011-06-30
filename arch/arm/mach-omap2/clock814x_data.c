@@ -389,8 +389,13 @@ static struct dpll_data arm_dpll_dd = {
 static struct clk arm_dpll_ck = {
 	.name		= "arm_dpll_ck",
 	.ops		= &clkops_null,
-	.rate		= 600000000,
-	.flags		= RATE_IN_TI814X,
+	.parent		= &arm_dpll_clkin_ck,
+	.dpll_data	= &arm_dpll_dd,
+	.init		= &ti814x_init_dpll_parent,
+	.round_rate	= &ti814x_dpll_round_rate,
+	.set_rate	= &ti814x_dpll_set_rate,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &ti814x_dpll_recalc,
 };
 
 /* CortexA8 Func Clock (final) */
@@ -434,9 +439,13 @@ static struct dpll_data dsp_dpll_dd  = {
 /* DSP_DPLL for clock1(in)*/
 static struct clk dsp_dpll_ck = {
 	.name		= "dsp_dpll_ck",
-	.ops		= &clkops_null,
-	.rate		= 500000000,
-	.flags		= RATE_IN_TI814X,
+	.ops		= &clkops_ti814x_dpll_ops,
+	.parent		= &osc0_clkin_ck,
+	.dpll_data	= &dsp_dpll_dd,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &ti814x_dpll_recalc,
+	.round_rate	= &ti814x_dpll_round_rate,
+	.set_rate	= &ti814x_dpll_set_rate,
 };
 
 /* DSP Func Clock(final) bypass PRCM */
@@ -481,9 +490,15 @@ static struct dpll_data sgx_dpll_dd = {
 /* GFX_DPLL for clock3(PRCM in) */
 static struct clk sgx_dpll_ck = {
 	.name		= "sgx_dpll_ck",
-	.ops		= &clkops_null,
-	.rate		= 200000000,
-	.flags		= RATE_IN_TI814X,
+	.ops		= &clkops_ti814x_dpll_ops,
+	.parent		= &osc0_clkin_ck,
+	.dpll_data	= &sgx_dpll_dd,
+	.round_rate	= &ti814x_dpll_round_rate,
+	.set_rate	= &ti814x_dpll_set_rate,
+	.clkdm_name	= "sgx_clkdm",
+	.recalc		= &ti814x_dpll_recalc,
+	.round_rate	= &ti814x_dpll_round_rate,
+	.set_rate	= &ti814x_dpll_set_rate,
 };
 
 static const struct clksel sysclk23_div[] = {
@@ -500,6 +515,8 @@ static struct clk sysclk23_ck = {
 	.clksel_reg	= TI81XX_CM_DPLL_SYSCLK23_CLKSEL,
 	.clksel_mask	= TI81XX_CLKSEL_0_2_MASK,
 	.recalc		= &omap2_clksel_recalc,
+	.round_rate	= &omap2_clksel_round_rate,
+	.set_rate	= &omap2_clksel_set_rate,
 };
 
 /* GFX Func Clocks (CORE clk final) */
@@ -511,6 +528,7 @@ static struct clk sgx_ck = {
 	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
 	.clkdm_name	= "sgx_clkdm",
 	.recalc		= &followparent_recalc,
+	.set_rate	= &ti814x_clksel_set_rate,
 };
 
 /* sgx_sys Clock (final) */
@@ -563,9 +581,13 @@ static struct dpll_data hdvicp_dpll_dd = {
 /* HDVICP_DPLL for clock3(PRCM in) */
 static struct clk hdvicp_dpll_ck = {
 	.name		= "hdvicp_dpll_ck",
-	.ops		= &clkops_null,
-	.rate		= 425000000, /*266000000*/
-	.flags		= RATE_IN_TI814X,
+	.ops		= &clkops_ti814x_dpll_ops,
+	.parent		= &osc0_clkin_ck,
+	.dpll_data	= &hdvicp_dpll_dd,
+	.clkdm_name	= "ivahd_clkdm",
+	.recalc		= &ti814x_dpll_recalc,
+	.round_rate	= &ti814x_dpll_round_rate,
+	.set_rate	= &ti814x_dpll_set_rate,
 };
 
 static const struct clksel sysclk3_div[] = {
@@ -582,6 +604,8 @@ static struct clk sysclk3_ck = {
 	.clksel_reg	= TI81XX_CM_DPLL_SYSCLK3_CLKSEL,
 	.clksel_mask	= TI81XX_CLKSEL_0_2_MASK,
 	.recalc		= &omap2_clksel_recalc,
+	.round_rate	= &omap2_clksel_round_rate,
+	.set_rate	= &omap2_clksel_set_rate,
 };
 
 /* HDVICP Funct Clock (final) */
@@ -593,6 +617,7 @@ static struct clk ivahd0_ck = {
 	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
 	.clkdm_name	= "ivahd_clkdm",
 	.recalc		= &followparent_recalc,
+	.set_rate	= &ti814x_clksel_set_rate,
 };
 
 static const struct clksel osc_l3dpll_clk_mux_sel[] = {
@@ -995,6 +1020,8 @@ static struct clk sysclk6_ck = {
 	.clksel_reg	= TI81XX_CM_DPLL_SYSCLK6_CLKSEL,
 	.clksel_mask	= TI81XX_CLKSEL_0_0_MASK,
 	.recalc		= &omap2_clksel_recalc,
+	.round_rate	= &omap2_clksel_round_rate,
+	.set_rate	= &omap2_clksel_set_rate,
 };
 
 /* L3 Slow Clock(final) */
@@ -1622,9 +1649,13 @@ static struct dpll_data iss_dpll_dd = {
 /* ISP_DPLL for clock1(in)*/
 static struct clk iss_dpll_ck = {
 	.name		= "iss_dpll_ck",
-	.ops		= &clkops_null,
-	.rate		= 400000000,
-	.flags		= RATE_IN_TI814X,
+	.ops		= &clkops_ti814x_dpll_ops,
+	.parent		= &osc0_clkin_ck,
+	.dpll_data	= &iss_dpll_dd,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &ti814x_dpll_recalc,
+	.round_rate	= &ti814x_dpll_round_rate,
+	.set_rate	= &ti814x_dpll_set_rate,
 };
 
 /* ISS Clock (final) */
@@ -1634,6 +1665,8 @@ static struct clk iss_ick = {
 	.ops		= &clkops_null,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &followparent_recalc,
+	.set_rate	= &ti814x_clksel_set_rate,
+
 };
 
 /* TPPSS TSO Clock (final) */
@@ -1643,6 +1676,7 @@ static struct clk tppss_tso_ick = {
 	.ops		= &clkops_null,
 	.clkdm_name	= "iss_clkdm",
 	.recalc		= &followparent_recalc,
+	.set_rate	= &ti814x_clksel_set_rate,
 };
 
 /* ISS funct/2 Clock (mux in) */
@@ -1697,9 +1731,13 @@ static struct dpll_data hdvpss_dpll_dd = {
 /* HDVPSS_DPLL for clock1(in)*/
 static struct clk hdvpss_dpll_ck = {
 	.name		= "hdvpss_dpll_ck",
-	.ops		= &clkops_null,
-	.rate		= 200000000,
-	.flags		= RATE_IN_TI814X,
+	.ops		= &clkops_ti814x_dpll_ops,
+	.parent		= &osc0_clkin_ck,
+	.dpll_data	= &hdvpss_dpll_dd,
+	.round_rate	= &ti814x_dpll_round_rate,
+	.set_rate	= &ti814x_dpll_set_rate,
+	.clkdm_name	= "hdvpss_clkdm",
+	.recalc		= &ti814x_dpll_recalc,
 };
 
 /* HDVPSS_proc Clock (final) */
@@ -1709,6 +1747,7 @@ static struct clk hdvpss_proc_fck = {
 	.ops		= &clkops_null,
 	.clkdm_name	= "hdvpss_clkdm",
 	.recalc		= &followparent_recalc,
+	.set_rate	= &ti814x_clksel_set_rate,
 };
 
 /* HDVPSS_proc_d2 Func Clock (final) */
@@ -1810,9 +1849,13 @@ static struct dpll_data usb_dpll_dd = {
 /* USB DPLL Clock */
 static struct clk usb_dpll_ck = {
 	.name		= "usb_dpll_ck",
-	.ops		= &clkops_null,
-	.rate		= 960000000,
-	.flags		= RATE_IN_TI814X,
+	.ops		= &clkops_ti814x_dpll_ops,
+	.parent		= &usb_dpll_clkin_ck,
+	.dpll_data	= &usb_dpll_dd,
+	.clkdm_name	= "alwon2_usb_clkdm",
+	.recalc		= &ti814x_dpll_recalc,
+	.round_rate	= &ti814x_dpll_round_rate,
+	.set_rate	= &ti814x_dpll_set_rate,
 };
 
 /* USB PHY0 Ref Clock */
@@ -1822,6 +1865,7 @@ static struct clk usb_phy0_rclk_ick = {
 	.ops		= &clkops_null,
 	.clkdm_name	= "alwon2_usb_clkdm",
 	.recalc		= &followparent_recalc,
+	.set_rate	= &ti814x_clksel_set_rate,
 };
 
 /* USB PHY1 Ref Clock */
@@ -1831,6 +1875,7 @@ static struct clk usb_phy1_rclk_ick = {
 	.ops		= &clkops_null,
 	.clkdm_name	= "alwon2_usb_clkdm",
 	.recalc		= &followparent_recalc,
+	.set_rate	= &ti814x_clksel_set_rate,
 };
 
 /* USB out clock after division */
@@ -2068,6 +2113,7 @@ static struct clk uart4_fck = {
 	.clksel_mask	= TI814X_UART3_MASK,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &omap2_clksel_recalc,
+	.set_rate	= &ti814x_clksel_set_rate,
 };
 
 /* UART4 Functional Clock(final) */
@@ -2082,6 +2128,7 @@ static struct clk uart5_fck = {
 	.clksel_mask	= TI814X_UART3_MASK,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &omap2_clksel_recalc,
+	.set_rate	= &ti814x_clksel_set_rate,
 };
 
 /* UART5 Functional Clock(final) */
@@ -2096,6 +2143,7 @@ static struct clk uart6_fck = {
 	.clksel_mask	= TI814X_UART3_MASK,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &omap2_clksel_recalc,
+	.set_rate	= &ti814x_clksel_set_rate,
 };
 
 static const struct clksel secureSS_mux_sel[] = {
@@ -2121,10 +2169,11 @@ static struct clk securess_fck = {
 /* TPPSS Func Clock */
 static struct clk tppss_fck = {
 	.name		= "tppss_fck",
-	.parent		= &securess_fck,
+	.parent		= &iss_dpll_ck,
 	.ops		= &clkops_null,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
-	.recalc		= &followparent_recalc,
+	.fixed_div	= 2,
+	.recalc		= &omap_fixed_divisor_recalc,
 };
 
 /* CSI2 PHY Clock */
@@ -2180,9 +2229,13 @@ static struct dpll_data ddr_dpll_dd = {
 /* DDR DPLL Clock */
 static struct clk ddr_dpll_ck = {
 	.name		= "ddr_dpll_ck",
-	.ops		= &clkops_null,
-	.rate		= 333000000,
-	.flags		= RATE_IN_TI814X,
+	.ops		= &clkops_ti814x_dpll_ops,
+	.parent		= &ddr_dpll_clkin_ck,
+	.dpll_data	= &ddr_dpll_dd,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &ti814x_dpll_recalc,
+	.round_rate	= &ti814x_dpll_round_rate,
+	.set_rate	= &ti814x_dpll_set_rate,
 };
 
 /* DDR FULL Clock */
@@ -2325,9 +2378,13 @@ static struct dpll_data video0_dpll_dd = {
 /* Video0 DPLL for clock1(PRCM in) */
 static struct clk video0_dpll_ck = {
 	.name		= "video0_dpll_ck",
-	.ops		= &clkops_null,
-	.rate		= 54000000,
-	.flags		= RATE_IN_TI814X,
+	.ops		= &clkops_ti814x_dpll_ops,
+	.parent		= &video0_dpll_clkin_ck,
+	.dpll_data	= &video0_dpll_dd,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &ti814x_dpll_recalc,
+	.round_rate	= &ti814x_dpll_round_rate,
+	.set_rate	= &ti814x_dpll_set_rate,
 };
 
 static const struct clksel osc_video1_dpll_mux_sel[] = {
@@ -2381,9 +2438,13 @@ static struct dpll_data video1_dpll_dd = {
 /* Video1 DPLL for clock3(PRCM in) */
 static struct clk video1_dpll_ck = {
 	.name		= "video1_dpll_ck",
-	.ops		= &clkops_null,
-	.rate		= 148500000,
-	.flags		= RATE_IN_TI814X,
+	.ops		= &clkops_ti814x_dpll_ops,
+	.parent		= &video1_dpll_clkin_ck,
+	.dpll_data	= &video1_dpll_dd,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &ti814x_dpll_recalc,
+	.round_rate	= &ti814x_dpll_round_rate,
+	.set_rate	= &ti814x_dpll_set_rate,
 };
 
 static const struct clksel osc_hdmi_dpll_mux_sel[] = {
@@ -2435,9 +2496,13 @@ static struct dpll_data hdmi_dpll_dd = {
 /* HDMI DPLL for clock2 (mux in) */
 static struct clk hdmi_dpll_ck = {
 	.name		= "hdmi_dpll_ck",
-	.ops		= &clkops_null,
-	.rate		= 186000000,
-	.flags		= RATE_IN_TI814X,
+	.ops		= &clkops_ti814x_dpll_ops,
+	.parent		= &hdmi_dpll_clkin_ck,
+	.dpll_data	= &hdmi_dpll_dd,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &ti814x_dpll_recalc,
+	.round_rate	= &ti814x_dpll_round_rate,
+	.set_rate	= &ti814x_dpll_set_rate,
 };
 
 /* video_m_pclk (mux in) */
@@ -2472,6 +2537,7 @@ static struct clk hdmi_dpll_muxout_ck = {
 	.clksel_reg	= TI814X_PLL_CMGC_VIDEO_PLL_CLKSRC,
 	.clksel_mask	= TI814X_VIDEO_PLL_CLK2S_MASK,
 	.recalc		= &omap2_clksel_recalc,
+	.set_rate	= &ti814x_clksel_set_rate,
 };
 
 /* PRCM Audio Pll clk4 input */
@@ -2491,6 +2557,7 @@ static struct clk video012_dpll_muxout_ck = {
 	.clksel_reg	= TI814X_PLL_CMGC_VIDEO_PLL_CLKSRC,
 	.clksel_mask	= TI814X_VIDEO_PLL_OUTMUX_CLKS_MASK,
 	.recalc		= &omap2_clksel_recalc,
+	.set_rate	= &ti814x_clksel_set_rate,
 };
 
 static const struct clksel sysclk16_d1_div[] = {
@@ -2506,6 +2573,7 @@ static struct clk sysclk16_d1mux_ck = {
 	.clksel_reg	= TI814X_CM_DPLL_PV0D1_CLKSEL,
 	.clksel_mask	= TI81XX_CLKSEL_0_2_MASK,
 	.recalc		= &omap2_clksel_recalc,
+	.set_rate	= &ti814x_clksel_set_rate,
 };
 
 static const struct clksel sysclk16_b3_div[] = {
@@ -2521,6 +2589,8 @@ static struct clk sysclk16_b3mux_ck = {
 	.clksel_reg	= TI814X_CM_DPLL_PV2B3_CLKSEL,
 	.clksel_mask	= TI81XX_CLKSEL_0_1_MASK,
 	.recalc		= &omap2_clksel_recalc,
+	.round_rate	= &omap2_clksel_round_rate,
+	.set_rate	= &omap2_clksel_set_rate,
 };
 
 static const struct clksel sysclk14_c1_div[] = {
@@ -2554,6 +2624,8 @@ static struct clk sysclk16_ck = {
 	.clksel_reg	= TI81XX_CM_DPLL_SYSCLK16_CLKSEL,
 	.clksel_mask	= TI81XX_CLKSEL_0_0_MASK,
 	.recalc		= &omap2_clksel_recalc,
+	.round_rate	= &omap2_clksel_round_rate,
+	.set_rate	= &omap2_clksel_set_rate,
 };
 
 /* TPPSS STC1 Clock (final) */
@@ -2563,6 +2635,7 @@ static struct clk tppss_stc1_fck = {
 	.ops		= &clkops_null,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &followparent_recalc,
+	.set_rate	= &ti814x_clksel_set_rate,
 };
 
 static const struct clksel hdvpss_clk_mux_sel[] = {
@@ -2581,6 +2654,7 @@ static struct clk hd_venc_g_ck = {
 	.clksel_mask	= TI814X_VIDEO_PLL_HD_VENC_G_MASK,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &omap2_clksel_recalc,
+	.set_rate	= &ti814x_clksel_set_rate,
 };
 
 /* hd_venc_d clock (PRCM out) HDVPSS VOUT0 */
@@ -2718,9 +2792,13 @@ static struct dpll_data audio_dpll_dd = {
 /* Audio DPLL for clock3(PRCM in) */
 static struct clk audio_dpll_ck = {
 	.name		= "audio_dpll_ck",
-	.ops		= &clkops_null,
-	.rate		= 192000000,
-	.flags		= RATE_IN_TI814X,
+	.ops		= &clkops_ti814x_dpll_ops,
+	.parent		= &audio_dpll_clkin_ck,
+	.dpll_data	= &audio_dpll_dd,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &ti814x_dpll_recalc,
+	.round_rate	= &ti814x_dpll_round_rate,
+	.set_rate	= &ti814x_dpll_set_rate,
 };
 
 static const struct clksel sysclk18_a_div[] = {
@@ -2801,6 +2879,8 @@ static struct clk sysclk19_ck = {
 	.clksel_reg	= TI81XX_CM_DPLL_SYSCLK19_CLKSEL,
 	.clksel_mask	= TI81XX_CLKSEL_0_2_MASK,
 	.recalc		= &omap2_clksel_recalc,
+	.round_rate     = &omap2_clksel_round_rate,
+	.set_rate       = &omap2_clksel_set_rate,
 };
 
 static const struct clksel sysclk20_c_div[] = {
@@ -2818,6 +2898,8 @@ static struct clk sysclk20_ck = {
 	.clksel_reg	= TI81XX_CM_DPLL_SYSCLK20_CLKSEL,
 	.clksel_mask	= TI81XX_CLKSEL_0_2_MASK,
 	.recalc		= &omap2_clksel_recalc,
+	.round_rate     = &omap2_clksel_round_rate,
+	.set_rate       = &omap2_clksel_set_rate,
 };
 
 static const struct clksel sysclk21_d_div[] = {
@@ -2835,6 +2917,8 @@ static struct clk sysclk21_ck = {
 	.clksel_reg	= TI81XX_CM_DPLL_SYSCLK21_CLKSEL,
 	.clksel_mask	= TI81XX_CLKSEL_0_2_MASK,
 	.recalc		= &omap2_clksel_recalc,
+	.round_rate     = &omap2_clksel_round_rate,
+	.set_rate       = &omap2_clksel_set_rate,
 };
 
 static const struct clksel sysclk22_e_div[] = {
@@ -2847,8 +2931,12 @@ static struct clk sysclk22_ck = {
 	.name		= "sysclk22_ck",
 	.parent		= &osc0_clkin_ck,
 	.clksel		= sysclk22_e_div,
+	.clksel_reg	= TI81XX_CM_DPLL_SYSCLK22_CLKSEL,
+	.clksel_mask    = TI81XX_CLKSEL_0_2_MASK,
 	.ops		= &clkops_null,
 	.recalc		= &followparent_recalc,
+	.round_rate     = &omap2_clksel_round_rate,
+	.set_rate       = &omap2_clksel_set_rate,
 };
 
 static const struct clksel audio_prcm_mux_sel[] = {
@@ -2869,6 +2957,7 @@ static struct clk audio_prcm1_out_ck = {
 	.clksel_reg	= TI81XX_CM_DPLL_AUDIOCLK_MCBSP_CLKSEL,
 	.clksel_mask	= TI81XX_CLKSEL_0_1_MASK,
 	.recalc		= &omap2_clksel_recalc,
+	.set_rate	= &ti814x_clksel_set_rate,
 };
 
 static const struct clksel mcbsp_clks_mux_sel[] = {
@@ -2885,12 +2974,12 @@ static struct clk mcbsp_fck = {
 	.name		= "mcbsp_fck",
 	.init		= &omap2_init_clksel_parent,
 	.ops		= &clkops_null,
-	.init		= &omap2_init_clksel_parent,
 	.clksel		= mcbsp_clks_mux_sel,
 	.clksel_reg	= TI814X_PLL_CMGC_MCBSP_UART_CLKSRC,
 	.clksel_mask	= TI814X_MCBSP_MASK,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &omap2_clksel_recalc,
+	.set_rate	= &ti814x_clksel_set_rate,
 };
 
 /* Mcasp0 aux_clk out (PRCM out) */
@@ -2905,6 +2994,7 @@ static struct clk mcasp1_fck = {
 	.clksel_mask	= TI81XX_CLKSEL_0_1_MASK,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &omap2_clksel_recalc,
+	.set_rate       = &ti814x_clksel_set_rate,
 };
 
 /* Mcasp1 aux_clk out (PRCM out) */
@@ -2919,6 +3009,7 @@ static struct clk mcasp2_fck = {
 	.clksel_mask	= TI81XX_CLKSEL_0_1_MASK,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &omap2_clksel_recalc,
+	.set_rate       = &ti814x_clksel_set_rate,
 };
 
 /* Mcasp2 aux_clk out (PRCM out) */
@@ -2933,6 +3024,7 @@ static struct clk mcasp3_fck = {
 	.clksel_mask	= TI81XX_CLKSEL_0_1_MASK,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &omap2_clksel_recalc,
+	.set_rate       = &ti814x_clksel_set_rate,
 };
 
 /* hdmi i2smclk mux in (PRCM out) */
@@ -2947,6 +3039,7 @@ static struct clk hdmi_i2s_ck = {
 	.clksel_mask	= TI81XX_CLKSEL_0_1_MASK,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &omap2_clksel_recalc,
+	.set_rate       = &ti814x_clksel_set_rate,
 };
 
 static const struct clksel hdmi_i2s_mclk_mux_sel[] = {
@@ -2968,6 +3061,7 @@ static struct clk hdmi_i2s_fck = {
 	.clksel_mask	= TI814X_HDMI_I2S_CLKSRC_MASK,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &omap2_clksel_recalc,
+	.set_rate       = &ti814x_clksel_set_rate,
 };
 
 /* TPPSS tso clk out (PRCM out) */

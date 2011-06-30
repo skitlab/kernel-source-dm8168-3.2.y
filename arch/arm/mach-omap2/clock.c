@@ -377,12 +377,17 @@ const struct clkops clkops_omap3_noncore_dpll_ops = {
 
 #endif
 
-/* TI816X FAPLL clkops */
+/* TI81XX FAPLL clkops */
 #if defined(CONFIG_ARCH_TI81XX)
 
 const struct clkops clkops_ti816x_fapll_ops = {
 	.enable		= ti816x_fapll_enable,
 	.disable	= ti816x_fapll_disable,
+};
+
+const struct clkops clkops_ti814x_dpll_ops = {
+	.enable		= ti814x_dpll_enable,
+	.disable	= ti814x_dpll_disable,
 };
 
 #endif
