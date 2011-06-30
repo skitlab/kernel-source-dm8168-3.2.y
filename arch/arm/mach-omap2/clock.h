@@ -54,6 +54,21 @@
 /* DPLL Type and DCO Selection Flags */
 #define DPLL_J_TYPE		0x1
 
+/* TI814x ADPLL operating modes */
+#define ADPLL_LOW_POWER_BYPASS			0x0
+#define ADPLL_LOCKED				0x1
+#define ADPLL_LOW_POWER_STOP			0x2
+
+/* ADPLL states */
+#define ST_ADPLL_BYPASSED		(0x1 << TI814X_ST_BYPASS_SHIFT)
+#define ST_ADPLL_LOCKED			((0x1 << TI814X_ST_PHASELOCK_SHIFT) |\
+					(0x1 << TI814X_ST_FREQLOCK_SHIFT) |\
+					(0x0 << TI814X_ST_BYPASS_SHIFT))
+
+/* ADPLL Types */
+#define TI814X_ADPLL_LS_TYPE			0x2
+#define TI814X_ADPLL_LJ_TYPE			0x4
+
 int omap2_clk_enable(struct clk *clk);
 void omap2_clk_disable(struct clk *clk);
 long omap2_clk_round_rate(struct clk *clk, unsigned long rate);

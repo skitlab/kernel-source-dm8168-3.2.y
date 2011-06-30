@@ -22,6 +22,8 @@
 	TI81XX_L4_SLOW_IO_ADDRESS(TI81XX_PRCM_BASE + (module) + (reg))
 #define TI814X_PLL_REGADDR(reg)						\
 	TI81XX_L4_SLOW_IO_ADDRESS(TI814X_PLL_BASE + (reg))
+#define TI814X_ADPLL_REGADDR(adpll_base, reg)				\
+	TI81XX_L4_SLOW_IO_ADDRESS(TI814X_PLL_BASE + (adpll_base) + (reg))
 
 /*
  * TI81XX common CM module offsets
@@ -104,6 +106,28 @@
 /* HDVPSS */
 #define TI814X_CM_HDVPSS_CLKDM			0x0000
 
+/* ADPLLJ control and config register offsets */
+#define ADPLLJ_CLKCTRL				0x4
+#define ADPLLJ_TENABLE				0x8
+#define ADPLLJ_TENDIV				0xC
+#define ADPLLJ_M2NDIV				0x10
+#define ADPLLJ_MN2DIV				0x14
+#define ADPLLJ_FRACDIV				0x18
+#define ADPLLJ_STATUS				0x24
+/* PLL subsystem module offsets */
+#define MODENA_PLL_BASE			(0x048)
+#define DSP_PLL_BASE				(0x080)
+#define SGX_PLL_BASE				(0x0B0)
+#define IVA_PLL_BASE				(0x0E0)
+#define L3_PLL_BASE				(0x110)
+#define ISS_PLL_BASE				(0x140)
+#define DSS_PLL_BASE				(0x170)
+#define VIDEO0_PLL_BASE			(0x1A0)
+#define VIDEO1_PLL_BASE			(0x1D0)
+#define HDMI_PLL_BASE				(0x200)
+#define AUDIO_PLL_BASE				(0x230)
+#define USB_PLL_BASE				(0x260)
+#define DDR_PLL_BASE				(0x290)
 
 /*
  * CM register addresses

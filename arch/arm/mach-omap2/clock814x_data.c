@@ -28,6 +28,18 @@
 #include "cm-regbits-81xx.h"
 #include "prm.h"
 
+/* Maximum multiplier divider values for Modena ADPLL */
+#define TI814X_MODENA_ADPLLS_MAX_MULT	2047
+#define TI814X_MODENA_ADPLLS_MAX_DIV	127
+#define TI814X_MODENA_ADPLLS_FIX_N	1
+#define TI814X_ADPLLJ_MAX_MULT		4095
+#define TI814X_ADPLLJ_MAX_DIV		255
+#define TI814X_ADPLLJ_FIX_N		29
+#define TI814X_ADPLL_MIN_DIV		0
+#define TI814X_ADPLL_POST_DIV_M2	1
+#define TI814X_ARM_DPLL_ID		1
+#define TI814X_DDR_DPLL_ID		2
+
 /*
  * Notes:
  *
@@ -341,6 +353,38 @@ static struct clk arm_dpll_clkin_ck = {
 	.clksel_reg	= TI814X_PLL_CMGC_ARM_CLKSRC,
 	.clksel_mask	= TI814X_ARM_CLKS_MASK,
 	.recalc		= &omap2_clksel_recalc,
+};
+
+/* ARM_PLL ADPLLLS data */
+static struct dpll_data arm_dpll_dd = {
+	.dpll_id	= TI814X_ARM_DPLL_ID,
+	.flags		= TI814X_ADPLL_LS_TYPE,
+	.mult_div1_reg	= TI814X_ADPLL_REGADDR(MODENA_PLL_BASE, ADPLLJ_MN2DIV),
+	.mult_mask	= TI814X_ADPLL_M_MULT_MASK,
+	.div1_mask	= TI814X_ADPLL_N2_DIV_MASK,
+	.clk_bypass	= &arm_dpll_clkin_ck,
+	.clk_ref	= &arm_dpll_clkin_ck,
+	.control_reg	= TI814X_ADPLL_REGADDR(MODENA_PLL_BASE, ADPLLJ_CLKCTRL),
+	.enable_mask	= TI814X_EN_ADPLL_CLKOUT_MASK,
+	.modes		= (1 << ADPLL_LOW_POWER_BYPASS) | (1 << ADPLL_LOCKED) |
+			(1 << ADPLL_LOW_POWER_STOP),
+	.auto_recal_bit	= TI814X_EN_MODENA_ADPLL_DRIFTGUARD_SHIFT,
+	.idlest_reg	= TI814X_ADPLL_REGADDR(MODENA_PLL_BASE, ADPLLJ_STATUS),
+	.idlest_mask	= TI814X_ST_ADPLL_MASK,
+	.max_multiplier	= TI814X_MODENA_ADPLLS_MAX_MULT,
+	.rate_tolerance	= DEFAULT_DPLL_RATE_TOLERANCE,
+	.div_m2n_reg	= TI814X_ADPLL_REGADDR(MODENA_PLL_BASE, ADPLLJ_M2NDIV),
+	.div_m2_mask	= TI814X_ADPLL_M2_DIV_MASK,
+	.div_n_mask	= TI814X_ADPLL_N_DIV_MASK,
+	.pre_div_n	= TI814X_MODENA_ADPLLS_FIX_N,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
+	.frac_mult_reg	= TI814X_ADPLL_REGADDR(MODENA_PLL_BASE, ADPLLJ_FRACDIV),
+	.frac_mult_mask	= TI814X_ADPLL_FRACT_MULT_MASK,
+	.bypass_bit	= TI814X_EN_ADPLL_BYPASS_SHIFT,
+	.stby_ret_bit	= TI814X_EN_ADPLL_STBYRET_SHIFT,
+	.stop_mode_bit	= TI814X_EN_MODENA_ADPLL_STOPMODE_SHIFT,
+	.load_mn_reg	= TI814X_ADPLL_REGADDR(DSP_PLL_BASE, ADPLLJ_TENABLE),
+	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(DSP_PLL_BASE, ADPLLJ_TENDIV),
 };
 
 /* ARM_DPLL clock out(DPLL out) */
