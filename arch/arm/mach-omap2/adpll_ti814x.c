@@ -249,6 +249,128 @@ static int _ti814_dpll_stop(struct clk *clk)
 	return 0;
 }
 
+/*
+ * _adpll_compute_new_rate - compute and return the rate with given values
+ * @ref_rate: Input frequency
+ * @m,frac_m,n,m2 - Multiplier and divider values to use for rate calculation
+ * @return - Computed rate
+ */
+static unsigned long _adpll_compute_new_rate(unsigned long ref_rate,
+			unsigned int m, unsigned int frac_m,
+			unsigned int n, unsigned int m2)
+{
+	unsigned long long num;
+	unsigned long long den;
+
+	num = (unsigned long long)((m << 18) + frac_m);
+	num = (unsigned long long) (ref_rate * num);
+	den = (unsigned long long)(((n+1) << 18)*m2);
+
+	do_div(num, den);
+
+	return num;
+}
+
+/*
+ * _adpll_test_fint - test whether an Fint(REFCLK) value is valid
+ * @clk: ADPLL struct clk to test
+ * @n: divider value (N) to test
+ *
+ * Tests whether a particular divider @n will result in a valid ADPLL
+ * internal clock frequency Fint(REFCLK).
+ * @return - 0 if Fint valid else UNDERFLOW/INVALID
+ */
+static int _adpll_test_fint(struct clk *clk, u8 n)
+{
+	struct dpll_data *dd = clk->dpll_data;
+	long fint;
+	int ret = 0;
+
+	/* DPLL divider must result in a valid jitter correction val */
+	fint = clk->parent->rate / (n + 1);
+	if (dd->flags & TI814X_ADPLL_LS_TYPE) {
+		if (fint < ADPLLS_FINT_BAND_MIN) {
+
+			pr_debug("rejecting n=%d due to Fint failure\n", n);
+			ret = ADPLL_FINT_UNDERFLOW;
+		} else if (fint > ADPLLS_FINT_BAND_MAX) {
+
+			pr_debug("rejecting n=%d due to Fint failure\n", n);
+			ret = ADPLL_FINT_INVALID;
+
+		}
+	} else {
+		if (fint < ADPLLJ_FINT_BAND_MIN) {
+
+			pr_debug("rejecting n=%d due to Fint failure\n", n);
+			dd->max_divider = n;
+			ret = ADPLL_FINT_UNDERFLOW;
+		} else if (fint > ADPLLJ_FINT_BAND_MAX) {
+
+			pr_debug("rejecting n=%d due to Fint failure\n", n);
+			dd->min_divider = n;
+			ret = ADPLL_FINT_INVALID;
+
+		}
+
+	}
+
+	return ret;
+}
+
+/*
+ *_dpll_get_rounded_vals - Compute rounded values for multiplier(M) and
+ * fractional multiplier to get the targeted rate
+ * @clk - pointer to ADPLL clk structure
+ * @target_rate - Rate to be achieved
+ *
+ * Compute and return the values, return error if not possible to get the
+ * rate with in the multiplier limits
+ */
+static int _dpll_get_rounded_vals(struct clk *clk, unsigned long target_rate)
+{
+	int i, m;
+	int r = 0;
+	struct dpll_data *dd;
+	unsigned long inp_rate;
+	unsigned int remainder, quotient;
+	unsigned int frac_overflow;
+
+	dd = clk->dpll_data;
+	if (!dd)
+		return -EINVAL;
+
+	dd->last_rounded_n = dd->pre_div_n;
+	inp_rate = (clk->parent->rate / (dd->post_div_m2));
+	inp_rate = inp_rate/ADPLL_ROUNDING_DIVIDER;
+	target_rate = target_rate/ADPLL_ROUNDING_DIVIDER;
+	quotient = (target_rate*(dd->pre_div_n + 1)) / inp_rate;
+	remainder = (target_rate*(dd->pre_div_n + 1)) % inp_rate;
+
+	if ((remainder == 0) && (clk->flags & TI814X_ADPLL_LS_TYPE)) {
+		for (i = TI814X_ADPLL_MIN_MULT; i <= dd->max_multiplier; i++) {
+			if ((quotient % i) == 0) {
+				dd->last_rounded_m = i;
+				dd->last_rounded_frac_m = 0;
+				break;
+			}
+		}
+	} else {
+		m = quotient;
+		if ((m < TI814X_ADPLL_MIN_MULT) || (m > dd->max_multiplier))
+			return -EINVAL;
+		dd->last_rounded_m = m;
+		dd->last_rounded_frac_m = (((remainder << 18))/inp_rate);
+		frac_overflow = dd->last_rounded_frac_m >> 18;
+		if (frac_overflow > 0) {
+			dd->last_rounded_m = dd->last_rounded_m + frac_overflow;
+			dd->last_rounded_frac_m = dd->last_rounded_frac_m &
+						TI814X_ADPLL_FRACT_MULT_MASK;
+		}
+	}
+	return r;
+}
+
 /* Public functions */
 
 /*
@@ -372,3 +494,184 @@ void ti814x_dpll_disable(struct clk *clk)
 	_ti814_dpll_stop(clk);
 }
 
+/*
+ * ti814x_dpll_program - Program an ADPLL with given multiplier an div values
+ * @clk - pointer to struct clk of ADPLL
+ * @m - multiplier M
+ * @frac_m - Fractional part of the multiplier
+ * @n - pre divider N
+ * @m2 - Post divider M2
+ *
+ * ADPLL must be in bypass while programming with new values
+ */
+static int ti814x_dpll_program(struct clk *clk, u16 m, u32 frac_m, u8 n, u8 m2)
+{
+	struct dpll_data *dd = clk->dpll_data;
+	u32 v;
+
+	if (!dd)
+		return -EINVAL;
+
+	_ti814x_dpll_bypass(clk);
+
+	/* Set DPLL multiplier (m)*/
+	v = __raw_readl(dd->mult_div1_reg);
+	v &= ~(dd->mult_mask);
+	v |= m << __ffs(dd->mult_mask);
+	__raw_writel(v, dd->mult_div1_reg);
+
+	/* Set DPLL Fractional multiplier (f) */
+	v = __raw_readl(dd->frac_mult_reg);
+	v &= ~(dd->frac_mult_mask);
+	v |= frac_m << __ffs(dd->frac_mult_mask);
+	__raw_writel(v, dd->frac_mult_reg);
+
+	/* Set DPLL pre-divider (n) and post-divider (m2)*/
+	v = __raw_readl(dd->div_m2n_reg);
+	v &= ~(dd->div_m2_mask | dd->div_n_mask);
+	v |= m2 << __ffs(dd->div_m2_mask);
+	v |= n << __ffs(dd->div_n_mask);
+	__raw_writel(v, dd->div_m2n_reg);
+
+	/* Assert TENABLE to load M and N values */
+	v = __raw_readl(dd->load_mn_reg);
+	v |= (1 << TI814X_ADPLL_LOAD_MN_SHIFT);
+	__raw_writel(v, dd->load_mn_reg);
+
+	v = __raw_readl(dd->load_m2n2_reg);
+	v |= (1 << TI814X_ADPLL_LOAD_M2N2_SHIFT);
+	__raw_writel(v, dd->load_m2n2_reg);
+
+	_ti814x_dpll_lock(clk);
+
+	return 0;
+}
+
+/**
+ * ti816x_dpll_round_rate - round a target rate for an ADPLL
+ * @clk: struct clk * for a dpll
+ * @target_rate: desired ADPLL clock rate
+ *
+ * Given a dpll, a desired target rate, and a rate tolerance, round
+ * the target rate to a possible, programmable rate for this adpll.
+ * Rate tolerance is assumed to be set by the caller before this
+ * function is called. Attempts to select the minimum possible n
+ * within the tolerance to reduce power consumption. Stores the
+ * computed (m, n) in the adpll's dpll_data structure so set_rate()
+ * will not need to call this (expensive) function again. Returns ~0
+ * if the target rate cannot be rounded,if the rate is
+ * too low  or the rounded rate upon success.
+ */
+long ti814x_dpll_round_rate(struct clk *clk, unsigned long target_rate)
+{
+	struct dpll_data *dd;
+	int ret;
+
+	if (!clk || !clk->dpll_data)
+		return ~0;
+
+	dd = clk->dpll_data;
+	if (!dd)
+		return -EINVAL;
+
+	pr_debug("clock: starting dpll round_rate for clock %s, target rate "
+					"%ld\n", clk->name, target_rate);
+	dd->last_rounded_rate = 0;
+
+	ret = _dpll_get_rounded_vals(clk, target_rate);
+	if (ret) {
+		pr_err("Failed to get the rounded values\n");
+		return ret;
+	}
+
+	dd->last_rounded_rate = _adpll_compute_new_rate(dd->clk_ref->rate,
+				dd->last_rounded_m,
+				dd->last_rounded_frac_m,
+				dd->last_rounded_n,
+				dd->post_div_m2);
+
+	return dd->last_rounded_rate;
+}
+
+/**
+ * ti814x_dpll_set_rate - set an ADPLL rate
+ * @clk: struct clk * of ADPLL to set
+ * @rate: rounded target rate
+ *
+ * Set the ADPLL CLKOUT to the target rate.  If the ADPLL can enter
+ * low-power bypass, and the target rate is the bypass source clock
+ * rate, then configure the ADPLL for bypass.  Otherwise, round the
+ * target rate if it hasn't been done already, then program and lock
+ * the DPLL.  Returns -EINVAL upon error, or 0 upon success.
+ */
+int ti814x_dpll_set_rate(struct clk *clk, unsigned long rate)
+{
+	struct clk *new_parent = NULL;
+	struct dpll_data *dd;
+	int ret;
+
+	if (!clk || !rate)
+		return -EINVAL;
+
+	dd = clk->dpll_data;
+	if (!dd)
+		return -EINVAL;
+
+	if (rate == ti814x_get_dpll_rate(clk))
+		return 0;
+	ret = _adpll_test_fint(clk, dd->pre_div_n);
+	if (ret)
+		return -EINVAL;
+
+	/*
+	 * Ensure both the bypass and ref clocks are enabled prior to
+	 * doing anything; we need the bypass clock running to reprogram
+	 * the DPLL.
+	 */
+	omap2_clk_enable(dd->clk_bypass);
+	omap2_clk_enable(dd->clk_ref);
+
+	if ((dd->clk_bypass->rate == rate) &&
+		(clk->dpll_data->modes & (1 << ADPLL_LOW_POWER_BYPASS))) {
+		pr_debug("clock: %s: set rate: entering bypass.\n", clk->name);
+
+		ret = _ti814x_dpll_bypass(clk);
+		if (!ret)
+			new_parent = dd->clk_bypass;
+	} else {
+		if (dd->last_rounded_rate != rate)
+			ti814x_dpll_round_rate(clk, rate);
+
+		if (dd->last_rounded_rate == 0)
+			return -EINVAL;
+
+		pr_debug("clock: %s: set rate: locking rate to %lu.\n",
+			clk->name, dd->last_rounded_rate);
+
+		ret = ti814x_dpll_program(clk,
+					dd->last_rounded_m,
+					dd->last_rounded_frac_m,
+					dd->last_rounded_n,
+					dd->post_div_m2);
+		if (!ret)
+			new_parent = dd->clk_ref;
+	}
+	if (!ret) {
+		/*
+		 * Switch the parent clock in the hierarchy, and make sure
+		 * that the new parent's usecount is correct.  Note: we
+		 * enable the new parent before disabling the old to avoid
+		 * any unnecessary hardware disable->enable transitions.
+		 */
+		if (clk->usecount) {
+			omap2_clk_enable(new_parent);
+			omap2_clk_disable(clk->parent);
+		}
+		clk_reparent(clk, new_parent);
+		clk->rate = rate;
+	}
+	omap2_clk_disable(dd->clk_ref);
+	omap2_clk_disable(dd->clk_bypass);
+
+	return 0;
+}
