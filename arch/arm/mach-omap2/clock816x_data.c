@@ -701,10 +701,12 @@ static struct clk gpio2_ick = {
 	.recalc		= &followparent_recalc,
 };
 
-static struct clk gpmc_ick = {
-	.name		= "gpmc_ick",
+static struct clk gpmc_fck = {
+	.name		= "gpmc_fck",
 	.parent		= &sysclk6_ck,
-	.ops		= &clkops_null,
+	.ops		= &clkops_ti81xx_dflt_wait,
+	.enable_reg	= TI81XX_CM_ALWON_GPMC_CLKCTRL,
+	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &followparent_recalc,
 };
@@ -997,16 +999,6 @@ static struct clk mcspi1_fck = {
 	.parent		= &sysclk10_ck,
 	.ops		= &clkops_ti81xx_dflt_wait,
 	.enable_reg	= TI81XX_CM_ALWON_SPI_CLKCTRL,
-	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
-	.clkdm_name	= "alwon_l3_slow_clkdm",
-	.recalc		= &followparent_recalc,
-};
-
-static struct clk gpmc_fck = {
-	.name		= "gpmc_fck",
-	.parent		= &sysclk6_ck,
-	.ops		= &clkops_ti81xx_dflt_wait,
-	.enable_reg	= TI81XX_CM_ALWON_GPMC_CLKCTRL,
 	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &followparent_recalc,
@@ -1602,7 +1594,6 @@ static struct omap_clk ti816x_clks[] = {
 	CLK(NULL,		"gpt7_ick",		&gpt7_ick,		CK_TI816X),
 	CLK(NULL,		"gpio1_ick",		&gpio1_ick,		CK_TI816X),
 	CLK(NULL,		"gpio2_ick",		&gpio2_ick,		CK_TI816X),
-	CLK(NULL,		"gpmc_ick",		&gpmc_ick,		CK_TI816X),
 	CLK("omap_i2c.1",	"ick",			&i2c1_ick,		CK_TI816X),
 	CLK("omap_i2c.2",	"ick",			&i2c2_ick,		CK_TI816X),
 	CLK("mmci-omap-hs.0",	"ick",			&mmchs1_ick,		CK_TI816X),
