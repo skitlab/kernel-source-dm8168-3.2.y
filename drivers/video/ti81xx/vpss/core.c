@@ -62,6 +62,9 @@ enum   vps_platformcpurev cpuver;
 static int vps_probe(struct platform_device *pdev)
 {
 	int r;
+	cpuver = vps_system_getcpurev();
+	VPSSDBG("cpu version %d\n", cpuver);
+
 	r = vps_sbuf_init(def_sbaddr, def_sbsize);
 	if (r) {
 		VPSSERR("failed to allocate share buffer\n");
@@ -95,8 +98,6 @@ static int vps_probe(struct platform_device *pdev)
 		goto exit4;
 	}
 	vps_sbuf_usage();
-	cpuver = vps_system_getcpurev();
-
 	return 0;
 
 exit4:
