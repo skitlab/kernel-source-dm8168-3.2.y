@@ -97,7 +97,16 @@ int ti816x_fapll_enable(struct clk *clk);
 void ti816x_fapll_disable(struct clk *clk);
 int ti816x_clksel_set_rate(struct clk *clk, unsigned long rate);
 
+void ti814x_init_dpll_parent(struct clk *clk);
+unsigned long ti814x_dpll_recalc(struct clk *clk);
+int ti814x_dpll_enable(struct clk *clk);
+void ti814x_dpll_disable(struct clk *clk);
+int ti814x_dpll_set_rate(struct clk *clk, unsigned long rate);
+long ti814x_dpll_round_rate(struct clk *clk, unsigned long target_rate);
+int ti814x_clksel_set_rate(struct clk *clk, unsigned long rate);
+
 extern const struct clkops clkops_ti816x_fapll_ops;
+extern const struct clkops clkops_ti814x_dpll_ops;
 
 #ifdef CONFIG_OMAP_RESET_CLOCKS
 void omap2_clk_disable_unused(struct clk *clk);
