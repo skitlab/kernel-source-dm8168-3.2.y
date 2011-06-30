@@ -69,6 +69,12 @@
 #define TI814X_ADPLL_LS_TYPE			0x2
 #define TI814X_ADPLL_LJ_TYPE			0x4
 
+/* ADPLL IDs */
+/* Used for identification of PLL */
+#define TI814X_ARM_DPLL_ID			1
+#define TI814X_DDR_DPLL_ID			2
+
+
 int omap2_clk_enable(struct clk *clk);
 void omap2_clk_disable(struct clk *clk);
 long omap2_clk_round_rate(struct clk *clk, unsigned long rate);

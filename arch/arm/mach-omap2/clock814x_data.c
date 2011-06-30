@@ -37,8 +37,6 @@
 #define TI814X_ADPLLJ_FIX_N		29
 #define TI814X_ADPLL_MIN_DIV		0
 #define TI814X_ADPLL_POST_DIV_M2	1
-#define TI814X_ARM_DPLL_ID		1
-#define TI814X_DDR_DPLL_ID		2
 
 /*
  * Notes:
