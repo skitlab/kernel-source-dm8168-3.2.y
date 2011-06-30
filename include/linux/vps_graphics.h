@@ -296,6 +296,7 @@ struct vps_grpxcreateparams {
 	u32			drvmode;
 	/**< graphics driver operation mode.
 	for valid values see #vps_grpxdrivermode */
+	u32                    periodiccallback;
 } ;
 
 /**

@@ -1959,8 +1959,7 @@ static int vidioc_g_fbuf(struct file *file, void *priv,
 	if (!(vctrl->caps & VPSS_VID_CAPS_COLOR)) {
 		a->capability = 0;
 		return 0;
-	}
-	else
+	} else
 		a->capability = V4L2_FBUF_CAP_LOCAL_ALPHA |
 			V4L2_FBUF_CAP_SRC_CHROMAKEY;
 

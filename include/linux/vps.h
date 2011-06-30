@@ -25,7 +25,7 @@
 
 #ifdef __KERNEL__
 #include "vps_cfgcsc.h"
-
+#include "vps_cfgcproc.h"
 
 /** \brief Driver ID base for the display driver class. */
 #define VPS_DISP_DRV_BASE               (0x00000000u)

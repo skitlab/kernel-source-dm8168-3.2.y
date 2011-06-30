@@ -2056,6 +2056,9 @@ void __init vps_dc_ctrl_init(struct vps_dispctrl *dctrl)
 	if (cpu_is_ti814x())
 		dctrl->dccreatecfg->vcompcscconfig =
 			(struct vps_cscconfig *)dctrl->vcompcsccfg_phy;
+	else
+		dctrl->dccreatecfg->cprocconfig =
+			(struct vps_cprocconfig *)dctrl->cproccfg_phy;
 
 	hdccfg->bypass = 0;
 	hdccfg->coeff = NULL;
@@ -2065,7 +2068,8 @@ void __init vps_dc_ctrl_init(struct vps_dispctrl *dctrl)
 		vccfg->bypass = 0;
 		vccfg->coeff = NULL;
 		vccfg->mode = VPS_CSC_MODE_HDTV_GRAPHICS_Y2R;
-	}
+	} else
+		dctrl->cproccfg->ciecammode = VPS_CPROC_CIECAM_MODE_BT709;
 
 }
 static inline int get_payload_size(void)
@@ -2086,6 +2090,8 @@ static inline int get_payload_size(void)
 	size += sizeof(struct vps_cscconfig);  /*hdcomp*/
 	if (cpu_is_ti814x())
 		size += sizeof(struct vps_cscconfig);  /*vcomp(ti814x only) */
+	else
+		size += sizeof(struct vps_cprocconfig); /*cproc ti816x only*/
 	size += sizeof(struct vps_cscconfig);  /*sd*/
 	size += sizeof(u32);  /*this is for the disable venc command*/
 	/*FIXME add more here*/
@@ -2186,6 +2192,13 @@ static inline void assign_payload_addr(struct vps_dispctrl *dctrl,
 					&offset,
 					&dctrl->vcompcsccfg_phy,
 					sizeof(struct vps_cscconfig));
+	else
+		dctrl->cproccfg = (struct vps_cprocconfig *)setaddr(
+					pinfo,
+					&offset,
+					&dctrl->cproccfg_phy,
+					sizeof(struct vps_cprocconfig));
+
 	/*sd csc config*/
 	dctrl->sdcsccfg = (struct vps_cscconfig *)setaddr(
 					pinfo,

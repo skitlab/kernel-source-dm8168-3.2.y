@@ -260,7 +260,7 @@ struct vps_dcoutputinfo {
 	/**< digital output. See #vps_dcgigitalfmt for the possible Values */
 	u32			afmt;
 	/**< Analog output. See #Vps_dcanalogfmt for the possible Values */
-	enum fvid2_dataformat  dataformat;
+	u32                     dataformat;
 	/**< Output Data format from Venc. Currently, valid values are
 	 FVID2_DF_RGB24_888, FVID2_DF_YUV444P, FVID2_DF_YUV422SP_UV */
 	u32 dvofidpolarity;
@@ -1139,7 +1139,7 @@ struct vps_dccreateconfig {
 	/**< Cig Configuration for the Main Path */
 	struct vps_dccigpipconfig      *cigpipconfig;
 	/**< Cig Configuration for the PIP Path */
-	/* Dc_CprocConfig cprocConfig; */
+	struct vps_cprocconfig         *cprocconfig;
 	/**< Cproc Configuration */
 	struct vps_dccompconfig        *compconfig;
 	/**< Comp Configuration */

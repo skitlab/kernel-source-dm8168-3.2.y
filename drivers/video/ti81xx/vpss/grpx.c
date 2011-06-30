@@ -1194,7 +1194,7 @@ void __init vps_fvid2_grpx_ctrl_init(struct vps_grpx_ctrl *gctrl)
 
 	gctrl->gcparam->memtype = VPS_VPDMA_MT_NONTILEDMEM;
 	gctrl->gcparam->drvmode = VPS_GRPX_FRAME_BUFFER_MODE;
-
+	gctrl->gcparam->periodiccallback = false;
 	/* init parameters*/
 	gctrl->glist->numregions = 1;
 
