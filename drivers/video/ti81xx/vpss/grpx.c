@@ -329,7 +329,7 @@ static int vps_grpx_set_format(struct vps_grpx_ctrl *gctrl,
 	u8 bpp, u32 df, u32 pitch)
 {
 	enum fvid2_bitsperpixel fbpp;
-	int r;
+	int r = 0;
 
 
 	fbpp = vps_get_fbpp(bpp);
@@ -345,9 +345,10 @@ static int vps_grpx_set_format(struct vps_grpx_ctrl *gctrl,
 	gctrl->inputf->pitch[FVID2_RGB_ADDR_IDX] = pitch;
 
 	grpx_cs_lock(gctrl);
-	if (gctrl->gstate.isstarted == false)
+	if (gctrl->gstate.isstarted == false) {
 		gctrl->gstate.varset = true;
-
+		r = vps_grpx_apply_changes(gctrl);
+	}
 
 	else {
 		if (df != gctrl->grtparam->format) {
@@ -358,14 +359,15 @@ static int vps_grpx_set_format(struct vps_grpx_ctrl *gctrl,
 			gctrl->grtparam->pitch[FVID2_RGB_ADDR_IDX] = pitch;
 			gctrl->gstate.varset = true;
 		}
+		if (gctrl->gstate.varset == true)
+			gctrl->frames->perframecfg =
+				(struct vps_grpxrtparams *)gctrl->grtp_phy;
 	}
 
 
-	r = vps_grpx_apply_changes(gctrl);
 	grpx_cs_free(gctrl);
-	if (!r)
-		VPSSDBG("(%d)- set format bpp %d df %d, pitch %d.\n",
-			gctrl->grpx_num, bpp, df, pitch);
+	VPSSDBG("(%d)- set format bpp %d df %d, pitch %d.\n",
+		gctrl->grpx_num, bpp, df, pitch);
 
 	return r;
 }
