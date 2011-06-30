@@ -129,7 +129,7 @@ static struct mtd_partition ti816x_evm_norflash_partitions[] = {
 					 VPS_PCF8575_PIN3 |                    \
 					 VPS_PCF8575_PIN4)
 
-#define NAND_BLOCK_SIZE                SZ_128K
+#define NAND_BLOCK_SIZE					SZ_128K
 
 /* Macro for GPIO voltage regulator */
 #define VR_GPIO_INSTANCE	0

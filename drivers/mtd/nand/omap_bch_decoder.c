@@ -1,11 +1,11 @@
 /*
- * drivers/mtd/nand/omap_omap_bch_decoder.c
+ * drivers/mtd/nand/omap_bch_decoder.c
  *
  * Whole BCH ECC Decoder (Post hardware generated syndrome decoding)
  *
  * Copyright (c) 2007 Texas Instruments
  *
- * Author: Sukumar Ghorai <s-ghorai@ti.com
+ * Author: Sukumar Ghorai <s-ghorai@ti.com>
  *		   Michael Fillinger <m-fillinger@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -168,8 +168,8 @@ static unsigned int berlekamp(unsigned int select_4_8,
 		d = 0;
 		/* Step: 0 */
 		for (loop = 0; loop <= LL; loop++) {
-			tmp_poly = mpy_mod_gf(
-					gammas[loop], synd[iteration - loop]);
+			tmp_poly = mpy_mod_gf(gammas[loop],
+							synd[iteration - loop]);
 			d ^= tmp_poly;
 			pr_debug("%02d. s=0 LL=%x poly %x\n",
 					loop, LL, tmp_poly);
