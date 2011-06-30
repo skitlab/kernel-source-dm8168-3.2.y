@@ -1780,6 +1780,35 @@ static struct clk usb_dpll_clkin_ck = {
 	.recalc		= &followparent_recalc,
 };
 
+/* DPLL_USB ADPLLLJ data */
+static struct dpll_data usb_dpll_dd = {
+	.flags		= TI814X_ADPLL_LJ_TYPE,
+	.mult_div1_reg	= TI814X_ADPLL_REGADDR(USB_PLL_BASE, ADPLLJ_MN2DIV),
+	.mult_mask	= TI814X_ADPLL_M_MULT_MASK,
+	.div1_mask	= TI814X_ADPLL_N2_DIV_MASK,
+	.clk_bypass	= &usb_dpll_clkin_ck,
+	.clk_ref	= &usb_dpll_clkin_ck,
+	.control_reg	= TI814X_ADPLL_REGADDR(USB_PLL_BASE, ADPLLJ_CLKCTRL),
+	.enable_mask	= TI814X_EN_ADPLL_CLKOUT_MASK,
+	.modes		= (1 << ADPLL_LOW_POWER_BYPASS) | (1 << ADPLL_LOCKED) |
+			(1 << ADPLL_LOW_POWER_STOP),
+	.idlest_reg	= TI814X_ADPLL_REGADDR(USB_PLL_BASE, ADPLLJ_STATUS),
+	.idlest_mask	= TI814X_ST_ADPLL_MASK,
+	.max_multiplier	= TI814X_ADPLLJ_MAX_MULT,
+	.rate_tolerance	= DEFAULT_DPLL_RATE_TOLERANCE,
+	.div_m2n_reg	= TI814X_ADPLL_REGADDR(USB_PLL_BASE, ADPLLJ_M2NDIV),
+	.div_m2_mask	= TI814X_ADPLL_M2_DIV_MASK,
+	.div_n_mask	= TI814X_ADPLL_N_DIV_MASK,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
+	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
+	.frac_mult_reg	= TI814X_ADPLL_REGADDR(USB_PLL_BASE, ADPLLJ_FRACDIV),
+	.frac_mult_mask	= TI814X_ADPLL_FRACT_MULT_MASK,
+	.bypass_bit	= TI814X_EN_ADPLL_BYPASS_SHIFT,
+	.stby_ret_bit	= TI814X_EN_ADPLL_STBYRET_SHIFT,
+	.load_mn_reg	= TI814X_ADPLL_REGADDR(USB_PLL_BASE, ADPLLJ_TENABLE),
+	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(USB_PLL_BASE, ADPLLJ_TENDIV),
+};
+
 /* USB DPLL Clock */
 static struct clk usb_dpll_ck = {
 	.name		= "usb_dpll_ck",
@@ -2118,6 +2147,36 @@ static struct clk ddr_dpll_clkin_ck = {
 	.parent		= &osc0_clkin_ck,
 	.ops		= &clkops_null,
 	.recalc		= &followparent_recalc,
+};
+
+/* DPLL_DDR ADPLLLJ data */
+static struct dpll_data ddr_dpll_dd = {
+	.dpll_id	= TI814X_DDR_DPLL_ID,
+	.flags		= TI814X_ADPLL_LJ_TYPE,
+	.mult_div1_reg	= TI814X_ADPLL_REGADDR(DDR_PLL_BASE, ADPLLJ_MN2DIV),
+	.mult_mask	= TI814X_ADPLL_M_MULT_MASK,
+	.div1_mask	= TI814X_ADPLL_N2_DIV_MASK,
+	.clk_bypass	= &ddr_dpll_clkin_ck,
+	.clk_ref	= &ddr_dpll_clkin_ck,
+	.control_reg	= TI814X_ADPLL_REGADDR(DDR_PLL_BASE, ADPLLJ_CLKCTRL),
+	.enable_mask	= TI814X_EN_ADPLL_CLKOUT_MASK,
+	.modes		= (1 << ADPLL_LOW_POWER_BYPASS) | (1 << ADPLL_LOCKED) |
+			(1 << ADPLL_LOW_POWER_STOP),
+	.idlest_reg	= TI814X_ADPLL_REGADDR(DDR_PLL_BASE, ADPLLJ_STATUS),
+	.idlest_mask	= TI814X_ST_ADPLL_MASK,
+	.max_multiplier	= TI814X_ADPLLJ_MAX_MULT,
+	.rate_tolerance	= DEFAULT_DPLL_RATE_TOLERANCE,
+	.div_m2n_reg	= TI814X_ADPLL_REGADDR(DDR_PLL_BASE, ADPLLJ_M2NDIV),
+	.div_m2_mask	= TI814X_ADPLL_M2_DIV_MASK,
+	.div_n_mask	= TI814X_ADPLL_N_DIV_MASK,
+	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
+	.frac_mult_reg	= TI814X_ADPLL_REGADDR(DDR_PLL_BASE, ADPLLJ_FRACDIV),
+	.frac_mult_mask	= TI814X_ADPLL_FRACT_MULT_MASK,
+	.bypass_bit	= TI814X_EN_ADPLL_BYPASS_SHIFT,
+	.stby_ret_bit	= TI814X_EN_ADPLL_STBYRET_SHIFT,
+	.load_mn_reg	= TI814X_ADPLL_REGADDR(DDR_PLL_BASE, ADPLLJ_TENABLE),
+	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(DDR_PLL_BASE, ADPLLJ_TENDIV),
 };
 
 /* DDR DPLL Clock */
