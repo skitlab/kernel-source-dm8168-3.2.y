@@ -192,7 +192,9 @@ found:
 }
 EXPORT_SYMBOL(ti81xx_vram_free);
 
-static void *_ti81xx_vram_alloc(int mtype, unsigned pages, unsigned long *paddr)
+static void *_ti81xx_vram_alloc(int mtype, unsigned pages,
+				unsigned long *paddr,
+				unsigned long *offset)
 {
 	struct vram_region *rm;
 	struct vram_alloc *alloc;
@@ -231,13 +233,17 @@ found:
 		*paddr = start;
 
 		vaddr = rm->vaddr + (start - rm->paddr);
+		if (offset != NULL)
+			*offset = start - rm->paddr;
 		return vaddr;
 	}
 	pr_err("FB: no memory to allocate\n");
 	return NULL;
 }
 
-void *ti81xx_vram_alloc(int mtype, size_t size, unsigned long *paddr)
+void *ti81xx_vram_alloc(int mtype, size_t size,
+			unsigned long *paddr,
+			unsigned long *offset)
 {
 	void *vaddr;
 	unsigned pages;
@@ -252,7 +258,7 @@ void *ti81xx_vram_alloc(int mtype, size_t size, unsigned long *paddr)
 
 	mutex_lock(&region_mutex);
 
-	vaddr = _ti81xx_vram_alloc(mtype, pages, paddr);
+	vaddr = _ti81xx_vram_alloc(mtype, pages, paddr, offset);
 
 	mutex_unlock(&region_mutex);
 

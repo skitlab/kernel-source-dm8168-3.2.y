@@ -69,6 +69,7 @@ struct ti81xxfb_alloc_list {
 	dma_addr_t          phy_addr;
 	void                *virt_addr;
 	u32                 size;
+	unsigned long       offset;
 };
 
 

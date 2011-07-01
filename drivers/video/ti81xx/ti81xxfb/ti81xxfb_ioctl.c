@@ -352,14 +352,14 @@ static int ti81xxfb_get_scparams(struct fb_info *fbi,
 }
 static int ti81xxfb_allocate_mem(struct fb_info *fbi,
 				     u32 size,
-				     dma_addr_t *paddr)
+				     u32 *offset)
 {
 	struct ti81xxfb_alloc_list *mlist;
 	struct ti81xxfb_info *tfbi = FB2TFB(fbi);
 	mlist = kzalloc(sizeof(*mlist), GFP_KERNEL);
 
 	if (mlist == NULL) {
-		*paddr = 0;
+		*offset = 0;
 		return -ENOMEM;
 	}
 	ti81xxfb_lock(tfbi);
@@ -367,19 +367,21 @@ static int ti81xxfb_allocate_mem(struct fb_info *fbi,
 	mlist->size = PAGE_ALIGN(size);
 	mlist->virt_addr = (void *)ti81xx_vram_alloc(TI81XXFB_MEMTYPE_SDRAM,
 					     (size_t)size,
-					     (unsigned long *)&mlist->phy_addr);
+					     (unsigned long *)&mlist->phy_addr,
+					     &mlist->offset);
 	if (mlist->virt_addr == NULL) {
 		kfree(mlist);
-		*paddr = 0;
+		*offset = 0;
 		ti81xxfb_unlock(tfbi);
 		return -ENOMEM;
 	}
 	/* add into the list*/
 	list_add(&mlist->list, &tfbi->alloc_list);
-	TFBDBG("Sten allocated %d bytes @ 0x%08X\n",
-			mlist->size, mlist->phy_addr);
+	TFBDBG("Aallocated %d bytes @ 0x%08X virt %p, offset 0x%X\n",
+			mlist->size, mlist->phy_addr,
+			mlist->virt_addr, mlist->offset);
 
-	*paddr = mlist->phy_addr;
+	*offset = (unsigned long)mlist->offset;
 	ti81xxfb_unlock(tfbi);
 	return 0;
 
@@ -392,44 +394,55 @@ static int ti81xxfb_free_mem(struct fb_info *fbi, int offset)
 	struct ti81xxfb_alloc_list *mlist;
 	u32 stenaddr;
 	u32 stride;
+	bool found = false;
 	int r = -EINVAL;
 
 	/* check to make sure that the  sten buffer to
 	be freeed is not the one being used*/
 	ti81xxfb_lock(tfbi);
+
+	/* loop the list to find out the offset*/
+	list_for_each_entry(mlist, &tfbi->alloc_list, list) {
+		if (mlist->offset == offset) {
+			found = true;
+			break;
+		}
+	}
+	if (found == false)
+		goto exit;
+
 	r = gctrl->get_stenparams(gctrl, &stenaddr, &stride);
 	if ((r == 0) && (stenaddr != 0) && (gctrl->gstate.isstarted)) {
 		struct vps_grpxregionparams regp;
 
 		r = gctrl->get_regparams(gctrl, &regp);
 		if (r == 0)
-			if ((stenaddr == offset) &&
+			if ((stenaddr == mlist->phy_addr) &&
 				(regp.stencilingenable == 1))
-				return -EINVAL;
+				goto exit;
 	}
-	/* loop the list to find out the offset and free it*/
-	list_for_each_entry(mlist, &tfbi->alloc_list, list) {
-		if (mlist->phy_addr == offset) {
-			r = ti81xx_vram_free(mlist->phy_addr,
-					 mlist->virt_addr,
-					 mlist->size);
-			if (r == 0) {
-				list_del(&mlist->list);
-				kfree(mlist);
-			} else
-				dev_err(tfbi->fbdev->dev,
-				       "failed to free mem %x\n",
-				       mlist->phy_addr);
-			break;
-		}
+	/* free it*/
+	if (0 == r) {
+		r = ti81xx_vram_free(mlist->phy_addr,
+				 mlist->virt_addr,
+				 mlist->size);
+		if (r == 0) {
+			list_del(&mlist->list);
+			kfree(mlist);
+		} else
+			dev_err(tfbi->fbdev->dev,
+			       "failed to free mem %x\n",
+			       mlist->phy_addr);
 	}
-
 	/* if the buffer to be free is the one used previous,
 	   set the sten ptr to NULL */
-	if ((r == 0) && (offset == stenaddr))
+	if ((r == 0) && (mlist->phy_addr == stenaddr))
 		gctrl->set_stenparams(gctrl, 0, stride);
 
-
+	TFBDBG("free mem paddr: 0x%X, vaddr %p, size %d, offset 0x%X\n",
+		mlist->phy_addr, mlist->virt_addr,
+		mlist->size, mlist->offset);
+exit:
 	ti81xxfb_unlock(tfbi);
 	return r;
 }
@@ -442,11 +455,10 @@ static int ti81xxfb_set_sten(struct fb_info *fbi,
 	struct ti81xxfb_alloc_list *mlist;
 	bool found = false;
 	int r = 0;
-	int offset = stparams->paddr;
 
 	/* loop the list to find out the offset*/
 	list_for_each_entry(mlist, &tfbi->alloc_list, list) {
-		if (mlist->phy_addr == offset) {
+		if (mlist->offset == stparams->paddr) {
 			found = true;
 			break;
 		}
@@ -465,7 +477,7 @@ static int ti81xxfb_set_sten(struct fb_info *fbi,
 	}
 
 	ti81xxfb_lock(tfbi);
-	r = gctrl->set_stenparams(gctrl, offset, stparams->pitch);
+	r = gctrl->set_stenparams(gctrl, mlist->phy_addr, stparams->pitch);
 	ti81xxfb_unlock(tfbi);
 	return r;
 
@@ -630,7 +642,7 @@ int ti81xxfb_ioctl(struct fb_info *fbi, unsigned int cmd,
 
 	case TIFB_ALLOC:
 	{
-		dma_addr_t paddr;
+		u32 offset;
 		TFBDBG("ioctl ALLOC_STEN\n");
 
 		if (get_user(param.size, (int __user *)arg)) {
@@ -638,9 +650,9 @@ int ti81xxfb_ioctl(struct fb_info *fbi, unsigned int cmd,
 			break;
 		}
 
-		r = ti81xxfb_allocate_mem(fbi, param.size, &paddr);
-		if ((r == 0) && (paddr != 0)) {
-			if (put_user(paddr, (int __user *)arg))
+		r = ti81xxfb_allocate_mem(fbi, param.size, &offset);
+		if ((r == 0) && (offset != 0)) {
+			if (put_user(offset, (int __user *)arg))
 				r = -EFAULT;
 		}
 		break;

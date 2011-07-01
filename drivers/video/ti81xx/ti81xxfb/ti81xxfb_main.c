@@ -842,10 +842,11 @@ static int ti81xxfb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 	} else {
 		/* mapping stenciling memory*/
 		list_for_each_entry(mem, &tfbi->alloc_list, list) {
-			if (offset == mem->phy_addr) {
+			if (offset == mem->offset) {
 				found = true;
 				len = mem->size;
-				start = offset;
+				offset = mem->phy_addr;
+				vma->vm_pgoff = offset >> PAGE_SHIFT;
 				break;
 			}
 		}
@@ -853,13 +854,12 @@ static int ti81xxfb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 			return -EINVAL;
 	}
 
-
 	len = PAGE_ALIGN(len);
 	if ((vma->vm_end - vma->vm_start) > len)
 		return -EINVAL;
 
 	TFBDBG("user mmap regions start %lx, len %d\n",
-				start, len);
+				offset, len);
 	vma->vm_flags |= VM_IO | VM_RESERVED;
 	/* make buffers bufferable*/
 	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
@@ -939,7 +939,7 @@ static int ti81xxfb_alloc_fbmem(struct fb_info *fbi, unsigned long size)
 		size, tfbi->idx);
 
 	vaddr = (void *)ti81xx_vram_alloc(TI81XXFB_MEMTYPE_SDRAM,
-			(size_t)size, &paddr);
+			(size_t)size, &paddr, NULL);
 
 	TFBDBG("allocated VRAM paddr %lx, vaddr %p\n", paddr, vaddr);
 	if (vaddr == NULL) {

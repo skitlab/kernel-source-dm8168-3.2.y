@@ -28,7 +28,9 @@
 
 extern int ti81xx_vram_add_region(unsigned long paddr, size_t size);
 extern int ti81xx_vram_free(unsigned long paddr, void *vaddr, size_t size);
-extern int ti81xx_vram_alloc(int mtype, size_t size, unsigned long *paddr);
+extern int ti81xx_vram_alloc(int mtype, size_t size,
+			     unsigned long *paddr,
+			     unsigned long *offset);
 extern void ti81xx_set_sdram_vram(u32 size, u32 start);
 extern void ti81xx_vram_get_info(unsigned long *vram,
 				 unsigned long *free_vram,
