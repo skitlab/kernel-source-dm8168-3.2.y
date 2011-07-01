@@ -393,6 +393,9 @@ static int check_fb_var(struct fb_info *fbi, struct fb_var_screeninfo *var)
 
 	/*check if we have enough memory to support*/
 	line_size = var->xres_virtual * bpp >> 3;
+	if (line_size & 0xF)
+		line_size += 16 - (line_size & 0xF);
+
 	if (line_size * var->yres_virtual > tfbi->mreg.size) {
 		TFBDBG("can't fit fb memory, reducing y\n");
 		var->yres_virtual = tfbi->mreg.size / line_size;
@@ -410,6 +413,8 @@ static int check_fb_var(struct fb_info *fbi, struct fb_var_screeninfo *var)
 			var->xres = var->xres_virtual;
 
 		line_size = var->xres_virtual * bpp >> 3;
+		if (line_size & 0xF)
+			line_size += 16 - (line_size & 0xF);
 
 	}
 
@@ -423,13 +428,6 @@ static int check_fb_var(struct fb_info *fbi, struct fb_var_screeninfo *var)
 		var->xoffset = var->xres_virtual - var->xres;
 	if (var->yoffset > var->yres_virtual - var->yres)
 		var->yoffset = var->yres_virtual - var->yres;
-	/*pitch check*/
-	if ((var->xres_virtual * bpp >> 3) & 0xF) {
-		dev_err(tfbi->fbdev->dev,
-			"buffer pitch %d is not on 16byte boundary",
-			(var->xres_virtual * bpp >> 3));
-		return -EINVAL;
-	}
 
 	TFBDBG("xres = %d, yres = %d, vxres = %d, vyres = %d,"
 		"xoffset = %d, yoffset = %d\n",
@@ -967,8 +965,13 @@ static int ti81xxfb_alloc_fbmem_display(struct fb_info *fbi, unsigned long size)
 
 		u32 width, height;
 		u8 scformat;
+		u32 pitch;
 		gctrl->get_resolution(gctrl, &width, &height, &scformat);
-		size = (width * height * TI81XXFB_BPP >> 3) * 2;
+		/*make sure the buffer is 16 byte alignment*/
+		pitch = width * TI81XXFB_BPP >> 3;
+		if (pitch & 0xF)
+			pitch += 16 - (pitch & 0xF);
+		size = pitch * height  * 2;
 
 	}
 	return ti81xxfb_alloc_fbmem(fbi, size);
