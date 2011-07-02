@@ -184,7 +184,8 @@ static void __init omap3_check_features(void)
 	status = omap_ctrl_readl(OMAP3_CONTROL_OMAP_STATUS);
 
 	OMAP3_CHECK_FEATURE(status, L2CACHE);
-	OMAP3_CHECK_FEATURE(status, IVA);
+	if (!cpu_is_omap3505() && !cpu_is_omap3517())
+		OMAP3_CHECK_FEATURE(status, IVA);
 	OMAP3_CHECK_FEATURE(status, SGX);
 	OMAP3_CHECK_FEATURE(status, NEON);
 	OMAP3_CHECK_FEATURE(status, ISP);
