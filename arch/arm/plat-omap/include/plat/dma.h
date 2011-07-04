@@ -184,6 +184,9 @@
 #define OMAP24XX_DMA_SPI1_RX2		51	/* E_DMA_51 */
 #define OMAP24XX_DMA_SPI1_TX3		52	/* E_DMA_52 */
 #define OMAP24XX_DMA_SPI1_RX3		53	/* E_DMA_53 */
+
+#define OMAP24XX_DMA_MMC1_RX		3
+#define OMAP24XX_DMA_MMC1_TX		2
 #endif
 
 #else

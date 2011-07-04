@@ -204,10 +204,10 @@ static int nop_mmc_set_power(struct device *dev, int slot, int power_on,
 	return 0;
 }
 
-#ifndef CONFIG_ARCH_TI816X
+#ifndef CONFIG_ARCH_TI81XX
 static struct omap_mmc_platform_data *hsmmc_data[OMAP34XX_NR_MMC] __initdata;
 #else
-static struct omap_mmc_platform_data *hsmmc_data[TI816X_NR_MMC] __initdata;
+static struct omap_mmc_platform_data *hsmmc_data[TI81XX_NR_MMC] __initdata;
 #endif
 
 void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
@@ -260,7 +260,7 @@ void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 			goto done;
 		}
 
-		if (cpu_is_ti816x())
+		if (cpu_is_ti81xx())
 			mmc->version = MMC_CTRL_VERSION_2;
 
 		if (c->name)
@@ -309,7 +309,7 @@ void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 		 */
 		mmc->slots[0].ocr_mask = c->ocr_mask;
 
-		if (cpu_is_omap3517() || cpu_is_omap3505() || cpu_is_ti816x())
+		if (cpu_is_omap3517() || cpu_is_omap3505() || cpu_is_ti81xx())
 			mmc->slots[0].set_power = nop_mmc_set_power;
 		else
 			mmc->slots[0].features |= HSMMC_HAS_PBIAS;
@@ -365,11 +365,10 @@ void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 		hsmmc_data[c->mmc - 1] = mmc;
 	}
 
-	if (!cpu_is_ti816x()) {
+	if (!cpu_is_ti81xx())
 		omap2_init_mmc(hsmmc_data, OMAP34XX_NR_MMC);
-	} else {
-		omap2_init_mmc(hsmmc_data, TI816X_NR_MMC);
-	}
+	else
+		omap2_init_mmc(hsmmc_data, TI81XX_NR_MMC);
 
 	/* pass the device nodes back to board setup code */
 	for (c = controllers; c->mmc; c++) {

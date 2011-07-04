@@ -931,6 +931,20 @@ static inline void omap2_mmc_mux(struct omap_mmc_platform_data *mmc_controller,
 		omap_mux_init_signal("mmc_sdcd", OMAP_PULL_ENA);
 		omap_mux_init_signal("mmc_sdwp", OMAP_PULL_ENA);
 	}
+
+#if 0
+	if (cpu_is_ti814x()) {
+		omap_mux_init_signal("mmc_pow", OMAP_PULL_ENA);
+		omap_mux_init_signal("mmc_clk", OMAP_PIN_OUTPUT);
+		omap_mux_init_signal("mmc_cmd", OMAP_PULL_UP);
+		omap_mux_init_signal("mmc_dat0", OMAP_PULL_UP);
+		omap_mux_init_signal("mmc_dat1_sdirq", OMAP_PULL_UP);
+		omap_mux_init_signal("mmc_dat2_sdrw", OMAP_PULL_UP);
+		omap_mux_init_signal("mmc_dat3", OMAP_PULL_UP);
+		omap_mux_init_signal("mmc_sdcd", OMAP_PULL_ENA);
+		omap_mux_init_signal("mmc_sdwp", OMAP_PULL_ENA);
+	}
+#endif
 }
 
 void __init omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
@@ -950,12 +964,15 @@ void __init omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
 
 		switch (i) {
 		case 0:
-			if (!cpu_is_ti816x()) {
+			if (!cpu_is_ti81xx()) {
 				base = OMAP2_MMC1_BASE;
 				irq = INT_24XX_MMC_IRQ;
-			} else {
+			} else if (cpu_is_ti816x()) {
 				base = TI816X_MMC1_BASE;
 				irq = TI81XX_IRQ_SD;
+			} else if (cpu_is_ti814x()) {
+				base = TI814X_MMC1_BASE;
+				irq = TI814X_IRQ_SD1;
 			}
 			break;
 		case 1:
@@ -992,8 +1009,8 @@ void __init omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
 				irq += OMAP44XX_IRQ_GIC_START;
 			size = OMAP4_HSMMC_SIZE;
 			name = "mmci-omap-hs";
-		} else if (cpu_is_ti816x()) {
-			size = TI816X_HSMMC_SIZE;
+		} else if (cpu_is_ti81xx()) {
+			size = TI81XX_HSMMC_SIZE;
 			name = "mmci-omap-hs";
 		} else {
 			size = OMAP3_HSMMC_SIZE;

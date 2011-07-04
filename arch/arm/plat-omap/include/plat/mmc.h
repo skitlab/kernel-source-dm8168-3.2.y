@@ -36,10 +36,12 @@
 #define OMAP4_MMC5_BASE		0x480d5000
 #define OMAP4_MMC_REG_OFFSET	0x100
 
-#define TI816X_NR_MMC		1
-#define TI816X_HSMMC_SIZE	0x10000
+#define TI81XX_NR_MMC		1
+#define TI81XX_HSMMC_SIZE	0x10000
 #define TI816X_MMC1_BASE	0x48060100 /* TI816X MMC/SD config base */
 #define TI816X_MMC1_HL_BASE	0x48060000 /* TI816X HL configuration*/
+#define TI814X_MMC1_BASE	0x481D8100 /* TI814X MMC/SD config base */
+#define TI814X_MMC1_HL_BASE	0x481D8000 /* TI814X HL configuration*/
 
 #define HSMMC5			(1 << 4)
 #define HSMMC4			(1 << 3)
@@ -51,7 +53,7 @@
 
 enum {
 	MMC_CTRL_VERSION_1 = 0, /* OMAP class devicess */
-	MMC_CTRL_VERSION_2	/* TI816X class devicess */
+	MMC_CTRL_VERSION_2	/* TI81XX class devicess */
 };
 
 struct omap_mmc_platform_data {
