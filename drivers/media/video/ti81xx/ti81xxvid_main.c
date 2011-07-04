@@ -751,6 +751,14 @@ static int ti81xx_vidout_buffer_setup(struct videobuf_queue *q,
 	/* Now allocated the V4L2 buffers */
 	*size = PAGE_ALIGN(vout->pix.width * vout->pix.height
 				* vout->sbpp >> 3);
+
+	/*check size to avoid any problems*/
+	if (*size > vout->buffer_size) {
+		v4l2_err(&vout->vid_dev->v4l2_dev,
+			"VIDOUT%d: buffer size wrong %u : %u\n",
+			vout->vid, *size, vout->buffer_size);
+		return -EINVAL;
+	}
 	/*allocate more buffers if required*/
 	for (i = startindex; i < *count; i++) {
 		vout->buffer_size = *size;
@@ -927,6 +935,14 @@ static int ti81xx_vidout_mmap(struct file *file, struct vm_area_struct *vma)
 				vout->vid, (vma->vm_pgoff << PAGE_SHIFT));
 		return -EINVAL;
 	}
+
+	if (size > vout->buffer_size) {
+		v4l2_err(&vout->vid_dev->v4l2_dev,
+			"VIDOUT%d: buffer size wrong %lu : %u\n",
+			vout->vid, size, vout->buffer_size);
+		return -EINVAL;
+	}
+
 	q->bufs[i]->baddr = vma->vm_start;
 
 	vma->vm_flags |= VM_RESERVED;

@@ -377,7 +377,7 @@ static int ti81xxfb_allocate_mem(struct fb_info *fbi,
 	}
 	/* add into the list*/
 	list_add(&mlist->list, &tfbi->alloc_list);
-	TFBDBG("Aallocated %d bytes @ 0x%08X virt %p, offset 0x%X\n",
+	TFBDBG("Aallocated %d bytes @ 0x%08X virt %p, offset %lu\n",
 			mlist->size, mlist->phy_addr,
 			mlist->virt_addr, mlist->offset);
 
@@ -439,7 +439,7 @@ static int ti81xxfb_free_mem(struct fb_info *fbi, int offset)
 	if ((r == 0) && (mlist->phy_addr == stenaddr))
 		gctrl->set_stenparams(gctrl, 0, stride);
 
-	TFBDBG("free mem paddr: 0x%X, vaddr %p, size %d, offset 0x%X\n",
+	TFBDBG("free mem paddr: 0x%X, vaddr %p, size %d, offset %lu\n",
 		mlist->phy_addr, mlist->virt_addr,
 		mlist->size, mlist->offset);
 exit:
