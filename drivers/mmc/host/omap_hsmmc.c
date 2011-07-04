@@ -1590,7 +1590,6 @@ static void omap_hsmmc_request(struct mmc_host *mmc, struct mmc_request *req)
 
 	if ((host->pdata->version == MMC_CTRL_VERSION_2) &&
 				((pstate & PSTATE_CINS) == 0)) {
-		int status;
 		omap_hsmmc_reset_controller_fsm(host, SRC);
 		host->cmd = req->cmd;
 		host->cmd->error = -ETIMEDOUT;
