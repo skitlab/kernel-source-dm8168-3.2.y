@@ -80,9 +80,9 @@ static struct clockdomain mmu_cfg_81xx_clkdm = {
  * TI814X only
  */
 
-static struct clockdomain dsp_814x_clkdm = {
-	.name		= "dsp_clkdm",
-	.pwrdm		= { .name = "dsp_pwrdm" },
+static struct clockdomain gem_814x_clkdm = {
+	.name		= "gem_clkdm",
+	.pwrdm		= { .name = "gem_pwrdm" },
 	.cm_inst	= TI814X_CM_DSP_MOD,
 	.clkdm_offs	= TI814X_CM_DSP_CLKDM,
 	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,
@@ -90,9 +90,9 @@ static struct clockdomain dsp_814x_clkdm = {
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X),
 };
 
-static struct clockdomain hdvicp_814x_clkdm = {
-	.name		= "hdvicp_clkdm",
-	.pwrdm		= { .name = "hdvicp_pwrdm" },
+static struct clockdomain ivahd_814x_clkdm = {
+	.name		= "ivahd_clkdm",
+	.pwrdm		= { .name = "ivahd_pwrdm" },
 	.cm_inst	= TI814X_CM_HDVICP_MOD,
 	.clkdm_offs	= TI814X_CM_HDVICP_CLKDM,
 	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,
@@ -112,9 +112,9 @@ static struct clockdomain isp_814x_clkdm = {
 };
 
 /* GFX clock domain */
-static struct clockdomain gfx_814x_clkdm = {
-	.name		= "gfx_clkdm",
-	.pwrdm		= { .name = "gfx_pwrdm" },
+static struct clockdomain sgx_814x_clkdm = {
+	.name		= "sgx_clkdm",
+	.pwrdm		= { .name = "sgx_pwrdm" },
 	.cm_inst	= TI814X_CM_GFX_MOD,
 	.clkdm_offs	= TI814X_CM_GFX_CLKDM,
 	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,

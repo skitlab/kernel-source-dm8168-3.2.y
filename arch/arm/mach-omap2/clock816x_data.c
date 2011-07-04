@@ -312,7 +312,7 @@ static struct clk sysclk4_ck = {
 	.clksel		= sysclk4_div,
 	.init		= &omap2_init_clksel_parent,
 	.ops		= &clkops_null,
-	.clksel_reg	= TI81XX_CM_DPLL_SYSCLK4_CLKSEL,
+	.clksel_reg	= TI816X_CM_DPLL_SYSCLK4_CLKSEL,
 	.clksel_mask	= TI81XX_CLKSEL_0_0_MASK,
 	.recalc		= &omap2_clksel_recalc,
 };

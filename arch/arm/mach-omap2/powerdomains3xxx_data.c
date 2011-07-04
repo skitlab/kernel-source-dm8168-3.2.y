@@ -291,11 +291,11 @@ static struct powerdomain *powerdomains_ti81xx[] __initdata = {
 
 #ifdef CONFIG_ARCH_TI81XX
 	&alwon_81xx_pwrdm,
-	&dsp_814x_pwrdm,
+	&gem_814x_pwrdm,
 	&alwon2_814x_pwrdm,
-	&hdvicp_814x_pwrdm,
+	&ivahd_814x_pwrdm,
 	&hdvpss_814x_pwrdm,
-	&gfx_814x_pwrdm,
+	&sgx_814x_pwrdm,
 	&isp_814x_pwrdm,
 	&active_816x_pwrdm,
 	&default_816x_pwrdm,
