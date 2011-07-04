@@ -34,8 +34,22 @@
 #include <plat/common.h>
 #include <plat/asp.h>
 #include <plat/usb.h>
+#include <plat/mmc.h>
 
+#include "clock.h"
 #include "mux.h"
+#include "hsmmc.h"
+
+static struct omap2_hsmmc_info mmc[] = {
+	{
+		.mmc		= 1,
+		.caps           = MMC_CAP_4_BIT_DATA,
+		.gpio_cd	= -EINVAL,/* Dedicated pins for CD and WP */
+		.gpio_wp	= -EINVAL,
+		.ocr_mask	= MMC_VDD_33_34,
+	},
+	{}	/* Terminator */
+};
 
 static struct at24_platform_data eeprom_info = {
 	.byte_len       = (256*1024) / 8,
@@ -224,6 +238,7 @@ static void __init ti8168_evm_init(void)
 	ti816x_spi_init();
 	/* initialize usb */
 	usb_musb_init(&musb_board_data);
+	omap2_hsmmc_init(mmc);
 }
 
 static void __init ti8168_evm_map_io(void)
