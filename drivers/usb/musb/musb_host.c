@@ -1641,7 +1641,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 		musb_ep_select(musb, mbase, epnum);
 		musb_writew(epio, MUSB_RXCSR,
 				MUSB_RXCSR_H_WZC_BITS | rx_csr);
-
+	}
 	if (dma && (rx_csr & MUSB_RXCSR_DMAENAB)) {
 		xfer_len = dma->actual_len;
 
@@ -1649,7 +1649,6 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			| MUSB_RXCSR_H_AUTOREQ
 			| MUSB_RXCSR_AUTOCLEAR
 			| MUSB_RXCSR_RXPKTRDY);
-		musb_writew(hw_ep->regs, MUSB_RXCSR, val);
 
 		if (is_cppi_enabled(musb) || is_cppi41_enabled(musb))
 			val |= MUSB_RXCSR_DMAENAB;
@@ -1708,7 +1707,6 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			done ? "off" : "reset",
 			musb_readw(epio, MUSB_RXCSR),
 			musb_readw(epio, MUSB_RXCOUNT));
-		}
 	} else if (urb->status == -EINPROGRESS) {
 		/* if no errors, be sure a packet is ready for unloading */
 		if (unlikely(!(rx_csr & MUSB_RXCSR_RXPKTRDY))) {
