@@ -40,6 +40,8 @@
 #ifdef CONFIG_PM
 struct musb *gb_musb;
 unsigned short musb_clock_on = 1;
+void omap2430_idle_save_context(void);
+void omap2430_idle_restore_context(void);
 #endif
 
 struct omap2430_glue {
