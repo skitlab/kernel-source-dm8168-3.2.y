@@ -1367,7 +1367,7 @@ static struct clk mcasp2_ick = {
 
 /* McASP2 Clock(final) */
 static struct clk mcasp3_ick = {
-	.name		= " mcasp3_ick",
+	.name		= "mcasp3_ick",
 	.parent		= &sysclk6_ck,
 	.ops		= &clkops_null,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
