@@ -384,11 +384,11 @@ void __init ti81xx_check_revision(void)
 
 		switch (rev) {
 		case 0:
+			/* FALLTHROUGH */
+		case 1:
 			omap_revision = TI8148_REV_ES1_0;
 			strcpy(cpu_rev, "1.0");
 			break;
-		case 1:
-			/* FALLTHROUGH */
 		default:
 			omap_revision = TI8148_REV_ES2_0;
 			strcpy(cpu_rev, "2.0");
