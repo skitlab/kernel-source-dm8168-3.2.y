@@ -42,8 +42,16 @@
 
 #include "board-flash.h"
 #include "clock.h"
+#include "mux.h"
 #include "hsmmc.h"
 
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#else
+#define board_mux     NULL
+#endif
 
 static struct omap2_hsmmc_info mmc[] = {
 	{
@@ -261,6 +269,7 @@ static void __init ti814x_hdmi_init(void)
 
 static void __init ti8148_evm_init(void)
 {
+	ti814x_mux_init(board_mux);
 	omap_serial_init();
 	ti814x_evm_i2c_init();
 	ti81xx_register_mcasp(0, &ti8148_evm_snd_data);
