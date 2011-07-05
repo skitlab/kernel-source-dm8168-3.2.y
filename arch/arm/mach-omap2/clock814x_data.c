@@ -19,6 +19,7 @@
 #include <asm/io.h>
 
 #include <plat/clkdev_omap.h>
+#include <plat/cpu.h>
 
 #include "control.h"
 #include "clock.h"
@@ -4021,6 +4022,15 @@ static struct omap_clk ti814x_clks[] = {
 	CLK(NULL,		"sys_clkout2",			&sys_clkout2,			CK_TI814X),
 };
 
+void _update_fixed_divisors(void)
+{
+	if (omap_rev() == TI8148_REV_ES1_0) {
+		usb_dpll_div5_ck.fixed_div = 5;
+	} else {
+		usb_dpll_div5_ck.fixed_div = 1;
+	}
+}
+
 int __init ti814x_clk_init(void)
 {
 	struct omap_clk *c;
@@ -4030,6 +4040,7 @@ int __init ti814x_clk_init(void)
 		cpu_mask = RATE_IN_TI814X;
 		cpu_clkflg = CK_TI814X;
 	}
+	_update_fixed_divisors();
 
 	clk_init(&omap2_clk_functions);
 
