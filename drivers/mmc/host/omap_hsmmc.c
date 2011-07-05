@@ -204,12 +204,15 @@ static int omap_hsmmc_card_detect(struct device *dev, int slot)
 	struct omap_hsmmc_host *host =
 		platform_get_drvdata(to_platform_device(dev));
 
+	u32 pstate;
+	u32 enabled;
+
 	if (mmc->version != MMC_CTRL_VERSION_2)
 		/* NOTE: assumes card detect signal is active-low */
 		return !gpio_get_value_cansleep(mmc->slots[0].switch_pin);
 	else {
-		u32 pstate = 0;
-		u32 enabled = 0;
+		pstate = 0;
+		enabled = 0;
 
 		enabled = host->mmc->enabled;
 		if (!enabled)
@@ -231,11 +234,13 @@ static int omap_hsmmc_get_wp(struct device *dev, int slot)
 	struct omap_hsmmc_host *host =
 		platform_get_drvdata(to_platform_device(dev));
 
+	u32 pstate;
+
 	if (mmc->version != MMC_CTRL_VERSION_2)
 		/* NOTE: assumes write protect signal is active-high */
 		return gpio_get_value_cansleep(mmc->slots[0].gpio_wp);
 	else {
-		u32 pstate = 0;
+		pstate = 0;
 		pstate = OMAP_HSMMC_READ(host->base, PSTATE);
 		pstate &= PSTATE_WP_MASK;
 		return !(pstate >> PSTATE_WP_SHIFT);
@@ -628,9 +633,7 @@ static void omap_hsmmc_disable_irq(struct omap_hsmmc_host *host)
 		OMAP_HSMMC_WRITE(host->base, ISE, 0xC0);
 		OMAP_HSMMC_WRITE(host->base, IE, 0xC0);
 		OMAP_HSMMC_WRITE(host->base, STAT, STAT_CLEAR);
-	}
-
-	else {
+	} else {
 		OMAP_HSMMC_WRITE(host->base, ISE, 0);
 		OMAP_HSMMC_WRITE(host->base, IE, 0);
 		OMAP_HSMMC_WRITE(host->base, STAT, STAT_CLEAR);
@@ -1096,9 +1099,8 @@ static void omap_hsmmc_do_irq(struct omap_hsmmc_host *host, int status, int irq)
 
 	/* Schedule card detect here ONLY if irq for CD isn't registerted*/
 	if ((host->pdata->version == MMC_CTRL_VERSION_2) &&
-				((status & CINS) || (status & 0x80))) {
+				((status & CINS) || (status & 0x80)))
 		omap_hsmmc_cd_handler(irq, host);
-	}
 
 	if (!host->req_in_progress) {
 		do {
@@ -1574,7 +1576,6 @@ static void omap_hsmmc_request(struct mmc_host *mmc, struct mmc_request *req)
 		host->reqs_blocked = 0;
 	WARN_ON(host->mrq != NULL);
 	host->mrq = req;
-
 	err = omap_hsmmc_prepare_data(host, req);
 	if (err) {
 		req->cmd->error = err;

@@ -948,20 +948,6 @@ static inline void omap2_mmc_mux(struct omap_mmc_platform_data *mmc_controller,
 		omap_mux_init_signal("mmc_sdcd", OMAP_PULL_ENA);
 		omap_mux_init_signal("mmc_sdwp", OMAP_PULL_ENA);
 	}
-
-#if 0
-	if (cpu_is_ti814x()) {
-		omap_mux_init_signal("mmc_pow", OMAP_PULL_ENA);
-		omap_mux_init_signal("mmc_clk", OMAP_PIN_OUTPUT);
-		omap_mux_init_signal("mmc_cmd", OMAP_PULL_UP);
-		omap_mux_init_signal("mmc_dat0", OMAP_PULL_UP);
-		omap_mux_init_signal("mmc_dat1_sdirq", OMAP_PULL_UP);
-		omap_mux_init_signal("mmc_dat2_sdrw", OMAP_PULL_UP);
-		omap_mux_init_signal("mmc_dat3", OMAP_PULL_UP);
-		omap_mux_init_signal("mmc_sdcd", OMAP_PULL_ENA);
-		omap_mux_init_signal("mmc_sdwp", OMAP_PULL_ENA);
-	}
-#endif
 }
 
 void __init omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
