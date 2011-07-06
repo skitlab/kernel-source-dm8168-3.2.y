@@ -668,7 +668,7 @@ int ti814x_dpll_set_rate(struct clk *clk, unsigned long rate)
 			omap2_clk_disable(clk->parent);
 		}
 		clk_reparent(clk, new_parent);
-		clk->rate = rate;
+		clk->rate = dd->last_rounded_rate;
 	}
 	omap2_clk_disable(dd->clk_ref);
 	omap2_clk_disable(dd->clk_bypass);
