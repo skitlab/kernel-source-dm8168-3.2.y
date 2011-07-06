@@ -86,7 +86,7 @@ static struct omap_hwmod ti814x_uart5_hwmod;
 static struct omap_hwmod ti814x_uart6_hwmod;
 static struct omap_hwmod ti816x_wd_timer2_hwmod;
 static struct omap_hwmod ti814x_wd_timer1_hwmod;
-static struct omap_hwmod ti816x_i2c1_hwmod;
+static struct omap_hwmod ti81xx_i2c1_hwmod;
 static struct omap_hwmod ti816x_i2c2_hwmod;
 static struct omap_hwmod ti81xx_gpio1_hwmod;
 static struct omap_hwmod ti81xx_gpio2_hwmod;
@@ -247,7 +247,7 @@ static struct omap_hwmod_addr_space ti816x_i2c1_addr_space[] = {
 
 static struct omap_hwmod_ocp_if ti816x_l4_slow__i2c1 = {
 	.master		= &ti816x_l4_slow_hwmod,
-	.slave		= &ti816x_i2c1_hwmod,
+	.slave		= &ti81xx_i2c1_hwmod,
 	.clk		= "i2c1_ick",
 	.addr		= ti816x_i2c1_addr_space,
 	.addr_cnt	= ARRAY_SIZE(ti816x_i2c1_addr_space),
@@ -734,7 +734,7 @@ static struct omap_hwmod_ocp_if *ti816x_i2c1_slaves[] = {
 	&ti816x_l4_slow__i2c1,
 };
 
-static struct omap_hwmod ti816x_i2c1_hwmod = {
+static struct omap_hwmod ti81xx_i2c1_hwmod = {
 	.name		= "i2c1",
 	.mpu_irqs	= i2c1_mpu_irqs,
 	.mpu_irqs_cnt	= ARRAY_SIZE(i2c1_mpu_irqs),
@@ -937,7 +937,7 @@ static __initdata struct omap_hwmod *ti81xx_hwmods[] = {
 	&ti814x_uart6_hwmod,
 	&ti816x_wd_timer2_hwmod,
 	&ti814x_wd_timer1_hwmod,
-	&ti816x_i2c1_hwmod,	/* Note: In TI814X this enables I2C0/2 */
+	&ti81xx_i2c1_hwmod,	/* Note: In TI814X this enables I2C0/2 */
 	&ti816x_i2c2_hwmod,
 	&ti81xx_gpio1_hwmod,
 	&ti81xx_gpio2_hwmod,
