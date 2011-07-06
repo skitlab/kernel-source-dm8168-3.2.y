@@ -237,7 +237,7 @@ static int allocate_sram(struct snd_pcm_substream *substream, unsigned size,
 		struct snd_pcm_hardware *ppcm)
 {
 	struct snd_dma_buffer *buf = &substream->dma_buffer;
-#if !defined(CONFIG_ARCH_TI81XX)
+#if !defined(CONFIG_ARCH_TI81XX)	/* No SRAM support on TI81xx */
 	struct snd_dma_buffer *iram_dma = NULL;
 	dma_addr_t iram_phys = 0;
 	void *iram_virt = NULL;
@@ -245,7 +245,7 @@ static int allocate_sram(struct snd_pcm_substream *substream, unsigned size,
 	if (buf->private_data || !size)
 		return 0;
 
-#if !defined(CONFIG_ARCH_TI81XX)
+#if !defined(CONFIG_ARCH_TI81XX)	/* No SRAM support on TI81xx */
 	ppcm->period_bytes_max = size;
 	iram_virt = sram_alloc(size, &iram_phys);
 	if (!iram_virt)
@@ -814,7 +814,7 @@ static void davinci_pcm_free(struct snd_pcm *pcm)
 		buf->area = NULL;
 		iram_dma = buf->private_data;
 		if (iram_dma) {
-#if !defined(CONFIG_ARCH_TI81XX)
+#if !defined(CONFIG_ARCH_TI81XX)	/* No SRAM support on TI81xx */
 			sram_free(iram_dma->area, iram_dma->bytes);
 			kfree(iram_dma);
 #endif
