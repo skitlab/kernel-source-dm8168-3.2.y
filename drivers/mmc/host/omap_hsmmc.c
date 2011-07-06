@@ -243,7 +243,16 @@ static int omap_hsmmc_get_wp(struct device *dev, int slot)
 		pstate = 0;
 		pstate = OMAP_HSMMC_READ(host->base, PSTATE);
 		pstate &= PSTATE_WP_MASK;
-		return !(pstate >> PSTATE_WP_SHIFT);
+
+		/* For TI814X, always return that the card is 'rw', since
+		 * the WP pin is not connected.
+		 * Otherwise, detect the status and then return whether
+		 * the card is 'ro' or 'rw'.
+		 */
+		if (cpu_is_ti814x())
+			return 0;
+		else
+			return !(pstate >> PSTATE_WP_SHIFT);
 	}
 }
 
