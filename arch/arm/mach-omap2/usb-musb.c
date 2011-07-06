@@ -111,7 +111,8 @@ void omap_musb_restore_context(void)
 }
 #endif
 
-#if defined(CONFIG_USB_MUSB_OMAP2PLUS) || defined(CONFIG_USB_MUSB_AM35X)
+#if defined(CONFIG_USB_MUSB_OMAP2PLUS) || defined(CONFIG_USB_MUSB_AM35X) \
+		|| defined(CONFIG_USB_MUSB_TI81XX)
 
 static void ti81xx_musb_phy_power(u8 id, u8 on)
 {
