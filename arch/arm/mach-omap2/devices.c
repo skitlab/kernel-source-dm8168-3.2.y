@@ -1859,6 +1859,13 @@ void ti814x_cpsw_init(void)
 #if 0
 	ti814x_cpsw_mux();
 #endif
+	if (omap_rev() == TI8148_REV_ES1_0)
+		cpsw_slaves[0].phy_id = "0:01";
+	else {
+		cpsw_slaves[0].phy_id = "0:00";
+		cpsw_slaves[1].phy_id = "0:01";
+	}
+
 	platform_device_register(&cpsw_mdio_device);
 	platform_device_register(&ti814x_cpsw_device);
 	clk_add_alias(NULL, dev_name(&cpsw_mdio_device.dev),
