@@ -143,9 +143,12 @@ static inline u32 get_plloutputvenc(int bidx)
 	if (bidx == SDVENC)
 		return VPS_SYSTEM_VPLL_OUTPUT_VENC_RF;
 
-	if (cpu_is_ti814x())
-		return VPS_SYSTEM_VPLL_OUTPUT_VENC_D;
-
+	if (cpu_is_ti814x()) {
+		if (bidx == DVO2)
+			return VPS_SYSTEM_VPLL_OUTPUT_VENC_D;
+		else if (HDMI == bidx)
+			return VPS_SYSTEM_VPLL_OUTPUT_VENC_A;
+	}
 	if (isdigitalclk(clksrc.clksrc))
 		return VPS_SYSTEM_VPLL_OUTPUT_VENC_D;
 	else
@@ -378,10 +381,6 @@ static int dc_set_pllclock(int bidx, u32 clock)
 {
 	struct vps_systemvpllclk pll;
 	int r = 0;
-
-	/*FIXME: call function of HDMI driver to set HDMI for ti814x*/
-	if (cpu_is_ti814x() && (bidx == HDMI))
-		return r;
 
 	pll.outputvenc = (enum vps_vplloutputclk)get_plloutputvenc(bidx);
 	pll.outputclk = clock;
@@ -1144,6 +1143,17 @@ static ssize_t blender_mode_store(struct dc_blender_info *binfo,
 	 */
 		timings.standard = mid;
 		timings.dvi_hdmi = TI81xx_MODE_HDMI;
+		timings.pixel_clock = venc_info.modeinfo[idx].minfo.pixelclock;
+		timings.width = venc_info.modeinfo[idx].minfo.width;
+		timings.height = venc_info.modeinfo[idx].minfo.height;
+		timings.scanformat = venc_info.modeinfo[idx].minfo.scanformat;
+		timings.hfp = venc_info.modeinfo[idx].minfo.hfrontporch;
+		timings.hbp = venc_info.modeinfo[idx].minfo.hbackporch;
+		timings.hsw = venc_info.modeinfo[idx].minfo.hsynclen;
+		timings.vfp = venc_info.modeinfo[idx].minfo.vfrontporch;
+		timings.vbp = venc_info.modeinfo[idx].minfo.vbackporch;
+		timings.vsw = venc_info.modeinfo[idx].minfo.vsynclen;
+
 		if ((extenc->panel_driver) &&
 		    (extenc->panel_driver->set_timing))
 			extenc->panel_driver->set_timing(
@@ -1182,6 +1192,12 @@ static ssize_t blender_timings_store(struct dc_blender_info *binfo,
 	struct fvid2_modeinfo t;
 	u32 num;
 	u32 vmode;
+	int enc_status = 0;
+	int dummy = 0;
+	struct TI81xx_video_timings timings;
+	struct ti81xx_external_encoder *extenc =
+			&external_encs[binfo->idx][0];
+
 	if (binfo->idx == SDVENC)
 		return -EINVAL;
 
@@ -1229,6 +1245,40 @@ static ssize_t blender_timings_store(struct dc_blender_info *binfo,
 		goto exit;
 	}
 
+	/* if an external encoder is registered to this blender,
+		change the mode  */
+	enc_status = extenc->status;
+	if ((enc_status == TI81xx_EXT_ENCODER_DISABLED) ||
+	    (enc_status == TI81xx_EXT_ENCODER_REGISTERED)) {
+		/* Change mode */
+		/* FIXME :
+		   1. In later release two different enumerations will
+		   not be used. Only the FVID enumerations for
+		   resolutions.
+	 *         2. Currently only support 4 resolutions, till PLL
+		      locking is tested on other Std resolutions.
+	 */
+		timings.standard = FVID2_STD_CUSTOM;
+		timings.dvi_hdmi = TI81xx_MODE_HDMI;
+		timings.pixel_clock =
+			venc_info.modeinfo[binfo->idx].minfo.pixelclock;
+		timings.width = venc_info.modeinfo[binfo->idx].minfo.width;
+		timings.height = venc_info.modeinfo[binfo->idx].minfo.height;
+		timings.scanformat =
+			venc_info.modeinfo[binfo->idx].minfo.scanformat;
+		timings.hfp = venc_info.modeinfo[binfo->idx].minfo.hfrontporch;
+		timings.hbp = venc_info.modeinfo[binfo->idx].minfo.hbackporch;
+		timings.hsw = venc_info.modeinfo[binfo->idx].minfo.hsynclen;
+		timings.vfp = venc_info.modeinfo[binfo->idx].minfo.vfrontporch;
+		timings.vbp = venc_info.modeinfo[binfo->idx].minfo.vbackporch;
+		timings.vsw = venc_info.modeinfo[binfo->idx].minfo.vsynclen;
+
+		if ((extenc->panel_driver) &&
+		    (extenc->panel_driver->set_timing))
+			extenc->panel_driver->set_timing(
+						&timings,
+						(void *)dummy);
+	}
 	r = size;
 exit:
 	dc_unlock(binfo->dctrl);
@@ -2399,7 +2449,11 @@ int __init vps_dc_init(struct platform_device *pdev,
 	}
 	/*config the PLL*/
 	for (i = 0; i < venc_info.numvencs; i++) {
-		r = dc_set_pll_by_mid(i, venc_info.modeinfo[i].minfo.standard);
+		if ((SDVENC == i) && (cpu_is_ti814x()))
+			venc_info.modeinfo[i].minfo.pixelclock = 54000;
+
+		r = dc_set_pllclock(i,
+				    venc_info.modeinfo[i].minfo.pixelclock);
 		if (r) {
 			VPSSERR("failed to set pll");
 			goto cleanup;

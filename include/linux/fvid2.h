@@ -459,7 +459,8 @@ enum  fvid2_standard {
 	/**< Custom standard used when connecting to external LCD etc...
 	 The video timing is provided by the application.
 	 Used in display mode. */
-
+	FVID2_STD_WVGA_60,
+	/**< 800x480 60PFS WVGA */
 	FVID2_STD_MAX
 	/**< Should be the last value of this enumeration.
 	 Will be used by driver for validating the input parameters. */
