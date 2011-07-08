@@ -2319,24 +2319,6 @@ error0:
 	return ret;
 }
 
-static struct resource ti81xx_vidout_resource[VPS_DISPLAY_INST_MAX] = {
-};
-
-static void ti81xx_vidout_release(struct device *dev)
-{
-}
-
-static struct platform_device ti81xx_vidout_device = {
-	.name		= VIDOUT_NAME,
-	.num_resources  = ARRAY_SIZE(ti81xx_vidout_resource),
-	.resource       = &ti81xx_vidout_resource[0],
-	.id             = -1,
-	.dev    = {
-		.release = ti81xx_vidout_release,
-	},
-};
-
-
 static struct platform_driver ti81xx_vidout_driver = {
 	.driver = {
 		.name = VIDOUT_NAME,
@@ -2347,16 +2329,9 @@ static struct platform_driver ti81xx_vidout_driver = {
 
 static int __init ti81xx_vidout_init(void)
 {
-	if (platform_device_register(&ti81xx_vidout_device) < 0) {
-		printk(KERN_ERR "Unable to register "
-			"TI81XX-VIDOUT device\n");
-		return -EINVAL;
-	}
-
 	if (platform_driver_register(&ti81xx_vidout_driver) != 0) {
 		printk(KERN_ERR VIDOUT_NAME
 			":Could not register Video driver\n");
-		platform_device_unregister(&ti81xx_vidout_device);
 		return -EINVAL;
 	}
 	return 0;
@@ -2365,7 +2340,6 @@ static int __init ti81xx_vidout_init(void)
 static void ti81xx_vidout_cleanup(void)
 {
 	platform_driver_unregister(&ti81xx_vidout_driver);
-	platform_device_unregister(&ti81xx_vidout_device);
 }
 
 late_initcall(ti81xx_vidout_init);
