@@ -76,9 +76,9 @@ u32 omap_mux_read(struct omap_mux_partition *partition, u16 reg)
 void omap_mux_write(struct omap_mux_partition *partition, u32 val,
 			   u16 reg)
 {
-	/* Avoid unintentional change of bits 18-31 on TI814x */
+	/* Avoid unintentional change of bits 20-31 on TI814x */
 	if (cpu_is_ti814x())
-		val |= __raw_readl(partition->base + reg) & 0xFFFC0000;
+		val |= __raw_readl(partition->base + reg) & 0xFFF00000;
 
 	if (partition->flags & OMAP_MUX_REG_8BIT)
 		__raw_writeb(val, partition->base + reg);
@@ -258,7 +258,6 @@ int __init omap_mux_init_signal(const char *muxname, int val)
 		return mux_mode;
 
 	old_mode = omap_mux_read(partition, mux->reg_offset);
-
 	mux_mode |= val;
 	pr_debug("%s: Setting signal %s 0x%04x -> 0x%04x\n",
 			 __func__, muxname, old_mode, mux_mode);

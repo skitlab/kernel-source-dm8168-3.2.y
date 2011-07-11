@@ -46,7 +46,8 @@
 /* TI814x specific mux bit definitions */
 #define TI814X_PULL_DIS			(1 << 16)
 #define TI814X_PULL_UP			(1 << 17)
-
+#define TI814X_INPUT_EN			(1 << 18)
+#define TI814X_SLEW_SLOW		(1 << 19)
 
 /* Active pin states */
 #define OMAP_PIN_OUTPUT			0
