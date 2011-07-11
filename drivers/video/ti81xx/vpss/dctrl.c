@@ -596,8 +596,10 @@ static int dc_set_vencmode(struct vps_dcvencinfo *vinfo)
 {
 	int i, r = 0;
 	int vencs = 0;
+	int bidx;
 	struct vps_dcvencinfo vi;
-
+	struct vps_dcvencinfo tied_vi;
+	struct vps_dcvencinfo ntied_vi;
 	if ((disp_ctrl == NULL) || (disp_ctrl->fvid2_handle == NULL))
 		return -EINVAL;
 
@@ -618,42 +620,81 @@ static int dc_set_vencmode(struct vps_dcvencinfo *vinfo)
 	/*make sure current venc status is matching */
 	disp_ctrl->vinfo->numvencs = 0;
 	disp_ctrl->vinfo->tiedvencs = 0;
+	tied_vi.numvencs = 0;
+	tied_vi.tiedvencs = 0;
+	ntied_vi.numvencs = 0;
+	ntied_vi.tiedvencs = 0;
 	for (i = 0; i < vinfo->numvencs; i++) {
 		if (vi.modeinfo[i].isvencrunning) {
 			if (vi.modeinfo[i].minfo.standard !=
 			    vinfo->modeinfo[i].minfo.standard) {
-				r = -EINVAL;
 				VPSSERR("venc %d already running with \
-						different mode\n",
-						vi.modeinfo[i].vencid);
-				goto exit;
+						different mode %d\n",
+						vi.modeinfo[i].vencid,
+						vi.modeinfo[i].minfo.standard);
+				/*update the local infor*/
+				get_idx_from_vid(vi.modeinfo[i].vencid, &bidx);
+				memcpy(&venc_info.modeinfo[bidx],
+				       &vi.modeinfo[i],
+				       sizeof(struct vps_dcmodeinfo));
+				continue;
 			} else
 				VPSSDBG("venc %d already running\n",
 					vi.modeinfo[i].vencid);
 
+
 		} else {
-			memcpy(&disp_ctrl->vinfo->modeinfo[0],
-			       &vinfo->modeinfo[i],
-			       sizeof(struct vps_dcmodeinfo));
+			/*store the infor based tied or notied*/
+			if (vinfo->tiedvencs & vinfo->modeinfo[i].vencid) {
+				memcpy(&tied_vi.modeinfo[tied_vi.numvencs++],
+					&vinfo->modeinfo[i],
+					sizeof(struct vps_dcmodeinfo));
+				tied_vi.tiedvencs |= vinfo->modeinfo[i].vencid;
+			} else
+				memcpy(&ntied_vi.modeinfo[ntied_vi.numvencs++],
+				       &vinfo->modeinfo[i],
+				       sizeof(struct vps_dcmodeinfo));
+
 			vencs |= vinfo->modeinfo[i].vencid;
-			/*remove the below codes once firmware gets fix*/
-			disp_ctrl->vinfo->numvencs = 1;
-			if (disp_ctrl->vinfo->numvencs) {
-				mdelay(10);
-				/*set the VENC Mode*/
-				r = vps_fvid2_control(disp_ctrl->fvid2_handle,
-						IOCTL_VPS_DCTRL_SET_VENC_MODE,
-						(void *)disp_ctrl->vinfo_phy,
-						NULL);
-				if (r) {
-					VPSSERR("failed to set venc mdoe.\n");
-					goto exit;
-				}
-				disp_ctrl->enabled_venc_ids |= vencs;
-			}
-
-
 		}
+	}
+	/*handle non tied vencs case*/
+	for (i = 0; i < ntied_vi.numvencs; i++) {
+		disp_ctrl->vinfo->numvencs = 1;
+		memcpy(&disp_ctrl->vinfo->modeinfo[0],
+			&ntied_vi.modeinfo[i],
+			sizeof(struct vps_dcmodeinfo));
+		mdelay(10);
+		r = vps_fvid2_control(disp_ctrl->fvid2_handle,
+				IOCTL_VPS_DCTRL_SET_VENC_MODE,
+				(void *)disp_ctrl->vinfo_phy,
+				NULL);
+		if (r) {
+			VPSSERR("failed to set venc mdoe.\n");
+			goto exit;
+		}
+		disp_ctrl->enabled_venc_ids |= ntied_vi.modeinfo[i].vencid;
+	}
+	/*handle tied vencs case*/
+	if (tied_vi.numvencs) {
+		memcpy(disp_ctrl->vinfo,
+			&tied_vi,
+			sizeof(struct vps_dcvencinfo));
+		if (disp_ctrl->vinfo->numvencs <= 1)
+			disp_ctrl->vinfo->tiedvencs = 0;
+
+		mdelay(10);
+		r = vps_fvid2_control(disp_ctrl->fvid2_handle,
+				IOCTL_VPS_DCTRL_SET_VENC_MODE,
+				(void *)disp_ctrl->vinfo_phy,
+				NULL);
+		if (r) {
+			VPSSERR("failed to set venc mdoe.\n");
+			goto exit;
+		}
+		disp_ctrl->enabled_venc_ids |= disp_ctrl->vinfo->tiedvencs;
+		disp_ctrl->tiedvenc = disp_ctrl->vinfo->tiedvencs;
+
 	}
 	/*comment out the code until firmware gets fix*/
 #if 0
@@ -1367,19 +1408,6 @@ static ssize_t blender_enabled_store(struct dc_blender_info *binfo,
 			r = -EINVAL;
 			goto exit;
 		}
-		/* If external encoder driver registered,
-		   and not enabled yet, enable it */
-		enc_status = extenc->status;
-		if (enc_status == TI81xx_EXT_ENCODER_UNREGISTERED) {
-			r = size;
-			VPSSDBG(" ext encoder un-registered.\n");
-			goto exit;
-		}
-		if (enc_status == TI81xx_EXT_ENCODER_SUSPENDED) {
-			r = size;
-			VPSSDBG(" ext encoder suspended.\n");
-			goto exit;
-		}
 		if (extenc->panel_driver &&
 		    extenc->panel_driver->enable)
 			extenc->panel_driver->enable((void *)dummy);
@@ -1848,7 +1876,10 @@ static ssize_t dctrl_tiedvencs_store(struct vps_dispctrl *dctrl,
 	int r = 0;
 	int vencs = 0;
 	int i = 0;
+	int dummy = 0;
 	struct vps_dcvencinfo vinfo;
+	struct ti81xx_external_encoder *extenc;
+
 	dc_lock(disp_ctrl);
 	vencs = simple_strtoul(buf, NULL, 10);
 	if (vencs & ~disp_ctrl->vencmask) {
@@ -1891,7 +1922,21 @@ static ssize_t dctrl_tiedvencs_store(struct vps_dispctrl *dctrl,
 		r = -EINVAL;
 		goto exit;
 	}
-	disp_ctrl->tiedvenc = vinfo.tiedvencs;
+
+	i = 0;
+	vencs = disp_ctrl->tiedvenc;
+	while (vencs >> i) {
+		if ((vencs >> i++) & 1) {
+			int idx;
+			int vid = 1 << (i - 1);
+			get_idx_from_vid(vid, &idx);
+			extenc = &external_encs[idx][0];
+			if (extenc->panel_driver &&
+			    extenc->panel_driver->enable)
+				extenc->panel_driver->enable((void *)dummy);
+			extenc->status = TI81xx_EXT_ENCODER_ENABLED;
+		}
+	}
 	r = size;
 exit:
 	dc_unlock(disp_ctrl);
@@ -2583,6 +2628,10 @@ int TI81xx_register_display_panel(struct TI81xx_display_driver *panel_driver,
 				/*copy info to external video device*/
 				vencinfo->enabled =
 					dc_isvencrunning(dcminfo->vencid);
+				if (vencinfo->enabled)
+					extenc->status =
+						TI81xx_EXT_ENCODER_ENABLED;
+
 				vencinfo->vtimings.standard =
 						dcminfo->minfo.standard;
 				vencinfo->vtimings.dvi_hdmi = TI81xx_MODE_HDMI;
