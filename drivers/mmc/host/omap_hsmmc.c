@@ -1595,17 +1595,6 @@ static void omap_hsmmc_request(struct mmc_host *mmc, struct mmc_request *req)
 		return;
 	}
 
-	pstate = OMAP_HSMMC_READ(host->base, PSTATE);
-
-	if ((host->pdata->version == MMC_CTRL_VERSION_2) &&
-				((pstate & PSTATE_CINS) == 0)) {
-		omap_hsmmc_reset_controller_fsm(host, SRC);
-		host->cmd = req->cmd;
-		host->cmd->error = -ETIMEDOUT;
-		omap_hsmmc_cmd_done(host, host->cmd);
-		return;
-	}
-
 	omap_hsmmc_start_command(host, req->cmd, req->data);
 }
 
