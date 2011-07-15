@@ -19,13 +19,13 @@
 
 #include <linux/string.h>
 
-#define HDMI_WP				0x58006000
+#define HDMI_WP			0x58006000
 #define HDMI_CORE_SYS		0x58006400
 #define HDMI_CORE_AV		0x58006900
-#define HDMI_HDCP			0x58007000
+#define HDMI_HDCP		0x58007000
 #define HDMI_WP_AUDIO_DATA	0x8Cul
 
-#define TI81xx_HDMI_WP				0x46c00000u
+#define TI81xx_HDMI_WP		0x46c00000u
 
 #define DBG(format, ...) \
 		printk(KERN_DEBUG "hdmi: " format, ## __VA_ARGS__)

@@ -707,7 +707,7 @@ static int hdmi_core_audio_config(u32 name,
 
 	/* Audio info frame setting refer to CEA-861-d spec p75 */
 	/* 0x0 because on HDMI CT must be = 0 / -1 because 1 is for 2 channel */
-	DBYTE1 = 0x0 + (audio_cfg->if_channel_number - 1);
+	DBYTE1 = 0x10 + (audio_cfg->if_channel_number - 1);
 	DBYTE2 = (audio_cfg->if_fs << 2) + audio_cfg->if_sample_size;
 	/* channel location according to CEA spec */
 	DBYTE4 = audio_cfg->if_audio_channel_location;
@@ -1024,8 +1024,8 @@ static void hdmi_w1_init(struct hdmi_video_timing *t_p,
 	audio_fmt->iec = HDMI_AUDIO_FORMAT_LPCM;
 	audio_fmt->justify = HDMI_AUDIO_JUSTIFY_LEFT;
 	audio_fmt->left_before = HDMI_SAMPLE_LEFT_FIRST;
-	audio_fmt->sample_number = HDMI_ONEWORD_ONE_SAMPLE;
-	audio_fmt->sample_size = HDMI_SAMPLE_24BITS;
+	audio_fmt->sample_number = HDMI_ONEWORD_TWO_SAMPLES;
+	audio_fmt->sample_size = HDMI_SAMPLE_16BITS;
 
 	audio_dma->dma_transfer = 0x10;
 	audio_dma->block_size = 0xC0;
@@ -1397,9 +1397,9 @@ int hdmi_lib_enable(struct hdmi_config *cfg)
 
 	/* hnagalla */
 	audio_cfg.fs = 0x02;
-	audio_cfg.if_fs = 0x00;
+	audio_cfg.if_fs = 0x03;
 	audio_cfg.n = 6144;
-	audio_cfg.cts = 74250;
+	audio_cfg.cts = 148500;
 
 	/* audio channel */
 	audio_cfg.if_sample_size = 0x0;
@@ -1408,8 +1408,9 @@ int hdmi_lib_enable(struct hdmi_config *cfg)
 	audio_cfg.if_audio_channel_location = 0x00;
 
 	/* TODO: Is this configuration correct? */
-	audio_cfg.aud_par_busclk = (((128 * 31) - 1) << 8);
-	audio_cfg.cts_mode = 0;
+	audio_cfg.aud_par_busclk = 0;
+	audio_cfg.cts_mode = CTS_MODE_SW;
+	printk("CTS mode is sw \n");
 
 	r = hdmi_core_video_config(&v_core_cfg);
 

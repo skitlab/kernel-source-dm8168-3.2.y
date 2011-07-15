@@ -237,15 +237,25 @@ static struct snd_soc_dai_link da8xx_evm_dai = {
 	.ops = &evm_ops,
 };
 
-static struct snd_soc_dai_link ti81xx_evm_dai = {
-	.name = "TLV320AIC3X",
-	.stream_name = "AIC3X",
-	.cpu_dai_name = "davinci-mcasp.2",
-	.codec_dai_name = "tlv320aic3x-hifi",
-	.codec_name = "tlv320aic3x-codec.1-0018",
-	.platform_name = "davinci-pcm-audio",
-	.init = evm_aic3x_init,
-	.ops = &evm_ops,
+static struct snd_soc_dai_link ti81xx_evm_dai[] = {
+	{
+		.name = "TLV320AIC3X",
+		.stream_name = "AIC3X",
+		.cpu_dai_name = "davinci-mcasp.2",
+		.codec_dai_name = "tlv320aic3x-hifi",
+		.codec_name = "tlv320aic3x-codec.1-0018",
+		.platform_name = "davinci-pcm-audio",
+		.init = evm_aic3x_init,
+		.ops = &evm_ops,
+	},
+	{
+		.name = "HDMI_SOC_LINK",
+		.stream_name = "hdmi",
+		.cpu_dai_name = "hdmi-dai",
+		.platform_name = "davinci-pcm-audio",
+		.codec_dai_name = "HDMI-DAI-CODEC",     /* DAI name */
+		.codec_name = "hdmi-dummy-codec",
+	},
 };
 
 /* davinci dm6446 evm audio machine driver */
@@ -290,8 +300,8 @@ static struct snd_soc_card da850_snd_soc_card = {
 
 static struct snd_soc_card ti81xx_snd_soc_card = {
 	.name = "TI81XX EVM",
-	.dai_link = &ti81xx_evm_dai,
-	.num_links = 1,
+	.dai_link = ti81xx_evm_dai,
+	.num_links = ARRAY_SIZE(ti81xx_evm_dai),
 };
 
 static struct platform_device *evm_snd_device;

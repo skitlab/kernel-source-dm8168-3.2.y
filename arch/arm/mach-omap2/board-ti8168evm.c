@@ -592,6 +592,21 @@ static struct platform_device ti816x_hdmi_plat_device = {
 	}
 };
 
+static struct platform_device ti8168_hdmi_audio_device = {
+	.name	= "hdmi-dai",
+	.id	= -1,
+};
+
+static struct platform_device ti8168_hdmi_codec_device = {
+	.name	= "hdmi-dummy-codec",
+	.id	= -1,
+};
+
+static struct platform_device *ti8168_devices[] __initdata = {
+	&ti8168_hdmi_audio_device,
+	&ti8168_hdmi_codec_device,
+};
+
 static void __init ti816x_hdmi_init(void)
 {
 
@@ -621,6 +636,7 @@ static void __init ti8168_evm_init(void)
 	ti816x_vpss_init();
 	ti816x_gpio_vr_init();
 	ti816x_hdmi_init();
+	platform_add_devices(ti8168_devices, ARRAY_SIZE(ti8168_devices));
 	regulator_has_full_constraints();
 	regulator_use_dummy_regulator();
 }
