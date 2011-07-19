@@ -61,8 +61,8 @@ restrictly non-cacheable from M3 side and can not be
 accessable by any other SW component other than
 this driver.
 ************************************************/
-/*TI816X, all 816X share the same addr.*/
-#define TI816X_SHARING_BUFFER_BASE 0xA0200000
+/*TI816X and TI814X PG2.1 share the same addr.*/
+#define TI81XX_SHARING_BUFFER_BASE    0xA0200000
 /*TI814X*/
 #define TI814X_SHARING_BUFFER_BASE    0x8DE00000
 
@@ -202,9 +202,12 @@ int __init vps_sbuf_init(const char *sbaddr, const char *sbsize)
 	/*use the default value instead if not set in the command*/
 	if (!addr) {
 		if (cpu_is_ti816x())
-			addr = TI816X_SHARING_BUFFER_BASE;
+			addr = TI81XX_SHARING_BUFFER_BASE;
 		else
-			addr = TI814X_SHARING_BUFFER_BASE;
+			if (cpuver >= VPS_PLATFORM_CPU_REV_2_1)
+				addr = TI81XX_SHARING_BUFFER_BASE;
+			else
+				addr = TI814X_SHARING_BUFFER_BASE;
 	}
 	/*parse the commond argumetn for the payload size*/
 	if (sbsize)
