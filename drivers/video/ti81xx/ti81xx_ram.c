@@ -391,7 +391,7 @@ static int __init ti81xxfb_early_vram(char *p)
 	if (*p == ',')
 		ti81xxfb_def_sdram_vram_start = simple_strtoul(p + 1, &p, 16);
 
-	printk(KERN_INFO "vram size = %d at %d\n",
+	printk(KERN_INFO "vram size = %d at 0x%x\n",
 		ti81xxfb_def_sdram_vram_size, ti81xxfb_def_sdram_vram_start);
 	return 0;
 }
@@ -424,7 +424,7 @@ void __init ti81xxfb_reserve_sdram_memblock(void)
 	}
 #endif
 
-	printk(KERN_INFO "reserved size = %d at %d\n",
+	printk(KERN_INFO "reserved size = %d at 0x%x\n",
 		size, paddr);
 
 
@@ -440,8 +440,9 @@ void __init ti81xxfb_reserve_sdram_memblock(void)
 			return;
 		}
 
-		if (!memblock_is_region_memory(paddr, size)) {
-			pr_err("FB: Illegal SDRAM region 0x%08x..0x%08x for VRAM\n",
+		if (memblock_is_region_memory(paddr, size)) {
+			pr_err("FB: Illegal SDRAM region \
+					0x%08x..0x%08x for VRAM\n",
 					paddr, paddr + size - 1);
 			return;
 		}
