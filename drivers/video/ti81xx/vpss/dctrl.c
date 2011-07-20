@@ -1172,8 +1172,9 @@ static ssize_t blender_mode_store(struct dc_blender_info *binfo,
 	/* if an external encoder is registered to this blender,
 		change the mode  */
 	enc_status = extenc->status;
-	if ((enc_status == TI81xx_EXT_ENCODER_DISABLED) ||
-	    (enc_status == TI81xx_EXT_ENCODER_REGISTERED)) {
+	if ((extenc->panel_driver) &&
+	    ((enc_status == TI81xx_EXT_ENCODER_DISABLED) ||
+	    (enc_status == TI81xx_EXT_ENCODER_REGISTERED))) {
 		/* Change mode */
 		/* FIXME :
 		   1. In later release two different enumerations will
@@ -1195,8 +1196,7 @@ static ssize_t blender_mode_store(struct dc_blender_info *binfo,
 		timings.vbp = venc_info.modeinfo[idx].minfo.vbackporch;
 		timings.vsw = venc_info.modeinfo[idx].minfo.vsynclen;
 
-		if ((extenc->panel_driver) &&
-		    (extenc->panel_driver->set_timing))
+		if (extenc->panel_driver->set_timing)
 			extenc->panel_driver->set_timing(
 						&timings,
 						(void *)dummy);
@@ -1289,8 +1289,9 @@ static ssize_t blender_timings_store(struct dc_blender_info *binfo,
 	/* if an external encoder is registered to this blender,
 		change the mode  */
 	enc_status = extenc->status;
-	if ((enc_status == TI81xx_EXT_ENCODER_DISABLED) ||
-	    (enc_status == TI81xx_EXT_ENCODER_REGISTERED)) {
+	if ((extenc->panel_driver) &&
+	    ((enc_status == TI81xx_EXT_ENCODER_DISABLED) ||
+	    (enc_status == TI81xx_EXT_ENCODER_REGISTERED))) {
 		/* Change mode */
 		/* FIXME :
 		   1. In later release two different enumerations will
@@ -1314,8 +1315,7 @@ static ssize_t blender_timings_store(struct dc_blender_info *binfo,
 		timings.vbp = venc_info.modeinfo[binfo->idx].minfo.vbackporch;
 		timings.vsw = venc_info.modeinfo[binfo->idx].minfo.vsynclen;
 
-		if ((extenc->panel_driver) &&
-		    (extenc->panel_driver->set_timing))
+		if (extenc->panel_driver->set_timing)
 			extenc->panel_driver->set_timing(
 						&timings,
 						(void *)dummy);
@@ -1381,16 +1381,17 @@ static ssize_t blender_enabled_store(struct dc_blender_info *binfo,
 		}
 		/* If external encoder driver registered and enabled
 			,disable it */
-		enc_status = extenc->status;
-		if (enc_status == TI81xx_EXT_ENCODER_ENABLED ||
-		   enc_status == TI81xx_EXT_ENCODER_RESUMED) {
-			if (extenc->panel_driver &&
-			    extenc->panel_driver->disable)
-				extenc->panel_driver->disable(
+		if (extenc->panel_driver) {
+			enc_status = extenc->status;
+			if (enc_status == TI81xx_EXT_ENCODER_ENABLED ||
+			   enc_status == TI81xx_EXT_ENCODER_RESUMED) {
+				if (extenc->panel_driver->disable)
+					extenc->panel_driver->disable(
 							(void *)dummy);
-			extenc->status = TI81xx_EXT_ENCODER_DISABLED;
-		} else
-			VPSSDBG("External already Disabled\n");
+				extenc->status = TI81xx_EXT_ENCODER_DISABLED;
+			} else
+				VPSSDBG("External already Disabled\n");
+		}
 	} else {
 		int idx;
 		struct vps_dcvencinfo vinfo;
@@ -1408,10 +1409,13 @@ static ssize_t blender_enabled_store(struct dc_blender_info *binfo,
 			r = -EINVAL;
 			goto exit;
 		}
-		if (extenc->panel_driver &&
-		    extenc->panel_driver->enable)
-			extenc->panel_driver->enable((void *)dummy);
-		extenc->status = TI81xx_EXT_ENCODER_ENABLED;
+		if (extenc->panel_driver) {
+			enc_status = extenc->status;
+			if ((enc_status != TI81xx_EXT_ENCODER_ENABLED) &&
+				extenc->panel_driver->enable)
+				extenc->panel_driver->enable((void *)dummy);
+			extenc->status = TI81xx_EXT_ENCODER_ENABLED;
+		}
 	}
 	r = size;
 exit:
@@ -1931,10 +1935,14 @@ static ssize_t dctrl_tiedvencs_store(struct vps_dispctrl *dctrl,
 			int vid = 1 << (i - 1);
 			get_idx_from_vid(vid, &idx);
 			extenc = &external_encs[idx][0];
-			if (extenc->panel_driver &&
-			    extenc->panel_driver->enable)
-				extenc->panel_driver->enable((void *)dummy);
-			extenc->status = TI81xx_EXT_ENCODER_ENABLED;
+			if (extenc->panel_driver) {
+				if (extenc->panel_driver->enable &&
+				   (extenc->status !=
+				     TI81xx_EXT_ENCODER_ENABLED))
+					extenc->panel_driver-> \
+							enable((void *)dummy);
+				extenc->status = TI81xx_EXT_ENCODER_ENABLED;
+			}
 		}
 	}
 	r = size;
@@ -2619,7 +2627,7 @@ int TI81xx_register_display_panel(struct TI81xx_display_driver *panel_driver,
 	for (i = 0; i < MAX_EXT_VENCS_PER_DISPLAY; i++) {
 		struct ti81xx_external_encoder *extenc =
 				&external_encs[display_num][i];
-		if (extenc->status == TI81xx_EXT_ENCODER_UNREGISTERED) {
+		if (extenc->panel_driver == NULL) {
 			extenc->panel_driver =	panel_driver;
 			extenc->status = TI81xx_EXT_ENCODER_REGISTERED;
 			if (vencinfo) {
@@ -2678,6 +2686,7 @@ int TI81xx_un_register_display_panel(struct TI81xx_display_driver *panel_driver)
 		if (panel_driver ==
 		    extenc->panel_driver) {
 			extenc->status = TI81xx_EXT_ENCODER_UNREGISTERED;
+			extenc->panel_driver = NULL;
 		}
 	}
 	/*FIXME : Enhance to fit more than one encoder per blender.*/
