@@ -25,8 +25,6 @@ static int omap_pm_runtime_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	int r, ret = 0;
 
-	dev_dbg(dev, "%s\n", __func__);
-
 	ret = pm_generic_runtime_suspend(dev);
 
 	if (!ret && dev->parent == &omap_device_parent) {
@@ -41,8 +39,6 @@ static int omap_pm_runtime_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	int r;
-
-	dev_dbg(dev, "%s\n", __func__);
 
 	if (dev->parent == &omap_device_parent) {
 		r = omap_device_enable(pdev);

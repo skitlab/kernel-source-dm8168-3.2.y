@@ -283,8 +283,6 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 	struct device *parent = NULL;
 	int retval;
 
-	dev_dbg(dev, "%s flags 0x%x\n", __func__, rpmflags);
-
  repeat:
 	retval = rpm_check_suspend_allowed(dev);
 
@@ -413,8 +411,6 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 	}
 
  out:
-	dev_dbg(dev, "%s returns %d\n", __func__, retval);
-
 	return retval;
 }
 
@@ -441,8 +437,6 @@ static int rpm_resume(struct device *dev, int rpmflags)
 	int (*callback)(struct device *);
 	struct device *parent = NULL;
 	int retval = 0;
-
-	dev_dbg(dev, "%s flags 0x%x\n", __func__, rpmflags);
 
  repeat:
 	if (dev->power.runtime_error)
@@ -591,8 +585,6 @@ static int rpm_resume(struct device *dev, int rpmflags)
 
 		spin_lock_irq(&dev->power.lock);
 	}
-
-	dev_dbg(dev, "%s returns %d\n", __func__, retval);
 
 	return retval;
 }
