@@ -42,13 +42,6 @@ static struct powerdomain gem_814x_pwrdm = {
 	.pwrsts		= PWRSTS_OFF_ON,
 };
 
-static struct powerdomain alwon2_814x_pwrdm = {
-	.name		= "alwon2_pwrdm",
-	.prcm_offs	= TI814X_PRM_ALWON2_MOD,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X),
-	.pwrsts		= PWRSTS_OFF_ON,
-};
-
 static struct powerdomain ivahd_814x_pwrdm = {
 	.name		= "ivahd_pwrdm",
 	.prcm_offs	= TI814X_PRM_HDVICP_MOD,

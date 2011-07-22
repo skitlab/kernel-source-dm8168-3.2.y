@@ -136,7 +136,7 @@ static struct clockdomain hdvpss_814x_clkdm = {
 /* L3 med clock domain */
 static struct clockdomain alwon2_l3_med_814x_clkdm = {
 	.name		= "alwon2_l3_med_clkdm",
-	.pwrdm		= { .name = "alwon2_pwrdm" },
+	.pwrdm		= { .name = "alwon_pwrdm" },
 	.cm_inst	= TI814X_CM_ALWON2_MOD,
 	.clkdm_offs	= TI814X_CM_ALWON2_L3_MED_CLKDM,
 	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,
@@ -147,7 +147,7 @@ static struct clockdomain alwon2_l3_med_814x_clkdm = {
 /* PCIe clock domain */
 static struct clockdomain alwon2_pcie_814x_clkdm = {
 	.name		= "alwon2_pcie_clkdm",
-	.pwrdm		= { .name = "alwon2_pwrdm" },
+	.pwrdm		= { .name = "alwon_pwrdm" },
 	.cm_inst	= TI814X_CM_ALWON2_MOD,
 	.clkdm_offs	= TI814X_CM_ALWON2_PCI_CLKDM,
 	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,
@@ -158,7 +158,7 @@ static struct clockdomain alwon2_pcie_814x_clkdm = {
 /* USB clock domain */
 static struct clockdomain alwon2_usb_814x_clkdm = {
 	.name		= "alwon2_usb_clkdm",
-	.pwrdm		= { .name = "alwon2_pwrdm" },
+	.pwrdm		= { .name = "alwon_pwrdm" },
 	.cm_inst	= TI814X_CM_ALWON2_MOD,
 	.clkdm_offs	= TI814X_CM_ALWON2_L3_SLOW_CLKDM,
 	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,
