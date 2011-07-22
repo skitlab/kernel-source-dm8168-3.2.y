@@ -361,7 +361,8 @@ static int check_fb_var(struct fb_info *fbi, struct fb_var_screeninfo *var)
 	/*get the data format first*/
 	df = tfb_datamode_to_vpss_datamode(var);
 	if ((int)df < 0) {
-		TFBDBG("var info has invalid data format.\n");
+		dev_err(tfbi->fbdev->dev,
+			"var info has invalid data format.\n");
 		return -EINVAL;
 	}
 	bpp = var->bits_per_pixel;
@@ -556,7 +557,7 @@ static int ti81xxfb_apply_changes(struct fb_info *fbi, int init)
 	/*get the fvid2 data format first*/
 	df = tfb_datamode_to_vpss_datamode(var);
 	if (df < 0) {
-		TFBDBG("unsupported data format.\n");
+		dev_err(tfbi->fbdev->dev, "unsupported data format.\n");
 		return -EINVAL;
 
 	}
@@ -1113,12 +1114,12 @@ int ti81xxfb_realloc_fbmem(struct fb_info *fbi, unsigned long size)
 		TFBDBG("initializing fb %d\n", tfbi->idx);
 		r = ti81xxfb_fbinfo_init(fbdev, fbi);
 		if (r) {
-			TFBDBG("ti81xxfb_fbinfo_init failed\n");
+			dev_err(fbdev->dev, "ti81xxfb_fbinfo_init failed\n");
 			goto err;
 		}
 		r = ti81xxfb_apply_changes(fbi, 1);
 		if (r) {
-			TFBDBG("ti81xxfb_apply_changes failed\n");
+			dev_err(fbdev->dev, "ti81xxfb_apply_changes failed\n");
 			goto err;
 		}
 	} else {

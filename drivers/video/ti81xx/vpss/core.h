@@ -44,17 +44,16 @@ extern unsigned int vpss_debug;
 				format, ## __VA_ARGS__); \
 	} while (0)
 
-#define VPSSERR(format, ...) \
-	do { \
-		if (vpss_debug)  \
-			printk(KERN_ERR "VPSS_" VPSS_SUBMODULE_NAME ": " \
-				format, ## __VA_ARGS__); \
-	} while (0)
 
 #else
 #define VPSSDBG(format, ...)
-#define VPSSERR(format, ...)
 #endif
+
+#define VPSSERR(format, ...) \
+	do { \
+		printk(KERN_ERR "VPSS_" VPSS_SUBMODULE_NAME ": " \
+				format, ## __VA_ARGS__); \
+	} while (0)
 
 extern bool   def_i2cmode;
 extern enum vps_platformcpurev cpuver;

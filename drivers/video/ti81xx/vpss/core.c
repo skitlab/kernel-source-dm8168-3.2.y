@@ -83,18 +83,18 @@ static int vps_probe(struct platform_device *pdev)
 
 	r = vps_dc_init(pdev, def_mode, def_tiedvencs, def_clksrc);
 	if (r) {
-		VPSSERR("failed to int display controller.\n");
+		VPSSERR("failed to init display controller.\n");
 		goto exit2;
 	}
 	r = vps_grpx_init(pdev);
 	if (r) {
-		VPSSERR("failed to int graphics.\n");
+		VPSSERR("failed to init graphics.\n");
 		goto exit3;
 
 	}
 	r = vps_video_init(pdev);
 	if (r) {
-		VPSSERR("failed to int video.\n");
+		VPSSERR("failed to init video.\n");
 		goto exit4;
 	}
 	vps_sbuf_usage();
