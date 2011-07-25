@@ -278,7 +278,7 @@ EXPORT_SYMBOL(ptp_clock_unregister);
 
 void ptp_clock_event(struct ptp_clock *ptp, struct ptp_clock_event *event)
 {
-	struct pps_event_time evt;
+	/* struct pps_event_time evt; */
 
 	switch (event->type) {
 
@@ -291,8 +291,8 @@ void ptp_clock_event(struct ptp_clock *ptp, struct ptp_clock_event *event)
 		break;
 
 	case PTP_CLOCK_PPS:
-		pps_get_ts(&evt);
-		pps_event(ptp->pps_source, &evt, PTP_PPS_EVENT, NULL);
+		/* pps_get_ts(&evt);
+		pps_event(ptp->pps_source, &evt, PTP_PPS_EVENT, NULL); */
 		break;
 	}
 }
