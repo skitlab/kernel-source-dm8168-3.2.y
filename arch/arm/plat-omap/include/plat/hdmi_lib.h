@@ -441,6 +441,23 @@ struct hdmi_notifier {
 	struct list_head list;
 };
 
+/* Audio N/CTS values */
+struct audio_timings {
+	u32 tmds;
+	u32 audio_fs;
+	u32 audio_n;
+	u32 audio_cts;
+};
+
+/* hdmi audio platform data */
+struct snd_hdmi_platform_data {
+	u32 dma_addr;
+	u32 channel;
+	u32 data_type;
+	u32 acnt;
+	u32 fifo_level;
+};
+
 #define HDMI_CONNECT		0x01
 #define HDMI_DISCONNECT		0x02
 #define HDMI_HPD		0x04
@@ -470,5 +487,10 @@ int hdmi_get_hpd_pin_state(void);
 void hdmi_core_software_reset(void);
 void hdmi_w1_video_start(void);
 unsigned int hdmi_w1_video_status(void);
+int hdmi_core_audio_mode_enable(u32  instanceName);
+int hdmi_core_audio_config(u32 name,
+		struct hdmi_core_audio_config *audio_cfg);
+int hdmi_get_video_timing();
+
 #endif
 

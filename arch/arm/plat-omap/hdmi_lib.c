@@ -42,6 +42,7 @@
 #include <linux/module.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
+#include <sound/pcm.h>
 
 /* HDMI PHY */
 #define HDMI_TXPHY_TX_CTRL			0x0ul
@@ -488,13 +489,6 @@ static void hdmi_core_init(enum hdmi_deep_mode deep_color,
 
 	v_cfg->CoreHdmiDvi = HDMI_DVI;
 	v_cfg->CoreTclkSelClkMult = FPLL10IDCK;
-	/* audio core */
-	audio_cfg->fs = FS_44100;
-	audio_cfg->n = 0;
-	audio_cfg->cts = 0;
-	audio_cfg->layout = LAYOUT_2CH; /* 2channel audio */
-	audio_cfg->aud_par_busclk = 0;
-	audio_cfg->cts_mode = CTS_MODE_HW;
 
 	/* info frame */
 	avi->db1y_rgb_yuv422_yuv444 = 0;
@@ -610,13 +604,13 @@ static int hdmi_core_video_config(struct hdmi_core_video_config_t *cfg)
 	return 0;
 }
 
-static int hdmi_core_audio_mode_enable(u32  instanceName)
+int hdmi_core_audio_mode_enable(u32  instanceName)
 {
 	REG_FLD_MOD(instanceName, HDMI_CORE_AV__AUD_MODE, 1, 0, 0);
 	return 0;
 }
 
-static int hdmi_core_audio_config(u32 name,
+int hdmi_core_audio_config(u32 name,
 		struct hdmi_core_audio_config *audio_cfg)
 {
 	int ret = 0;
@@ -1027,7 +1021,7 @@ static void hdmi_w1_init(struct hdmi_video_timing *t_p,
 	audio_fmt->sample_number = HDMI_ONEWORD_TWO_SAMPLES;
 	audio_fmt->sample_size = HDMI_SAMPLE_16BITS;
 
-	audio_dma->dma_transfer = 0x10;
+	audio_dma->dma_transfer = 0x20;
 	audio_dma->block_size = 0xC0;
 	audio_dma->dma_or_irq = HDMI_THRESHOLD_DMA;
 	audio_dma->threshold_value = 0x10;
@@ -1207,8 +1201,9 @@ static int hdmi_w1_audio_config_format(u32 name,
 	value |= ((audio_fmt->audio_channel_location) << 16);
 	value &= 0xffffffef;
 	value |= ((audio_fmt->iec) << 4);
-	/* Wakeup */
-	value = 0x1030022;
+
+	/* Wakeup value = 0x1030022; */
+
 	hdmi_write_reg(name, HDMI_WP_AUDIO_CFG, value);
 	DBG("HDMI_WP_AUDIO_CFG = 0x%x\n", value);
 
@@ -1225,8 +1220,9 @@ static int hdmi_w1_audio_config_dma(u32 name, struct hdmi_audio_dma *audio_dma)
 	value |= audio_dma->block_size;
 	value &= 0xffff00ff;
 	value |= audio_dma->dma_transfer << 8;
-	/*  Wakeup */
-	value = 0x20C0;
+
+	/*  Wakeup value = 0x20C0; */
+
 	hdmi_write_reg(name, HDMI_WP_AUDIO_CFG2, value);
 	DBG("HDMI_WP_AUDIO_CFG2 = 0x%x\n", value);
 
@@ -1235,8 +1231,9 @@ static int hdmi_w1_audio_config_dma(u32 name, struct hdmi_audio_dma *audio_dma)
 	value |= audio_dma->dma_or_irq << 9;
 	value &= 0xfffffe00;
 	value |= audio_dma->threshold_value;
-	/*  Wakeup */
-	value = 0x020;
+
+	/*  Wakeup value = 0x020; */
+
 	hdmi_write_reg(name, HDMI_WP_AUDIO_CTRL, value);
 	DBG("HDMI_WP_AUDIO_CTRL = 0x%x\n", value);
 
@@ -1271,16 +1268,20 @@ static int hdmi_w1_audio_config(void)
 	struct hdmi_audio_dma audio_dma;
 
 	audio_fmt.justify = HDMI_AUDIO_JUSTIFY_LEFT;
-	audio_fmt.sample_number = HDMI_ONEWORD_ONE_SAMPLE;
-	audio_fmt.sample_size = HDMI_SAMPLE_24BITS;
+	audio_fmt.sample_number = HDMI_ONEWORD_TWO_SAMPLES;
+	audio_fmt.sample_size = HDMI_SAMPLE_16BITS;
 	audio_fmt.stereo_channel_enable = HDMI_STEREO_ONECHANNELS;
-	audio_fmt.audio_channel_location = 0x03;
+	audio_fmt.audio_channel_location = HDMI_CEA_CODE_03;
+	audio_fmt.iec = HDMI_AUDIO_FORMAT_LPCM;
+	audio_fmt.left_before = HDMI_SAMPLE_LEFT_FIRST;
 
 	ret = hdmi_w1_audio_config_format(HDMI_WP, &audio_fmt);
 
 	audio_dma.dma_transfer = 0x20;
-	audio_dma.threshold_value = 0x60;
+	audio_dma.block_size = 0xC0;
+	audio_dma.threshold_value = 0x20;
 	audio_dma.dma_or_irq = HDMI_THRESHOLD_DMA;
+	audio_dma.block_start_end = HDMI_BLOCK_STARTEND_ON;
 
 	ret = hdmi_w1_audio_config_dma(HDMI_WP, &audio_dma);
 
@@ -1374,15 +1375,6 @@ int hdmi_lib_enable(struct hdmi_config *cfg)
 	
 
 	hdmi_w1_video_config_interface(&VideoInterfaceParam);  // TI81xx , HDMI wrapper only slave mode, so h_pol, v_pol is ignored .
-
-#if 0
-	/* hnagalla */
-	val = hdmi_read_reg(HDMI_WP, HDMI_WP_VIDEO_SIZE);
-
-	val &= 0x0FFFFFFF;
-	val |= ((0x1f) << 27); /* wakeup */
-	hdmi_write_reg(HDMI_WP, HDMI_WP_VIDEO_SIZE, val);
-#endif
 	hdmi_w1_audio_config();
 
 	/****************************** CORE *******************************/
@@ -1395,31 +1387,9 @@ int hdmi_lib_enable(struct hdmi_config *cfg)
 
 	v_core_cfg.CoreHdmiDvi = cfg->hdmi_dvi;
 
-	/* hnagalla */
-	audio_cfg.fs = 0x02;
-	audio_cfg.if_fs = 0x03;
-	audio_cfg.n = 6144;
-	audio_cfg.cts = 148500;
-
-	/* audio channel */
-	audio_cfg.if_sample_size = 0x0;
-	audio_cfg.layout = 0;
-	audio_cfg.if_channel_number = 2;
-	audio_cfg.if_audio_channel_location = 0x00;
-
-	/* TODO: Is this configuration correct? */
-	audio_cfg.aud_par_busclk = 0;
-	audio_cfg.cts_mode = CTS_MODE_SW;
-	printk("CTS mode is sw \n");
-
 	r = hdmi_core_video_config(&v_core_cfg);
-
-	hdmi_core_audio_config(av_name, &audio_cfg);
-	hdmi_core_audio_mode_enable(av_name);
-
 	/* release software reset in the core */
 	hdmi_core_swreset_release();
-
 
 	/* configure packet */
 	/* info frame video see doc CEA861-D page 65 */
@@ -1481,7 +1451,6 @@ int hdmi_lib_init(void){
 		ERR("can't ioremap WP\n");
 		return -ENOMEM;
 	}
-//	printk("DEBUG hdmi.base_wp = %x \n",hdmi.base_wp);
 
 	hdmi.base_core = hdmi.base_wp + 0x400;
 	hdmi.base_core_av = hdmi.base_wp + 0x900;
@@ -1720,6 +1689,28 @@ void hdmi_core_software_reset(void)
 	return;
 }
 
+/* TODO : This func will return the current video clock  */
+int hdmi_get_video_timing()
+{
+	int ret = 0;
+
+	DBG("TDMS: %d\n", __func__, hdmi.avi_param.db4vic_videocode);
+
+	switch (hdmi.avi_param.db4vic_videocode) {
+	case 16:	/* 1080P-60 */
+		ret = 148500;
+		break;
+	case 5:		/* 1080I-60 */
+	case 4:		/* 720P-60  */
+	case 34:	/* 1080P-30 */
+		ret = 74250;
+		break;
+	default:
+		ret = -1;
+	}
+
+	return ret;
+}
 
 EXPORT_SYMBOL(hdmi_lib_enable);
 EXPORT_SYMBOL(hdmi_lib_init);
@@ -1743,3 +1734,6 @@ EXPORT_SYMBOL(hdmi_get_hpd_pin_state);
 EXPORT_SYMBOL(hdmi_core_software_reset);
 EXPORT_SYMBOL(hdmi_w1_video_start);
 EXPORT_SYMBOL(hdmi_w1_video_status);
+EXPORT_SYMBOL(hdmi_core_audio_config);
+EXPORT_SYMBOL(hdmi_core_audio_mode_enable);
+EXPORT_SYMBOL(hdmi_get_video_timing);

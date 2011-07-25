@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -30,6 +31,7 @@
 
 #include <plat/dma.h>
 #include "davinci-pcm.h"
+#include "davinci-mcasp.h"
 #include <plat/hdmi_lib.h>
 
 #define DAVINCI_HDMI_RATES	(SNDRV_PCM_RATE_48000	\
@@ -38,8 +40,8 @@
 				| SNDRV_PCM_RATE_96000	\
 				| SNDRV_PCM_RATE_192000)
 
-/* Currently, we support only 16b samples at HDMI */
-#define DAVINCI_HDMI_FORMATS (SNDRV_PCM_FMTBIT_S16_LE)
+/* Currently, we support only 16b & 24b samples at HDMI */
+#define DAVINCI_HDMI_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE)
 
 /* Audio N / CTS values based on TMDS clks */
 const struct audio_timings audio_timings[] = {
@@ -66,21 +68,13 @@ const struct audio_timings audio_timings[] = {
 };
 
 static struct davinci_pcm_dma_params davinci_hdmi_dai_dma_params;
-
 static int davinci_hdmi_dai_startup(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
 	int err = 0;
-
 	struct davinci_audio_dev *dev = snd_soc_dai_get_drvdata(dai);
 
-	davinci_hdmi_dai_dma_params.channel = 53;
-	davinci_hdmi_dai_dma_params.dma_addr = TI81xx_HDMI_WP + HDMI_WP_AUDIO_DATA;
-	davinci_hdmi_dai_dma_params.data_type = 4;
-	davinci_hdmi_dai_dma_params.acnt = 4;
-	davinci_hdmi_dai_dma_params.fifo_level = 0x20;
-
-	snd_soc_dai_set_dma_data(dai, substream, &davinci_hdmi_dai_dma_params);
+	snd_soc_dai_set_dma_data(dai, substream, dev->dma_params);
 	err = hdmi_w1_wrapper_enable(HDMI_WP);
 
 	return err;
@@ -117,11 +111,76 @@ static int davinci_hdmi_dai_trigger(struct snd_pcm_substream *substream, int cmd
 	return err;
 }
 
+static const struct audio_timings *get_audio_timings(u32 tmds, u32 rate)
+{
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(audio_timings); i++) {
+		if (tmds == audio_timings[i].tmds &&
+			rate == audio_timings[i].audio_fs)
+			return &audio_timings[i];
+	}
+
+	return NULL;
+}
+
 static int davinci_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *params,
 				    struct snd_soc_dai *dai)
 {
 	int err = 0;
+	u32 av_name = HDMI_CORE_AV;
+	int ret = 0;
+	int tdms = 0, rate = 0;
+	struct hdmi_core_audio_config audio_cfg;
+	struct hdmi_audio_format audio_fmt;
+	struct hdmi_audio_dma audio_dma;
+	const struct audio_timings *timing;
+
+	/* TODO Modify the N/CTS value selection based on the Video clkc */
+	tdms = hdmi_get_video_timing();
+	rate = params_rate(params);
+
+	DBG(" TMDS: %d RATE: %d\n", tdms, rate);
+	timing = get_audio_timings(tdms, rate);
+
+	if (NULL == timing) {
+		printk(KERN_ERR "sampling rate is not supported!\n");
+		return -EINVAL;
+	}
+	audio_cfg.n = timing->audio_n;
+	audio_cfg.cts = timing->audio_cts;
+
+	DBG("FS: %d N: %d CTS: %d\n", rate, audio_cfg.n, audio_cfg.cts);
+
+	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_S16_LE:
+		audio_fmt.sample_number = HDMI_ONEWORD_TWO_SAMPLES;
+		audio_fmt.sample_size = HDMI_SAMPLE_16BITS;
+		break;
+	case SNDRV_PCM_FORMAT_S24_LE:
+		audio_fmt.sample_number = HDMI_ONEWORD_ONE_SAMPLE;
+		audio_fmt.sample_size = HDMI_SAMPLE_24BITS;
+		break;
+	default:
+		err = -EINVAL;
+	}
+
+	/* HDMI Core configuration */
+	audio_cfg.if_fs = 0x03;
+	audio_cfg.if_sample_size = HDMI_ONEWORD_TWO_SAMPLES;
+	audio_cfg.layout = LAYOUT_2CH;
+	audio_cfg.if_channel_number = HDMI_STEREO_TWOCHANNELS;
+	audio_cfg.if_audio_channel_location = HDMI_CEA_CODE_00;
+
+	/* TODO: Is this configuration correct? */
+	audio_cfg.aud_par_busclk = 0;
+	audio_cfg.cts_mode = CTS_MODE_SW;
+	DBG("CTS mode is sw\n");
+
+	hdmi_core_audio_config(av_name, &audio_cfg);
+	hdmi_core_audio_mode_enable(av_name);
+
 	return err;
 }
 
@@ -145,6 +204,27 @@ static struct snd_soc_dai_driver davinci_hdmi_dai = {
 
 static __devinit int davinci_hdmi_probe(struct platform_device *pdev)
 {
+	struct davinci_pcm_dma_params *dma_data;
+	struct snd_hdmi_platform_data *pdata;
+	struct davinci_audio_dev *dev;
+
+	dev = kzalloc(sizeof(struct davinci_audio_dev), GFP_KERNEL);
+	if (!dev)
+		return  -ENOMEM;
+
+	pdata = pdev->dev.platform_data;
+	
+	if (NULL != pdata) {
+		dma_data = &dev->dma_params[SNDRV_PCM_STREAM_PLAYBACK];
+
+		dma_data->dma_addr = (pdata->dma_addr);
+		dma_data->channel = (pdata->channel);
+		dma_data->data_type = (pdata->data_type);
+		dma_data->acnt = (pdata->acnt);
+		dma_data->fifo_level = (pdata->fifo_level);
+	}
+
+	dev_set_drvdata(&pdev->dev, dev);
 	return snd_soc_register_dai(&pdev->dev, &davinci_hdmi_dai);
 }
 

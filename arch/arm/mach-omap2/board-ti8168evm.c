@@ -43,6 +43,8 @@
 #include <plat/mmc.h>
 #include <plat/gpmc.h>
 #include <plat/nand.h>
+#include <plat/hdmi_lib.h>
+
 
 #include "clock.h"
 #include "mux.h"
@@ -582,6 +584,14 @@ static void __init ti816x_vpss_init(void)
 	/*FIXME add platform data here*/
 }
 
+static struct snd_hdmi_platform_data ti8168_snd_hdmi_pdata = {
+	.dma_addr = TI81xx_HDMI_WP + HDMI_WP_AUDIO_DATA,
+	.channel = 53,
+	.data_type = 4,
+	.acnt = 4,
+	.fifo_level = 0x20,
+};
+
 static struct platform_device ti816x_hdmi_plat_device = {
 	.name = "TI81XX_HDMI",
 	.id = -1,
@@ -595,6 +605,9 @@ static struct platform_device ti816x_hdmi_plat_device = {
 static struct platform_device ti8168_hdmi_audio_device = {
 	.name	= "hdmi-dai",
 	.id	= -1,
+        .dev = {
+		.platform_data = &ti8168_snd_hdmi_pdata,
+        }
 };
 
 static struct platform_device ti8168_hdmi_codec_device = {

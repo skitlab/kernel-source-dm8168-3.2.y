@@ -44,7 +44,6 @@ static struct snd_soc_dai_driver ti81xx_dai = {
 
 static int hdmi_codec_probe(struct platform_device *pdev)
 {
-
 	int ret;
 
 	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_hdmi,
