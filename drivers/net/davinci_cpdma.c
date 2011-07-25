@@ -502,6 +502,12 @@ void cpdma_ctlr_eoi(struct cpdma_ctlr *ctlr)
 }
 EXPORT_SYMBOL(cpdma_ctlr_eoi);
 
+void cpdma_ctlr_eoi_statistics(struct cpdma_ctlr *ctlr)
+{
+	dma_reg_write(ctlr, CPDMA_MACEOIVECTOR, 0x3);
+}
+EXPORT_SYMBOL(cpdma_ctlr_eoi_statistics);
+
 struct cpdma_chan *cpdma_chan_create(struct cpdma_ctlr *ctlr, int chan_num,
 				     cpdma_handler_fn handler)
 {
