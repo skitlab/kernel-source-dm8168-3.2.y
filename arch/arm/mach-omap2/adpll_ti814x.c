@@ -26,7 +26,7 @@
 #include <asm/div64.h>
 #include <asm/io.h>
 #include <plat/clock.h>
-
+#include <linux/math64.h>
 #include "clock.h"
 #include "cm-regbits-81xx.h"
 
@@ -35,23 +35,40 @@
 /* Modena PLL */
 #define ADPLLS_FINT_BAND_MIN		32000
 #define ADPLLS_FINT_BAND_MAX		52000000
+#define ADPLLS_DCO_FREQ_MIN		20000000
+#define ADPLLS_DCO_FREQ_MAX		2000000000
 
 /* ADPLLLJx */
 #define ADPLLJ_FINT_BAND_MIN		500000
 #define ADPLLJ_FINT_BAND_MAX		2500000
 
+#define ADPLLJ_MODE_HS2			0x2
+#define ADPLLJ_MODE_HS1			0x4
+#define ADPLLJ_DCO_FREQ_MIN_HS2		500000000
+#define ADPLLJ_DCO_FREQ_MAX_HS2		1000000000
+#define ADPLLJ_DCO_FREQ_MIN_HS1		1000000000
+#define ADPLLJ_DCO_FREQ_MAX_HS1		2000000000
+
 /* _dpll_test_fint() return codes */
 #define ADPLL_FINT_UNDERFLOW		-1
 #define ADPLL_FINT_INVALID		-2
+
+#define ADPLL_DCO_VALID			0
+#define ADPLL_DCO_UNDERFLOW		-1
+#define ADPLL_DCO_INVALID		-2
 
 /* Maximum multiplier & divider values for ADPLL */
 /* Modena PLL */
 #define TI814X_ADPLLS_MAX_MULT		2047
 #define TI814X_ADPLLS_MAX_DIV		127
+#define TI814X_ADPLLS_MIN_M2_DIV	1
+#define TI814X_ADPLLS_MAX_M2_DIV	31
 
 /* ADPLLLJx */
 #define TI814X_ADPLLJ_MAX_MULT		4095
 #define TI814X_ADPLLJ_MAX_DIV		255
+#define TI814X_ADPLLJ_MIN_M2_DIV	1
+#define TI814X_ADPLLJ_MAX_M2_DIV	127
 
 #define TI814X_ADPLL_MIN_DIV		0
 #define TI814X_ADPLL_MIN_MULT		2
@@ -318,7 +335,63 @@ static int _adpll_test_fint(struct clk *clk, u8 n)
 	return ret;
 }
 
-/*
+/**
+ *_adpll_test_dco_freq - test whether the target rate can be achieved
+ * while satisfying DCOCLK Frequency limits and M2 divider limits
+ * @dd - pointer to the Adpll data structure
+ * @targ_rate - Target rate to be achieved
+ */
+static int _adpll_test_dco_freq(struct dpll_data *dd, unsigned long targ_rate)
+{
+	unsigned long long dco_freq;
+	u8 m2 = dd->post_div_m2;
+	int ret = 0;
+
+	if (dd->flags & TI814X_ADPLL_LS_TYPE) {
+		/* DCO for ADPLLLS */
+		do {
+			dco_freq = targ_rate*m2;
+			if (dco_freq < ADPLLS_DCO_FREQ_MIN) {
+				ret = ADPLL_DCO_UNDERFLOW;
+				m2++;
+			} else if (dco_freq > ADPLLS_DCO_FREQ_MAX) {
+				ret = ADPLL_DCO_INVALID;
+				break;
+			} else {
+				ret = ADPLL_DCO_VALID;
+				dd->last_rounded_m2 = m2;
+				break;
+			}
+
+		} while ((m2 >= TI814X_ADPLLS_MIN_M2_DIV)
+			&& (m2 <= TI814X_ADPLLS_MAX_M2_DIV));
+	} else {
+		do {
+			dco_freq = targ_rate*m2;
+			if (dco_freq < ADPLLJ_DCO_FREQ_MIN_HS2) {
+				ret = ADPLL_DCO_UNDERFLOW;
+				m2++;
+			} else if (dco_freq > ADPLLJ_DCO_FREQ_MAX_HS1) {
+				ret = ADPLL_DCO_INVALID;
+				break;
+			} else {
+				ret = ADPLL_DCO_VALID;
+				dd->last_rounded_m2 = m2;
+				if (dco_freq <= ADPLLJ_DCO_FREQ_MAX_HS2)
+					dd->dco_freq_sel = ADPLLJ_MODE_HS2;
+				else
+					dd->dco_freq_sel = ADPLLJ_MODE_HS1;
+				break;
+			}
+
+		} while ((m2 >= TI814X_ADPLLJ_MIN_M2_DIV)
+			&& (m2 <= TI814X_ADPLLJ_MAX_M2_DIV));
+
+	}
+	return ret;
+}
+
+/**
  *_dpll_get_rounded_vals - Compute rounded values for multiplier(M) and
  * fractional multiplier to get the targeted rate
  * @clk - pointer to ADPLL clk structure
@@ -329,38 +402,50 @@ static int _adpll_test_fint(struct clk *clk, u8 n)
  */
 static int _dpll_get_rounded_vals(struct clk *clk, unsigned long target_rate)
 {
-	int i, m;
-	int r = 0;
+	u16 m;
+	int ret = 0;
 	struct dpll_data *dd;
-	unsigned long inp_rate;
-	unsigned int remainder, quotient;
-	unsigned int frac_overflow;
-
+	u32 inp_rate, scaled_inp_rate, scaled_targ_rate;
+	s64 quotient, rfraction, dividend;
+	u32 remainder, rremainder;
+	unsigned long frac_overflow;
 	dd = clk->dpll_data;
 	if (!dd)
 		return -EINVAL;
 
 	dd->last_rounded_n = dd->pre_div_n;
-	inp_rate = (clk->parent->rate / (dd->post_div_m2));
-	inp_rate = inp_rate/ADPLL_ROUNDING_DIVIDER;
-	target_rate = target_rate/ADPLL_ROUNDING_DIVIDER;
-	quotient = (target_rate*(dd->pre_div_n + 1)) / inp_rate;
-	remainder = (target_rate*(dd->pre_div_n + 1)) % inp_rate;
+	inp_rate = clk->parent->rate;
+	ret = _adpll_test_dco_freq(dd, target_rate);
+	if (ret) {
+		if (ret == ADPLL_DCO_UNDERFLOW)
+			printk(KERN_ERR "Target freq is too low to achieve");
+		else
+			printk(KERN_ERR "Target freq is too high to achieve");
+		return ret;
+	}
+	scaled_inp_rate = inp_rate / ADPLL_ROUNDING_DIVIDER;
+	scaled_targ_rate = target_rate / ADPLL_ROUNDING_DIVIDER;
 
-	if ((remainder == 0) && (clk->flags & TI814X_ADPLL_LS_TYPE)) {
-		for (i = TI814X_ADPLL_MIN_MULT; i <= dd->max_multiplier; i++) {
-			if ((quotient % i) == 0) {
-				dd->last_rounded_m = i;
-				dd->last_rounded_frac_m = 0;
-				break;
-			}
-		}
+	/* m = targ_rate*(n+1)*m2/inp_rate */
+	dividend = scaled_targ_rate * (dd->pre_div_n + 1) * dd->last_rounded_m2;
+	quotient = div_u64_rem(dividend, scaled_inp_rate, &remainder);
+	/* rounding remainder */
+	rremainder = target_rate % ADPLL_ROUNDING_DIVIDER;
+	m = quotient;
+	if ((m < TI814X_ADPLL_MIN_MULT) || (m > dd->max_multiplier))
+		return -EINVAL;
+	dd->last_rounded_m = m;
+
+	if ((remainder == 0) && (rremainder == 0)) {
+		dd->last_rounded_frac_m = 0;
 	} else {
-		m = quotient;
-		if ((m < TI814X_ADPLL_MIN_MULT) || (m > dd->max_multiplier))
-			return -EINVAL;
-		dd->last_rounded_m = m;
-		dd->last_rounded_frac_m = (((remainder << 18))/inp_rate);
+		dd->last_rounded_frac_m = remainder << 18;
+		do_div(dd->last_rounded_frac_m, scaled_inp_rate);
+		/*Calculate fraction lost due to rounding */
+		rfraction = rremainder * (dd->last_rounded_n + 1);
+		rfraction = (rfraction * dd->last_rounded_m2) << 18;
+		do_div(rfraction, inp_rate);
+		dd->last_rounded_frac_m += rfraction;
 		frac_overflow = dd->last_rounded_frac_m >> 18;
 		if (frac_overflow > 0) {
 			dd->last_rounded_m = dd->last_rounded_m + frac_overflow;
@@ -552,14 +637,10 @@ static int ti814x_dpll_program(struct clk *clk, u16 m, u32 frac_m, u8 n, u8 m2)
  * @clk: struct clk * for a dpll
  * @target_rate: desired ADPLL clock rate
  *
- * Given a dpll, a desired target rate, and a rate tolerance, round
- * the target rate to a possible, programmable rate for this adpll.
- * Rate tolerance is assumed to be set by the caller before this
- * function is called. Attempts to select the minimum possible n
- * within the tolerance to reduce power consumption. Stores the
- * computed (m, n) in the adpll's dpll_data structure so set_rate()
- * will not need to call this (expensive) function again. Returns ~0
- * if the target rate cannot be rounded,if the rate is
+ * Given a dpll, a desired target rate round the target rate
+ * to a possible, programmable rate for this adpll.
+ * Computes multiplier and divider values required to achieve the rounded rate
+ * returns error if the target rate cannot be rounded,if the rate is
  * too low  or the rounded rate upon success.
  */
 long ti814x_dpll_round_rate(struct clk *clk, unsigned long target_rate)
@@ -588,7 +669,7 @@ long ti814x_dpll_round_rate(struct clk *clk, unsigned long target_rate)
 				dd->last_rounded_m,
 				dd->last_rounded_frac_m,
 				dd->last_rounded_n,
-				dd->post_div_m2);
+				dd->last_rounded_m2);
 
 	return dd->last_rounded_rate;
 }
@@ -652,7 +733,8 @@ int ti814x_dpll_set_rate(struct clk *clk, unsigned long rate)
 					dd->last_rounded_m,
 					dd->last_rounded_frac_m,
 					dd->last_rounded_n,
-					dd->post_div_m2);
+					dd->last_rounded_m2,
+					dd->dco_freq_sel);
 		if (!ret)
 			new_parent = dd->clk_ref;
 	}

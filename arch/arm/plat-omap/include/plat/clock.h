@@ -138,6 +138,7 @@ struct clksel {
  * @soft_reset_bit: bitshift for resetting the DPLL logic (TINITZ)@control_reg
  * @load_mn_reg: register for loading M and N values (TENABLE)
  * @load_m2n2_reg: register for loading M2 and N2 values (TENABLEDIV)
+ * @dco_freq_sel: DCO FREQ selection mode for ADPLLLJs
  *
  * Possible values for @flags:
  * DPLL_J_TYPE: "J-type DPLL" (only some 36xx, 4xxx DPLLs)
@@ -195,13 +196,14 @@ struct dpll_data {
 	void __iomem	*frac_mult_reg;
 	u32		frac_mult_mask;
 	u32		last_rounded_frac_m;
+	u8		last_rounded_m2;
 	u32		bypass_bit;
 	u8		byp_clk_src_bit;
 	u8		stby_ret_bit;
 	u8		stop_mode_bit;
-	u8		soft_reset_bit;
 	void __iomem	*load_mn_reg;
 	void __iomem	*load_m2n2_reg;
+	u8		dco_freq_sel;
 #  endif
 };
 
