@@ -69,6 +69,8 @@
 #define TI814X_ADPLLJ_MAX_DIV		255
 #define TI814X_ADPLLJ_MIN_M2_DIV	1
 #define TI814X_ADPLLJ_MAX_M2_DIV	127
+#define TI814X_ADPLLJ_MIN_SD_DIV	2
+#define TI814X_ADPLLJ_MAX_SD_DIV	255
 
 #define TI814X_ADPLL_MIN_DIV		0
 #define TI814X_ADPLL_MIN_MULT		2
@@ -101,7 +103,7 @@ static int _ti814x_wait_dpll_status(struct clk *clk, u32 state)
 		udelay(1);
 	}
 	if (i == MAX_DPLL_WAIT_TRIES) {
-		pr_debug("clock: %s failed transition to '%s'\n",
+		printk(KERN_ERR "clock: %s failed transition to '%s'\n",
 			clk->name,
 			(state == ST_ADPLL_BYPASSED) ? "bypassed" : "locked");
 	} else {
@@ -135,10 +137,6 @@ static int _ti814x_dpll_bypass(struct clk *clk)
 	/* Instruct ADPLL to enter Bypass mode 1 - bypass 0 - Active&Locked */
 	v = __raw_readl(dd->control_reg);
 	v |= (1 << dd->bypass_bit);
-	__raw_writel(v, dd->control_reg);
-
-	v = __raw_readl(dd->control_reg);
-	v |= (1 << dd->soft_reset_bit);
 	__raw_writel(v, dd->control_reg);
 
 	r = _ti814x_wait_dpll_status(clk, ST_ADPLL_BYPASSED);
@@ -188,6 +186,43 @@ static int _ti814x_dpll_lock(struct clk *clk)
 	r = _ti814x_wait_dpll_status(clk, ST_ADPLL_LOCKED);
 
 	return r;
+}
+
+/*
+ *_ti814x_dpll_init_config_sequence - initiate config sequence
+ * Drive ADPLL to Bypass by de-aserting TINITZ to configure,
+ * This needs to be called before changing m,n,m2,sd values
+ * @clk: pointer to an ADPLL struct clk
+ */
+static void _ti814x_dpll_init_config_sequence(struct clk *clk)
+{
+	struct dpll_data *dd = clk->dpll_data;
+	u32 v;
+
+	v = __raw_readl(dd->control_reg);
+	v &= ~(1 << TI814X_ADPLL_TINITZ_SHIFT);
+	__raw_writel(v, dd->control_reg);
+
+	ndelay(1);
+
+}
+
+/*
+ * _ti814x_dpll_end_config_sequence - End the config sequence and start locking
+ * Bring ADPLL out of bypass and start lock sequence
+ * @clk: pointer to an ADPLL struct clk
+ */
+static void _ti814x_dpll_end_config_sequence(struct clk *clk)
+{
+	struct dpll_data *dd = clk->dpll_data;
+	u32 v;
+
+	v = __raw_readl(dd->control_reg);
+	v |= (1 << TI814X_ADPLL_TINITZ_SHIFT);
+	__raw_writel(v, dd->control_reg);
+
+	ndelay(1);
+
 }
 
 /* _ti814x_wait_dpll_ret_ack: wait for an ADPLL to acknowledge ret request
@@ -392,6 +427,41 @@ static int _adpll_test_dco_freq(struct dpll_data *dd, unsigned long targ_rate)
 }
 
 /**
+ * _lookup_sddiv - Calculate sigma delta divider for LJ-type ADPLL
+ * @clk: pointer to a ADPLL struct clk
+ * @sd_div: target sigma-delta divider
+ * @m: ADPLL multiplier to set
+ * @n: ADPLL divider to set
+ *
+ */
+static void _lookup_sddiv(struct clk *clk, u8 *sd_div, u16 m, u8 n)
+{
+	unsigned long clkinp, sd; /* watch out for overflow */
+	int mod1, mod2;
+
+	clkinp = clk->parent->rate;
+
+	/*
+	 * target sigma-delta to near 250MHz
+	 * sd = ceil[(m/(n+1)) * (clkinp_MHz / 250)]
+	 */
+	clkinp /= 100000; /* shift from MHz to 10*Hz for 38.4 and 19.2 */
+	mod1 = (clkinp * m) % (250 * n);
+	sd = (clkinp * m) / (250 * n);
+	mod2 = sd % 10;
+	sd /= 10;
+
+	if (mod1 || mod2)
+		sd++;
+	if ((sd >= TI814X_ADPLLJ_MIN_SD_DIV)
+		&& (sd <= TI814X_ADPLLJ_MAX_SD_DIV))
+		*sd_div = sd;
+	else
+		printk(KERN_ERR "Failed to program :sd div out of range\n");
+
+}
+
+/**
  *_dpll_get_rounded_vals - Compute rounded values for multiplier(M) and
  * fractional multiplier to get the targeted rate
  * @clk - pointer to ADPLL clk structure
@@ -453,7 +523,7 @@ static int _dpll_get_rounded_vals(struct clk *clk, unsigned long target_rate)
 						TI814X_ADPLL_FRACT_MULT_MASK;
 		}
 	}
-	return r;
+	return ret;
 }
 
 /* Public functions */
@@ -589,15 +659,18 @@ void ti814x_dpll_disable(struct clk *clk)
  *
  * ADPLL must be in bypass while programming with new values
  */
-static int ti814x_dpll_program(struct clk *clk, u16 m, u32 frac_m, u8 n, u8 m2)
+static int ti814x_dpll_program(struct clk *clk, u16 m, u32 frac_m, u8 n,
+				u8 m2, u8 dco)
 {
 	struct dpll_data *dd = clk->dpll_data;
 	u32 v;
+	u8 sd_div = 0;
+	int ret = 0;
 
 	if (!dd)
 		return -EINVAL;
 
-	_ti814x_dpll_bypass(clk);
+	_ti814x_dpll_init_config_sequence(clk);
 
 	/* Set DPLL multiplier (m)*/
 	v = __raw_readl(dd->mult_div1_reg);
@@ -618,17 +691,59 @@ static int ti814x_dpll_program(struct clk *clk, u16 m, u32 frac_m, u8 n, u8 m2)
 	v |= n << __ffs(dd->div_n_mask);
 	__raw_writel(v, dd->div_m2n_reg);
 
-	/* Assert TENABLE to load M and N values */
+	if (dd->sddiv_mask) {
+		_lookup_sddiv(clk, &sd_div, m, n+1);
+		v = __raw_readl(dd->frac_mult_reg);
+		v &= ~(dd->sddiv_mask);
+		v |= sd_div << __ffs(dd->sddiv_mask);
+		__raw_writel(v, dd->frac_mult_reg);
+	}
+
+	/* configure SELECTFREQDCO HS2/HS1 */
+	if (dd->flags & TI814X_ADPLL_LJ_TYPE) {
+
+		v = __raw_readl(dd->control_reg);
+		v &= ~(dd->dco_mask);
+		v |= dco << __ffs(dd->dco_mask);
+		__raw_writel(v, dd->control_reg);
+
+	}
+
+	/* Assert and de-assert TENABLE to load M and N values */
 	v = __raw_readl(dd->load_mn_reg);
 	v |= (1 << TI814X_ADPLL_LOAD_MN_SHIFT);
 	__raw_writel(v, dd->load_mn_reg);
 
+	ndelay(1);
+
+	v = __raw_readl(dd->load_mn_reg);
+	v &= ~(1 << TI814X_ADPLL_LOAD_MN_SHIFT);
+	__raw_writel(v, dd->load_mn_reg);
+
+	/* Assert and de-assert  TENABLEDIV to load M2 and N2 values */
 	v = __raw_readl(dd->load_m2n2_reg);
 	v |= (1 << TI814X_ADPLL_LOAD_M2N2_SHIFT);
 	__raw_writel(v, dd->load_m2n2_reg);
 
-	_ti814x_dpll_lock(clk);
+	ndelay(1);
 
+	v = __raw_readl(dd->load_m2n2_reg);
+	v &= ~(1 << TI814X_ADPLL_LOAD_M2N2_SHIFT);
+	__raw_writel(v, dd->load_m2n2_reg);
+
+	v = __raw_readl(dd->control_reg);
+	v |= (1 << TI814X_ADPLL_CLKOUTLDOEN_SHIFT);
+	__raw_writel(v, dd->control_reg);
+
+	v = __raw_readl(dd->control_reg);
+	v |= (1 << TI814X_ADPLL_CLKDCOLDOEN_SHIFT);
+	__raw_writel(v, dd->control_reg);
+
+	_ti814x_dpll_end_config_sequence(clk);
+
+	ret = _ti814x_wait_dpll_status(clk, ST_ADPLL_LOCKED);
+	if (ret)
+		printk(KERN_ERR "Failed to configure adpll : unable to lock\n");
 	return 0;
 }
 

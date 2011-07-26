@@ -435,6 +435,7 @@ static struct dpll_data dsp_dpll_dd  = {
 	.stby_ret_bit	= TI814X_EN_ADPLL_STBYRET_SHIFT,
 	.load_mn_reg	= TI814X_ADPLL_REGADDR(DSP_PLL_BASE, ADPLLJ_TENABLE),
 	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(DSP_PLL_BASE, ADPLLJ_TENDIV),
+	.sddiv_mask	= TI814X_ADPLLJ_SDDIV_MASK,
 };
 
 /* DSP_DPLL for clock1(in)*/
@@ -486,6 +487,7 @@ static struct dpll_data sgx_dpll_dd = {
 	.stby_ret_bit	= TI814X_EN_ADPLL_STBYRET_SHIFT,
 	.load_mn_reg	= TI814X_ADPLL_REGADDR(SGX_PLL_BASE, ADPLLJ_TENABLE),
 	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(SGX_PLL_BASE, ADPLLJ_TENDIV),
+	.sddiv_mask	= TI814X_ADPLLJ_SDDIV_MASK,
 };
 
 /* GFX_DPLL for clock3(PRCM in) */
@@ -577,6 +579,7 @@ static struct dpll_data hdvicp_dpll_dd = {
 	.stby_ret_bit	= TI814X_EN_ADPLL_STBYRET_SHIFT,
 	.load_mn_reg	= TI814X_ADPLL_REGADDR(IVA_PLL_BASE, ADPLLJ_TENABLE),
 	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(IVA_PLL_BASE, ADPLLJ_TENDIV),
+	.sddiv_mask	= TI814X_ADPLLJ_SDDIV_MASK,
 };
 
 /* HDVICP_DPLL for clock3(PRCM in) */
@@ -664,6 +667,7 @@ static struct dpll_data l3_dpll_dd = {
 	.stby_ret_bit	= TI814X_EN_ADPLL_STBYRET_SHIFT,
 	.load_mn_reg	= TI814X_ADPLL_REGADDR(L3_PLL_BASE, ADPLLJ_TENABLE),
 	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(L3_PLL_BASE, ADPLLJ_TENDIV),
+	.sddiv_mask	= TI814X_ADPLLJ_SDDIV_MASK,
 };
 
 /* L3 DPLL for clock4(PRCM in) */
@@ -1645,6 +1649,7 @@ static struct dpll_data iss_dpll_dd = {
 	.stby_ret_bit	= TI814X_EN_ADPLL_STBYRET_SHIFT,
 	.load_mn_reg	= TI814X_ADPLL_REGADDR(ISS_PLL_BASE, ADPLLJ_TENABLE),
 	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(ISS_PLL_BASE, ADPLLJ_TENDIV),
+	.sddiv_mask	= TI814X_ADPLLJ_SDDIV_MASK,
 };
 
 /* ISP_DPLL for clock1(in)*/
@@ -1727,6 +1732,7 @@ static struct dpll_data hdvpss_dpll_dd = {
 	.stby_ret_bit	= TI814X_EN_ADPLL_STBYRET_SHIFT,
 	.load_mn_reg	= TI814X_ADPLL_REGADDR(DSS_PLL_BASE, ADPLLJ_TENABLE),
 	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(DSS_PLL_BASE, ADPLLJ_TENDIV),
+	.sddiv_mask	= TI814X_ADPLLJ_SDDIV_MASK,
 };
 
 /* HDVPSS_DPLL for clock1(in)*/
@@ -1845,6 +1851,7 @@ static struct dpll_data usb_dpll_dd = {
 	.stby_ret_bit	= TI814X_EN_ADPLL_STBYRET_SHIFT,
 	.load_mn_reg	= TI814X_ADPLL_REGADDR(USB_PLL_BASE, ADPLLJ_TENABLE),
 	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(USB_PLL_BASE, ADPLLJ_TENDIV),
+	.sddiv_mask	= TI814X_ADPLLJ_SDDIV_MASK,
 };
 
 /* USB DPLL Clock */
@@ -2225,6 +2232,7 @@ static struct dpll_data ddr_dpll_dd = {
 	.stby_ret_bit	= TI814X_EN_ADPLL_STBYRET_SHIFT,
 	.load_mn_reg	= TI814X_ADPLL_REGADDR(DDR_PLL_BASE, ADPLLJ_TENABLE),
 	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(DDR_PLL_BASE, ADPLLJ_TENDIV),
+	.sddiv_mask	= TI814X_ADPLLJ_SDDIV_MASK,
 };
 
 /* DDR DPLL Clock */
@@ -2373,6 +2381,7 @@ static struct dpll_data video0_dpll_dd = {
 	.stby_ret_bit	= TI814X_EN_ADPLL_STBYRET_SHIFT,
 	.load_mn_reg	= TI814X_ADPLL_REGADDR(VIDEO0_PLL_BASE, ADPLLJ_TENABLE),
 	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(VIDEO0_PLL_BASE, ADPLLJ_TENDIV),
+	.sddiv_mask	= TI814X_ADPLLJ_SDDIV_MASK,
 };
 
 /* Video0 DPLL clock(DPLL out) */
@@ -2432,6 +2441,7 @@ static struct dpll_data video1_dpll_dd = {
 	.stby_ret_bit	= TI814X_EN_ADPLL_STBYRET_SHIFT,
 	.load_mn_reg	= TI814X_ADPLL_REGADDR(VIDEO1_PLL_BASE, ADPLLJ_TENABLE),
 	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(VIDEO1_PLL_BASE, ADPLLJ_TENDIV),
+	.sddiv_mask	= TI814X_ADPLLJ_SDDIV_MASK,
 };
 
 /* Video1 DPLL clock (DPLL out) */
@@ -2491,6 +2501,7 @@ static struct dpll_data hdmi_dpll_dd = {
 	.stby_ret_bit	= TI814X_EN_ADPLL_STBYRET_SHIFT,
 	.load_mn_reg	= TI814X_ADPLL_REGADDR(HDMI_PLL_BASE, ADPLLJ_TENABLE),
 	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(HDMI_PLL_BASE, ADPLLJ_TENDIV),
+	.sddiv_mask	= TI814X_ADPLLJ_SDDIV_MASK,
 };
 
 /* HDMI DPLL for clock2 (mux in) */
@@ -2787,6 +2798,7 @@ static struct dpll_data audio_dpll_dd = {
 	.stby_ret_bit	= TI814X_EN_ADPLL_STBYRET_SHIFT,
 	.load_mn_reg	= TI814X_ADPLL_REGADDR(AUDIO_PLL_BASE, ADPLLJ_TENABLE),
 	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(AUDIO_PLL_BASE, ADPLLJ_TENDIV),
+	.sddiv_mask	= TI814X_ADPLLJ_SDDIV_MASK,
 };
 
 /* Audio DPLL for clock3(PRCM in) */
