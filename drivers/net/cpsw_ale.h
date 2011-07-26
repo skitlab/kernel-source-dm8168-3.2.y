@@ -89,5 +89,6 @@ int cpsw_ale_del_mcast(struct cpsw_ale *ale, u8 *addr, int port_mask);
 int cpsw_ale_control_get(struct cpsw_ale *ale, int port, int control);
 int cpsw_ale_control_set(struct cpsw_ale *ale, int port,
 			 int control, int value);
+int cpsw_ale_flush_multicast(struct cpsw_ale *ale, int port_mask);
 
 #endif
