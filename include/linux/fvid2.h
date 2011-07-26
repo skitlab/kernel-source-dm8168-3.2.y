@@ -283,6 +283,26 @@ enum fvid2_dataformat {
 	/**< ARGB32   8-bits R, 8-bits G, 8-bits B, 8-bit Alpha (MSB). */
 	FVID2_DF_RGBA32_8888,
 	/**< RGBA32  - 8-bits R, 8-bits G, 8-bits B, 8-bit Alpha (LSB). */
+	FVID2_DF_BGR16_565,
+	/**< BGR565    5-bits B, 6-bits G, 5-bits R. */
+	FVID2_DF_ABGR16_1555,
+	/**< ABGR1555  5-bits B, 5-bits G, 5-bits R, 1-bit Alpha (MSB). */
+	FVID2_DF_ABGR16_4444,
+	/**< ABGR4444  4-bits B, 4-bits G, 4-bits R, 4-bit Alpha (MSB). */
+	FVID2_DF_BGRA16_5551,
+	/**< BGRA5551  5-bits B, 5-bits G, 5-bits R, 1-bit Alpha (LSB). */
+	FVID2_DF_BGRA16_4444,
+	/**< BGRA4444  4-bits B, 4-bits G, 4-bits R, 4-bit Alpha (LSB). */
+	FVID2_DF_ABGR24_6666,
+	/**< ABGR6666  6-bits B, 6-bits G, 6-bits R, 6-bit Alpha (MSB). */
+	FVID2_DF_BGR24_888,
+	/**< BGR888    8-bits B, 8-bits G, 8-bits R. */
+	FVID2_DF_ABGR32_8888,
+	/**< ABGR8888  8-bits B, 8-bits G, 8-bits R, 8-bit Alpha (MSB). */
+	FVID2_DF_BGRA24_6666,
+	/**< BGRA6666  6-bits B, 6-bits G, 6-bits R, 6-bit Alpha (LSB). */
+	FVID2_DF_BGRA32_8888,
+	/**< BGRA8888  8-bits B, 8-bits G, 8-bits R, 8-bit Alpha (LSB). */
 	FVID2_DF_BITMAP8 = 0x2000,
 	/**< BITMAP 8bpp. */
 	FVID2_DF_BITMAP4_LOWER,
@@ -313,6 +333,36 @@ enum fvid2_dataformat {
 	/**< BITMAP 1bpp offset 6 in CLUT. */
 	FVID2_DF_BITMAP1_OFFSET7,
 	/**< BITMAP 1bpp offset 7 in CLUT. */
+	FVID2_DF_BITMAP8_BGRA32,
+	/**< BITMAP 8bpp BGRA32. */
+	FVID2_DF_BITMAP4_BGRA32_LOWER,
+	/**< BITMAP 4bpp BGRA32 lower address in CLUT. */
+	FVID2_DF_BITMAP4_BGRA32_UPPER,
+	/**< BITMAP 4bpp BGRA32 upper address in CLUT. */
+	FVID2_DF_BITMAP2_BGRA32_OFFSET0,
+	/**< BITMAP 2bpp BGRA32 offset 0 in CLUT. */
+	FVID2_DF_BITMAP2_BGRA32_OFFSET1,
+	/**< BITMAP 2bpp BGRA32 offset 1 in CLUT. */
+	FVID2_DF_BITMAP2_BGRA32_OFFSET2,
+	/**< BITMAP 2bpp BGRA32 offset 2 in CLUT. */
+	FVID2_DF_BITMAP2_BGRA32_OFFSET3,
+	/**< BITMAP 2bpp BGRA32 offset 3 in CLUT. */
+	FVID2_DF_BITMAP1_BGRA32_OFFSET0,
+	/**< BITMAP 1bpp BGRA32 offset 0 in CLUT. */
+	FVID2_DF_BITMAP1_BGRA32_OFFSET1,
+	/**< BITMAP 1bpp BGRA32 offset 1 in CLUT. */
+	FVID2_DF_BITMAP1_BGRA32_OFFSET2,
+	/**< BITMAP 1bpp BGRA32 offset 2 in CLUT. */
+	FVID2_DF_BITMAP1_BGRA32_OFFSET3,
+	/**< BITMAP 1bpp BGRA32 offset 3 in CLUT. */
+	FVID2_DF_BITMAP1_BGRA32_OFFSET4,
+	/**< BITMAP 1bpp BGRA32 offset 4 in CLUT. */
+	FVID2_DF_BITMAP1_BGRA32_OFFSET5,
+	/**< BITMAP 1bpp BGRA32 offset 5 in CLUT. */
+	FVID2_DF_BITMAP1_BGRA32_OFFSET6,
+	/**< BITMAP 1bpp BGRA32 offset 6 in CLUT. */
+	FVID2_DF_BITMAP1_BGRA32_OFFSET7,
+	/**< BITMAP 1bpp BGRA32 offset 7 in CLUT. */
 	FVID2_DF_BAYER_RAW = 0x3000,
 	/**< Bayer pattern. */
 	FVID2_DF_RAW_VBI,

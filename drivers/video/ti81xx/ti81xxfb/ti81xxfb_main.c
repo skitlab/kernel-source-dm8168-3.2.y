@@ -155,6 +155,79 @@ static struct ti81xxfb_datamode tfb_datamodes[] = {
 		.blue   = {.offset = 8,  .length = 8, .msb_right = 0},
 		.transp = {.offset = 0,  .length = 8, .msb_right = 0},
 		.bpp    = 32,
+	},
+	{
+		.dataformat = FVID2_DF_BGR16_565,
+		.nonstd = 0, /*TI81XXFB_BGR565*/
+		.red    = {.offset = 0,  .length = 5, .msb_right = 0},
+		.green  = {.offset = 5,  .length = 6, .msb_right = 0},
+		.blue   = {.offset = 11, .length = 5, .msb_right = 0},
+		.transp = {.offset = 0,  .length = 0, .msb_right = 0},
+		.bpp = 16,
+	}, {
+		.dataformat = FVID2_DF_ABGR16_1555,
+		.nonstd = 0, /*TI81XXFB_ABGR1555*/
+		.red    = {.offset = 0,  .length = 5, .msb_right = 0},
+		.green  = {.offset = 5,  .length = 5, .msb_right = 0},
+		.blue   = {.offset = 10, .length = 5, .msb_right = 0},
+		.transp = {.offset = 11, .length = 1, .msb_right = 0},
+		.bpp = 16,
+	}, {
+		.dataformat = FVID2_DF_ABGR16_4444,
+		.nonstd = 0, /*TI81XXFB_ABGR4444*/
+		.red    = {.offset = 0,  .length = 4, .msb_right = 0},
+		.green  = {.offset = 4,  .length = 4, .msb_right = 0},
+		.blue   = {.offset = 8,  .length = 4, .msb_right = 0},
+		.transp = {.offset = 12, .length = 4, .msb_right = 0},
+		.bpp = 16,
+	}, {
+		.dataformat = FVID2_DF_BGRA16_5551,
+		.nonstd = 0, /*TI81XXFB_BGRA5551*/
+		.red    = {.offset = 1,  .length = 5, .msb_right = 0},
+		.green  = {.offset = 6,  .length = 5, .msb_right = 0},
+		.blue   = {.offset = 11, .length = 5, .msb_right = 0},
+		.transp = {.offset = 0,  .length = 1, .msb_right = 0},
+		.bpp = 16,
+	}, {
+		.dataformat = FVID2_DF_BGRA16_4444,
+		.nonstd = 0, /*TI81XXFB_BGRA4444*/
+		.red    = {.offset = 4,  .length = 4, .msb_right = 0},
+		.green  = {.offset = 8,  .length = 4, .msb_right = 0},
+		.blue   = {.offset = 12, .length = 4, .msb_right = 0},
+		.transp = {.offset = 0,  .length = 4, .msb_right = 0},
+		.bpp = 16,
+	}, {
+		.dataformat = FVID2_DF_ABGR24_6666,
+		.nonstd = 0, /*TI81XXFB_ABGR6666*/
+		.red    = {.offset = 0,  .length = 6, .msb_right = 0},
+		.green  = {.offset = 6,  .length = 6, .msb_right = 0},
+		.blue   = {.offset = 12, .length = 6, .msb_right = 0},
+		.transp = {.offset = 18, .length = 6, .msb_right = 0},
+		.bpp = 24,
+	}, {
+		.dataformat = FVID2_DF_ABGR32_8888,
+		.nonstd = 0, /*TI81XXFB_ABGR8888*/
+		.red    = {.offset = 0,  .length = 8, .msb_right = 0},
+		.green  = {.offset = 8,  .length = 8, .msb_right = 0},
+		.blue   = {.offset = 16, .length = 8, .msb_right = 0},
+		.transp = {.offset = 24, .length = 8, .msb_right = 0},
+		.bpp = 32,
+	}, {
+		.dataformat = FVID2_DF_BGRA24_6666,
+		.nonstd = 0, /*TI81XXFB_BGRA6666*/
+		.red    = {.offset = 6,  .length = 6, .msb_right = 0},
+		.green  = {.offset = 12, .length = 6, .msb_right = 0},
+		.blue   = {.offset = 18, .length = 6, .msb_right = 0},
+		.transp = {.offset = 0,  .length = 6, .msb_right = 0},
+		.bpp = 24,
+	}, {
+		.dataformat = FVID2_DF_BGRA32_8888,
+		.nonstd = 0, /*TI81XXFB_BGRA8888*/
+		.red    = {.offset = 8,  .length = 8, .msb_right = 0},
+		.green  = {.offset = 16, .length = 8, .msb_right = 0},
+		.blue   = {.offset = 24, .length = 8, .msb_right = 0},
+		.transp = {.offset = 0,  .length = 8, .msb_right = 0},
+		.bpp = 32,
 	}, {
 		.dataformat = FVID2_DF_BITMAP8,
 		.nonstd = 0, /*TI81XXFB_BMP8,*/
@@ -226,6 +299,72 @@ static struct ti81xxfb_datamode tfb_datamodes[] = {
 	}, {
 		.dataformat = FVID2_DF_BITMAP1_OFFSET7,
 		.nonstd = TI81XXFB_BMP1_OFF7,
+		.bpp = 1,
+	}, {
+		.dataformat = FVID2_DF_BITMAP8_BGRA32,
+		.nonstd = TI81XXFB_BMP8_BGRA32,
+		.bpp    = 8,
+	}, {
+		.dataformat = FVID2_DF_BITMAP4_BGRA32_LOWER,
+		.nonstd = TI81XXFB_BMP4_L_BGRA32,
+		.bpp = 4,
+	}, {
+		.dataformat = FVID2_DF_BITMAP4_BGRA32_UPPER,
+		.nonstd = TI81XXFB_BMP4_U_BGRA32,
+		.bpp    = 4,
+	}, {
+		.dataformat = FVID2_DF_BITMAP2_BGRA32_OFFSET0,
+		.nonstd = TI81XXFB_BMP2_OFF0_BGRA32,
+		.bpp = 2,
+	}, {
+		.dataformat = FVID2_DF_BITMAP2_BGRA32_OFFSET1,
+		.nonstd = TI81XXFB_BMP2_OFF1_BGRA32,
+		.bpp = 2,
+	}, {
+		.dataformat = FVID2_DF_BITMAP2_BGRA32_OFFSET2,
+		.nonstd = TI81XXFB_BMP2_OFF2_BGRA32,
+		.bpp = 2,
+	}, {
+
+		.dataformat = FVID2_DF_BITMAP2_BGRA32_OFFSET3,
+		.nonstd = TI81XXFB_BMP2_OFF3_BGRA32,
+		.bpp = 2,
+	}, {
+		.dataformat = FVID2_DF_BITMAP1_BGRA32_OFFSET0,
+		.nonstd = TI81XXFB_BMP1_OFF0_BGRA32,
+		.bpp = 1,
+
+	}, {
+		.dataformat = FVID2_DF_BITMAP1_BGRA32_OFFSET1,
+		.nonstd = TI81XXFB_BMP1_OFF1_BGRA32,
+		.bpp = 1,
+	}, {
+		.dataformat = FVID2_DF_BITMAP1_BGRA32_OFFSET2,
+		.nonstd = TI81XXFB_BMP1_OFF2_BGRA32,
+		.bpp = 1,
+	}, {
+		.dataformat = FVID2_DF_BITMAP1_BGRA32_OFFSET3,
+		.nonstd = TI81XXFB_BMP1_OFF3_BGRA32,
+		.bpp = 1,
+	}, {
+		.dataformat = FVID2_DF_BITMAP1_BGRA32_OFFSET4,
+		.nonstd = TI81XXFB_BMP1_OFF4_BGRA32,
+		.bpp = 1,
+	}, {
+		.dataformat = FVID2_DF_BITMAP1_BGRA32_OFFSET5,
+		.nonstd = TI81XXFB_BMP1_OFF5_BGRA32,
+		.bpp = 1,
+	}, {
+		.dataformat = FVID2_DF_BITMAP1_BGRA32_OFFSET6,
+		.nonstd = TI81XXFB_BMP1_OFF6_BGRA32,
+		.bpp = 1,
+	}, {
+		.dataformat = FVID2_DF_BITMAP1_BGRA32_OFFSET6,
+		.nonstd = TI81XXFB_BMP1_OFF6_BGRA32,
+		.bpp = 1,
+	}, {
+		.dataformat = FVID2_DF_BITMAP1_BGRA32_OFFSET7,
+		.nonstd = TI81XXFB_BMP1_OFF7_BGRA32,
 		.bpp = 1,
 	},
 };
