@@ -490,7 +490,7 @@ unsigned int hdmi_w1_video_status(void);
 int hdmi_core_audio_mode_enable(u32  instanceName);
 int hdmi_core_audio_config(u32 name,
 		struct hdmi_core_audio_config *audio_cfg);
-int hdmi_get_video_timing();
+int hdmi_get_video_timing(void);
 
 #endif
 

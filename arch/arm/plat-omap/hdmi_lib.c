@@ -614,7 +614,7 @@ int hdmi_core_audio_config(u32 name,
 		struct hdmi_core_audio_config *audio_cfg)
 {
 	int ret = 0;
-	u32 SD3_EN, SD2_EN, SD1_EN, SD0_EN;
+	u32 SD3_EN = 0, SD2_EN = 0, SD1_EN = 0 , SD0_EN = 0;
 	u8 DBYTE1, DBYTE2, DBYTE4, CHSUM;
 	u8 size1;
 	u16 size0;
@@ -1694,7 +1694,7 @@ int hdmi_get_video_timing()
 {
 	int ret = 0;
 
-	DBG("TDMS: %d\n", __func__, hdmi.avi_param.db4vic_videocode);
+	DBG("TDMS: %s %d\n", __func__, hdmi.avi_param.db4vic_videocode);
 
 	switch (hdmi.avi_param.db4vic_videocode) {
 	case 16:	/* 1080P-60 */
