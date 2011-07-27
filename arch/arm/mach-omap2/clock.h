@@ -105,6 +105,7 @@ int ti816x_clksel_set_rate(struct clk *clk, unsigned long rate);
 
 void ti814x_init_dpll_parent(struct clk *clk);
 unsigned long ti814x_dpll_recalc(struct clk *clk);
+unsigned long ti814x_dpll_dco_recalc(struct clk *clk);
 int ti814x_dpll_enable(struct clk *clk);
 void ti814x_dpll_disable(struct clk *clk);
 int ti814x_dpll_set_rate(struct clk *clk, unsigned long rate);

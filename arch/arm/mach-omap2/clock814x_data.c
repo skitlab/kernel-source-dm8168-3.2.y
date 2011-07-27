@@ -35,9 +35,12 @@
 #define TI814X_MODENA_ADPLLS_FIX_N	1
 #define TI814X_ADPLLJ_MAX_MULT		4095
 #define TI814X_ADPLLJ_MAX_DIV		255
-#define TI814X_ADPLLJ_FIX_N		29
+#define TI814X_ADPLLJ_FIX_N		19
 #define TI814X_ADPLL_MIN_DIV		0
 #define TI814X_ADPLL_POST_DIV_M2	1
+#define TI814X_ADPLL_POST_DIV_M2_2	2
+#define TI814X_ADPLL_POST_DIV_M2_4	4
+#define TI814X_ADPLL_POST_DIV_M2_5	5
 
 /*
  * Notes:
@@ -572,7 +575,7 @@ static struct dpll_data hdvicp_dpll_dd = {
 	.div_m2_mask	= TI814X_ADPLL_M2_DIV_MASK,
 	.div_n_mask	= TI814X_ADPLL_N_DIV_MASK,
 	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
-	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2_2,
 	.frac_mult_reg	= TI814X_ADPLL_REGADDR(IVA_PLL_BASE, ADPLLJ_FRACDIV),
 	.frac_mult_mask	= TI814X_ADPLL_FRACT_MULT_MASK,
 	.bypass_bit	= TI814X_EN_ADPLL_BYPASS_SHIFT,
@@ -660,7 +663,7 @@ static struct dpll_data l3_dpll_dd = {
 	.div_m2_mask	= TI814X_ADPLL_M2_DIV_MASK,
 	.div_n_mask	= TI814X_ADPLL_N_DIV_MASK,
 	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
-	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2_4,
 	.frac_mult_reg	= TI814X_ADPLL_REGADDR(L3_PLL_BASE, ADPLLJ_FRACDIV),
 	.frac_mult_mask	= TI814X_ADPLL_FRACT_MULT_MASK,
 	.bypass_bit	= TI814X_EN_ADPLL_BYPASS_SHIFT,
@@ -1642,7 +1645,7 @@ static struct dpll_data iss_dpll_dd = {
 	.div_m2_mask	= TI814X_ADPLL_M2_DIV_MASK,
 	.div_n_mask	= TI814X_ADPLL_N_DIV_MASK,
 	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
-	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2_2,
 	.frac_mult_reg	= TI814X_ADPLL_REGADDR(ISS_PLL_BASE, ADPLLJ_FRACDIV),
 	.frac_mult_mask	= TI814X_ADPLL_FRACT_MULT_MASK,
 	.bypass_bit	= TI814X_EN_ADPLL_BYPASS_SHIFT,
@@ -1724,7 +1727,7 @@ static struct dpll_data hdvpss_dpll_dd = {
 	.div_m2n_reg	= TI814X_ADPLL_REGADDR(DSS_PLL_BASE, ADPLLJ_M2NDIV),
 	.div_m2_mask	= TI814X_ADPLL_M2_DIV_MASK,
 	.div_n_mask	= TI814X_ADPLL_N_DIV_MASK,
-	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2_4,
 	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
 	.frac_mult_reg	= TI814X_ADPLL_REGADDR(DSS_PLL_BASE, ADPLLJ_FRACDIV),
 	.frac_mult_mask	= TI814X_ADPLL_FRACT_MULT_MASK,
@@ -1869,21 +1872,21 @@ static struct clk usb_dpll_ck = {
 /* USB PHY0 Ref Clock */
 static struct clk usb_phy0_rclk_ick = {
 	.name		= "usb_phy0_rclk_ick",
-	.parent		= &usb_dpll_ck,
+	.parent		= &usb_dpll_clkin_ck,
+	.dpll_data	= &usb_dpll_dd,
 	.ops		= &clkops_null,
 	.clkdm_name	= "alwon2_usb_clkdm",
-	.recalc		= &followparent_recalc,
-	.set_rate	= &ti814x_clksel_set_rate,
+	.recalc		= &ti814x_dpll_dco_recalc,
 };
 
 /* USB PHY1 Ref Clock */
 static struct clk usb_phy1_rclk_ick = {
 	.name		= "usb_phy1_rclk_ick",
-	.parent		= &usb_dpll_ck,
+	.parent		= &usb_dpll_clkin_ck,
+	.dpll_data	= &usb_dpll_dd,
 	.ops		= &clkops_null,
 	.clkdm_name	= "alwon2_usb_clkdm",
-	.recalc		= &followparent_recalc,
-	.set_rate	= &ti814x_clksel_set_rate,
+	.recalc		= &ti814x_dpll_dco_recalc,
 };
 
 /* USB out clock after division */
@@ -2225,7 +2228,7 @@ static struct dpll_data ddr_dpll_dd = {
 	.div_m2_mask	= TI814X_ADPLL_M2_DIV_MASK,
 	.div_n_mask	= TI814X_ADPLL_N_DIV_MASK,
 	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
-	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2_2,
 	.frac_mult_reg	= TI814X_ADPLL_REGADDR(DDR_PLL_BASE, ADPLLJ_FRACDIV),
 	.frac_mult_mask	= TI814X_ADPLL_FRACT_MULT_MASK,
 	.bypass_bit	= TI814X_EN_ADPLL_BYPASS_SHIFT,
@@ -2791,7 +2794,7 @@ static struct dpll_data audio_dpll_dd = {
 	.div_m2_mask	= TI814X_ADPLL_M2_DIV_MASK,
 	.div_n_mask	= TI814X_ADPLL_N_DIV_MASK,
 	.pre_div_n      = TI814X_ADPLLJ_FIX_N,
-	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2_2,
 	.frac_mult_reg	= TI814X_ADPLL_REGADDR(AUDIO_PLL_BASE, ADPLLJ_FRACDIV),
 	.frac_mult_mask	= TI814X_ADPLL_FRACT_MULT_MASK,
 	.bypass_bit	= TI814X_EN_ADPLL_BYPASS_SHIFT,

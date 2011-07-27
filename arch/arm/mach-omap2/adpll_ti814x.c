@@ -603,12 +603,35 @@ u32 ti814x_get_dpll_rate(struct clk *clk)
  * ti814x_dpll_recalc - recalculate ADPLL rate
  * @clk: ADPLL struct clk
  *
- * Recalculate and propagate the FAPLL rate.
+ * Recalculate the ADPLL rate.
  */
 unsigned long ti814x_dpll_recalc(struct clk *clk)
 {
 	return ti814x_get_dpll_rate(clk);
 
+}
+
+/**
+ * ti814x_dpll_dco_recalc - recalculate ADPLL DCOCLK rate
+ * @clk: ADPLL struct clk
+ *
+ * Recalculate the ADPLL DCOCLK rate.
+ */
+unsigned long ti814x_dpll_dco_recalc(struct clk *clk)
+{
+	struct dpll_data *dd = clk->dpll_data;
+	u8 m2;
+	u32 v;
+
+	if (omap_rev() == TI8148_REV_ES1_0) {
+		return ti814x_get_dpll_rate(clk);
+	} else {
+		v = __raw_readl(dd->div_m2n_reg);
+		m2 = v & dd->div_m2_mask;
+		m2 >>= __ffs(dd->div_m2_mask);
+
+		return ti814x_get_dpll_rate(clk)*m2;
+	}
 }
 
 /*
@@ -866,6 +889,7 @@ int ti814x_dpll_set_rate(struct clk *clk, unsigned long rate)
 		}
 		clk_reparent(clk, new_parent);
 		clk->rate = dd->last_rounded_rate;
+		propagate_rate(clk);
 	}
 	omap2_clk_disable(dd->clk_ref);
 	omap2_clk_disable(dd->clk_bypass);
