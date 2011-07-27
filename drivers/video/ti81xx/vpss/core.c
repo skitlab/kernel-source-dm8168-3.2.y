@@ -117,7 +117,6 @@ exit0:
 static int vps_remove(struct platform_device *pdev)
 {
 	int r;
-
 	vps_video_deinit(pdev);
 
 	vps_grpx_deinit(pdev);
@@ -146,7 +145,7 @@ static int __init vps_init(void)
 {
 	VPSSDBG("core init\n");
 
-	if (platform_driver_register(&vps_driver)) {
+	if (platform_driver_probe(&vps_driver, vps_probe)) {
 		VPSSERR("failed to register ti81xx-vpss driver\n");
 		return -ENODEV;
 	}

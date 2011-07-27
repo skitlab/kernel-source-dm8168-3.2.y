@@ -2618,8 +2618,12 @@ int TI81xx_register_display_panel(struct TI81xx_display_driver *panel_driver,
 		VPSSERR("pannel driver can not be NULL\n");
 		return -1;
 	}
-	display_num = panel_driver->display;
 
+	if (!disp_ctrl) {
+		VPSSERR("dctrl is not init\n");
+		return -1;
+	}
+	display_num = panel_driver->display;
 	if (display_num >= disp_ctrl->numvencs) {
 		r = -1;
 		goto exit;
@@ -2674,8 +2678,13 @@ int TI81xx_un_register_display_panel(struct TI81xx_display_driver *panel_driver)
 		VPSSERR("pannel driver can not be NULL\n");
 		return -1;
 	}
-	display_num = panel_driver->display;
 
+	if (!disp_ctrl) {
+		VPSSERR("dctrl is already deinit\n");
+		return -1;
+	}
+
+	display_num = panel_driver->display;
 	if (display_num >= disp_ctrl->numvencs) {
 		r = -1;
 		goto exit;
