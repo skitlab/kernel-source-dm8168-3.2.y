@@ -1331,7 +1331,9 @@ static int vidioc_s_fmt_vid_overlay(struct file *file, void *priv,
 	    (win->w.width != vout->crop.width ||
 	    win->w.height != vout->crop.height)) {
 		v4l2_err(&vout->vid_dev->v4l2_dev,
-			"VIDEO%d: not support scaling\n", vout->vid);
+			"VIDEO%d: not support scaling win %dx%d, crop %dx%d\n",
+			vout->vid, win->w.width, win->w.height,
+			vout->crop.width, vout->crop.height);
 
 		return -EINVAL;
 	}
@@ -1513,7 +1515,6 @@ static int vidioc_s_crop(struct file *file, void *priv, struct v4l2_crop *crop)
 	struct ti81xx_vidout_dev *vout = fh->voutdev;
 	struct vps_video_ctrl *vctrl = vout->vctrl;
 	bool p;
-
 	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev,
 		"VIDOUT%d: set crop ioctl\n",
 		vout->vid);
@@ -1523,12 +1524,6 @@ static int vidioc_s_crop(struct file *file, void *priv, struct v4l2_crop *crop)
 			"VIDOUT%d: does not support crop\n",
 			vout->vid);
 		return -EINVAL;
-	}
-	if (vout->streaming) {
-		v4l2_err(&vout->vid_dev->v4l2_dev,
-			"VIDOUT%d: stop stream before setting crop\n",
-			vout->vid);
-		return -EBUSY;
 	}
 	mutex_lock(&vout->lock);
 	/* get the display device attached to the overlay */
@@ -1542,6 +1537,16 @@ static int vidioc_s_crop(struct file *file, void *priv, struct v4l2_crop *crop)
 	if (crop->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
 		ret = ti81xx_vidout_set_crop(&vout->pix, &vout->crop,
 					&vout->win, &vout->fbuf, &crop->c);
+	if ((vout->streaming) && (!ret)) {
+		if (vctrl->caps & VPSS_VID_CAPS_CROPING) {
+			if (vctrl->set_crop) {
+				ret = vctrl->set_crop(vctrl, vout->crop.left,
+				    vout->crop.top, vout->pix.bytesperline,
+				    vout->crop.width, vout->crop.height);
+			}
+		}
+	}
+
 error:
 	mutex_unlock(&vout->lock);
 	return ret;
