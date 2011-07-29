@@ -19,7 +19,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  * History:
  *
- * Senthil <senthil.n@ti.com> May 2011 I2C driver for Sii9022A
+ * Senthil Natarajan <senthil.n@ti.com> May 2011 I2C driver for Sii9022A
  */
 
 #include <linux/delay.h>
@@ -713,7 +713,7 @@ static int sii9022a_device_init(struct hdmi_sii9022a_obj *sii9022a_obj)
 	return status;
 }
 
-void sii9022a_create(struct hdmi_video_encoder_create_params
+void sii9022a_config(struct hdmi_video_encoder_create_params
 			*encoder_create_params)
 {
 	struct hdmi_sii9022a_obj *sii9022a_obj;
@@ -791,8 +791,8 @@ static int sii9022a_set_mode(u32 standard)
 
 static int sii9022a_start(void)
 {
-	int			ret_val = 0;
-	u8				reg_value = 0u, reg_addr;
+	int ret_val = 0;
+	u8 reg_value = 0u, reg_addr;
 
 	reg_addr = 0x1A;
 	ret_val = sii9022a_device_read(&reg_addr, &reg_value, 1u);
@@ -813,8 +813,8 @@ static int sii9022a_start(void)
 
 static int sii9022a_stop(void)
 {
-	int			ret_val = 0;
-	u8				reg_value = 0u, reg_addr;
+	int ret_val = 0;
+	u8 reg_value = 0u, reg_addr;
 
 	reg_addr = 0x1A;
 	ret_val = sii9022a_device_read(&reg_addr, &reg_value, 1u);
@@ -836,7 +836,7 @@ static int sii9022a_set_power(void)
 	int r = 0;
 
 	struct hdmi_video_encoder_create_params  input_encoder_create_params;
-	u32	 input_standard;
+	u32 input_standard;
 
 	input_encoder_create_params.device_i2c_inst_id = 1;
 	input_encoder_create_params.device_i2c_addr = 0x39;
@@ -847,71 +847,46 @@ static int sii9022a_set_power(void)
 
 	input_standard = gsii9022a_obj.standard;
 
-	sii9022a_create(&input_encoder_create_params);
+	sii9022a_config(&input_encoder_create_params);
 	sii9022a_set_mode(input_standard);
 	sii9022a_start();
 
 	return r;
 }
 
-static int sii9022a_start_display(void)
-{
-	if (gsii9022a_obj.vencinfo.enabled == 1)
-		sii9022a_set_power();
-	return 0;
-}
-
-static int sii9022a_enable_display(void)
-{
-	sii9022a_start_display();
-	return 0;
-}
-
 static int sii9022a_panel_enable(void *data)
 {
-	sii9022a_enable_display();
-	return 0;
-}
-
-static int sii9022a_display_resume(void)
-{
-	sii9022a_start_display();
+	if (gsii9022a_obj.venc_enabled == 0) {
+		sii9022a_set_power();
+		gsii9022a_obj.venc_enabled = 1;
+	}
 	return 0;
 }
 
 static int sii9022a_panel_resume(void *data)
 {
-	sii9022a_display_resume();
-	return 0;
-}
-
-static int sii9022a_power_off(void)
-{
-	sii9022a_stop();
-	return 0;
-}
-
-static int sii9022a_stop_display(void)
-{
-	sii9022a_power_off();
+	if (gsii9022a_obj.venc_enabled == 0) {
+		sii9022a_set_power();
+		gsii9022a_obj.venc_enabled = 1;
+	}
 	return 0;
 }
 
 static int sii9022a_panel_disable(void *data)
 {
-	sii9022a_stop_display();
-	return 0;
-}
-
-static int sii9022a_display_suspend(void)
-{
-	sii9022a_stop_display();
+	if (gsii9022a_obj.venc_enabled == 1) {
+		sii9022a_stop();
+		gsii9022a_obj.venc_enabled = 0;
+	}
 	return 0;
 }
 
 static int sii9022a_panel_suspend(void *data)
 {
-	sii9022a_display_suspend();
+	if (gsii9022a_obj.venc_enabled == 1) {
+		sii9022a_stop();
+		gsii9022a_obj.venc_enabled = 0;
+	}
 	return 0;
 }
 
@@ -956,13 +931,17 @@ static int __init sii9022a_init(void)
 {
 	int ret_val;
 
+	gsii9022a_obj.venc_enabled = 0;
+
 	ret_val = i2c_add_driver(&sii9022a_driver);
 
 	TI81xx_register_display_panel(&hdmi_driver, &gsii9022a_obj.vencinfo);
 
 	gsii9022a_obj.standard = gsii9022a_obj.vencinfo.vtimings.standard;
-	if (gsii9022a_obj.vencinfo.enabled == 1)
+	if (gsii9022a_obj.vencinfo.enabled == 1) {
 		sii9022a_set_power();
+		gsii9022a_obj.venc_enabled = 1;
+	}
 
 	return ret_val;
 }
@@ -975,6 +954,11 @@ static int __init sii9022a_init(void)
  */
 static void __exit sii9022a_exit(void)
 {
+	if (gsii9022a_obj.venc_enabled == 1)
+		sii9022a_stop();
+
+	TI81xx_un_register_display_panel(&hdmi_driver);
+
 	i2c_del_driver(&sii9022a_driver);
 }
 

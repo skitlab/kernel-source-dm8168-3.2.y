@@ -88,5 +88,6 @@ struct hdmi_sii9022a_obj {
 	u32 in_bus_cfg;
 	u32 standard;
 	struct ti81xx_venc_info vencinfo;
+	u32 venc_enabled;
 };
 #endif
