@@ -858,7 +858,7 @@ int gpmc_enable_hwecc(int ecc_type, int cs, int mode,
 			bch_mod = 1;
 			bch_wrapmode = 0x04;
 		} else
-			eccsize1 = ((ecc_size >> 1) - 1) << 22;
+			eccsize1 = ((ecc_size >> 1) - 1);
 		break;
 
 	case GPMC_ECC_READSYN:
@@ -874,7 +874,7 @@ int gpmc_enable_hwecc(int ecc_type, int cs, int mode,
 			bch_mod = 1;
 			bch_wrapmode = 0x06;
 		} else
-			eccsize1 = ((ecc_size >> 1) - 1) << 22;
+			eccsize1 = ((ecc_size >> 1) - 1);
 		break;
 
 	default:
