@@ -1,0 +1,5 @@
+config TLC59108
+	tristate "TLC59108 LCD/Backlight"
+	help
+		This option builds driver for TLC59108 LCD/Backlight
+		Use 'M' to build as module.

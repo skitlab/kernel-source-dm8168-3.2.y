@@ -84,6 +84,9 @@ static struct i2c_board_info __initdata ti814x_i2c_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("IO Expander", 0x20),
 	},
+        {
+                I2C_BOARD_INFO("tlc59108", 0x40),
+        },
 
 };
 
