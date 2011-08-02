@@ -1,5 +1,7 @@
 /*
  * davinci-hdmi.c  --  Davinci ALSA SoC DAI driver for HDMI audio
+ * Author:	Deepu Raj <deepu.raj@ti.com>
+ * Author:	Vaibhav Bedia <vaibhav.bedia@ti.com>
  *
  * Copyright (C) 2009 Texas Instruments
  *
@@ -75,7 +77,9 @@ static int davinci_hdmi_dai_startup(struct snd_pcm_substream *substream,
 	struct davinci_audio_dev *dev = snd_soc_dai_get_drvdata(dai);
 
 	snd_soc_dai_set_dma_data(dai, substream, dev->dma_params);
-	err = hdmi_w1_wrapper_enable(HDMI_WP);
+
+	/* Enable HDMI wrapped after afte config */
+	/* err = hdmi_w1_wrapper_enable(HDMI_WP); */
 
 	return err;
 }
@@ -157,18 +161,38 @@ static int davinci_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_FORMAT_S16_LE:
 		audio_fmt.sample_number = HDMI_ONEWORD_TWO_SAMPLES;
 		audio_fmt.sample_size = HDMI_SAMPLE_16BITS;
+		audio_cfg.if_sample_size = (IF_16BIT_PER_SAMPLE << 1) |
+						 HDMI_SAMPLE_16BITS;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
 		audio_fmt.sample_number = HDMI_ONEWORD_ONE_SAMPLE;
 		audio_fmt.sample_size = HDMI_SAMPLE_24BITS;
+		audio_cfg.if_sample_size = (IF_24BIT_PER_SAMPLE << 1) |
+						HDMI_SAMPLE_24BITS;
 		break;
 	default:
 		err = -EINVAL;
 	}
 
-	/* HDMI Core configuration */
-	audio_cfg.if_fs = 0x03;
-	audio_cfg.if_sample_size = HDMI_ONEWORD_TWO_SAMPLES;
+	/* HDMI Wrapper config */
+	audio_fmt.justify = HDMI_AUDIO_JUSTIFY_LEFT;
+	audio_fmt.stereo_channel_enable = HDMI_STEREO_ONECHANNELS;
+	audio_fmt.audio_channel_location = HDMI_CEA_CODE_03;
+	audio_fmt.iec = HDMI_AUDIO_FORMAT_LPCM;
+	audio_fmt.left_before = HDMI_SAMPLE_LEFT_FIRST;
+
+	ret = hdmi_w1_audio_config_format(HDMI_WP, &audio_fmt);
+
+	audio_dma.dma_transfer = 0x20;
+	audio_dma.block_size = 0xC0;
+	audio_dma.threshold_value = 0x20;
+	audio_dma.dma_or_irq = HDMI_THRESHOLD_DMA;
+	audio_dma.block_start_end = HDMI_BLOCK_STARTEND_ON;
+
+	ret = hdmi_w1_audio_config_dma(HDMI_WP, &audio_dma);
+
+	/* HDMI Core config */
+	audio_cfg.if_fs = 0x01;
 	audio_cfg.layout = LAYOUT_2CH;
 	audio_cfg.if_channel_number = HDMI_STEREO_TWOCHANNELS;
 	audio_cfg.if_audio_channel_location = HDMI_CEA_CODE_00;
@@ -180,6 +204,9 @@ static int davinci_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 
 	hdmi_core_audio_config(av_name, &audio_cfg);
 	hdmi_core_audio_mode_enable(av_name);
+
+	/* Enable Wrapper : Wrapper must be disable while config */
+	err = hdmi_w1_wrapper_enable(HDMI_WP);
 
 	return err;
 }

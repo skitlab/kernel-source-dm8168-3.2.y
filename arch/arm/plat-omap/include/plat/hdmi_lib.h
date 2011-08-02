@@ -414,7 +414,7 @@ enum hdmi_core_if_sample_size{
 	IF_NO_PER_SAMPLE = 0x0,
 	IF_16BIT_PER_SAMPLE = 0x1,
 	IF_20BIT_PER_SAMPLE = 0x2,
-	IF_24BIT_PER_SAMPLE = 0x3
+	IF_24BIT_PER_SAMPLE = 0x5
 };
 
 enum hdmi_core_av_csc{
@@ -491,6 +491,11 @@ int hdmi_core_audio_mode_enable(u32  instanceName);
 int hdmi_core_audio_config(u32 name,
 		struct hdmi_core_audio_config *audio_cfg);
 int hdmi_get_video_timing(void);
-
+int hdmi_w1_audio_config_format(u32 name,
+		struct hdmi_audio_format *audio_fmt);
+int hdmi_w1_audio_config_dma(u32 name, struct hdmi_audio_dma *audio_dma);
+void hdmi_core_swreset_release(void);
+void hdmi_core_swreset_assert(void);
+void hdmi_core_powerdown_disable(void);
 #endif
 

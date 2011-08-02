@@ -524,7 +524,7 @@ static void hdmi_core_init(enum hdmi_deep_mode deep_color,
 	r_p->SPDInfoFrameRepeat = 0;
 }
 
-static void hdmi_core_powerdown_disable(void)
+void hdmi_core_powerdown_disable(void)
 {
 	DBG("Enter DSS_HDMI_CORE_POWER_DOWN_DISABLE()\n");
 	REG_FLD_MOD(HDMI_CORE_SYS, HDMI_CORE_CTRL1, 0x0, 0, 0);
@@ -536,13 +536,13 @@ static __attribute__ ((unused)) void hdmi_core_powerdown_enable(void)
 	REG_FLD_MOD(HDMI_CORE_SYS, HDMI_CORE_CTRL1, 0x1, 0, 0);
 }
 
-static void hdmi_core_swreset_release(void)
+void hdmi_core_swreset_release(void)
 {
 	DBG("Enter DSS_HDMI_CORE_SW_RESET_RELEASE()\n");
 	REG_FLD_MOD(HDMI_CORE_SYS, HDMI_CORE_SYS__SRST, 0x0, 0, 0);
 }
 
-static void hdmi_core_swreset_assert(void)
+void hdmi_core_swreset_assert(void)
 {
 	DBG("Enter DSS_HDMI_CORE_SW_RESET_ASSERT ()\n");
 	REG_FLD_MOD(HDMI_CORE_SYS, HDMI_CORE_SYS__SRST, 0x1, 0, 0);
@@ -669,9 +669,8 @@ int hdmi_core_audio_config(u32 name,
 		(0));		/* I2S_SHIFT, 0x0 don't care */
 
 	WR_REG_32(name, HDMI_CORE_AV__I2S_CHST5, /* mode only */
-		(0 << 4) |	/* FS_ORIG */
-		(1 << 1) |	/* I2S lenght 16bits (refer doc) */
-		(0));		/* Audio sample lenght */
+		(0 << 4) |			/* FS_ORIG */
+		(audio_cfg->if_sample_size));	/* I2S lenght 16 /24 bit */
 
 	WR_REG_32(name, HDMI_CORE_AV__I2S_IN_LEN, /* mode only */
 		(0xb));		/* In length b=>24bits i2s hardware */
@@ -1183,7 +1182,7 @@ static void hdmi_w1_video_config_timing(
 	hdmi_write_reg(HDMI_WP, HDMI_WP_VIDEO_TIMING_V, timing_v);
 }
 
-static int hdmi_w1_audio_config_format(u32 name,
+int hdmi_w1_audio_config_format(u32 name,
 			struct hdmi_audio_format *audio_fmt)
 {
 	int ret = 0;
@@ -1213,7 +1212,7 @@ static int hdmi_w1_audio_config_format(u32 name,
 	return ret;
 }
 
-static int hdmi_w1_audio_config_dma(u32 name, struct hdmi_audio_dma *audio_dma)
+int hdmi_w1_audio_config_dma(u32 name, struct hdmi_audio_dma *audio_dma)
 {
 	int ret = 0;
 	u32 value = 0;
@@ -1743,3 +1742,8 @@ EXPORT_SYMBOL(hdmi_w1_video_status);
 EXPORT_SYMBOL(hdmi_core_audio_config);
 EXPORT_SYMBOL(hdmi_core_audio_mode_enable);
 EXPORT_SYMBOL(hdmi_get_video_timing);
+EXPORT_SYMBOL(hdmi_w1_audio_config_format);
+EXPORT_SYMBOL(hdmi_core_powerdown_disable);
+EXPORT_SYMBOL(hdmi_core_swreset_assert);
+EXPORT_SYMBOL(hdmi_core_swreset_release);
+EXPORT_SYMBOL(hdmi_w1_audio_config_dma);
