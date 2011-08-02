@@ -25,6 +25,8 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/clk.h>
+#include <plat/clock.h>
 
 #include <linux/ptp_clock_kernel.h>
 #include <net/cpts.h>
@@ -32,10 +34,14 @@
 #define DRIVER		"ptp_cpts"
 #define N_EXT_TS	1
 
+#define CPTS_REF_CLOCK_NAME		"cpts_rft_clk_ck"
+
 struct cpts_clock {
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info caps;
+	struct clk *cpts_ref_clk;
 	int exts0_enabled;
+	int initial_freq;
 };
 
 DEFINE_SPINLOCK(register_lock);
@@ -50,7 +56,31 @@ DEFINE_SPINLOCK(register_lock);
 
 static int ptp_cpts_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 {
-	printk(KERN_ERR "CTPS Adj Freq not implemented\n");
+	int ret;
+	unsigned long freq = 0, target_freq = 0, current_freq = 0;
+	int diff;
+	int neg_adj = 0;
+	u64 adj;
+	struct cpts_clock *cpts_clock = container_of(ptp, struct cpts_clock,
+			caps);
+
+	current_freq = cpts_clock->cpts_ref_clk->recalc(
+			cpts_clock->cpts_ref_clk);
+	freq = cpts_clock->initial_freq;
+
+	if (ppb < 0) {
+		neg_adj = 1;
+		ppb = -ppb;
+	}
+
+	adj = freq;
+	adj *= ppb;
+	diff = div_u64(adj, 1000000000ULL);
+	target_freq = (neg_adj ? freq - diff : freq + diff);
+
+	ret = clk_set_rate(cpts_clock->cpts_ref_clk, target_freq);
+	if (ret)
+		printk(KERN_ERR "Failed to set the rate %d\n", ret);
 
 	return 0;
 }
@@ -153,11 +183,21 @@ static struct cpts_clock cpts_clock;
 
 static void __exit ptp_cpts_exit(void)
 {
+	clk_disable(cpts_clock.cpts_ref_clk);
+	clk_put(cpts_clock.cpts_ref_clk);
 	ptp_clock_unregister(cpts_clock.ptp_clock);
 }
 
 static int __init ptp_cpts_init(void)
 {
+	cpts_clock.cpts_ref_clk = clk_get(NULL, CPTS_REF_CLOCK_NAME);
+	if (IS_ERR(cpts_clock.cpts_ref_clk))
+		printk(KERN_ERR "Could not get %s clk\n", CPTS_REF_CLOCK_NAME);
+	clk_enable(cpts_clock.cpts_ref_clk);
+
+	cpts_clock.initial_freq = cpts_clock.cpts_ref_clk->recalc(
+			cpts_clock.cpts_ref_clk);
+
 	cpts_clock.caps = ptp_cpts_caps;
 
 	cpts_clock.ptp_clock = ptp_clock_register(&cpts_clock.caps);
