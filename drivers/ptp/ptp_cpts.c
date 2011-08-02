@@ -27,6 +27,7 @@
 #include <linux/module.h>
 
 #include <linux/ptp_clock_kernel.h>
+#include <net/cpts.h>
 
 #define DRIVER		"ptp_cpts"
 #define N_EXT_TS	1
@@ -63,9 +64,9 @@ static int ptp_cpts_adjtime(struct ptp_clock_info *ptp, s64 delta)
 
 	spin_lock_irqsave(&register_lock, flags);
 
-	/* cpts_systime_read(&now); */
+	cpts_systime_read(&now);
 	now += delta;
-	/* cpts_systime_write(now); */
+	cpts_systime_write(now);
 
 	spin_unlock_irqrestore(&register_lock, flags);
 
@@ -82,7 +83,7 @@ static int ptp_cpts_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
 
 	spin_lock_irqsave(&register_lock, flags);
 
-	/* cpts_systime_read(&ns); */
+	cpts_systime_read(&ns);
 
 	spin_unlock_irqrestore(&register_lock, flags);
 
@@ -104,7 +105,7 @@ static int ptp_cpts_settime(struct ptp_clock_info *ptp,
 
 	spin_lock_irqsave(&register_lock, flags);
 
-	/* cpts_systime_write(ns); */
+	cpts_systime_write(ns);
 
 	spin_unlock_irqrestore(&register_lock, flags);
 

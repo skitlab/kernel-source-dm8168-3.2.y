@@ -25,7 +25,7 @@
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 
-
+#include <linux/net_tstamp.h>
 #include <linux/cpsw.h>
 
 #include "cpsw_ale.h"
@@ -69,6 +69,20 @@ do {								\
 #define cpsw_enable_irq(priv) do { } while (0);
 #define cpsw_disable_irq(priv) do { } while (0);
 #endif
+
+#define PTP_ETHER_TYPE			0x88f7
+#define CPTS_VERSION			0x4e8a0101
+#define CPTS_TS_PUSH			0x0
+#define CPTS_TS_ROLLOVER		(0x1 << 20)
+#define CPTS_TS_HROLLOVER		(0x2 << 20)
+#define CPTS_TS_HW_PUSH			(0x3 << 20)
+#define CPTS_TS_ETH_RX			(0x4 << 20)
+#define CPTS_TS_ETH_TX			(0x5 << 20)
+
+#define CPTS_FIFO_SIZE			32
+#define CPTS_READ_TS_MAX_TRY	20
+#define CPTL_CLK_FREQ			250000000 /*250MHz*/
+#define DEFAULT_CPTS_CLK		CPTS_CLK_SEL_AUDIO
 
 static int debug_level;
 module_param(debug_level, int, 0);
@@ -184,6 +198,63 @@ struct cpsw_slave {
 	struct phy_device		*phy;
 };
 
+/*
+ * CPTS Regs
+ */
+struct cpts_regs {
+	u32	id_ver;
+	u32	control;
+	u32	rftclk_sel;
+	u32	ts_push;
+	u32	ts_load_val;
+	u32	ts_load_en;
+	u32 mem_allign1[2];
+	u32	intstat_raw;
+	u32	intstat_masked;
+	u32	int_enable;
+	u32 mem_allign2;
+	u32	event_pop;
+	u32	event_low;
+	u32	event_high;
+};
+
+struct cpsw_ss_intr_status_regs {
+	u32	C0_mis_intr_stat;
+};
+
+/*
+ * CPSW Time Sync Regs
+ */
+struct cpsw_time_sync_regs {
+	u32 control;
+	u32 seq_ltype;
+	u32 vlan_type;
+};
+
+/*
+ * CPTS Events
+ */
+struct cpts_time_evts {
+	uint32_t event_high;
+	u64 ts;
+};
+
+struct cpts_evts_fifo {
+	struct cpts_time_evts fifo[CPTS_FIFO_SIZE];
+	u32 head, tail;
+};
+/*
+ * Time Handle
+ */
+struct cpts_time_handle {
+	struct cpts_evts_fifo tx_fifo;
+	struct cpts_evts_fifo rx_fifo;
+	bool enable_timestamping;
+	int tshi;
+	bool first_half;
+	int freq;
+};
+
 struct cpsw_priv {
 	spinlock_t			lock;
 	struct platform_device		*pdev;
@@ -198,6 +269,14 @@ struct cpsw_priv {
 	struct cpsw_ss_regs __iomem	*ss_regs;
 	struct cpsw_hw_stats __iomem	*hw_stats;
 	struct cpsw_host_regs __iomem	*host_port_regs;
+
+	struct cpts_regs __iomem	*cpts_reg;
+	struct cpsw_ss_intr_status_regs __iomem	*cpsw_ss_intr;
+	struct cpsw_time_sync_regs __iomem	*port1_time_sync_regs;
+	struct cpsw_time_sync_regs __iomem	*port2_time_sync_regs;
+
+	struct cpts_time_handle	cpts_time;
+
 	u32				msg_enable;
 	struct net_device_stats		stats;
 	int				rx_packet_max;
@@ -224,6 +303,211 @@ struct cpsw_priv {
 
 };
 
+DEFINE_SPINLOCK(cpts_time_lock);
+static struct cpsw_priv *gpriv;
+static u64 time_push;
+static struct cpts_regs __iomem	*cpts_regs;
+
+static int cpts_time_evts_fifo_push(struct cpts_evts_fifo *fifo,
+				struct cpts_time_evts *evt)
+{
+
+	fifo->fifo[fifo->tail].event_high = evt->event_high;
+	fifo->fifo[fifo->tail].ts = evt->ts;
+
+	fifo->tail++;
+	if (fifo->tail >= CPTS_FIFO_SIZE)
+		fifo->tail = 0;
+
+	return 0;
+}
+
+#ifdef CONFIG_PTP_1588_CLOCK_CPTS
+static int cpts_time_evts_fifo_pop(struct cpts_evts_fifo *fifo,
+				u32 evt_high, struct cpts_time_evts *evt)
+{
+	u32 i;
+
+	if (fifo->head == fifo->tail)
+		return -1;
+
+	i = fifo->head;
+	while (i != fifo->tail) {
+		if (evt_high == fifo->fifo[i].event_high) {
+			evt->event_high = fifo->fifo[i].event_high;
+			evt->ts = fifo->fifo[i].ts;
+
+			fifo->fifo[i].event_high = 0;
+			fifo->fifo[i].ts = 0;
+
+			fifo->head++;
+			if (fifo->head >= CPTS_FIFO_SIZE)
+				fifo->head = 0;
+			break;
+		}
+		i++;
+		if (i >= CPTS_FIFO_SIZE)
+			i = 0;
+	}
+	return 0;
+}
+#endif
+
+static int cpts_isr(struct cpsw_priv *priv)
+{
+	unsigned long flags;
+
+	while (__raw_readl(&priv->cpts_reg->intstat_raw) & 0x01) {
+		u32	event_high;
+		u32	event_tslo;
+		u64 ts = 0;
+
+		event_high = __raw_readl(&priv->cpts_reg->event_high);
+		event_tslo = __raw_readl(&priv->cpts_reg->event_low);
+
+		if ((event_high & 0xf00000) == CPTS_TS_PUSH) {
+			/*Push TS to Read */
+			if (priv->cpts_time.first_half &&
+					event_tslo & 0x80000000) {
+				/* this is misaligned ts */
+				ts = (u64)(priv->cpts_time.tshi - 1);
+			} else {
+				ts = (u64)(priv->cpts_time.tshi);
+			}
+			time_push = (ts << 32) | event_tslo;
+		} else if ((event_high & 0xf00000) == CPTS_TS_ROLLOVER) {
+			/* Roll over */
+			spin_lock_irqsave(&cpts_time_lock, flags);
+			priv->cpts_time.tshi++;
+			priv->cpts_time.first_half = true;
+			spin_unlock_irqrestore(&cpts_time_lock, flags);
+		} else if ((event_high & 0xf00000) == CPTS_TS_HROLLOVER) {
+			/* Half Roll Over */
+			spin_lock_irqsave(&cpts_time_lock, flags);
+			priv->cpts_time.first_half = false;
+			spin_unlock_irqrestore(&cpts_time_lock, flags);
+		} else if ((event_high & 0xf00000) == CPTS_TS_HW_PUSH) {
+			/* HW TS Push */
+			printk(KERN_ERR "CPTS_TS_HW_PUSH Not Utilised\n");
+			/* TBD */
+		} else if ((event_high & 0xf00000) == CPTS_TS_ETH_RX) {
+			/* Ethernet Rx Ts */
+			struct cpts_time_evts evt;
+
+			evt.event_high = event_high & 0xfffff;
+			evt.ts = event_tslo;
+
+			if (priv->cpts_time.first_half &&
+					event_tslo & 0x80000000) {
+				/* this is misaligned ts */
+				ts = (u64)(priv->cpts_time.tshi - 1);
+			} else {
+				ts = (u64)(priv->cpts_time.tshi);
+			}
+			evt.ts |= ts << 32;
+			if (priv->cpts_time.enable_timestamping) {
+				spin_lock_irqsave(&cpts_time_lock, flags);
+				cpts_time_evts_fifo_push(
+					&(priv->cpts_time.rx_fifo), &evt);
+				spin_unlock_irqrestore(&cpts_time_lock, flags);
+			}
+		} else if ((event_high & 0xf00000) == CPTS_TS_ETH_TX) {
+			/* Ethernet Tx Ts */
+			struct cpts_time_evts evt;
+
+			evt.event_high = event_high & 0xfffff;
+			evt.ts = event_tslo;
+			if (priv->cpts_time.first_half &&
+					event_tslo & 0x80000000) {
+				/* this is misaligned ts */
+				ts = (u64)(priv->cpts_time.tshi - 1);
+			} else {
+				ts = (u64)(priv->cpts_time.tshi);
+			}
+			evt.ts |= ts << 32;
+			if (priv->cpts_time.enable_timestamping) {
+				spin_lock_irqsave(&cpts_time_lock, flags);
+				cpts_time_evts_fifo_push(
+					&(priv->cpts_time.tx_fifo), &evt);
+				spin_unlock_irqrestore(&cpts_time_lock, flags);
+			}
+		} else {
+			printk(KERN_ERR "Invalid CPTS Event type...\n");
+		}
+
+		__raw_writel(0x01, &priv->cpts_reg->event_pop);
+		cpdma_ctlr_eoi_statistics(priv->dma);
+	}
+	return 0;
+}
+
+int cpts_systime_write(u64 ns)
+{
+	if (gpriv == NULL) {
+		printk(KERN_ERR "Device Error, No device found\n");
+		return -ENODEV;
+	}
+	__raw_writel((u32)(ns & 0xffffffff), &cpts_regs->ts_load_val);
+	__raw_writel(0x1, &cpts_regs->ts_load_en);
+	gpriv->cpts_time.tshi = (u32)(ns >> 32);
+
+	return 0;
+}
+
+int cpts_systime_read(u64 *ns)
+{
+	int ret = 0;
+	int i;
+
+	if (gpriv == NULL) {
+		printk(KERN_ERR "Device Error, No device found\n");
+		return -ENODEV;
+	}
+
+	__raw_writel(0x1, &cpts_regs->ts_push);
+	for (i = 0; i < 20; i++) {
+		cpts_isr(gpriv);
+		if (time_push)
+			break;
+	}
+	if (i >= 20) {
+		*ns = 0;
+		ret = -EBUSY;
+	} else {
+		*ns = time_push;
+	}
+
+	return ret;
+}
+
+#ifdef CONFIG_PTP_1588_CLOCK_CPTS
+static void cpts_rx_timestamp(struct cpsw_priv *priv,
+			struct sk_buff *skb, u32 evt_high)
+{
+	struct cpts_time_evts evt = {0, 0};
+	struct skb_shared_hwtstamps *shhwtstamps;
+
+	cpts_time_evts_fifo_pop(&(priv->cpts_time.rx_fifo), evt_high, &evt);
+
+	shhwtstamps = skb_hwtstamps(skb);
+	memset(shhwtstamps, 0, sizeof(*shhwtstamps));
+	shhwtstamps->hwtstamp = ns_to_ktime(evt.ts);
+}
+
+static void cpts_tx_timestamp(struct cpsw_priv *priv,
+			struct sk_buff *skb, u32 evt_high)
+{
+	struct cpts_time_evts evt = {0, 0};
+	struct skb_shared_hwtstamps shhwtstamps;
+
+	cpts_time_evts_fifo_pop(&(priv->cpts_time.tx_fifo), evt_high, &evt);
+
+	memset(&shhwtstamps, 0, sizeof(struct skb_shared_hwtstamps));
+	shhwtstamps.hwtstamp = ns_to_ktime(evt.ts);
+	skb_tstamp_tx(skb, &shhwtstamps);
+}
+#endif
+
 static void cpsw_intr_enable(struct cpsw_priv *priv)
 {
 	__raw_writel(0xFF, &priv->ss_regs->tx_en);
@@ -247,9 +531,24 @@ void cpsw_tx_handler(void *token, int len, int status)
 	struct sk_buff		*skb = token;
 	struct net_device	*ndev = skb->dev;
 	struct cpsw_priv	*priv = netdev_priv(ndev);
+#ifdef CONFIG_PTP_1588_CLOCK_CPTS
+	u32			evt_high = 0;
+#endif
 
 	if (unlikely(netif_queue_stopped(ndev)))
 		netif_start_queue(ndev);
+
+#ifdef CONFIG_PTP_1588_CLOCK_CPTS
+	if ((priv->cpts_time.enable_timestamping) &&
+			((htons(*((unsigned short *)&skb->data[12]))) ==
+			PTP_ETHER_TYPE)) {
+		evt_high = (skb->data[14] & 0xf) << 16;
+		evt_high |= htons(*((unsigned short *)&skb->data[44]));
+		cpts_isr(priv);
+		cpts_tx_timestamp(priv, skb, evt_high);
+	}
+#endif
+
 	priv->stats.tx_packets++;
 	priv->stats.tx_bytes += len;
 	dev_kfree_skb_any(skb);
@@ -261,9 +560,23 @@ void cpsw_rx_handler(void *token, int len, int status)
 	struct net_device	*ndev = skb->dev;
 	struct cpsw_priv	*priv = netdev_priv(ndev);
 	int			ret = 0;
+#ifdef CONFIG_PTP_1588_CLOCK_CPTS
+	u32			evt_high = 0;
+#endif
 
 	if (likely(status >= 0)) {
 		skb_put(skb, len);
+
+#ifdef CONFIG_PTP_1588_CLOCK_CPTS
+		if ((priv->cpts_time.enable_timestamping) &&
+				((htons(*((unsigned short *)&skb->data[12])))
+				== PTP_ETHER_TYPE)) {
+			evt_high = (skb->data[14] & 0xf) << 16;
+			evt_high |= htons(*((unsigned short *)&skb->data[44]));
+			cpts_rx_timestamp(priv, skb, evt_high);
+		}
+#endif
+
 		skb->protocol = eth_type_trans(skb, ndev);
 		netif_receive_skb(skb);
 		priv->stats.rx_bytes += len;
@@ -294,6 +607,8 @@ void cpsw_rx_handler(void *token, int len, int status)
 static irqreturn_t cpsw_interrupt(int irq, void *dev_id)
 {
 	struct cpsw_priv *priv = dev_id;
+
+	cpts_isr(priv);
 
 	if (likely(netif_running(priv->ndev))) {
 		cpsw_intr_disable(priv);
@@ -664,6 +979,21 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	cpsw_intr_enable(priv);
 	napi_enable(&priv->napi);
 	cpdma_ctlr_eoi(priv->dma);
+	reg = __raw_readl(&priv->cpts_reg->id_ver);
+
+#ifdef CONFIG_PTP_1588_CLOCK_CPTS
+	if (reg == CPTS_VERSION) {
+		printk(KERN_ERR"Found CPTS and initializing...\n");
+		/* Enable CPTS */
+		__raw_writel(0x01, &priv->cpts_reg->control);
+		/* Enable CPTS Interrupt */
+		__raw_writel(0x01, &priv->cpts_reg->int_enable);
+		/* Enable CPSW_SS Misc Interrupt */
+		__raw_writel(0x10, &priv->cpsw_ss_intr->C0_mis_intr_stat);
+	} else {
+		printk(KERN_ERR"Cannot find CPTS\n");
+	}
+#endif
 
 	return 0;
 }
@@ -723,6 +1053,125 @@ fail:
 	priv->stats.tx_dropped++;
 	netif_stop_queue(ndev);
 	return NETDEV_TX_BUSY;
+}
+
+#ifdef CONFIG_PTP_1588_CLOCK_CPTS
+static int cpsw_hwtstamp_ioctl(struct net_device *ndev,
+		struct ifreq *ifr, int cmd)
+{
+	struct hwtstamp_config config;
+	struct cpsw_priv *priv = netdev_priv(ndev);
+
+	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
+		return -EFAULT;
+
+	pr_debug("%s config flag:0x%x, tx_type:0x%x, rx_filter:0x%x\n",
+		__func__, config.flags, config.tx_type, config.rx_filter);
+
+	/* reserved for future extensions */
+	if (config.flags)
+		return -EINVAL;
+
+	if ((config.tx_type != HWTSTAMP_TX_OFF) &&
+			(config.tx_type != HWTSTAMP_TX_ON))
+		return -ERANGE;
+
+	switch (config.rx_filter) {
+	case HWTSTAMP_FILTER_NONE:
+		/*
+		 * Dont allow any timestamping
+		 */
+		break;
+
+	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
+		dev_err(&ndev->dev, "PTP V1 L4 Timestamping is not supported!!!\n");
+		config.rx_filter = HWTSTAMP_FILTER_NONE;
+		config.tx_type = HWTSTAMP_TX_OFF;
+		break;
+
+	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+		dev_err(&ndev->dev, "PTP V2 L4 Timestamping is not supported!!!\n");
+		config.rx_filter = HWTSTAMP_FILTER_NONE;
+		config.tx_type = HWTSTAMP_TX_OFF;
+		break;
+
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
+
+	case HWTSTAMP_FILTER_PTP_V2_EVENT:
+		/* PTP v2/802.1AS, any layer, any kind of event packet */
+	case HWTSTAMP_FILTER_PTP_V2_SYNC:
+		/* PTP v2/802.1AS, any layer, Sync packet */
+	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+		/* PTP v2/802.1AS, any layer, Delay_req packet */
+
+		/* Enabling All PTP v2/802.1AS Event time stamping */
+		config.rx_filter = HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	/* Enabling Time stamping is done only for Port 1 */
+	if (config.tx_type == HWTSTAMP_TX_OFF &&
+			config.rx_filter == HWTSTAMP_FILTER_NONE) {
+		__raw_writel(0x0, &priv->port1_time_sync_regs->control);
+		__raw_writel(0x001e0000,
+			&priv->port1_time_sync_regs->seq_ltype);
+
+		/* Empty Queue */
+		priv->cpts_time.rx_fifo.head = 0;
+		priv->cpts_time.tx_fifo.head = 0;
+		priv->cpts_time.rx_fifo.tail = 0;
+		priv->cpts_time.tx_fifo.tail = 0;
+		priv->cpts_time.enable_timestamping = false;
+		pr_debug("Disabling Time stamping...\n");
+	} else {
+		u32 val = 0;
+
+		val |= (1<<0);			/*enable RX */
+		val |= (1<<4);			/* enable TX */
+		val |= (0xFFFFu << 16);		/* enable all message types */
+
+		__raw_writel(val, &priv->port1_time_sync_regs->control);
+		__raw_writel(0x001e88f7,
+			&priv->port1_time_sync_regs->seq_ltype);
+
+		/* Empty Queue */
+		priv->cpts_time.rx_fifo.head = 0;
+		priv->cpts_time.tx_fifo.head = 0;
+		priv->cpts_time.rx_fifo.tail = 0;
+		priv->cpts_time.tx_fifo.tail = 0;
+		priv->cpts_time.enable_timestamping = true;
+	}
+
+	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
+			-EFAULT : 0;
+}
+#endif
+
+static int cpsw_ndo_do_ioctl(struct net_device *ndev, struct ifreq *ifrq,
+		int cmd)
+{
+	if (!(netif_running(ndev)))
+		return -EINVAL;
+
+	switch (cmd) {
+	case SIOCSHWTSTAMP:
+#ifdef CONFIG_PTP_1588_CLOCK_CPTS
+		return cpsw_hwtstamp_ioctl(ndev, ifrq, cmd);
+#else
+		return -EOPNOTSUPP;
+#endif
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
 }
 
 static void cpsw_ndo_set_multicast_list(struct net_device *ndev)
@@ -830,6 +1279,7 @@ static const struct net_device_ops cpsw_netdev_ops = {
 	.ndo_set_multicast_list	= cpsw_ndo_set_multicast_list,
 	.ndo_change_rx_flags	= cpsw_ndo_change_rx_flags,
 	.ndo_set_mac_address	= cpsw_ndo_set_mac_address,
+	.ndo_do_ioctl		= cpsw_ndo_do_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_tx_timeout		= cpsw_ndo_tx_timeout,
 	.ndo_get_stats		= cpsw_ndo_get_stats,
@@ -909,6 +1359,13 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 	priv->msg_enable = netif_msg_init(debug_level, CPSW_DEBUG);
 	priv->rx_packet_max = max(rx_packet_max, 128);
 
+	gpriv = priv;
+	priv->cpts_time.rx_fifo.head = 0;
+	priv->cpts_time.tx_fifo.head = 0;
+	priv->cpts_time.rx_fifo.tail = 0;
+	priv->cpts_time.tx_fifo.tail = 0;
+	priv->cpts_time.enable_timestamping = false;
+
 	if (is_valid_ether_addr(data->mac_addr))
 		memcpy(priv->mac_addr, data->mac_addr, ETH_ALEN);
 	else {
@@ -972,6 +1429,13 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 		ret = -ENXIO;
 		goto clean_clk_ret;
 	}
+
+	/* Init CPTS Regs offsets */
+	priv->cpts_reg = regs + 0x500;
+	priv->port1_time_sync_regs = regs + 0x64;
+	priv->port2_time_sync_regs = regs + 0xa4;
+	priv->cpsw_ss_intr = regs + 0x94c;
+	cpts_regs = priv->cpts_reg;
 
 	regs = ioremap(priv->cpsw_ss_res->start,
 				resource_size(priv->cpsw_ss_res));
