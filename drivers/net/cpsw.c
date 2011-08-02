@@ -725,6 +725,33 @@ fail:
 	return NETDEV_TX_BUSY;
 }
 
+static void cpsw_ndo_set_multicast_list(struct net_device *ndev)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+
+	if (ndev->flags & IFF_PROMISC) {
+		/* Enable promiscuous mode */
+	} else {
+		if (!netdev_mc_empty(ndev)) {
+			struct netdev_hw_addr *ha;
+
+			/* Clear all mcast from ALE */
+			cpsw_ale_flush_multicast(priv->ale,
+					1 << priv->host_port);
+
+			/* program multicast address list into ALE register */
+			netdev_for_each_mc_addr(ha, ndev) {
+				cpsw_ale_add_mcast(priv->ale, (u8 *)ha->addr,
+						3 << priv->host_port);
+			}
+		} else {
+			/* Clear all mcast from ALE */
+			cpsw_ale_flush_multicast(priv->ale,
+					1 << priv->host_port);
+		}
+	}
+}
+
 static void cpsw_ndo_change_rx_flags(struct net_device *ndev, int flags)
 {
 	/*
@@ -800,6 +827,7 @@ static const struct net_device_ops cpsw_netdev_ops = {
 	.ndo_open		= cpsw_ndo_open,
 	.ndo_stop		= cpsw_ndo_stop,
 	.ndo_start_xmit		= cpsw_ndo_start_xmit,
+	.ndo_set_multicast_list	= cpsw_ndo_set_multicast_list,
 	.ndo_change_rx_flags	= cpsw_ndo_change_rx_flags,
 	.ndo_set_mac_address	= cpsw_ndo_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
