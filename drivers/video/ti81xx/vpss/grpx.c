@@ -121,7 +121,7 @@ static int vps_grpx_apply_changes(struct vps_grpx_ctrl *gctrl)
 	int r = 0;
 
 	VPSSDBG("(%d)- apply changes into FVID2_FRAME.\n", gctrl->grpx_num);
-
+	grpx_cs_lock(gctrl);
 	if (gstate->isstarted) {
 		if (gstate->scset) {
 			gctrl->grtlist->scparams =
@@ -165,7 +165,7 @@ static int vps_grpx_apply_changes(struct vps_grpx_ctrl *gctrl)
 	}
 
 
-
+	grpx_cs_free(gctrl);
 	return r;
 }
 
@@ -362,7 +362,7 @@ static int vps_grpx_set_format(struct vps_grpx_ctrl *gctrl,
 	grpx_cs_lock(gctrl);
 	if (gctrl->gstate.isstarted == false) {
 		gctrl->gstate.varset = true;
-		r = vps_grpx_apply_changes(gctrl);
+		r = gctrl->apply_changes(gctrl);
 	}
 
 	else {
@@ -502,11 +502,9 @@ static int vps_grpx_set_stenparams(struct vps_grpx_ctrl *gctrl,
 	else
 		gctrl->gstate.stenset = true;
 
-	r = vps_grpx_apply_changes(gctrl);
 	grpx_cs_free(gctrl);
-	if (!r)
-		VPSSDBG("(%d)-) set stenciling %#x\n",
-			gctrl->grpx_num, (u32)gctrl->gparams->stenptr);
+	VPSSDBG("(%d)-) set stenciling %#x\n",
+		gctrl->grpx_num, (u32)gctrl->gparams->stenptr);
 
 	return r;
 }
@@ -547,7 +545,6 @@ static int vps_grpx_set_scparams(struct vps_grpx_ctrl *gctrl,
 	}
 	gctrl->gstate.scset = true;
 
-	r = vps_grpx_apply_changes(gctrl);
 	grpx_cs_free(gctrl);
 	return r;
 }
@@ -604,7 +601,6 @@ static int vps_grpx_set_regparams(struct vps_grpx_ctrl *gctrl,
 
 	gctrl->gstate.regset = true;
 
-	r = vps_grpx_apply_changes(gctrl);
 	grpx_cs_free(gctrl);
 	return r;
 }
@@ -620,9 +616,8 @@ static int vps_grpx_set_clutptr(struct vps_grpx_ctrl  *gctrl, u32 pclut)
 	gctrl->grtlist->clutptr = (void *)pclut;
 
 	gctrl->gstate.clutSet = true;
-	r = vps_grpx_apply_changes(gctrl);
 	grpx_cs_free(gctrl);
-	return 0;
+	return r;
 }
 
 static void vps_grpx_add_ctrl(struct vps_grpx_ctrl *gctrl)
@@ -643,7 +638,6 @@ static int vps_grpx_set_buffer(struct vps_grpx_ctrl *gctrl,
 	gctrl->frames->addr[FVID2_RGB_ADDR_IDX]
 		[FVID2_RGB_ADDR_IDX] = (void *)buffer_addr;
 
-	r = vps_grpx_apply_changes(gctrl);
 	grpx_cs_free(gctrl);
 	return r;
 }

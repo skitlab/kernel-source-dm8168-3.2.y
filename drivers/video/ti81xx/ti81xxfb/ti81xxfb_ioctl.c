@@ -150,6 +150,8 @@ static int ti81xxfb_setup_plane(struct fb_info *fbi,
 		if (0 == r)
 			gctrl->set_regparams(gctrl, &regp);
 	}
+	if (0 == r)
+		r = gctrl->apply_changes(gctrl);
 
 	if (0 == r)
 		r = gctrl->start(gctrl);
@@ -242,6 +244,9 @@ static int ti81xxfb_set_region_params(struct fb_info *fbi,
 	if (0 == r)
 		r = gctrl->set_regparams(gctrl, &regp);
 
+	if (0 == r)
+		r = gctrl->apply_changes(gctrl);
+
 	if (0 == r) {
 		fbi->var.xres = regp.regionwidth;
 		fbi->var.yres = regp.regionheight;
@@ -324,6 +329,8 @@ static int ti81xxfb_set_scparams(struct fb_info *fbi,
 	gscp.outheight = scp->outheight;
 	gscp.sccoeff = scp->coeff;
 	r = gctrl->set_scparams(gctrl, &gscp);
+	if (0 == r)
+		r = gctrl->apply_changes(gctrl);
 
 	ti81xxfb_unlock(tfbi);
 
@@ -478,6 +485,9 @@ static int ti81xxfb_set_sten(struct fb_info *fbi,
 
 	ti81xxfb_lock(tfbi);
 	r = gctrl->set_stenparams(gctrl, mlist->phy_addr, stparams->pitch);
+	if (0 == r)
+		r = gctrl->apply_changes(gctrl);
+
 	ti81xxfb_unlock(tfbi);
 	return r;
 

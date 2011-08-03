@@ -717,16 +717,23 @@ static int ti81xxfb_apply_changes(struct fb_info *fbi, int init)
 
 		buf_addr = ti81xxfb_get_fb_paddr(tfbi) + offset;
 
-		regp.regionwidth = var->xres;
-		regp.regionheight = var->yres;
+		if ((regp.regionheight != var->yres) ||
+			(regp.regionwidth != var->xres)) {
+
+			regp.regionwidth = var->xres;
+			regp.regionheight = var->yres;
 #if 0
-		if (1 == init)
-			r = gctrl->check_params(gctrl, &regp, 0);
+			if (1 == init)
+				r = gctrl->check_params(gctrl, &regp, 0);
 #endif
-		r = gctrl->set_regparams(gctrl, &regp);
+			r = gctrl->set_regparams(gctrl, &regp);
+		}
 
 		if ((buf_addr != gctrl->buffer_addr) && (!r))
 			r = gctrl->set_buffer(tfbi->gctrl, buf_addr);
+
+		if (!r)
+			r = gctrl->apply_changes(gctrl);
 
 	}
 
