@@ -991,9 +991,6 @@ static int qt602240_initialize(struct qt602240_data *data)
 	if (error)
 		return error;
 
-	error = qt602240_make_highchg(data);
-	if (error)
-		return error;
 
 	qt602240_handle_pdata(data);
 
@@ -1007,6 +1004,10 @@ static int qt602240_initialize(struct qt602240_data *data)
 	qt602240_write_object(data, QT602240_GEN_COMMAND,
 			QT602240_COMMAND_RESET, 1);
 	msleep(QT602240_RESET_TIME);
+
+	error = qt602240_make_highchg(data);
+	if (error)
+		return error;
 
 	/* Update matrix size at info struct */
 	error = qt602240_read_reg(client, QT602240_MATRIX_X_SIZE, &val);
