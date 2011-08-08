@@ -231,7 +231,7 @@ static void _ti814x_dpll_end_config_sequence(struct clk *clk)
  * Checks the SYSBYRETACK bit in ADPLL status register to be set
  * return -EINVAL
  */
-static int _ti814x_wait_dpll_ret_ack(struct clk *clk)
+static int _ti814x_wait_dpll_ret_ack(struct clk *clk, u8 val)
 {
 	const struct dpll_data *dd = clk->dpll_data;
 	int i = -1, v;
@@ -243,7 +243,7 @@ static int _ti814x_wait_dpll_ret_ack(struct clk *clk)
 		v = (__raw_readl(dd->idlest_reg) &
 			TI814X_ADPLL_STBYRET_ACK_MASK);
 		v >>= __ffs(TI814X_ADPLL_STBYRET_ACK_MASK);
-	} while ((v != 0x1) && i < MAX_DPLL_WAIT_TRIES);
+	} while ((v != val) && i < MAX_DPLL_WAIT_TRIES);
 
 	if (i == MAX_DPLL_WAIT_TRIES) {
 		pr_debug("clock: %s failed to gate internal clocks\n",
@@ -280,7 +280,7 @@ static int _ti814_dpll_stop(struct clk *clk)
 
 
 	/* Read and wait for retention ack from PLL_STATUS register */
-	r = _ti814x_wait_dpll_ret_ack(clk);
+	r = _ti814x_wait_dpll_ret_ack(clk, ST_ADPLL_RETENTION);
 	if (r) {
 		pr_debug("clock: %s DPLL could not be placed in retention\n",
 			clk->name);
@@ -293,7 +293,7 @@ static int _ti814_dpll_stop(struct clk *clk)
 	}
 	if (dd->flags & TI814X_ADPLL_LS_TYPE) {
 
-		/* Enter DPLL stop mode */
+		/* Enter DPLL stop mode, not supported on ADPLLLJ */
 		v = __raw_readl(dd->control_reg);
 		v |= (1 << dd->stop_mode_bit);
 		__raw_writel(v, dd->control_reg);
@@ -641,10 +641,33 @@ unsigned long ti814x_dpll_dco_recalc(struct clk *clk)
 int ti814x_dpll_enable(struct clk *clk)
 {
 	int r;
+	u32 v;
 	struct dpll_data *dd;
 	dd = clk->dpll_data;
 	if (!dd)
 		return -EINVAL;
+
+	/* Enable CLKOUT */
+	v = __raw_readl(dd->control_reg);
+	v |= (dd->enable_mask);
+	__raw_writel(v, dd->control_reg);
+	
+	/* Check if DPLL is disabled before
+	 * If yes, DPLL will be in  LOW POWERMODE, bringout of LP */
+	v = (__raw_readl(dd->idlest_reg) &
+			TI814X_ADPLL_STBYRET_ACK_MASK);
+	v >>= __ffs(TI814X_ADPLL_STBYRET_ACK_MASK);
+	if(v) {
+		v = __raw_readl(dd->control_reg);
+		v &= ~(1 << dd->stby_ret_bit);
+		__raw_writel(v, dd->control_reg);
+
+		r = _ti814x_wait_dpll_ret_ack(clk, ST_ADPLL_ACTIVE);
+		if (r) {
+			pr_debug("clock: Unable to bring %s DPLL out of retention\n",
+					clk->name);
+		}
+	}
 
 	if (clk->rate == dd->clk_bypass->rate) {
 
@@ -668,7 +691,15 @@ int ti814x_dpll_enable(struct clk *clk)
  */
 void ti814x_dpll_disable(struct clk *clk)
 {
+	struct dpll_data *dd = clk->dpll_data;
+	u32 v;
 
+	/* Disable CLKOUT, synchronous */
+	v = __raw_readl(dd->control_reg);
+	v &= ~(dd->enable_mask);
+	__raw_writel(v, dd->control_reg);
+
+	/* Drive DPLL in to retention/Low power stop */
 	_ti814_dpll_stop(clk);
 }
 
@@ -763,6 +794,7 @@ static int ti814x_dpll_program(struct clk *clk, u16 m, u32 frac_m, u8 n,
 	__raw_writel(v, dd->control_reg);
 
 	_ti814x_dpll_end_config_sequence(clk);
+	_ti814x_rel_dpll_bypass(clk);
 
 	ret = _ti814x_wait_dpll_status(clk, ST_ADPLL_LOCKED);
 	if (ret)
