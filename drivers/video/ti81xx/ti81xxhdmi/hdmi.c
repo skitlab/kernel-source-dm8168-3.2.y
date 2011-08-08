@@ -553,6 +553,9 @@ static void ti814x_configure_hdmi_pll(volatile u32  b_addr,
 	/* Put PLL in idle bypass mode */
 	read_clkctrl = __raw_readl(b_addr + TI814x_HDMI_PLL_CLKCTRL_OFF);
 	read_clkctrl |= 0x1 << 23;
+	if (cpu_is_ti814x())
+		read_clkctrl &= ~0x1;
+
 	__raw_writel(read_clkctrl, b_addr + TI814x_HDMI_PLL_CLKCTRL_OFF);
 
 	/* poll for the bypass acknowledgement */
