@@ -21,8 +21,11 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
+#include <linux/i2c/qt602240_ts.h>
+#include <linux/i2c/pcf857x.h>
 #include <linux/regulator/machine.h>
 
 #include <mach/hardware.h>
@@ -47,6 +50,8 @@
 #include "hsmmc.h"
 #include "control.h"
 
+#define GPIO_TSC               31
+
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
@@ -64,6 +69,44 @@ static struct omap2_hsmmc_info mmc[] = {
 		.ocr_mask	= MMC_VDD_33_34,
 	},
 	{}	/* Terminator */
+};
+
+#define GPIO_LCD_PWR_DOWN	0
+
+static int __init setup_gpio_ioexp(struct i2c_client *client, int gpio_base,
+	 unsigned ngpio, void *context) {
+	int ret = 0;
+	int gpio = gpio_base + GPIO_LCD_PWR_DOWN;
+
+	ret = gpio_request(gpio, "lcd_power");
+	if (ret) {
+		printk(KERN_ERR "%s: failed to request GPIO for LCD Power"
+			": %d\n", __func__, ret);
+		return ret;
+	}
+
+	gpio_export(gpio, true);
+	gpio_direction_output(gpio, 0);
+
+	return 0;
+}
+
+/* IO expander data */
+static struct pcf857x_platform_data io_expander_data = {
+	.gpio_base	= 4 * 32,
+	.setup		= setup_gpio_ioexp,
+};
+
+/* Touchscreen platform data */
+static struct qt602240_platform_data ts_platform_data = {
+	.x_line		= 18,
+	.y_line		= 12,
+	.x_size		= 800,
+	.y_size		= 480,
+	.blen		= 0x01,
+	.threshold	= 30,
+	.voltage	= 2800000,
+	.orient		= QT602240_HORIZONTAL_FLIP,
 };
 
 static struct at24_platform_data eeprom_info = {
@@ -89,8 +132,34 @@ static struct i2c_board_info __initdata ti814x_i2c_boardinfo[] = {
         {
                 I2C_BOARD_INFO("tlc59108", 0x40),
         },
-
+	{
+		I2C_BOARD_INFO("pcf8575", 0x21),
+		.platform_data = &io_expander_data,
+	},
+	{
+		I2C_BOARD_INFO("qt602240_ts", 0x4A),
+		.platform_data = &ts_platform_data,
+	},
 };
+
+static void __init ti814x_tsc_init(void)
+{
+	int error;
+
+	omap_mux_init_signal("mlb_clk.gpio0_31", TI814X_PULL_DIS | (1 << 18));
+
+	error = gpio_request(GPIO_TSC, "ts_irq");
+	if (error < 0) {
+		printk(KERN_ERR "%s: failed to request GPIO for TSC IRQ"
+			": %d\n", __func__, error);
+		return;
+	}
+
+	gpio_direction_input(GPIO_TSC);
+	ti814x_i2c_boardinfo[5].irq = gpio_to_irq(GPIO_TSC);
+
+	gpio_export(31, true);
+}
 
 static void __init ti814x_evm_i2c_init(void)
 {
@@ -306,6 +375,7 @@ static void __init ti8148_evm_init(void)
 
 	ti814x_mux_init(board_mux);
 	omap_serial_init();
+	ti814x_tsc_init();
 	ti814x_evm_i2c_init();
 	ti81xx_register_mcasp(0, &ti8148_evm_snd_data);
 
