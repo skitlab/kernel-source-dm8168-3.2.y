@@ -1588,9 +1588,7 @@ static int gpio_output_array(struct gpio_chip *chip, unsigned value,
 
 	/* Clear output data */
 	reg = bank->base + OMAP4_GPIO_CLEARDATAOUT;
-	reg_val = __raw_readl(reg);
-	reg_val &= ~mask;
-	reg_val |= (~value) & mask;
+	reg_val = (~value) & mask;
 	__raw_writel(reg_val, reg);
 
 	/* Put requested lines in output direction */
