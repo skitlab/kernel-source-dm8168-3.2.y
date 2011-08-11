@@ -45,6 +45,8 @@
 #include <plat/nand.h>
 #include <plat/hdmi_lib.h>
 
+#include "control.h"
+
 
 #include "clock.h"
 #include "mux.h"
@@ -633,6 +635,8 @@ static void __init ti816x_hdmi_init(void)
 
 static void __init ti8168_evm_init(void)
 {
+	int bw; /* bus-width */
+
 	ti81xx_mux_init(board_mux);
 	omap_serial_init();
 	ti816x_evm_i2c_init();
@@ -641,8 +645,21 @@ static void __init ti8168_evm_init(void)
 	ti816x_spi_init();
 	/* initialize usb */
 	usb_musb_init(&musb_board_data);
-	board_nand_init(ti816x_nand_partitions,
+
+	/* nand initialisation */
+	if (cpu_is_ti81xx()) {
+		u32 *control_status = TI81XX_CTRL_REGADDR(0x40);
+		if (*control_status & (1<<16))
+			bw = 0;	/*8-bit nand if BTMODE BW pin on board is ON*/
+		else
+			bw = 2;	/*16-bit nand if BTMODE BW pin on board is OFF*/
+
+		board_nand_init(ti816x_nand_partitions,
+			ARRAY_SIZE(ti816x_nand_partitions), 0, bw);
+	} else
+		board_nand_init(ti816x_nand_partitions,
 		ARRAY_SIZE(ti816x_nand_partitions), 0, NAND_BUSWIDTH_16);
+
 	omap2_hsmmc_init(mmc);
 	board_nor_init(ti816x_evm_norflash_partitions,
 		ARRAY_SIZE(ti816x_evm_norflash_partitions), 0);
