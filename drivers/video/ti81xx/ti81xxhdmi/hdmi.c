@@ -136,8 +136,8 @@ struct hdmi_cm {
 };
 
 struct hdmi_pll_ctrl gpll_ctrl[] = {
-	{19, 1485, 10, 0x20021001},
-	{19,  745, 10, 0x20021001}
+	{19, 1485, 10, 0x200a0000 + 0x00001001},
+	{19,  745, 10, 0x200a0000 + 0x00001001}
 };
 
 
@@ -399,7 +399,6 @@ static inline u32 hdmi_read_reg(u32 base, u16 idx)
 #define REG_FLD_MOD(b, i, v, s, e) \
 	hdmi_write_reg(b, i, FLD_MOD(hdmi_read_reg(b, i), v, s, e))
 
-
 void ti814x_enable_ddc_pinmux(void)
 {
 	u32 temp;
@@ -420,6 +419,22 @@ void ti814x_enable_ddc_pinmux(void)
 
 
 	THDMIDBG("DM814x : DDC pinmux enabled successfully\n");
+}
+/* This mux is for configuring the pixel clock to Venc through HDMI or PLL*/
+void ti814x_set_clksrc_mux(int enable)
+{
+	u32 reg_value;
+	u32 reg_base;
+
+	reg_base = (u32)ioremap(TI814x_HDMI_MUX_ADDR, 0x10);
+	reg_value = __raw_readl(reg_base);
+	if (enable)
+		reg_value |= 0x1;
+	else
+		reg_value &= 0xFFFFFFFE;
+
+	__raw_writel(reg_value, reg_base);
+	iounmap((u32 *)TI814x_HDMI_MUX_ADDR);
 }
 
 
@@ -537,11 +552,10 @@ static int ti814x_hdmi_pll_power_on(void)
 	}
 	return r;
 }
-
 /*
  * ti814x_configure_hdmi_pll() funciton is borrowed from ti81xx HDMI librabry
  */
-static void ti814x_configure_hdmi_pll(volatile u32  b_addr,
+static void ti814x_configure_hdmi_pll(u32  b_addr,
 		u32 __n,
 		u32 __m,
 		u32 __m2,
@@ -603,7 +617,8 @@ static void ti814x_configure_hdmi_pll(volatile u32  b_addr,
 	read_clkctrl = __raw_readl(b_addr+TI814x_HDMI_PLL_CLKCTRL_OFF);
 
 	/*configure the TINITZ(bit0) and CLKDCO bits if required */
-	__raw_writel((read_clkctrl & 0xff7fe3ff) | clkctrl_val, b_addr+TI814x_HDMI_PLL_CLKCTRL_OFF);
+	__raw_writel((read_clkctrl & 0xff7fe3ff) | clkctrl_val,
+			b_addr+TI814x_HDMI_PLL_CLKCTRL_OFF);
 
 	read_clkctrl = __raw_readl(b_addr+TI814x_HDMI_PLL_CLKCTRL_OFF);
 
@@ -635,7 +650,6 @@ static void ti814x_configure_hdmi_pll(volatile u32  b_addr,
 	/*wait fot the clocks to get stabized */
 	udelay(100);
 }
-
 
 /* Note : Taken from OMAP driver and modified some,
  * for initial support of 4 resolutions. */
@@ -864,6 +878,7 @@ static void hdmi_power_off(void)
 	hdmi.power_state = HDMI_POWER_OFF;
 
 	if (cpu_is_ti814x()){
+		ti814x_set_clksrc_mux(0);
 		ti814x_hdmi_phy_off(TI81xx_HDMI_WP);
 		HDMI_W1_SetWaitPllPwrState(TI81xx_HDMI_WP, HDMI_PLLPWRCMD_ALLOFF);
 		ti814x_disable_hdmi_clocks((u32)hdmi.base_prcm);
@@ -978,7 +993,11 @@ static int hdmi_power_on(void)
 		else
 			pll_ctrl = &gpll_ctrl[1];
 
-		ti814x_configure_hdmi_pll( (volatile u32)hdmi.base_pll, pll_ctrl->__n, pll_ctrl->__m, pll_ctrl->__m2, pll_ctrl->clk_ctrl_value);
+		ti814x_configure_hdmi_pll((u32)hdmi.base_pll,
+				pll_ctrl->__n,
+				pll_ctrl->__m,
+				pll_ctrl->__m2,
+				pll_ctrl->clk_ctrl_value);
 	}
 
 	/* Configure PHY */
@@ -1042,7 +1061,8 @@ static int hdmi_power_on(void)
 
 	/* After all configuration, Turn ON in HDMI Wrapper  */
 	HDMI_W1_StartVideoFrame(TI81xx_HDMI_WP);
-
+	if (cpu_is_ti814x())
+		ti814x_set_clksrc_mux(1);
 	return 0;
 err:
 	return r;
@@ -1150,9 +1170,8 @@ int __init hdmi_init(void)
 	if (cpu_is_ti814x())
 	    ti814x_enable_hdmi_clocks((u32)hdmi.base_prcm);
 
-	if (cpu_is_ti814x()){
-	    ti814x_enable_ddc_pinmux();
-	}
+	if (cpu_is_ti814x())
+		ti814x_enable_ddc_pinmux();
 
 	hdmi_lib_init();
 
@@ -1232,6 +1251,8 @@ void ti81xx_map_timings_to_code(struct TI81xx_video_timings *timings)
 void hdmi_exit(void)
 {
 	hdmi_stop_display();
+	if (cpu_is_ti814x())
+		ti814x_set_clksrc_mux(0);
 	hdmi_lib_exit();
 	TI81xx_un_register_display_panel(&hdmi_driver);
 	device_destroy(ti81xx_hdmi_class, hdmi_dev_id); //is this needed ? Varada : ToDo : FIXME

@@ -18,6 +18,7 @@
 #define TI814x_CM_HDMI_CLKCTRL_OFF             (0x0824)
 #define TI814x_CM_ALWON_SDIO_CLKCTRL           (0x15B0)
 #define TI814x_HDMI_PLL_BASE_ADDR              (0x481C5200)
+#define TI814x_HDMI_MUX_ADDR			(0x481C52C8)
 #define TI814x_HDMI_PLL_CLKCTRL_OFF			0x4
 #define TI814x_HDMI_PLL_TENABLE_OFF			0x8
 #define TI814x_HDMI_PLL_TENABLEDIV_OFF			0xC
@@ -97,5 +98,5 @@ struct hdmi_pll_info {
 	u16 dcofreq;
 };
 
-
 #endif
+
