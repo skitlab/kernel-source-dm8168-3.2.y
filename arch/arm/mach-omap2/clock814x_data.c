@@ -3512,6 +3512,7 @@ static struct clk cpts_rft_clk_ck = {
 	.clksel_mask	= TI814X_CPTS_RFT_MASK,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &omap2_clksel_recalc,
+	.set_rate       = &ti814x_clksel_set_rate,
 };
 
 /* LJCB input1 clk serdes_xrefclkip_ck */

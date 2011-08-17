@@ -626,10 +626,10 @@ static int _ti814x_adpll_check_and_set_rate(struct clk *clk,
 			return -EINVAL;
 		*dpll_setrate = 1;
 	} else if (dclk->set_rate) {
-		if (dclk->usecount != 0) {
-			pr_err("clock: %s, parent %s is already in use, change"
-				" parent\n", clk->name, dclk->name);
-			return -EINVAL;
+		if (dclk->usecount > 1) {
+			pr_err("clock: %s, parent %s is already in use, can't"
+				" change rate\n", clk->name, dclk->name);
+			return -EBUSY;
 		}
 		ret = dclk->set_rate(dclk, rate);
 		if (!ret) {
@@ -661,26 +661,26 @@ int ti814x_clksel_set_rate(struct clk *clk, unsigned long rate)
 {
 	struct clk *pclk;
 	struct clk *dclk;
-	const struct clksel *clks;
 	int ret, dpll_setrate = 0;
 
-	if (clk->usecount != 0)
+	if (clk->usecount == 0) {
+		pr_err("clock: Enable the clock '%s' before setting rate\n",
+			clk->name);
 		return -EINVAL;
+	}
+	if (clk->usecount > 1) {
+		pr_err("clock: '%s' clock is in use can't change the rate "
+			"usecount = '%d'", clk->name, clk->usecount);
+		return -EBUSY;
+	}
 
 	pclk = clk->parent;
-	if (!clk->clksel || !clk->clksel_mask)
-		goto set_parent_rate;
-
-	for (clks = clk->clksel; clks->parent; clks++) {
-		pclk = clks->parent;
-		if (pclk->usecount == 0)
-			break;
+	if (pclk->usecount > 1) {
+		pr_err("clock: '%s' clock's parent '%s' is in use can't"
+			" change the rate usecount = %d", clk->name,
+			pclk->name, pclk->usecount);
+		return -EBUSY;
 	}
-	omap2_clksel_set_parent(clk, pclk);
-
-set_parent_rate:
-	if (pclk->usecount != 0)
-		return -EINVAL;
 
 	dclk = pclk->parent;
 	/* check the dividers in parent clock */
@@ -706,10 +706,10 @@ set_parent_rate:
 		}
 	}
 	if (dpll_setrate) {
-		if (dclk->usecount != 0) {
-			pr_err("clock: %s, parent %s is already in use, change"
-				" parent\n", pclk->name, pclk->parent->name);
-			return -EINVAL;
+		if (dclk->usecount > 1) {
+			pr_err("clock: %s, parent %s is already in use, can't"
+			"change rate\n", pclk->name, dclk->name);
+			return -EBUSY;
 		}
 
 		/* Changing the DPLL rate */
@@ -731,7 +731,7 @@ set_parent_rate:
 
 failed_set_divider:
 	pr_err("clock: failed to set divider\n");
-	return -EINVAL;
+	return ret;
 }
 
 #endif

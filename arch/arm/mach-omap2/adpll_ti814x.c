@@ -714,7 +714,7 @@ void ti814x_dpll_disable(struct clk *clk)
  * ADPLL must be in bypass while programming with new values
  */
 static int ti814x_dpll_program(struct clk *clk, u16 m, u32 frac_m, u8 n,
-				u8 m2, u8 dco)
+				u8 m2, u8 dco, bool enterbypass)
 {
 	struct dpll_data *dd = clk->dpll_data;
 	u32 v;
@@ -723,8 +723,8 @@ static int ti814x_dpll_program(struct clk *clk, u16 m, u32 frac_m, u8 n,
 
 	if (!dd)
 		return -EINVAL;
-
-	_ti814x_dpll_init_config_sequence(clk);
+	if (enterbypass)
+		_ti814x_dpll_init_config_sequence(clk);
 
 	/* Set DPLL multiplier (m)*/
 	v = __raw_readl(dd->mult_div1_reg);
@@ -793,8 +793,10 @@ static int ti814x_dpll_program(struct clk *clk, u16 m, u32 frac_m, u8 n,
 	v |= (1 << TI814X_ADPLL_CLKDCOLDOEN_SHIFT);
 	__raw_writel(v, dd->control_reg);
 
-	_ti814x_dpll_end_config_sequence(clk);
-	_ti814x_rel_dpll_bypass(clk);
+	if (enterbypass) {
+		_ti814x_dpll_end_config_sequence(clk);
+		_ti814x_rel_dpll_bypass(clk);
+	}
 
 	ret = _ti814x_wait_dpll_status(clk, ST_ADPLL_LOCKED);
 	if (ret)
@@ -860,6 +862,8 @@ int ti814x_dpll_set_rate(struct clk *clk, unsigned long rate)
 	struct clk *new_parent = NULL;
 	struct dpll_data *dd;
 	int ret;
+	unsigned long currate;
+	bool enterbyp = true;
 
 	if (!clk || !rate)
 		return -EINVAL;
@@ -867,8 +871,8 @@ int ti814x_dpll_set_rate(struct clk *clk, unsigned long rate)
 	dd = clk->dpll_data;
 	if (!dd)
 		return -EINVAL;
-
-	if (rate == ti814x_get_dpll_rate(clk))
+	currate = ti814x_get_dpll_rate(clk);
+	if (rate == currate)
 		return 0;
 	ret = _adpll_test_fint(clk, dd->pre_div_n);
 	if (ret)
@@ -898,13 +902,16 @@ int ti814x_dpll_set_rate(struct clk *clk, unsigned long rate)
 
 		pr_debug("clock: %s: set rate: locking rate to %lu.\n",
 			clk->name, dd->last_rounded_rate);
+		if ((abs(dd->last_rounded_rate - currate)*100/currate) < 3)
+			enterbyp = false;
 
 		ret = ti814x_dpll_program(clk,
 					dd->last_rounded_m,
 					dd->last_rounded_frac_m,
 					dd->last_rounded_n,
 					dd->last_rounded_m2,
-					dd->dco_freq_sel);
+					dd->dco_freq_sel,
+					enterbyp);
 		if (!ret)
 			new_parent = dd->clk_ref;
 	}
