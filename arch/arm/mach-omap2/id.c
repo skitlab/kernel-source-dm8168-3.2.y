@@ -371,10 +371,13 @@ void __init ti81xx_check_revision(void)
 			strcpy(cpu_rev, "1.0");
 			break;
 		case 1:
-			/* FALLTHROUGH */
-		default:
 			omap_revision = TI8168_REV_ES1_1;
 			strcpy(cpu_rev, "1.1");
+			/* FALLTHROUGH */
+		case 2:
+		default:
+			omap_revision = TI8168_REV_ES2_0;
+			strcpy(cpu_rev, "2.0");
 		}
 
 		pr_info("OMAP chip is TI8168 %s\n", cpu_rev);
