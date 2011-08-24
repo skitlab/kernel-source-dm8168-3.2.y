@@ -70,6 +70,8 @@ do {								\
 #define cpsw_disable_irq(priv) do { } while (0);
 #endif
 
+#define ALE_ALL_PORTS			0x7
+
 #define PTP_ETHER_TYPE			0x88f7
 #define CPTS_VERSION			0x4e8a0101
 #define CPTS_TS_PUSH			0x0
@@ -80,7 +82,7 @@ do {								\
 #define CPTS_TS_ETH_TX			(0x5 << 20)
 
 #define CPTS_FIFO_SIZE			32
-#define CPTS_READ_TS_MAX_TRY	20
+#define CPTS_READ_TS_MAX_TRY		20
 #define CPTL_CLK_FREQ			250000000 /*250MHz*/
 #define DEFAULT_CPTS_CLK		CPTS_CLK_SEL_AUDIO
 
@@ -1196,7 +1198,7 @@ static void cpsw_ndo_set_multicast_list(struct net_device *ndev)
 			/* program multicast address list into ALE register */
 			netdev_for_each_mc_addr(ha, ndev) {
 				cpsw_ale_add_mcast(priv->ale, (u8 *)ha->addr,
-						3 << priv->host_port);
+					ALE_ALL_PORTS << priv->host_port);
 			}
 		} else {
 			/* Clear all mcast from ALE */
@@ -1371,14 +1373,18 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 	priv->cpts_time.tx_fifo.tail = 0;
 	priv->cpts_time.enable_timestamping = false;
 
-	if (is_valid_ether_addr(data->mac_addr))
+	if (is_valid_ether_addr(data->mac_addr)) {
 		memcpy(priv->mac_addr, data->mac_addr, ETH_ALEN);
-	else {
 		printk(KERN_INFO"Detected MACID=%x:%x:%x:%x:%x:%x\n",
 			priv->mac_addr[0], priv->mac_addr[1],
 			priv->mac_addr[2], priv->mac_addr[3],
 			priv->mac_addr[4], priv->mac_addr[5]);
+	} else {
 		random_ether_addr(priv->mac_addr);
+		printk(KERN_INFO"Random MACID=%x:%x:%x:%x:%x:%x\n",
+			priv->mac_addr[0], priv->mac_addr[1],
+			priv->mac_addr[2], priv->mac_addr[3],
+			priv->mac_addr[4], priv->mac_addr[5]);
 	}
 
 	memcpy(ndev->dev_addr, priv->mac_addr, ETH_ALEN);
