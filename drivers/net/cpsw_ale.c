@@ -59,6 +59,11 @@
 #define ale_entries	params.ale_entries
 #define ale_ports	params.ale_ports
 
+#define cpsw_ale_is_broadcast(__addr__)	(__addr__[0] == 0xff && \
+		__addr__[1] == 0xff && __addr__[2] == 0xff && \
+		__addr__[3] == 0xff && __addr__[4] == 0xff && \
+		__addr__[5] == 0xff)
+
 static inline int cpsw_ale_get_field(u32 *ale_entry, u32 start, u32 bits)
 {
 	int idx;
@@ -237,7 +242,8 @@ int cpsw_ale_flush_multicast(struct cpsw_ale *ale, int port_mask)
 			u8 addr[6];
 
 			cpsw_ale_get_addr(ale_entry, addr);
-			cpsw_ale_flush_mcast(ale, ale_entry, port_mask);
+			if (!cpsw_ale_is_broadcast(addr))
+				cpsw_ale_flush_mcast(ale, ale_entry, port_mask);
 		}
 
 		cpsw_ale_write(ale, idx, ale_entry);

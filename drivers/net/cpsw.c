@@ -1193,7 +1193,7 @@ static void cpsw_ndo_set_multicast_list(struct net_device *ndev)
 
 			/* Clear all mcast from ALE */
 			cpsw_ale_flush_multicast(priv->ale,
-					1 << priv->host_port);
+					ALE_ALL_PORTS << priv->host_port);
 
 			/* program multicast address list into ALE register */
 			netdev_for_each_mc_addr(ha, ndev) {
@@ -1203,7 +1203,7 @@ static void cpsw_ndo_set_multicast_list(struct net_device *ndev)
 		} else {
 			/* Clear all mcast from ALE */
 			cpsw_ale_flush_multicast(priv->ale,
-					1 << priv->host_port);
+					ALE_ALL_PORTS << priv->host_port);
 		}
 	}
 }
