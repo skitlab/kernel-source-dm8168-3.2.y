@@ -1560,7 +1560,6 @@ static void omap_hsmmc_request(struct mmc_host *mmc, struct mmc_request *req)
 {
 	struct omap_hsmmc_host *host = mmc_priv(mmc);
 	int err;
-	u32 pstate = 0;
 
 	BUG_ON(host->req_in_progress);
 	BUG_ON(host->dma_ch != -1);
