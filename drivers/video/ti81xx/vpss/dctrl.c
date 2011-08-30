@@ -2433,8 +2433,8 @@ int __init vps_dc_init(struct platform_device *pdev,
 			opinfo.vencnodenum = VPS_DC_VENC_HDMI;
 			opinfo.dvofmt = VPS_DC_DVOFMT_TRIPLECHAN_DISCSYNC;
 			opinfo.dataformat = FVID2_DF_RGB24_888;
-			if (cpu_is_ti816x() && (VPS_PLATFORM_CPU_REV_1_0 ==
-			    cpuver))
+			if (cpu_is_ti816x() && (TI8168_REV_ES1_0 ==
+			    omap_rev()))
 				clksrcp->clksrc = VPS_DC_CLKSRC_VENCD_DIV2;
 			else
 				clksrcp->clksrc = VPS_DC_CLKSRC_VENCD;
@@ -2446,7 +2446,7 @@ int __init vps_dc_init(struct platform_device *pdev,
 			opinfo.dataformat = FVID2_DF_RGB24_888;
 
 			if (cpu_is_ti816x()) {
-				if (VPS_PLATFORM_CPU_REV_1_0 == cpuver)
+				if (TI8168_REV_ES1_0 == omap_rev())
 					clksrcp->clksrc =
 						VPS_DC_CLKSRC_VENCD_DIV2;
 				else

@@ -57,14 +57,11 @@ static char *def_sbaddr;
 /*time out value is 2 seconds*/
 static u32  def_timeout = 2000;
 bool   def_i2cmode = 0u;
-enum   vps_platformcpurev cpuver;
 
 static int vps_probe(struct platform_device *pdev)
 {
 	int r;
-	cpuver = vps_system_getcpurev();
-	VPSSDBG("cpu version %d\n", cpuver);
-
+	VPSSDBG("cpu version 0x%x\n", omap_rev());
 	r = vps_sbuf_init(def_sbaddr, def_sbsize);
 	if (r) {
 		VPSSERR("failed to allocate share buffer\n");

@@ -56,7 +56,6 @@ extern unsigned int vpss_debug;
 	} while (0)
 
 extern bool   def_i2cmode;
-extern enum vps_platformcpurev cpuver;
 
 #define VPS_CRITICAL_SECTION_LOCK  0xAAAA5555
 #define VPS_CRITICAL_SECTION_FREE  0x0

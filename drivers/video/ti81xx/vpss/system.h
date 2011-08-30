@@ -147,39 +147,4 @@ struct vps_systemvpllclk {
 int vps_system_setpll(struct vps_systemvpllclk *pll);
 int vps_system_getpll(struct vps_systemvpllclk *pll);
 int vps_system_getplatformid(u32 *pid);
-static inline enum vps_platformcpurev  vps_system_getcpurev(void)
-{
-	u32 devid, cpurev;
-	devid = omap_readl(0x48140600);
-
-	cpurev = (devid >> 28) & 0xF;
-
-	switch (cpurev) {
-	case 0:
-		return VPS_PLATFORM_CPU_REV_1_0;
-	case 1:
-		if (cpu_is_ti816x())
-			return VPS_PLATFORM_CPU_REV_1_1;
-		else
-			return VPS_PLATFORM_CPU_REV_MAX;
-	case 2:
-		return VPS_PLATFORM_CPU_REV_MAX;
-	case 3:
-	case 0xc:
-	/*some device has 0xC while the
-	final should have 0x3*/
-		if (cpu_is_ti814x())
-			return VPS_PLATFORM_CPU_REV_2_1;
-		else
-			return VPS_PLATFORM_CPU_REV_MAX;
-	default:
-		/*somehow some device has different revision
-		number in the register*/
-		if (cpu_is_ti814x())
-			return VPS_PLATFORM_CPU_REV_2_1;
-		return VPS_PLATFORM_CPU_REV_MAX;
-	}
-
-}
-
 #endif

@@ -333,13 +333,13 @@ static int vps_grpx_set_format(struct vps_grpx_ctrl *gctrl,
 
 	/*format check*/
 	if (cpu_is_ti816x()) {
-		if (vps_isnewdata(df) && (cpuver < VPS_PLATFORM_CPU_REV_2_0)) {
+		if (vps_isnewdata(df) && (omap_rev() < TI8168_REV_ES2_0)) {
 			VPSSERR("(%d) - unsupport format %d\n",
 				gctrl->grpx_num, df);
 			return -1;
 		}
 	} else {
-		if (vps_isnewdata(df) && (cpuver < VPS_PLATFORM_CPU_REV_2_1)) {
+		if (vps_isnewdata(df) && (omap_rev() < TI8148_REV_ES2_0)) {
 			VPSSERR("(%d) - unsupport format %d\n",
 				gctrl->grpx_num, df);
 			return -1;
