@@ -1365,10 +1365,62 @@ static int __exit ti81xx_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int ti81xx_suspend(struct device *dev)
+{
+	struct ti81xx_glue *glue = dev_get_drvdata(dev);
+	struct musb_hdrc_platform_data *plat = dev->platform_data;
+	struct omap_musb_board_data *data = plat->board_data;
+	int i;
+
+	/* Shutdown the on-chip PHY and its PLL. */
+	for (i = 0; i <= data->instances; ++i) {
+		if (data->set_phy_power)
+			data->set_phy_power(0, i);
+	}
+
+	/* disable the common usbss interface clock */
+	clk_disable(glue->ick);
+	return 0;
+}
+
+static int ti81xx_resume(struct device *dev)
+{
+	struct ti81xx_glue *glue = dev_get_drvdata(dev);
+	struct musb_hdrc_platform_data *plat = dev->platform_data;
+	struct omap_musb_board_data *data = plat->board_data;
+	int ret, i;
+
+	/* Start the on-chip PHY and its PLL. */
+	for (i = 0; i <= data->instances; ++i) {
+		if (data->set_phy_power)
+			data->set_phy_power(1, i);
+	}
+
+	/* enable the common usbss interface clock */
+	ret = clk_enable(glue->ick);
+	if (ret) {
+		dev_err(dev, "failed to enable clock\n");
+		return ret;
+	}
+	return 0;
+}
+
+static const struct dev_pm_ops ti81xx_pm_ops = {
+	.suspend	= ti81xx_suspend,
+	.resume		= ti81xx_resume,
+};
+
+#define DEV_PM_OPS	(&ti81xx_pm_ops)
+#else
+#define DEV_PM_OPS	NULL
+#endif
+
 static struct platform_driver ti81xx_musb_driver = {
 	.remove         = __exit_p(ti81xx_remove),
 	.driver         = {
 		.name   = "ti81xx-usbss",
+		.pm	= DEV_PM_OPS,
 	},
 };
 
