@@ -139,6 +139,8 @@ if (cpu_is_ti816x())
 static inline u32 get_plloutputvenc(int bidx)
 {
 	struct vps_dcvencclksrc clksrc = disp_ctrl->blenders[bidx].clksrc;
+	struct ti81xx_external_encoder *extenc =
+			&external_encs[bidx][0];
 
 	if (bidx == SDVENC)
 		return VPS_SYSTEM_VPLL_OUTPUT_VENC_RF;
@@ -146,9 +148,14 @@ static inline u32 get_plloutputvenc(int bidx)
 	if (cpu_is_ti814x()) {
 		if (bidx == DVO2)
 			return VPS_SYSTEM_VPLL_OUTPUT_VENC_D;
-		else if (HDMI == bidx)
-			return VPS_SYSTEM_VPLL_OUTPUT_VENC_A;
+		else if (HDMI == bidx) {
+			if (extenc->status == TI81xx_EXT_ENCODER_UNREGISTERED)
+				return VPS_SYSTEM_VPLL_OUTPUT_VENC_A;
+			else
+				return VPS_SYSTEM_VPLL_OUTPUT_VENC_HDMI;
+		}
 	}
+
 	if (isdigitalclk(clksrc.clksrc))
 		return VPS_SYSTEM_VPLL_OUTPUT_VENC_D;
 	else
@@ -171,6 +178,22 @@ static inline int get_pllclock(u32 mid, u32 *freq)
 		}
 	}
 	return -EINVAL;
+}
+/*convert the VENC timing to external device timing*/
+static inline void dc_timing_to_device_timing(struct fvid2_modeinfo *minfo,
+	struct TI81xx_video_timings *timings)
+{
+	timings->pixel_clock = minfo->pixelclock;
+	timings->width = minfo->width;
+	timings->height = minfo->height;
+	timings->scanformat = minfo->scanformat;
+	timings->hfp = minfo->hfrontporch;
+	timings->hbp = minfo->hbackporch;
+	timings->hsw = minfo->hsynclen;
+	timings->vfp = minfo->vfrontporch;
+	timings->vbp = minfo->vbackporch;
+	timings->vsw = minfo->vsynclen;
+
 }
 /*get the current format based on the mode id*/
 static int dc_get_format_from_mid(int mid,
@@ -596,7 +619,7 @@ static int dc_set_vencmode(struct vps_dcvencinfo *vinfo)
 {
 	int i, r = 0;
 	int vencs = 0;
-	int bidx;
+	int bidx = 0;
 	struct vps_dcvencinfo vi;
 	struct vps_dcvencinfo tied_vi;
 	struct vps_dcvencinfo ntied_vi;
@@ -1185,17 +1208,8 @@ static ssize_t blender_mode_store(struct dc_blender_info *binfo,
 	 */
 		timings.standard = mid;
 		timings.dvi_hdmi = TI81xx_MODE_HDMI;
-		timings.pixel_clock = venc_info.modeinfo[idx].minfo.pixelclock;
-		timings.width = venc_info.modeinfo[idx].minfo.width;
-		timings.height = venc_info.modeinfo[idx].minfo.height;
-		timings.scanformat = venc_info.modeinfo[idx].minfo.scanformat;
-		timings.hfp = venc_info.modeinfo[idx].minfo.hfrontporch;
-		timings.hbp = venc_info.modeinfo[idx].minfo.hbackporch;
-		timings.hsw = venc_info.modeinfo[idx].minfo.hsynclen;
-		timings.vfp = venc_info.modeinfo[idx].minfo.vfrontporch;
-		timings.vbp = venc_info.modeinfo[idx].minfo.vbackporch;
-		timings.vsw = venc_info.modeinfo[idx].minfo.vsynclen;
-
+		dc_timing_to_device_timing(&venc_info.modeinfo[idx].minfo,
+					&timings);
 		if (extenc->panel_driver->set_timing)
 			extenc->panel_driver->set_timing(
 						&timings,
@@ -1302,19 +1316,9 @@ static ssize_t blender_timings_store(struct dc_blender_info *binfo,
 	 */
 		timings.standard = FVID2_STD_CUSTOM;
 		timings.dvi_hdmi = TI81xx_MODE_HDMI;
-		timings.pixel_clock =
-			venc_info.modeinfo[binfo->idx].minfo.pixelclock;
-		timings.width = venc_info.modeinfo[binfo->idx].minfo.width;
-		timings.height = venc_info.modeinfo[binfo->idx].minfo.height;
-		timings.scanformat =
-			venc_info.modeinfo[binfo->idx].minfo.scanformat;
-		timings.hfp = venc_info.modeinfo[binfo->idx].minfo.hfrontporch;
-		timings.hbp = venc_info.modeinfo[binfo->idx].minfo.hbackporch;
-		timings.hsw = venc_info.modeinfo[binfo->idx].minfo.hsynclen;
-		timings.vfp = venc_info.modeinfo[binfo->idx].minfo.vfrontporch;
-		timings.vbp = venc_info.modeinfo[binfo->idx].minfo.vbackporch;
-		timings.vsw = venc_info.modeinfo[binfo->idx].minfo.vsynclen;
-
+		dc_timing_to_device_timing(
+				&venc_info.modeinfo[binfo->idx].minfo,
+				&timings);
 		if (extenc->panel_driver->set_timing)
 			extenc->panel_driver->set_timing(
 						&timings,
@@ -1393,7 +1397,7 @@ static ssize_t blender_enabled_store(struct dc_blender_info *binfo,
 				VPSSDBG("External already Disabled\n");
 		}
 	} else {
-		int idx;
+		int idx = 0;
 		struct vps_dcvencinfo vinfo;
 		get_idx_from_vid(vid, &idx);
 		memcpy(&vinfo.modeinfo[0],
@@ -1904,7 +1908,7 @@ static ssize_t dctrl_tiedvencs_store(struct vps_dispctrl *dctrl,
 	while (vencs >> i) {
 		/*get id of each venc to be tied*/
 		if ((vencs >> i++) & 1) {
-			int idx;
+			int idx = 0;
 			int vid = 1 << (i - 1);
 			get_idx_from_vid(vid, &idx);
 			memcpy(&vinfo.modeinfo[vinfo.numvencs++],
@@ -1931,7 +1935,7 @@ static ssize_t dctrl_tiedvencs_store(struct vps_dispctrl *dctrl,
 	vencs = disp_ctrl->tiedvenc;
 	while (vencs >> i) {
 		if ((vencs >> i++) & 1) {
-			int idx;
+			int idx = 0;
 			int vid = 1 << (i - 1);
 			get_idx_from_vid(vid, &idx);
 			extenc = &external_encs[idx][0];
@@ -2643,18 +2647,30 @@ int TI81xx_register_display_panel(struct TI81xx_display_driver *panel_driver,
 				if (vencinfo->enabled)
 					extenc->status =
 						TI81xx_EXT_ENCODER_ENABLED;
+				if (cpu_is_ti814x() && (HDMI == display_num)) {
+					/*reconfigure the PLL*/
+					r = dc_set_pllclock(i,
+						    dcminfo->minfo.pixelclock);
+					if (r)
+						VPSSERR("failed to set pll");
+				}
 
+				vencinfo->vtimings.dvi_hdmi = TI81xx_MODE_HDMI;
 				vencinfo->vtimings.standard =
 						dcminfo->minfo.standard;
-				vencinfo->vtimings.dvi_hdmi = TI81xx_MODE_HDMI;
+
+				dc_timing_to_device_timing(&dcminfo->minfo,
+							&vencinfo->vtimings);
 				/*FIX ME, this is a temp solution here,
 				will address later*/
 				if (vencinfo->vtimings.standard ==
 				    FVID2_STD_CUSTOM)
 					vencinfo->vtimings.standard =
 							FVID2_STD_1080P_60;
+
 				vencinfo->outinfo.vencnodenum =
 						venc_name[display_num].vid;
+
 				dc_get_output(&vencinfo->outinfo);
 			}
 			break;

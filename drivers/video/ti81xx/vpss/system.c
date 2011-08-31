@@ -64,6 +64,7 @@ static inline bool isvalidpllclk(struct vps_systemvpllclk *pllclk)
 		break;
 	case VPS_SYSTEM_VPLL_OUTPUT_VENC_A:
 	case VPS_SYSTEM_VPLL_OUTPUT_VENC_D:
+	case VPS_SYSTEM_VPLL_OUTPUT_VENC_HDMI:
 		if (cpu_is_ti814x()) {
 			if (pllclk->outputclk == 54000)
 				return false;
@@ -89,7 +90,7 @@ int vps_system_setpll(struct vps_systemvpllclk *pll)
 
 	/*set HDMI pll by HDMI Driver*/
 	if (cpu_is_ti814x() &&
-		(pll->outputvenc == VPS_SYSTEM_VPLL_OUTPUT_VENC_A))
+		(pll->outputvenc == VPS_SYSTEM_VPLL_OUTPUT_VENC_HDMI))
 		return 0;
 
 	if (!isvalidpllclk(pll))

@@ -80,6 +80,8 @@ enum vps_vplloutputclk {
 	/**< VencD output clock. */
 	VPS_SYSTEM_VPLL_OUTPUT_VENC_A,
 	/**< VencA output clock. */
+	VPS_SYSTEM_VPLL_OUTPUT_VENC_HDMI,
+	/**< HDMI clock TI814X only */
 	VPS_SYSTEM_VPLL_OUTPUT_MAX_VENC
 	/**< This should be last Enum. */
 };
