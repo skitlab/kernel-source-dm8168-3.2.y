@@ -18,6 +18,7 @@
 #include <linux/davinci_emac.h>
 #include <linux/cpsw.h>
 #include <linux/ahci_platform.h>
+#include <linux/delay.h>
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
@@ -2338,13 +2339,13 @@ void __init ti81xx_register_mcasp(int id, struct snd_platform_data *pdata)
 }
 #endif
 
-#if defined(CONFIG_ARCH_TI816X) && defined(CONFIG_PCI)
-static struct ti816x_pcie_data ti816x_pcie_data = {
+#if defined(CONFIG_ARCH_TI81XX) && defined(CONFIG_PCI)
+static struct ti81xx_pcie_data ti81xx_pcie_data = {
 	.msi_irq_base	= MSI_IRQ_BASE,
 	.msi_irq_num	= MSI_NR_IRQS,
 };
 
-static struct resource ti816x_pcie_resources[] = {
+static struct resource ti81xx_pcie_resources[] = {
 	{
 		/* Register space */
 		.name		= "pcie-regs",
@@ -2391,28 +2392,65 @@ static struct resource ti816x_pcie_resources[] = {
 #endif
 };
 
-static struct platform_device ti816x_pcie_device = {
-	.name		= "ti816x_pcie",
+static struct platform_device ti81xx_pcie_device = {
+	.name		= "ti81xx_pcie",
 	.id		= 0,
 	.dev		= {
-		.platform_data = &ti816x_pcie_data,
+		.platform_data = &ti81xx_pcie_data,
 	},
-	.num_resources	= ARRAY_SIZE(ti816x_pcie_resources),
-	.resource	= ti816x_pcie_resources,
+	.num_resources	= ARRAY_SIZE(ti81xx_pcie_resources),
+	.resource	= ti81xx_pcie_resources,
 };
 
-static inline void ti816x_init_pcie(void)
+static inline void ti81xx_init_pcie(void)
 {
-	if (cpu_is_ti816x()) {
+	if (!cpu_is_ti81xx())
+		return;
+
+	if (cpu_is_ti816x())
 		omap_ctrl_writel(TI816X_PCIE_PLLMUX_25X |
 				TI81XX_PCIE_DEVTYPE_RC,
 				TI816X_CONTROL_PCIE_CFG);
+	else if (cpu_is_ti814x()) {
 
-		platform_device_register(&ti816x_pcie_device);
+		/* TODO: Add bitfield macros for following */
+
+		omap_ctrl_writel(0x00000002, TI814X_SERDES_REFCLK_CTL);
+		omap_ctrl_writel(0x00000000, TI814X_CONTROL_PCIE_PLLCFG0);
+		omap_ctrl_writel(0x00640000, TI814X_CONTROL_PCIE_PLLCFG1);
+		omap_ctrl_writel(0x00000000, TI814X_CONTROL_PCIE_PLLCFG2);
+		omap_ctrl_writel(0x004008E0, TI814X_CONTROL_PCIE_PLLCFG3);
+		omap_ctrl_writel(0x0000609C, TI814X_CONTROL_PCIE_PLLCFG4);
+
+		udelay(50);
+		omap_ctrl_writel(0x00000004, TI814X_CONTROL_PCIE_PLLCFG0);
+
+		udelay(50);
+		omap_ctrl_writel(0x00000014, TI814X_CONTROL_PCIE_PLLCFG0);
+
+		udelay(50);
+		omap_ctrl_writel(0x00000016, TI814X_CONTROL_PCIE_PLLCFG0);
+
+		udelay(50);
+		omap_ctrl_writel(0x30000016, TI814X_CONTROL_PCIE_PLLCFG0);
+
+		udelay(50);
+		omap_ctrl_writel(0x70007016, TI814X_CONTROL_PCIE_PLLCFG0);
+
+		udelay(200);
+		omap_ctrl_writel(0x70007017, TI814X_CONTROL_PCIE_PLLCFG0);
+
+		while (!(omap_ctrl_readl(TI814X_CONTROL_PCIE_PLLSTATUS) & 0x1))
+			cpu_relax();
+
+		omap_ctrl_writel(TI81XX_PCIE_DEVTYPE_RC,
+				TI814X_CONTROL_PCIE_CFG);
 	}
+
+	platform_device_register(&ti81xx_pcie_device);
 }
 #else
-static inline void ti816x_init_pcie(void) {}
+static inline void ti81xx_init_pcie(void) {}
 #endif
 
 static int __init omap2_init_devices(void)
@@ -2436,7 +2474,7 @@ static int __init omap2_init_devices(void)
 	omap_init_vout();
 #ifdef CONFIG_ARCH_TI81XX
 	ti81xx_ethernet_init();
-	ti816x_init_pcie();
+	ti81xx_init_pcie();
 	ti81xx_register_edma();
 	ti81xx_init_pcm();
 	ti816x_sr_init();
