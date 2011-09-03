@@ -890,8 +890,8 @@ static struct clk sata_ick = {
 };
 
 /* PCIe Clock(final) */
-static struct clk pcie_ick = {
-	.name		= "pcie_ick",
+static struct clk pcie_ck = {
+	.name		= "pcie_ck",
 	.parent		= &sysclk5_ck,
 	.ops		= &clkops_ti81xx_pcie,
 	.enable_reg	= TI814X_CM_ALWON2_PCI_CLKCTRL,
@@ -3811,7 +3811,7 @@ static struct omap_clk ti814x_clks[] = {
 	CLK(NULL,		"securess_ick",			&securess_ick,			CK_TI814X),
 	CLK(NULL,		"tpgsw_ick",			&tpgsw_ick,			CK_TI814X),
 	CLK("ahci.0",		NULL,				&sata_ick,			CK_TI814X),
-	CLK(NULL,		"pcie_ick",			&pcie_ick,			CK_TI814X),
+	CLK(NULL,		"pcie_ck",			&pcie_ck,			CK_TI814X),
 	CLK(NULL,		"vcp2_fck",			&vcp2_fck,			CK_TI814X),
 	CLK(NULL,		"mlb_ick",			&mlb_ick,			CK_TI814X),
 	CLK(NULL,		"fdif_fck",			&fdif_fck,			CK_TI814X),
