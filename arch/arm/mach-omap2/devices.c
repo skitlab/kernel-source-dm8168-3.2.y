@@ -2445,6 +2445,13 @@ static inline void ti81xx_init_pcie(void)
 
 		omap_ctrl_writel(TI81XX_PCIE_DEVTYPE_RC,
 				TI814X_CONTROL_PCIE_CFG);
+
+		/*
+		 * Force x1 lane as TI814X only supports x1 while the PCIe
+		 * registers read x2 leading to wrong capability printed form
+		 * PCIe configuration.
+		 */
+		ti81xx_pcie_data.force_x1 = 1;
 	}
 
 	platform_device_register(&ti81xx_pcie_device);
