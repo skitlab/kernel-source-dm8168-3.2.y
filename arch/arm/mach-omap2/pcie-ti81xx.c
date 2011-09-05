@@ -1,5 +1,5 @@
 /*
- * PCIe RC (Host) Driver for TI816X PCIe Module (PCIESS) configured as Root
+ * PCIe RC (Host) Driver for TI81XX PCIe Module (PCIESS) configured as Root
  * Complex.
  *
  * Copyright (C) 2010 Texas Instruments Incorporated - http://www.ti.com/
@@ -42,9 +42,9 @@
 
 #include <plat/ti81xx.h>
 
-#include "pcie-ti816x.h"
+#include "pcie-ti81xx.h"
 
-#define DRIVER_NAME		"ti816x_pcie"
+#define DRIVER_NAME		"ti81xx_pcie"
 
 static struct platform_device *pcie_pdev;
 static int msi_irq_base;
@@ -70,7 +70,7 @@ static int msi_irq;
  * as the h/w spec doesn't mention any restriction on config and io accesses to
  * be performed exclusively
  */
-static DEFINE_SPINLOCK(ti816x_pci_io_lock);
+static DEFINE_SPINLOCK(ti81xx_pci_io_lock);
 
 /*
  *  Application Register Offsets
@@ -157,7 +157,7 @@ static int get_and_clear_err(void)
 }
 
 /**
- * ti816x_pcie_fault() - ARM abort handler for PCIe non-posted completion aborts
+ * ti81xx_pcie_fault() - ARM abort handler for PCIe non-posted completion aborts
  * @addr: Address target on which the fault generated
  * @fsr: CP15 fault status register value
  * @regs: Pointer to register structure on abort
@@ -189,7 +189,7 @@ static int get_and_clear_err(void)
  * received/happened.
  */
 static int
-ti816x_pcie_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
+ti81xx_pcie_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 {
 	unsigned long instr = *(unsigned long *)regs->ARM_pc;
 
@@ -383,14 +383,14 @@ static void set_inbound_trans(void)
 static DECLARE_BITMAP(msi_irq_bits, CFG_MAX_MSI_NUM);
 
 /**
- * ti816x_msi_handler() - Handle MSI interrupt
+ * ti81xx_msi_handler() - Handle MSI interrupt
  * @irq: IRQ line for MSI interrupts
  * @desc: Pointer to irq descriptor
  *
  * Traverse through pending MSI interrupts and invoke handler for each. Also
  * takes care of interrupt controller level mask/ack operation.
  */
-static void ti816x_msi_handler(unsigned int irq, struct irq_desc *desc)
+static void ti81xx_msi_handler(unsigned int irq, struct irq_desc *desc)
 {
 	int bit = 0;
 	u32 status;
@@ -442,7 +442,7 @@ static void unmask_msi(unsigned int irq)
  * support mask bits capability.
  */
 
-static struct irq_chip ti816x_msi_chip = {
+static struct irq_chip ti81xx_msi_chip = {
 	.name = "PCIe-MSI",
 	.ack = ack_msi,
 	.mask = mask_msi,
@@ -516,7 +516,7 @@ int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 
 			write_msi_msg(irq, &msg);
 
-			set_irq_chip_and_handler(irq, &ti816x_msi_chip,
+			set_irq_chip_and_handler(irq, &ti81xx_msi_chip,
 						handle_level_irq);
 			set_irq_flags(irq, IRQF_VALID);
 		}
@@ -535,7 +535,7 @@ void arch_teardown_msi_irq(unsigned int irq)
 }
 
 /**
- * ti816x_pcie_setup() - Perform PCIe system setup.
+ * ti81xx_pcie_setup() - Perform PCIe system setup.
  * @nr: PCI controller index
  * @sys: PCI data for the controller
  *
@@ -559,7 +559,7 @@ void arch_teardown_msi_irq(unsigned int irq)
  * - 64-bit addressing support
  * - Additional delay/handshaking for EPs indulging in CRRS
  */
-static int ti816x_pcie_setup(int nr, struct pci_sys_data *sys)
+static int ti81xx_pcie_setup(int nr, struct pci_sys_data *sys)
 {
 	struct resource *res, *plat_res;
 	struct clk *pcie_ck;
@@ -750,7 +750,7 @@ static int ti816x_pcie_setup(int nr, struct pci_sys_data *sys)
 				msi_irq_num);
 		}
 
-		set_irq_chained_handler(msi_irq, ti816x_msi_handler);
+		set_irq_chained_handler(msi_irq, ti81xx_msi_handler);
 	} else {
 		pr_warning(DRIVER_NAME ": MSI info not available, disabled\n");
 		msi_irq_num = 0;
@@ -759,10 +759,10 @@ static int ti816x_pcie_setup(int nr, struct pci_sys_data *sys)
 	get_and_clear_err();
 
 	/*
-	 * PCIe access errors that result into OCP errors on TI816X are caught
-	 * by ARM as "External aborts" (Precise).
+	 * PCIe access errors that result into OCP errors are caught by ARM as
+	 * "External aborts" (Precise).
 	 */
-	hook_fault_code(8, ti816x_pcie_fault, SIGBUS, 0,
+	hook_fault_code(8, ti81xx_pcie_fault, SIGBUS, 0,
 			"Precise External Abort on non-linefetch");
 
 	 return 1;
@@ -857,12 +857,12 @@ static inline u32 setup_config_addr(u8 bus, u8 device, u8 function)
 }
 
 /**
- * ti816x_pci_read_io() - Perform PCI IO read from a device
+ * ti81xx_pci_io_read() - Perform PCI IO read from a device
  * @addr: IO address
  * @size: Number of bytes
  * @value: Pointer to hold the read value
  */
-int ti816x_pci_io_read(u32 addr, int size, u32 *value)
+int ti81xx_pci_io_read(u32 addr, int size, u32 *value)
 {
 	unsigned long flags;
 
@@ -871,7 +871,7 @@ int ti816x_pci_io_read(u32 addr, int size, u32 *value)
 
 	pr_debug(DRIVER_NAME ": IO read @%#x = ", addr);
 
-	spin_lock_irqsave(&ti816x_pci_io_lock, flags);
+	spin_lock_irqsave(&ti81xx_pci_io_lock, flags);
 
 	__raw_writel(addr & 0xfffff000, reg_virt + IOBASE);
 
@@ -881,21 +881,21 @@ int ti816x_pci_io_read(u32 addr, int size, u32 *value)
 	*value = __raw_readl(addr);
 	*value >>= ((addr & 3)*8);
 
-	spin_unlock_irqrestore(&ti816x_pci_io_lock, flags);
+	spin_unlock_irqrestore(&ti81xx_pci_io_lock, flags);
 
 	pr_debug("%#x\n", *value);
 
 	return 0;
 }
-EXPORT_SYMBOL(ti816x_pci_io_read);
+EXPORT_SYMBOL(ti81xx_pci_io_read);
 
 /**
- * ti816x_pci_write_io() - Perform PCI IO write to a device
+ * ti81xx_pci_io_write() - Perform PCI IO write to a device
  * @addr: IO address
  * @size: Number of bytes
  * @value: Value to write
  */
-int ti816x_pci_io_write(u32 addr, int size, u32 value)
+int ti81xx_pci_io_write(u32 addr, int size, u32 value)
 {
 	unsigned long flags;
 	u32 iospace_addr;
@@ -905,7 +905,7 @@ int ti816x_pci_io_write(u32 addr, int size, u32 value)
 
 	pr_debug(DRIVER_NAME ": IO write @%#x = %#x\n", addr, value);
 
-	spin_lock_irqsave(&ti816x_pci_io_lock, flags);
+	spin_lock_irqsave(&ti81xx_pci_io_lock, flags);
 
 	__raw_writel(addr & 0xfffff000, reg_virt + IOBASE);
 
@@ -921,14 +921,14 @@ int ti816x_pci_io_write(u32 addr, int size, u32 value)
 
 	__raw_writel(value, iospace_addr);
 
-	spin_unlock_irqrestore(&ti816x_pci_io_lock, flags);
+	spin_unlock_irqrestore(&ti81xx_pci_io_lock, flags);
 
 	return 0;
 }
-EXPORT_SYMBOL(ti816x_pci_io_write);
+EXPORT_SYMBOL(ti81xx_pci_io_write);
 
 /**
- * ti816x_pci_read_config() - Perform PCI configuration read from a device
+ * ti81xx_pci_read_config() - Perform PCI configuration read from a device
  * @bus: Pointer to bus to access device on
  * @devfn: Device number of the bus and function number within
  * @where: Configuration space register offset
@@ -938,7 +938,7 @@ EXPORT_SYMBOL(ti816x_pci_io_write);
  * Note: We skip alignment check and locking since it is taken care by PCI
  * access wrappers.
  */
-static int ti816x_pci_read_config(struct pci_bus *bus, unsigned int devfn,
+static int ti81xx_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 				int where, int size, u32 *value)
 {
 	u8 bus_num = bus->number;
@@ -965,7 +965,7 @@ static int ti816x_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 }
 
 /**
- * ti816x_pci_write_config() - Perform PCI configuration write to a device
+ * ti81xx_pci_write_config() - Perform PCI configuration write to a device
  * @bus: Pointer to bus to access device on
  * @devfn: Device number of the bus and function number within
  * @where: Configuration space register offset
@@ -975,7 +975,7 @@ static int ti816x_pci_read_config(struct pci_bus *bus, unsigned int devfn,
  * Note: We skip alignment check and locking since it is taken care by PCI
  * access wrappers.
  */
-static int ti816x_pci_write_config(struct pci_bus *bus, unsigned int devfn,
+static int ti81xx_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 				int where, int size, u32 value)
 {
 	u8 bus_num = bus->number;
@@ -1009,18 +1009,18 @@ static int ti816x_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static struct pci_ops ti816x_pci_ops = {
-	.read	= ti816x_pci_read_config,
-	.write	= ti816x_pci_write_config,
+static struct pci_ops ti81xx_pci_ops = {
+	.read	= ti81xx_pci_read_config,
+	.write	= ti81xx_pci_write_config,
 };
 
-static struct pci_bus *ti816x_pcie_scan(int nr, struct pci_sys_data *sys)
+static struct pci_bus *ti81xx_pcie_scan(int nr, struct pci_sys_data *sys)
 {
 	struct pci_bus *bus = NULL;
 
 	pr_info(DRIVER_NAME ": Starting PCI scan...\n");
 	if (nr == 0) {
-		bus = pci_scan_bus(0, &ti816x_pci_ops, sys);
+		bus = pci_scan_bus(0, &ti81xx_pci_ops, sys);
 
 		/* Post enumeration fixups */
 		set_inbound_trans();
@@ -1033,7 +1033,7 @@ static struct pci_bus *ti816x_pcie_scan(int nr, struct pci_sys_data *sys)
 }
 
 /**
- * ti816x_pcie_map_irq() - Map a legacy interrupt to an IRQ
+ * ti81xx_pcie_map_irq() - Map a legacy interrupt to an IRQ
  * @dev: Device structure of End Point (EP) to assign IRQ to.
  * @slot: Device slot
  * @pin: Pin number for the function
@@ -1041,33 +1041,33 @@ static struct pci_bus *ti816x_pcie_scan(int nr, struct pci_sys_data *sys)
  * Note: Currently ignores all the parameters and only supports mapping to
  * single IRQ.
  */
-static int ti816x_pcie_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int ti81xx_pcie_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
 	pr_debug(DRIVER_NAME "Returning Legacy irq = %d\n", legacy_irq);
 	return (legacy_irq >= 0) ? legacy_irq : -1;
 }
 
 /* PCI controller setup and configuration data */
-static struct hw_pci ti816x_pci = {
+static struct hw_pci ti81xx_pci = {
 	.nr_controllers     = 1,
-	.setup              = ti816x_pcie_setup,
-	.scan               = ti816x_pcie_scan,
+	.setup              = ti81xx_pcie_setup,
+	.scan               = ti81xx_pcie_scan,
 	.preinit            = NULL,
 	.postinit           = NULL,
 	.swizzle            = pci_std_swizzle,
-	.map_irq            = ti816x_pcie_map_irq
+	.map_irq            = ti81xx_pcie_map_irq
 };
 
 /**
- * ti816x_pcie_probe() - Invoke PCI BIOS to perrform enumeration.
+ * ti81xx_pcie_probe() - Invoke PCI BIOS to perrform enumeration.
  * @pdev: Contains platform data as supplied from board level code.
  *
  * Also stores reference to platform device structure for use during PCIe
  * module initialization and configuration.
  */
-static int ti816x_pcie_probe(struct platform_device *pdev)
+static int ti81xx_pcie_probe(struct platform_device *pdev)
 {
-	struct ti816x_pcie_data *pdata;
+	struct ti81xx_pcie_data *pdata;
 
 	pcie_pdev = pdev;
 
@@ -1079,32 +1079,33 @@ static int ti816x_pcie_probe(struct platform_device *pdev)
 
 	msi_irq_base = pdata->msi_irq_base;
 	msi_irq_num = pdata->msi_irq_num;
+	force_x1 = pdata->force_x1;
 
 	pr_info(DRIVER_NAME ": Invoking PCI BIOS...\n");
-	pci_common_init(&ti816x_pci);
+	pci_common_init(&ti81xx_pci);
 
 	return 0;
 }
 
-static struct platform_driver ti816x_pcie_driver = {
+static struct platform_driver ti81xx_pcie_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
 	},
-	.probe = ti816x_pcie_probe,
+	.probe = ti81xx_pcie_probe,
 };
 
 /**
- * ti816x_pcie_rc_init() - Register PCIe Root Complex node.
+ * ti81xx_pcie_rc_init() - Register PCIe Root Complex node.
  *
  * Invoked as subsystem initialization.
  *
  * IMPORTANT NOTE: We are relying on SoC/Board level code to check PCIESS
  * mode setting (RC/EP) and register the RC device only in RC mode.
  */
-static int __init ti816x_pcie_rc_init(void)
+static int __init ti81xx_pcie_rc_init(void)
 {
-	platform_driver_register(&ti816x_pcie_driver);
+	platform_driver_register(&ti81xx_pcie_driver);
 	return 0;
 }
-subsys_initcall(ti816x_pcie_rc_init);
+subsys_initcall(ti81xx_pcie_rc_init);

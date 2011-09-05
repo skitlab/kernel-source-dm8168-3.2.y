@@ -1,5 +1,5 @@
 /*
- * Platform data for ti816x PCIe Root Complex module.
+ * Platform data for ti81xx PCIe Root Complex module.
  *
  * Copyright (C) 2010 Texas Instruments, Inc. - http://www.ti.com/
  *
@@ -13,10 +13,10 @@
  * GNU General Public License for more details.
  */
 
-#ifndef __ARCH_ARM_MACH_OMAP2_PCIE_TI816X_H
-#define __ARCH_ARM_MACH_OMAP2_PCIE_TI816X_H
+#ifndef __ARCH_ARM_MACH_OMAP2_PCIE_TI81XX_H
+#define __ARCH_ARM_MACH_OMAP2_PCIE_TI81XX_H
 
-struct ti816x_pcie_data {
+struct ti81xx_pcie_data {
 	int msi_irq_base;
 	int msi_irq_num;
 };

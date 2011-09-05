@@ -169,10 +169,10 @@ ifneq ($(CONFIG_TIDSPBRIDGE),)
 obj-y					+= dsp.o
 endif
 
-obj-$(CONFIG_PCI)                       += pcie-ti816x.o
+obj-$(CONFIG_PCI)                       += pcie-ti81xx.o
 
 ifeq ($(CONFIG_PCI_DEBUG),y)
-CFLAGS_pcie-ti816x.o += -DDEBUG
+CFLAGS_pcie-ti81xx.o += -DDEBUG
 endif
 
 # Specific board support

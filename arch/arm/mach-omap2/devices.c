@@ -40,7 +40,7 @@
 #include <plat/ti81xx-vpss.h>
 #include "mux.h"
 #include "control.h"
-#include "pcie-ti816x.h"
+#include "pcie-ti81xx.h"
 
 #include "devices.h"
 
