@@ -49,6 +49,7 @@
 static struct platform_device *pcie_pdev;
 static int msi_irq_base;
 static int msi_irq_num;
+static int force_x1;
 
 /* Details for inbound access to RAM, passed from platform data */
 static u32 ram_base, ram_end;
@@ -96,8 +97,14 @@ static DEFINE_SPINLOCK(ti81xx_pci_io_lock);
 #define IRQ_ENABLE_CLR			0x18c
 
 /*
+ * PCIe Config Register Offsets (capabilities)
+ */
+#define LINK_CAP			0x07c
+
+/*
  * PCIe Config Register Offsets (misc)
  */
+#define PL_LINK_CTRL			0x710
 #define DEBUG0				0x728
 #define PL_GEN2				0x80c
 
@@ -673,6 +680,35 @@ static int ti81xx_pcie_setup(int nr, struct pci_sys_data *sys)
 	__raw_writel(DIR_SPD | __raw_readl(
 				reg_virt + SPACE0_LOCAL_CFG_OFFSET + PL_GEN2),
 			reg_virt + SPACE0_LOCAL_CFG_OFFSET + PL_GEN2);
+
+	/*
+	 * Check if we need to force the link to x1 lane. This is particularly
+	 * applicable for TI81XX devices which are single lane while the PCIe
+	 * module's registers show x2 as lane configuration (e.g., LINK_CAP
+	 * register shows x2 on TI814X devices while they actually support
+	 * single lane only). Setting force_x1 flag directs us to force x1 in
+	 * link configurations avoiding sending misleading information from
+	 * PCIe configuration dump (e.g., 'lspci -vv' output).
+	 */
+	if (force_x1) {
+		u32 val;
+
+		val = __raw_readl(reg_virt + SPACE0_LOCAL_CFG_OFFSET +
+				LINK_CAP);
+		val = (val & ~(0x3f << 4)) | (1 << 4);
+		__raw_writel(val, reg_virt + SPACE0_LOCAL_CFG_OFFSET +
+				LINK_CAP);
+
+		val = __raw_readl(reg_virt + SPACE0_LOCAL_CFG_OFFSET + PL_GEN2);
+		val = (val & ~(0xff << 8)) | (1 << 8);
+		__raw_writel(val, reg_virt + SPACE0_LOCAL_CFG_OFFSET + PL_GEN2);
+
+		val = __raw_readl(reg_virt + SPACE0_LOCAL_CFG_OFFSET +
+				PL_LINK_CTRL);
+		val = (val & ~(0x3F << 16)) | (1 << 16);
+		__raw_writel(val, reg_virt + SPACE0_LOCAL_CFG_OFFSET +
+				PL_LINK_CTRL);
+	}
 
 	/*
 	 * Initiate Link Training. We will delay for L0 as specified by

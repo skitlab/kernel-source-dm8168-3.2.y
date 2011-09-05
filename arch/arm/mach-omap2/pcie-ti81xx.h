@@ -19,6 +19,7 @@
 struct ti81xx_pcie_data {
 	int msi_irq_base;
 	int msi_irq_num;
+	int force_x1;
 };
 
 #endif
