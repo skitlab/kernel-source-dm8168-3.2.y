@@ -32,6 +32,7 @@
 #include <mach/irqs.h>
 #include <mach/am35xx.h>
 #include <plat/usb.h>
+#include <plat/omap_device.h>
 #include "control.h"
 
 #define OTG_SYSCONFIG	   0x404
@@ -300,6 +301,14 @@ static struct musb_hdrc_platform_data musb_plat[] = {
 
 static u64 musb_dmamask = DMA_BIT_MASK(32);
 
+static struct omap_device_pm_latency omap_musb_latency[] = {
+	{
+		.deactivate_func	= omap_device_idle_hwmods,
+		.activate_func		= omap_device_enable_hwmods,
+		.flags			= OMAP_DEVICE_LATENCY_AUTO_ADJUST,
+	},
+};
+
 static struct platform_device musb_device[] = {
 	{
 		.name		= "musb-omap2430",
@@ -328,7 +337,11 @@ static struct platform_device musb_device[] = {
 
 void __init usb_musb_init(struct omap_musb_board_data *board_data)
 {
-	int i;
+	const char			*oh_name, *name;
+	struct omap_hwmod               *oh;
+	struct omap_device              *od;
+	int                             bus_id = -1;
+	int i, instances = board_data->instances;
 
 	if (cpu_is_omap243x()) {
 		musb_resources[0].start = OMAP243X_HS_BASE;
@@ -385,19 +398,36 @@ void __init usb_musb_init(struct omap_musb_board_data *board_data)
 	if (cpu_is_omap3430())
 		musb_config.fifo_mode = 5;
 
-	for (i = 0; i <= board_data->instances; i++) {
-		if (cpu_is_ti816x())
-			musb_plat[i].clock = "usbotg_ick";
-		else if (cpu_is_ti814x())
-			musb_plat[i].clock = "usb_ick";
-
+	for (i = 0; i < instances; i++) {
+		musb_plat[i].clock = "usb_ick";
 		musb_plat[i].board_data = board_data;
 		musb_plat[i].power = board_data->power >> 1;
 		musb_plat[i].mode = board_data->mode;
 		musb_plat[i].extvbus = board_data->extvbus;
 
-		if (platform_device_register(&musb_device[i]) < 0)
-			printk(KERN_ERR "Unable to register HS-USB (MUSB) device\n");
+		if (cpu_is_ti81xx()) {
+			oh_name = "usb_otg_hs";
+			name = "ti81xx-usbss";
+
+			oh = omap_hwmod_lookup(oh_name);
+			if (!oh) {
+				pr_err("Could not look up %s\n", oh_name);
+				return;
+			}
+
+			od = omap_device_build(name, bus_id, oh, &musb_plat,
+			       sizeof(musb_plat), omap_musb_latency,
+			       ARRAY_SIZE(omap_musb_latency), false);
+			if (IS_ERR(od)) {
+				pr_err("Could not build omapdevice for %s %s\n",
+					name, oh_name);
+				return;
+			}
+		} else {
+			if (platform_device_register(&musb_device[i]) < 0)
+				printk(KERN_ERR "Unable to register "
+					"HS-USB (MUSB) device\n");
+		}
 	}
 
 	usb_musb_pm_init();

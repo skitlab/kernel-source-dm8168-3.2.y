@@ -92,6 +92,7 @@ static struct omap_hwmod ti81xx_gpio1_hwmod;
 static struct omap_hwmod ti81xx_gpio2_hwmod;
 static struct omap_hwmod ti814x_gpio3_hwmod;
 static struct omap_hwmod ti814x_gpio4_hwmod;
+static struct omap_hwmod ti81xx_usbss_hwmod;
 
 /* L4 SLOW -> UART1 interface */
 static struct omap_hwmod_addr_space ti816x_uart1_addr_space[] = {
@@ -925,6 +926,73 @@ static struct omap_hwmod ti814x_gpio4_hwmod = {
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X),
 };
 
+/* L3 SLOW -> USBSS interface */
+static struct omap_hwmod_addr_space ti81xx_usbss_addr_space[] = {
+	{
+		.name		= "usbss",
+		.pa_start	= 0x47400000,
+		.pa_end		= 0x47400000 + SZ_4K - 1,
+		.flags		= ADDR_TYPE_RT
+	},
+	{
+		.name		= "musb0",
+		.pa_start	= 0x47401000,
+		.pa_end		= 0x47401000 + SZ_2K - 1,
+		.flags		= ADDR_TYPE_RT
+	},
+	{
+		.name		= "musb1",
+		.pa_start	= 0x47401800,
+		.pa_end		= 0x47401800 + SZ_2K - 1,
+		.flags		= ADDR_TYPE_RT
+	},
+};
+
+static struct omap_hwmod_class_sysconfig ti81xx_usbhsotg_sysc = {
+	.rev_offs	= 0x0,
+	.sysc_offs	= 0x10,
+};
+
+static struct omap_hwmod_class ti81xx_usbotg_class = {
+	.name = "usbotg",
+	.sysc = &ti81xx_usbhsotg_sysc,
+};
+
+static struct omap_hwmod_irq_info ti81xx_usbss_mpu_irqs[] = {
+	{ .name = "usbss-irq", .irq = 17, },
+	{ .name = "musb0-irq", .irq = 18, },
+	{ .name = "musb1-irq", .irq = 19, },
+};
+
+static struct omap_hwmod_ocp_if ti81xx_l3_slow__usbss = {
+	.master		= &ti816x_l3_slow_hwmod,
+	.slave		= &ti81xx_usbss_hwmod,
+	.clk		= "usb_ick",
+	.addr		= ti81xx_usbss_addr_space,
+	.addr_cnt	= ARRAY_SIZE(ti81xx_usbss_addr_space),
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_ocp_if *ti81xx_usbss_slaves[] = {
+	&ti81xx_l3_slow__usbss,
+};
+
+static struct omap_hwmod ti81xx_usbss_hwmod = {
+	.name		= "usb_otg_hs",
+	.mpu_irqs	= ti81xx_usbss_mpu_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(ti81xx_usbss_mpu_irqs),
+	.main_clk	= "usb_ick",
+	.prcm		= {
+		.omap4 = {
+			.clkctrl_reg = TI816X_CM_DEFAULT_USB_CLKCTRL,
+		},
+	},
+	.slaves		= ti81xx_usbss_slaves,
+	.slaves_cnt	= ARRAY_SIZE(ti81xx_usbss_slaves),
+	.class		= &ti81xx_usbotg_class,
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X)
+};
+
 static __initdata struct omap_hwmod *ti81xx_hwmods[] = {
 	&ti816x_l3_slow_hwmod,
 	&ti816x_l4_slow_hwmod,
@@ -943,6 +1011,7 @@ static __initdata struct omap_hwmod *ti81xx_hwmods[] = {
 	&ti81xx_gpio2_hwmod,
 	&ti814x_gpio3_hwmod,
 	&ti814x_gpio4_hwmod,
+	&ti81xx_usbss_hwmod,
 	NULL,
 };
 

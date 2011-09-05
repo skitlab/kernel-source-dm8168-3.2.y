@@ -1521,7 +1521,7 @@ static struct clk sr4_ick = {
 };
 
 /* USB0 Clock(final) */
-static struct clk usb_ick = {
+static struct clk usbotg_ick = {
 	.name		= "usb_ick",
 	.parent		= &sysclk6_ck,
 	.ops		= &clkops_ti81xx_usb,
@@ -3875,7 +3875,7 @@ static struct omap_clk ti814x_clks[] = {
 	CLK(NULL,		"sr2_ick",			&sr2_ick,			CK_TI814X),
 	CLK(NULL,		"sr3_ick",			&sr3_ick,			CK_TI814X),
 	CLK(NULL,		"sr4_ick",			&sr4_ick,			CK_TI814X),
-	CLK(NULL,		"usb_ick",			&usb_ick,			CK_TI814X),
+	CLK("ti81xx-usbss",	"usb_ick",			&usbotg_ick,			CK_TI814X),
 	CLK(NULL,		"mmu_cfg_ick",			&mmu_cfg_ick,			CK_TI814X),
 	CLK(NULL,		"p1500_ick",			&p1500_ick,			CK_TI814X),
 	CLK(NULL,		"elm_ick",			&elm_ick,			CK_TI814X),
