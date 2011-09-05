@@ -731,7 +731,7 @@ static unsigned cppi41_next_rx_segment(struct cppi41_channel *rx_ch)
 	struct cppi41_host_pkt_desc *hw_desc;
 	u32 length = rx_ch->length - rx_ch->curr_offset;
 	u32 pkt_size = rx_ch->pkt_size;
-	u32 max_rx_transfer_size = 128 * 1024;
+	u32 max_rx_transfer_size = 64 * 1024;
 	u32 i, n_bd , pkt_len;
 	struct usb_gadget_driver *gadget_driver;
 	u8 en_bd_intr = cppi->en_bd_intr;
