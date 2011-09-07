@@ -78,7 +78,7 @@ static int davinci_hdmi_dai_startup(struct snd_pcm_substream *substream,
 
 	snd_soc_dai_set_dma_data(dai, substream, dev->dma_params);
 
-	/* Enable HDMI wrapped after afte config */
+	/* Enable HDMI wrapped after  config */
 	/* err = hdmi_w1_wrapper_enable(HDMI_WP); */
 
 	return err;
