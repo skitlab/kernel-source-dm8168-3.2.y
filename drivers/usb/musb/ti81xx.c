@@ -884,14 +884,20 @@ static irqreturn_t ti81xx_interrupt(int irq, void *hci)
 	 * value but DEVCTL.BDEVICE is invalid without DEVCTL.SESSION set.
 	 * Also, DRVVBUS pulses for SRP (but not at 5V) ...
 	 */
-	if ((usbintr & MUSB_INTR_BABBLE) && is_host_enabled(musb)) {
+	if ((usbintr & MUSB_INTR_BABBLE) && is_otg_enabled(musb)
+		&& (musb->xceiv->state == OTG_STATE_A_HOST))
+		is_babble = 1;
+	else if ((usbintr & MUSB_INTR_BABBLE) && !is_otg_enabled(musb)
+		&& is_host_enabled(musb))
+			is_babble = 1;
+
+	if (is_babble) {
+		if (musb->enable_babble_work)
+			musb->int_usb |= MUSB_INTR_DISCONNECT;
+
 		ERR("CAUTION: musb%d: Babble Interrupt Occured\n", musb->id);
 		ERR("Please issue long reset to make usb functional !!\n");
 	}
-
-	is_babble = is_host_capable() && (musb->int_usb & MUSB_INTR_BABBLE);
-	if (is_babble && musb->enable_babble_work)
-		musb->int_usb |= MUSB_INTR_DISCONNECT;
 
 	if (usbintr & (USB_INTR_DRVVBUS << USB_INTR_USB_SHIFT)) {
 		int drvvbus = musb_readl(reg_base, USB_STAT_REG);
@@ -1064,18 +1070,18 @@ int ti81xx_musb_init(struct musb *musb)
 	musb->a_wait_bcon = A_WAIT_BCON_TIMEOUT;
 	musb->isr = ti81xx_interrupt;
 
-#ifdef CONFIG_USB_MUSB_OTG
-	if (musb->id == 1)
-		mode = MUSB_HOST;
-	else
-		mode = MUSB_PERIPHERAL;
-#else
-	/* set musb controller to host mode */
-	if (is_host_enabled(musb))
-		mode = MUSB_HOST;
-	else
-		mode = MUSB_PERIPHERAL;
-#endif
+	if (is_otg_enabled(musb)) {
+		/* if usb-id contolled through software for ti816x then
+		 * configure the usb0 in peripheral mode and usb1 in
+		 * host mode
+		*/
+		if (usbid_sw_ctrl && cpu_is_ti816x())
+			mode = musb->id ? MUSB_HOST : MUSB_PERIPHERAL;
+		else
+			mode = MUSB_OTG;
+	} else
+		/* set musb controller to host mode */
+		mode = is_host_enabled(musb) ? MUSB_HOST : MUSB_PERIPHERAL;
 
 	/* set musb controller to host mode */
 	musb_platform_set_mode(musb, mode);

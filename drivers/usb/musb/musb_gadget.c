@@ -1592,7 +1592,7 @@ static const struct usb_gadget_ops musb_gadget_operations = {
  * about there being only one external upstream port.  It assumes
  * all peripheral ports are external...
  */
-static struct musb *the_gadget;
+static struct musb *the_gadget[2];
 
 static void musb_gadget_release(struct device *dev)
 {
@@ -1674,14 +1674,15 @@ static inline void __devinit musb_g_init_endpoints(struct musb *musb)
 int __devinit musb_gadget_setup(struct musb *musb)
 {
 	int status;
+	u8 id = (musb->id == -1) ? 0 : musb->id;
 
 	/* REVISIT minor race:  if (erroneously) setting up two
 	 * musb peripherals at the same time, only the bus lock
 	 * is probably held.
 	 */
-	if (the_gadget)
+	if (the_gadget[id])
 		return -EBUSY;
-	the_gadget = musb;
+	the_gadget[id] = musb;
 
 	musb->g.ops = &musb_gadget_operations;
 	musb->g.is_dualspeed = 1;
@@ -1705,18 +1706,20 @@ int __devinit musb_gadget_setup(struct musb *musb)
 	status = device_register(&musb->g.dev);
 	if (status != 0) {
 		put_device(&musb->g.dev);
-		the_gadget = NULL;
+		the_gadget[id] = NULL;
 	}
 	return status;
 }
 
 void musb_gadget_cleanup(struct musb *musb)
 {
-	if (musb != the_gadget)
+	u8 id = (musb->id == -1) ? 0 : musb->id;
+
+	if (musb != the_gadget[id])
 		return;
 
 	device_unregister(&musb->g.dev);
-	the_gadget = NULL;
+	the_gadget[id] = NULL;
 }
 
 /*
@@ -1736,13 +1739,17 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 {
 	int retval;
 	unsigned long flags;
-	struct musb *musb = the_gadget;
+	struct musb *musb;
+	u8 id;
 
 	if (!driver
 			|| driver->speed != USB_SPEED_HIGH
 			|| !bind || !driver->setup)
 		return -EINVAL;
 
+	id = driver->id;
+	musb = the_gadget[id];
+	musb->g.id = id;
 	/* driver must be initialized to support peripheral mode */
 	if (!musb) {
 		DBG(1, "%s, no dev??\n", __func__);
@@ -1822,6 +1829,32 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 }
 EXPORT_SYMBOL(usb_gadget_probe_driver);
 
+int num_composite_drv;
+int get_gadget_drv_id(void)
+{
+	int id;
+	if (num_composite_drv >= 2)
+		return -EINVAL;
+	id = num_composite_drv;
+	num_composite_drv++;
+	return id;
+}
+EXPORT_SYMBOL(get_gadget_drv_id);
+
+int put_gadget_drv_id(void)
+{
+	if (num_composite_drv <= 0)
+		return -EINVAL;
+	num_composite_drv--;
+	return num_composite_drv;
+}
+EXPORT_SYMBOL(put_gadget_drv_id);
+
+int get_gadget_cur_drv_id(void)
+{
+	return num_composite_drv;
+}
+EXPORT_SYMBOL(get_gadget_cur_drv_id);
 static void stop_activity(struct musb *musb, struct usb_gadget_driver *driver)
 {
 	int			i;
@@ -1874,7 +1907,7 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 {
 	unsigned long	flags;
 	int		retval = 0;
-	struct musb	*musb = the_gadget;
+	struct musb	*musb = the_gadget[driver->id];
 
 	if (!driver || !driver->unbind || !musb)
 		return -EINVAL;

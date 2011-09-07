@@ -488,6 +488,7 @@ struct usb_gadget {
 	unsigned			a_alt_hnp_support:1;
 	const char			*name;
 	struct device			dev;
+	u8				id;
 };
 
 static inline void set_gadget_data(struct usb_gadget *gadget, void *data)
@@ -767,6 +768,7 @@ static inline int usb_gadget_disconnect(struct usb_gadget *gadget)
  * power is maintained.
  */
 struct usb_gadget_driver {
+	u8			id;		/* gadget driver id */
 	char			*function;
 	enum usb_device_speed	speed;
 	void			(*unbind)(struct usb_gadget *);

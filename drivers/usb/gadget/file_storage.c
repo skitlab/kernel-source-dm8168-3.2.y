@@ -3628,6 +3628,9 @@ static int __init fsg_alloc(void)
 }
 
 
+extern int get_gadget_drv_id(void);
+extern int put_gadget_drv_id(void);
+
 static int __init fsg_init(void)
 {
 	int		rc;
@@ -3636,8 +3639,17 @@ static int __init fsg_init(void)
 	if ((rc = fsg_alloc()) != 0)
 		return rc;
 	fsg = the_fsg;
-	if ((rc = usb_gadget_probe_driver(&fsg_driver, fsg_bind)) != 0)
+	fsg_driver.id = get_gadget_drv_id();
+	if (fsg_driver.id < 0) {
+		DBG(fsg, "unable to get driver id\n");
+		return -EINVAL;
+	}
+
+	rc = usb_gadget_probe_driver(&fsg_driver, fsg_bind);
+	if (rc != 0) {
 		kref_put(&fsg->ref, fsg_release);
+		put_gadget_drv_id();
+	}
 	return rc;
 }
 module_init(fsg_init);
