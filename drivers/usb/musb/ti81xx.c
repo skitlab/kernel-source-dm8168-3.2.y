@@ -406,7 +406,7 @@ static const u32 assigned_queues[] = {	0xffffffff, /* queue 0..31 */
 					0x0fffffff  /* queue 128..155 */
 					};
 
-int __devinit cppi41_init(u8 id, u8 irq)
+int __devinit cppi41_init(u8 id, u8 irq, int num_instances)
 {
 	struct usb_cppi41_info *cppi_info = &usb_cppi41_info[id];
 	u16 numch, blknum, order;
@@ -457,11 +457,9 @@ int __devinit cppi41_init(u8 id, u8 irq)
 	/* Initialize for Linking RAM region 0 alone */
 	cppi41_queue_mgr_init(cppi_info->q_mgr, 0, 0x3fff);
 
-#ifdef CONFIG_USB_GADGET_MUSB_HDRC
-	numch =  USB_CPPI41_NUM_CH * 2;
-#else
-	numch =  USB_CPPI41_NUM_CH * 2 * 2;
-#endif
+	numch =  USB_CPPI41_NUM_CH * 2 * num_instances;
+	cppi41_dma_block[0].num_max_ch = numch;
+
 	order = get_count_order(numch);
 
 	/* TODO: check two teardown desc per channel (5 or 7 ?)*/
@@ -501,11 +499,7 @@ void cppi41_free(void)
 	if (!cppi41_init_done)
 		return ;
 
-#ifdef CONFIG_USB_GADGET_MUSB_HDRC
-	numch =  USB_CPPI41_NUM_CH * 2;
-#else
-	numch =  USB_CPPI41_NUM_CH * 2 * 2;
-#endif
+	numch = cppi41_dma_block[0].num_max_ch;
 	order = get_count_order(numch);
 	blknum = cppi_info->dma_block;
 
@@ -1323,7 +1317,7 @@ static int __init ti81xx_probe(struct platform_device *pdev)
 	for (i = 0; i <= data->instances; ++i) {
 #ifdef CONFIG_USB_TI_CPPI41_DMA
 		/* initialize the cppi41dma init */
-		cppi41_init(i, glue->irq);
+		cppi41_init(i, glue->irq, data->instances+1);
 #endif
 		ret |= ti81xx_create_musb_pdev(glue, i);
 		if (ret != 0)
