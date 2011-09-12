@@ -24,7 +24,7 @@
 #include <linux/phy.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
-
+#include <linux/if_vlan.h>
 #include <linux/net_tstamp.h>
 #include <linux/cpsw.h>
 
@@ -69,6 +69,12 @@ do {								\
 #define cpsw_enable_irq(priv) do { } while (0);
 #define cpsw_disable_irq(priv) do { } while (0);
 #endif
+
+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+#define VLAN_SUPPORT
+#endif
+
+#define CPSW_VLAN_AWARE			0x2
 
 #define ALE_ALL_PORTS			0x7
 
@@ -302,7 +308,9 @@ struct cpsw_priv {
 	u32 irqs_table[4];
 	u32 num_irqs;
 #endif
-
+#ifdef VLAN_SUPPORT
+	struct vlan_group *vlgrp;
+#endif /* VLAN_SUPPORT */
 };
 
 DEFINE_SPINLOCK(cpts_time_lock);
@@ -345,7 +353,7 @@ static int cpts_time_evts_fifo_pop(struct cpts_evts_fifo *fifo,
 			fifo->head++;
 			if (fifo->head >= CPTS_FIFO_SIZE)
 				fifo->head = 0;
-			break;
+			return 0;
 		}
 		i++;
 		if (i >= CPTS_FIFO_SIZE)
@@ -902,8 +910,14 @@ static void cpsw_init_host_port(struct cpsw_priv *priv)
 	soft_reset("cpsw", &priv->regs->soft_reset);
 	cpsw_ale_start(priv->ale);
 
+#ifdef VLAN_SUPPORT
+	/* switch to vlan aware mode */
+	cpsw_ale_control_set(priv->ale, priv->host_port, ALE_VLAN_AWARE, 1);
+	__raw_writel(CPSW_VLAN_AWARE, &priv->regs->control);
+#else /* !VLAN_SUPPORT */
 	/* switch to vlan unaware mode */
-	cpsw_ale_control_set(priv->ale, 0, ALE_VLAN_AWARE, 0);
+	cpsw_ale_control_set(priv->ale, priv->host_port, ALE_VLAN_AWARE, 0);
+#endif /* VLAN_SUPPORT */
 
 	/* setup host port priority mapping */
 	__raw_writel(0x76543210, &priv->host_port_regs->cpdma_tx_pri_map);
@@ -1061,6 +1075,72 @@ fail:
 	netif_stop_queue(ndev);
 	return NETDEV_TX_BUSY;
 }
+
+#ifdef VLAN_SUPPORT
+
+static void __cpsw_ndo_vlan_rx_add_vid(struct net_device *ndev,
+		unsigned short vid)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+
+	if (vid) {
+		cpsw_ale_add_vlan(priv->ale, vid,
+				ALE_ALL_PORTS << priv->host_port, 0, 1, 0);
+		cpsw_ale_vlan_add_ucast(priv->ale, priv->mac_addr,
+				priv->host_port, 0, vid);
+		cpsw_ale_vlan_add_mcast(priv->ale, priv->ndev->broadcast,
+				ALE_ALL_PORTS << priv->host_port, vid);
+	} else
+		cpsw_ale_add_vlan(priv->ale, vid,
+				ALE_ALL_PORTS << priv->host_port, 1, 1, 0);
+}
+
+static void cpsw_ndo_vlan_rx_add_vid(struct net_device *ndev,
+		unsigned short vid)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+
+	spin_lock(&priv->lock);
+	printk(KERN_ERR "Adding vlanid %d to vlan filter\n", vid);
+	__cpsw_ndo_vlan_rx_add_vid(ndev, vid);
+	spin_unlock(&priv->lock);
+}
+
+static void cpsw_ndo_vlan_rx_register(struct net_device *ndev,
+		struct vlan_group *grp)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	int i;
+
+	spin_lock(&priv->lock);
+
+	priv->vlgrp = grp;
+	if (grp) {
+		for (i = 0; i <= VLAN_VID_MASK; i++) {
+			if (vlan_group_get_device(priv->vlgrp, i))
+				__cpsw_ndo_vlan_rx_add_vid(ndev, i);
+		}
+	}
+	spin_unlock(&priv->lock);
+}
+
+static void cpsw_ndo_vlan_rx_kill_vid(struct net_device *ndev,
+		unsigned short vid)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+
+	spin_lock(&priv->lock);
+	printk(KERN_ERR "%s: removing vlanid %d from vlan filter\n",
+			ndev->name, vid);
+	vlan_group_set_device(priv->vlgrp, vid, NULL);
+	cpsw_ale_del_vlan(priv->ale, vid, ALE_ALL_PORTS << priv->host_port);
+	cpsw_ale_vlan_del_ucast(priv->ale, priv->mac_addr,
+				priv->host_port, vid);
+	cpsw_ale_vlan_del_mcast(priv->ale, priv->ndev->broadcast,
+				ALE_ALL_PORTS << priv->host_port, vid);
+	spin_unlock(&priv->lock);
+}
+#endif /* VLAN_SUPPORT */
 
 #ifdef CONFIG_PTP_1588_CLOCK_CPTS
 static int cpsw_hwtstamp_ioctl(struct net_device *ndev,
@@ -1293,6 +1373,11 @@ static const struct net_device_ops cpsw_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= cpsw_ndo_poll_controller,
 #endif
+#ifdef VLAN_SUPPORT
+	.ndo_vlan_rx_register	= cpsw_ndo_vlan_rx_register,
+	.ndo_vlan_rx_add_vid	= cpsw_ndo_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= cpsw_ndo_vlan_rx_kill_vid,
+#endif /* VLAN_SUPPORT */
 };
 
 static void cpsw_get_drvinfo(struct net_device *ndev,
@@ -1540,6 +1625,10 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 		}
 		k++;
 	}
+
+#ifdef VLAN_SUPPORT
+	ndev->features |= NETIF_F_HW_VLAN_FILTER;
+#endif /* VLAN_SUPPORT */
 
 	ndev->flags |= IFF_ALLMULTI;	/* see cpsw_ndo_change_rx_flags() */
 
