@@ -3627,10 +3627,6 @@ static int __init fsg_alloc(void)
 	return 0;
 }
 
-
-extern int get_gadget_drv_id(void);
-extern int put_gadget_drv_id(void);
-
 static int __init fsg_init(void)
 {
 	int		rc;

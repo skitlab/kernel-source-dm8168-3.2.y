@@ -41,9 +41,6 @@
 
 static struct usb_composite_driver *composite[2];
 static int (*composite_gadget_bind[2])(struct usb_composite_dev *cdev);
-extern int get_gadget_drv_id(void);
-extern int put_gadget_drv_id(void);
-extern int get_gadget_cur_drv_id(void);
 
 /* Some systems will need runtime overrides for the  product identifers
  * published in the device descriptor, either numbers or strings or both.
