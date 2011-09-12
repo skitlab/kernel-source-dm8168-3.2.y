@@ -157,7 +157,7 @@ static int cpsw_ale_write(struct cpsw_ale *ale, int idx, u32 *ale_entry)
 	return idx;
 }
 
-static int cpsw_ale_match_addr(struct cpsw_ale *ale, u8* addr)
+static int cpsw_ale_match_addr(struct cpsw_ale *ale, u8* addr, u16 vid)
 {
 	u32 ale_entry[ALE_ENTRY_WORDS];
 	int type, idx;
@@ -169,8 +169,26 @@ static int cpsw_ale_match_addr(struct cpsw_ale *ale, u8* addr)
 		type = cpsw_ale_get_entry_type(ale_entry);
 		if (type != ALE_TYPE_ADDR && type != ALE_TYPE_VLAN_ADDR)
 			continue;
+		if (cpsw_ale_get_vlan_id(ale_entry) != vid)
+			continue;
 		cpsw_ale_get_addr(ale_entry, entry_addr);
 		if (memcmp(entry_addr, addr, 6) == 0)
+			return idx;
+	}
+	return -ENOENT;
+}
+
+static int cpsw_ale_match_vlan(struct cpsw_ale *ale, u16 vid)
+{
+	u32 ale_entry[ALE_ENTRY_WORDS];
+	int type, idx;
+
+	for (idx = 0; idx < ale->ale_entries; idx++) {
+		cpsw_ale_read(ale, idx, ale_entry);
+		type = cpsw_ale_get_entry_type(ale_entry);
+		if (type != ALE_TYPE_VLAN)
+			continue;
+		if (cpsw_ale_get_vlan_id(ale_entry) == vid)
 			return idx;
 	}
 	return -ENOENT;
@@ -319,6 +337,25 @@ static int cpsw_ale_dump_ucast(u32 *ale_entry, char *buf, int len)
 	return outlen;
 }
 
+static int cpsw_ale_dump_vlan(u32 *ale_entry, char *buf, int len)
+{
+	int outlen = 0;
+	int untag_force = cpsw_ale_get_vlan_untag_force(ale_entry);
+	int reg_mcast   = cpsw_ale_get_vlan_reg_mcast(ale_entry);
+	int unreg_mcast = cpsw_ale_get_vlan_unreg_mcast(ale_entry);
+	int member_list = cpsw_ale_get_vlan_member_list(ale_entry);
+
+	outlen += snprintf(buf + outlen, len - outlen,
+			   "vlanuntag: %x, ", untag_force);
+	outlen += snprintf(buf + outlen, len - outlen,
+			   "vlanregmcast: %x, ", reg_mcast);
+	outlen += snprintf(buf + outlen, len - outlen,
+			   "vlanunregmcast: %x, ", unreg_mcast);
+	outlen += snprintf(buf + outlen, len - outlen,
+			   "vlanmemberlist: %x\n", member_list);
+	return outlen;
+}
+
 static int cpsw_ale_dump_entry(int idx, u32 *ale_entry, char *buf, int len)
 {
 	int type, outlen = 0;
@@ -340,19 +377,23 @@ static int cpsw_ale_dump_entry(int idx, u32 *ale_entry, char *buf, int len)
 	outlen += snprintf(buf + outlen, len - outlen,
 			   "type: %s(%d), ", str_type[type], type);
 
-	cpsw_ale_get_addr(ale_entry, addr);
-	outlen += snprintf(buf + outlen, len - outlen,
-			   "addr: " ADDR_FMT_STR ", ", ADDR_FMT_ARGS(addr));
-
 	if (type == ALE_TYPE_VLAN || type == ALE_TYPE_VLAN_ADDR) {
 		outlen += snprintf(buf + outlen, len - outlen, "vlan: %d, ",
 				   cpsw_ale_get_vlan_id(ale_entry));
 	}
 
-	outlen += cpsw_ale_get_mcast(ale_entry) ?
-		  cpsw_ale_dump_mcast(ale_entry, buf + outlen, len - outlen) :
-		  cpsw_ale_dump_ucast(ale_entry, buf + outlen, len - outlen);
-
+	if (type == ALE_TYPE_ADDR || type == ALE_TYPE_VLAN_ADDR) {
+		cpsw_ale_get_addr(ale_entry, addr);
+		outlen += snprintf(buf + outlen, len - outlen,
+			"addr: " ADDR_FMT_STR ", ", ADDR_FMT_ARGS(addr));
+		outlen += cpsw_ale_get_mcast(ale_entry) ?
+			cpsw_ale_dump_mcast(ale_entry, buf + outlen,
+						len - outlen) :
+			cpsw_ale_dump_ucast(ale_entry, buf + outlen,
+						len - outlen);
+	} else	/* type == ALE_TYPE_VLAN */
+		outlen += cpsw_ale_dump_vlan(ale_entry, buf + outlen,
+					     len - outlen);
 	return outlen;
 }
 
@@ -368,7 +409,7 @@ int cpsw_ale_add_ucast(struct cpsw_ale *ale, u8 *addr, int port, int flags)
 	cpsw_ale_set_blocked(ale_entry, (flags & ALE_BLOCKED) ? 1 : 0);
 	cpsw_ale_set_port_num(ale_entry, port);
 
-	idx = cpsw_ale_match_addr(ale, addr);
+	idx = cpsw_ale_match_addr(ale, addr, 0);
 	if (idx < 0)
 		idx = cpsw_ale_match_free(ale);
 	if (idx < 0)
@@ -385,7 +426,7 @@ int cpsw_ale_del_ucast(struct cpsw_ale *ale, u8 *addr, int port)
 	u32 ale_entry[ALE_ENTRY_WORDS] = {0, 0, 0};
 	int idx;
 
-	idx = cpsw_ale_match_addr(ale, addr);
+	idx = cpsw_ale_match_addr(ale, addr, 0);
 	if (idx < 0)
 		return -ENOENT;
 
@@ -399,7 +440,7 @@ int cpsw_ale_add_mcast(struct cpsw_ale *ale, u8 *addr, int port_mask)
 	u32 ale_entry[ALE_ENTRY_WORDS] = {0, 0, 0};
 	int idx, mask;
 
-	idx = cpsw_ale_match_addr(ale, addr);
+	idx = cpsw_ale_match_addr(ale, addr, 0);
 	if (idx >= 0)
 		cpsw_ale_read(ale, idx, ale_entry);
 
@@ -427,7 +468,183 @@ int cpsw_ale_del_mcast(struct cpsw_ale *ale, u8 *addr, int port_mask)
 	u32 ale_entry[ALE_ENTRY_WORDS] = {0, 0, 0};
 	int idx, mask;
 
-	idx = cpsw_ale_match_addr(ale, addr);
+	idx = cpsw_ale_match_addr(ale, addr, 0);
+	if (idx < 0)
+		return -EINVAL;
+
+	cpsw_ale_read(ale, idx, ale_entry);
+	mask = cpsw_ale_get_port_mask(ale_entry);
+	port_mask = mask & ~port_mask;
+
+	if (port_mask == BIT(ale->ale_ports))
+		cpsw_ale_set_entry_type(ale_entry, ALE_TYPE_FREE);
+	else
+		cpsw_ale_set_port_mask(ale_entry, port_mask);
+
+	cpsw_ale_write(ale, idx, ale_entry);
+	return 0;
+}
+
+int cpsw_ale_add_vlan(struct cpsw_ale *ale, u16 vid, int port, int untag,
+		      int reg_mcast, int unreg_mcast)
+{
+	u32 ale_entry[ALE_ENTRY_WORDS] = {0, 0, 0};
+	int idx, mask;
+
+	idx = cpsw_ale_match_vlan(ale, vid);
+	if (idx >= 0)
+		cpsw_ale_read(ale, idx, ale_entry);
+
+	cpsw_ale_set_entry_type(ale_entry, ALE_TYPE_VLAN);
+	cpsw_ale_set_vlan_id(ale_entry, vid);
+
+	mask  = cpsw_ale_get_vlan_untag_force(ale_entry);
+	if (untag)
+		mask |= port;
+	else
+		mask &= ~port;
+	cpsw_ale_set_vlan_untag_force(ale_entry, mask);
+
+	mask  = cpsw_ale_get_vlan_reg_mcast(ale_entry);
+	if (reg_mcast)
+		mask |= port;
+	else
+		mask &= ~port;
+	cpsw_ale_set_vlan_reg_mcast(ale_entry, mask);
+
+	mask  = cpsw_ale_get_vlan_unreg_mcast(ale_entry);
+	if (unreg_mcast)
+		mask |= port;
+	else
+		mask &= ~port;
+	cpsw_ale_set_vlan_unreg_mcast(ale_entry, mask);
+
+	mask  = cpsw_ale_get_vlan_member_list(ale_entry);
+	mask |= port;
+	cpsw_ale_set_vlan_member_list(ale_entry, mask);
+
+	if (idx < 0)
+		idx = cpsw_ale_match_free(ale);
+	if (idx < 0)
+		idx = cpsw_ale_find_ageable(ale);
+	if (idx < 0)
+		return -ENOMEM;
+
+	cpsw_ale_write(ale, idx, ale_entry);
+	return 0;
+}
+
+int cpsw_ale_del_vlan(struct cpsw_ale *ale, u16 vid, int port)
+{
+	u32 ale_entry[ALE_ENTRY_WORDS] = {0, 0, 0};
+	int idx, mask;
+
+	idx = cpsw_ale_match_vlan(ale, vid);
+	if (idx < 0)
+		return -ENOENT;
+
+	cpsw_ale_read(ale, idx, ale_entry);
+
+	mask  = cpsw_ale_get_vlan_untag_force(ale_entry);
+	mask &= ~BIT(port);
+	cpsw_ale_set_vlan_untag_force(ale_entry, mask);
+
+	mask  = cpsw_ale_get_vlan_reg_mcast(ale_entry);
+	mask &= ~BIT(port);
+	cpsw_ale_set_vlan_reg_mcast(ale_entry, mask);
+
+	mask  = cpsw_ale_get_vlan_unreg_mcast(ale_entry);
+	mask &= ~BIT(port);
+	cpsw_ale_set_vlan_unreg_mcast(ale_entry, mask);
+
+	mask  = cpsw_ale_get_vlan_member_list(ale_entry);
+	mask &= ~BIT(port);
+	if (!mask)
+		cpsw_ale_set_entry_type(ale_entry, ALE_TYPE_FREE);
+	else
+		cpsw_ale_set_vlan_member_list(ale_entry, mask);
+
+	cpsw_ale_write(ale, idx, ale_entry);
+	return 0;
+}
+
+int cpsw_ale_vlan_add_ucast(struct cpsw_ale *ale, u8 *addr, int port,
+				int flags, u16 vid)
+{
+	u32 ale_entry[ALE_ENTRY_WORDS] = {0, 0, 0};
+	int idx;
+
+	cpsw_ale_set_entry_type(ale_entry, ALE_TYPE_VLAN_ADDR);
+	cpsw_ale_set_addr(ale_entry, addr);
+	cpsw_ale_set_ucast_type(ale_entry, ALE_UCAST_PERSISTANT);
+	cpsw_ale_set_secure(ale_entry, (flags & ALE_SECURE) ? 1 : 0);
+	cpsw_ale_set_blocked(ale_entry, (flags & ALE_BLOCKED) ? 1 : 0);
+	cpsw_ale_set_port_num(ale_entry, port);
+	cpsw_ale_set_vlan_id(ale_entry, vid);
+
+	idx = cpsw_ale_match_addr(ale, addr, vid);
+	if (idx < 0)
+		idx = cpsw_ale_match_free(ale);
+	if (idx < 0)
+		idx = cpsw_ale_find_ageable(ale);
+	if (idx < 0)
+		return -ENOMEM;
+
+	cpsw_ale_write(ale, idx, ale_entry);
+	return 0;
+}
+
+int cpsw_ale_vlan_del_ucast(struct cpsw_ale *ale, u8 *addr, int port, u16 vid)
+{
+	u32 ale_entry[ALE_ENTRY_WORDS] = {0, 0, 0};
+	int idx;
+
+	idx = cpsw_ale_match_addr(ale, addr, vid);
+	if (idx < 0)
+		return -ENOENT;
+
+	cpsw_ale_set_entry_type(ale_entry, ALE_TYPE_FREE);
+	cpsw_ale_write(ale, idx, ale_entry);
+	return 0;
+}
+
+int cpsw_ale_vlan_add_mcast(struct cpsw_ale *ale, u8 *addr,
+				int port_mask, u16 vid)
+{
+	u32 ale_entry[ALE_ENTRY_WORDS] = {0, 0, 0};
+	int idx, mask;
+
+	idx = cpsw_ale_match_addr(ale, addr, vid);
+	if (idx >= 0)
+		cpsw_ale_read(ale, idx, ale_entry);
+
+	cpsw_ale_set_entry_type(ale_entry, ALE_TYPE_VLAN_ADDR);
+	cpsw_ale_set_addr(ale_entry, addr);
+	cpsw_ale_set_mcast_state(ale_entry, ALE_MCAST_FWD_2);
+	cpsw_ale_set_vlan_id(ale_entry, vid);
+
+	mask = cpsw_ale_get_port_mask(ale_entry);
+	port_mask |= mask;
+	cpsw_ale_set_port_mask(ale_entry, port_mask);
+
+	if (idx < 0)
+		idx = cpsw_ale_match_free(ale);
+	if (idx < 0)
+		idx = cpsw_ale_find_ageable(ale);
+	if (idx < 0)
+		return -ENOMEM;
+
+	cpsw_ale_write(ale, idx, ale_entry);
+	return 0;
+}
+
+int cpsw_ale_vlan_del_mcast(struct cpsw_ale *ale, u8 *addr,
+				int port_mask, u16 vid)
+{
+	u32 ale_entry[ALE_ENTRY_WORDS] = {0, 0, 0};
+	int idx, mask;
+
+	idx = cpsw_ale_match_addr(ale, addr, vid);
 	if (idx < 0)
 		return -EINVAL;
 
