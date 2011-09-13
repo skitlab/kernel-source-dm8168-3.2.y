@@ -324,9 +324,13 @@ CONFIG_COMMON_CLKDEV=y
 #
 # Bus support
 #
-# CONFIG_PCI is not set
-# CONFIG_PCI_SYSCALL is not set
+CONFIG_PCI=y
+CONFIG_PCI_SYSCALL=y
 CONFIG_ARCH_SUPPORTS_MSI=y
+CONFIG_PCI_MSI=y
+# CONFIG_PCI_DEBUG is not set
+# CONFIG_PCI_STUB is not set
+# CONFIG_PCI_IOV is not set
 # CONFIG_PCCARD is not set
 
 #
