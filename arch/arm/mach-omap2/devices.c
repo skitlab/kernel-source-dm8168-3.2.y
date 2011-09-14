@@ -1963,6 +1963,73 @@ static inline void ti81xx_init_vout(void) {}
 static inline void ti81xx_register_edma(void) {}
 #endif
 
+#ifdef CONFIG_MTD_CFI
+/* gpio1_22 controls the GPMC higher address lines a12 -25 */
+#define GPIO_NOR	54
+
+static void ti814x_nor_init(void)
+{
+	int error = 0;
+
+	omap_mux_init_signal("gpmc_ad0", TI814X_PULL_DIS | TI814X_INPUT_EN);
+	omap_mux_init_signal("gpmc_ad1", TI814X_PULL_DIS | TI814X_INPUT_EN);
+	omap_mux_init_signal("gpmc_ad2", TI814X_PULL_DIS | TI814X_INPUT_EN);
+	omap_mux_init_signal("gpmc_ad3", TI814X_PULL_DIS | TI814X_INPUT_EN);
+	omap_mux_init_signal("gpmc_ad4", TI814X_PULL_DIS | TI814X_INPUT_EN);
+	omap_mux_init_signal("gpmc_ad5", TI814X_PULL_DIS | TI814X_INPUT_EN);
+	omap_mux_init_signal("gpmc_ad6", TI814X_PULL_DIS | TI814X_INPUT_EN);
+	omap_mux_init_signal("gpmc_ad7", TI814X_PULL_DIS | TI814X_INPUT_EN);
+	omap_mux_init_signal("gpmc_ad8", TI814X_PULL_DIS | TI814X_INPUT_EN);
+	omap_mux_init_signal("gpmc_ad9", TI814X_PULL_DIS | TI814X_INPUT_EN);
+	omap_mux_init_signal("gpmc_ad10", TI814X_PULL_DIS | TI814X_INPUT_EN);
+	omap_mux_init_signal("gpmc_ad11", TI814X_PULL_DIS | TI814X_INPUT_EN);
+	omap_mux_init_signal("gpmc_ad12", TI814X_PULL_DIS | TI814X_INPUT_EN);
+	omap_mux_init_signal("gpmc_ad13", TI814X_PULL_DIS | TI814X_INPUT_EN);
+	omap_mux_init_signal("gpmc_ad14", TI814X_PULL_DIS | TI814X_INPUT_EN);
+	omap_mux_init_signal("gpmc_ad15", TI814X_PULL_DIS | TI814X_INPUT_EN);
+	omap_mux_init_signal("mmc2_dat3.gpmc_a_1_mux1", TI814X_PULL_UP);
+	omap_mux_init_signal("mmc2_dat2.gpmc_a_2_mux1", TI814X_PULL_UP);
+	omap_mux_init_signal("mmc2_dat1.gpmc_a_3_mux1", TI814X_PULL_UP);
+	omap_mux_init_signal("mmc2_dat0.gpmc_a_4_mux1", TI814X_PULL_UP);
+	omap_mux_init_signal("vout1_g_y_yc1.gpmc_a_5_mux1", TI814X_PULL_UP);
+	omap_mux_init_signal("vout1_g_y_yc0.gpmc_a_6_mux1", 0);
+	omap_mux_init_signal("vout1_r_cr1.gpmc_a_7_mux1", 0);
+	omap_mux_init_signal("vout1_r_cr0.gpmc_a_8_mux1", 0);
+	omap_mux_init_signal("vout1_b_cb_c1.gpmc_a_9_mux1", 0);
+	omap_mux_init_signal("vout1_b_cb_c0.gpmc_a_10_mux1", TI814X_PULL_UP);
+	omap_mux_init_signal("vout1_fid.gpmc_a_11_mux1", 0);
+	omap_mux_init_signal("vout0_fid_mux1.gpmc_a_12_mux1", 0);
+	omap_mux_init_signal("vout1_g_y_yc2.gpmc_a_13_mux1", TI814X_PULL_UP);
+	omap_mux_init_signal("vout1_r_cr3.gpmc_a_14_mux1", TI814X_PULL_UP);
+	omap_mux_init_signal("vout1_r_cr2.gpmc_a_15_mux1", 0);
+	omap_mux_init_signal("gpmc_a16", 0);
+	omap_mux_init_signal("gpmc_a17", 0);
+	omap_mux_init_signal("gpmc_a18", 0);
+	omap_mux_init_signal("gpmc_a19", 0);
+	omap_mux_init_signal("gpmc_a_20_mux0", TI814X_PULL_UP);
+	omap_mux_init_signal("gpmc_a_21_mux0", 0);
+	omap_mux_init_signal("gpmc_a_22_mux0", TI814X_PULL_UP);
+	omap_mux_init_signal("gpmc_a_23_mux0", 0);
+	omap_mux_init_signal("gpmc_cs2.gpmc_a_24_mux1", TI814X_PULL_UP);
+	omap_mux_init_signal("gpmc_cs1.gpmc_a_25_mux1", 0);
+	omap_mux_init_signal("mmc2_dat4.gpio1_22", TI814X_PULL_UP);
+	omap_mux_init_signal("gpmc_cs0", TI814X_PULL_UP);
+	omap_mux_init_signal("gpmc_oen_ren", TI814X_PULL_UP);
+	omap_mux_init_signal("gpmc_wen", TI814X_PULL_UP);
+	omap_mux_init_signal("gpmc_clk", TI814X_PULL_UP);
+
+	error = gpio_request(GPIO_NOR, "gpio_nor");
+	if (error) {
+		printk(KERN_ERR "%s: failed to request GPIO for NOR"
+			": %d\n", __func__, error);
+		return;
+	}
+	gpio_direction_output(GPIO_NOR, 0x0);
+	gpio_export(GPIO_NOR, true);
+
+}
+#endif
+
 /*-------------------------------------------------------------------------*/
 
 #ifdef CONFIG_ARCH_TI814X
@@ -2492,6 +2559,9 @@ static int __init omap2_init_devices(void)
 	ti81xx_init_pcm();
 	ti816x_sr_init();
 	ti81xx_video_mux();
+#ifdef CONFIG_MTD_CFI
+	ti814x_nor_init();
+#endif
 	ti81xx_init_vout();
 #endif
 	omap_init_ahci();
