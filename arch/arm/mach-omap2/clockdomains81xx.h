@@ -42,7 +42,11 @@ static struct clockdomain alwon_l3_slow_81xx_clkdm = {
 	.cm_inst	= TI81XX_CM_ALWON_MOD,
 	.clkdm_offs	= TI81XX_CM_ALWON_L3_SLOW_CLKDM,
 	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,
+#if defined(CONFIG_ARCH_TI814X)
+	.flags		= CLKDM_CAN_SWSUP,
+#else
 	.flags		= CLKDM_CAN_HWSUP_SWSUP,
+#endif
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
 };
 
@@ -52,7 +56,11 @@ static struct clockdomain alwon_ethernet_81xx_clkdm = {
 	.cm_inst	= TI81XX_CM_ALWON_MOD,
 	.clkdm_offs	= TI81XX_CM_ETHERNET_CLKDM,
 	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,
+#if defined(CONFIG_ARCH_TI814X)
+	.flags		= CLKDM_CAN_SWSUP,
+#else
 	.flags		= CLKDM_CAN_HWSUP_SWSUP,
+#endif
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
 };
 
@@ -62,7 +70,11 @@ static struct clockdomain mmu_81xx_clkdm = {
 	.cm_inst	= TI81XX_CM_ALWON_MOD,
 	.clkdm_offs	= TI81XX_CM_MMU_CLKDM,
 	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,
+#if defined(CONFIG_ARCH_TI814X)
+	.flags		= CLKDM_CAN_SWSUP,
+#else
 	.flags		= CLKDM_CAN_HWSUP_SWSUP,
+#endif
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
 };
 
@@ -72,7 +84,11 @@ static struct clockdomain mmu_cfg_81xx_clkdm = {
 	.cm_inst	= TI81XX_CM_ALWON_MOD,
 	.clkdm_offs	= TI81XX_CM_MMUCFG_CLKDM,
 	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,
+#if defined(CONFIG_ARCH_TI814X)
+	.flags		= CLKDM_CAN_SWSUP,
+#else
 	.flags		= CLKDM_CAN_HWSUP_SWSUP,
+#endif
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
 };
 
@@ -86,7 +102,7 @@ static struct clockdomain gem_814x_clkdm = {
 	.cm_inst	= TI814X_CM_DSP_MOD,
 	.clkdm_offs	= TI814X_CM_DSP_CLKDM,
 	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,
-	.flags		= CLKDM_CAN_HWSUP_SWSUP,
+	.flags		= CLKDM_CAN_SWSUP,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X),
 };
 
@@ -96,7 +112,7 @@ static struct clockdomain ivahd_814x_clkdm = {
 	.cm_inst	= TI814X_CM_HDVICP_MOD,
 	.clkdm_offs	= TI814X_CM_HDVICP_CLKDM,
 	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,
-	.flags		= CLKDM_CAN_HWSUP_SWSUP,
+	.flags		= CLKDM_CAN_SWSUP,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X),
 };
 
@@ -107,7 +123,7 @@ static struct clockdomain isp_814x_clkdm = {
 	.cm_inst	= TI814X_CM_ALWON2_MOD,
 	.clkdm_offs	= TI814X_CM_ALWON2_MC_CLKDM,
 	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,
-	.flags		= CLKDM_CAN_HWSUP_SWSUP,
+	.flags		= CLKDM_CAN_SWSUP,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X),
 };
 
@@ -118,7 +134,7 @@ static struct clockdomain sgx_814x_clkdm = {
 	.cm_inst	= TI814X_CM_GFX_MOD,
 	.clkdm_offs	= TI814X_CM_GFX_CLKDM,
 	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,
-	.flags		= CLKDM_CAN_HWSUP_SWSUP,
+	.flags		= CLKDM_CAN_SWSUP,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X),
 };
 
@@ -129,7 +145,7 @@ static struct clockdomain hdvpss_814x_clkdm = {
 	.cm_inst	= TI814X_CM_HDVPSS_MOD,
 	.clkdm_offs	= TI814X_CM_HDVPSS_CLKDM,
 	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,
-	.flags		= CLKDM_CAN_HWSUP_SWSUP,
+	.flags		= CLKDM_CAN_SWSUP,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X),
 };
 
@@ -140,7 +156,7 @@ static struct clockdomain alwon2_l3_med_814x_clkdm = {
 	.cm_inst	= TI814X_CM_ALWON2_MOD,
 	.clkdm_offs	= TI814X_CM_ALWON2_L3_MED_CLKDM,
 	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,
-	.flags		= CLKDM_CAN_HWSUP_SWSUP,
+	.flags		= CLKDM_CAN_SWSUP,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X),
 };
 
@@ -151,7 +167,7 @@ static struct clockdomain alwon2_pcie_814x_clkdm = {
 	.cm_inst	= TI814X_CM_ALWON2_MOD,
 	.clkdm_offs	= TI814X_CM_ALWON2_PCI_CLKDM,
 	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,
-	.flags		= CLKDM_CAN_HWSUP_SWSUP,
+	.flags		= CLKDM_CAN_SWSUP,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X),
 };
 
@@ -162,7 +178,7 @@ static struct clockdomain alwon2_usb_814x_clkdm = {
 	.cm_inst	= TI814X_CM_ALWON2_MOD,
 	.clkdm_offs	= TI814X_CM_ALWON2_L3_SLOW_CLKDM,
 	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,
-	.flags		= CLKDM_CAN_HWSUP_SWSUP,
+	.flags		= CLKDM_CAN_SWSUP,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X),
 };
 

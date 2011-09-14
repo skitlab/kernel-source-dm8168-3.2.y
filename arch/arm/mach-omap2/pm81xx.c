@@ -21,9 +21,14 @@
 #include <linux/list.h>
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <asm/io.h>
 
 #include "pm.h"
 #include "powerdomain.h"
+#include "clockdomain.h"
+#include "cm81xx.h"
+#include "cm-regbits-81xx.h"
+#include "prm2xxx_3xxx.h"
 #include <mach/omap4-common.h>
 #include <plat/serial.h>
 
@@ -118,6 +123,42 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 	return pwrdm_set_next_pwrst(pwrst->pwrdm, pwrst->next_state);
 }
 
+/*
+ * Enable hw supervised mode for all clockdomains if it's
+ * supported. Initiate sleep transition for other clockdomains, if
+ * they are not used
+ */
+static int __init clkdms_setup(struct clockdomain *clkdm, void *unused)
+{
+	if (clkdm->flags & CLKDM_CAN_ENABLE_AUTO)
+		omap2_clkdm_allow_idle(clkdm);
+	else if (clkdm->flags & CLKDM_CAN_FORCE_SLEEP &&
+		atomic_read(&clkdm->usecount) == 0)
+		omap2_clkdm_sleep(clkdm);
+	return 0;
+}
+
+static void __init prcm_setup_regs(void)
+{
+	/* Clear reset status register */
+	omap2_prm_write_mod_reg(0xffffffff, TI81XX_PRM_DEVICE_MOD,
+							TI81XX_RM_RSTST);
+	omap2_prm_write_mod_reg(0xffffffff, TI81XX_PRM_ALWON_MOD,
+							TI81XX_RM_RSTST);
+	omap2_prm_write_mod_reg(0xffffffff, TI814X_PRM_DSP_MOD,
+							TI81XX_RM_RSTST);
+	omap2_prm_write_mod_reg(0xffffffff, TI814X_PRM_ALWON2_MOD,
+							TI81XX_RM_RSTST);
+	omap2_prm_write_mod_reg(0xffffffff, TI814X_PRM_HDVICP_MOD,
+							TI81XX_RM_RSTST);
+	omap2_prm_write_mod_reg(0xffffffff, TI814X_PRM_ISP_MOD,
+							TI81XX_RM_RSTST);
+	omap2_prm_write_mod_reg(0xffffffff, TI814X_PRM_HDVPSS_MOD,
+							TI81XX_RM_RSTST);
+	omap2_prm_write_mod_reg(0xffffffff, TI814X_PRM_GFX_MOD,
+							TI81XX_RM_RSTST);
+}
+
 /**
  * ti81xx_pm_init - Init routine for TI81XX PM
  *
@@ -134,11 +175,13 @@ static int __init ti81xx_pm_init(void)
 	if (!cpu_is_ti814x())
 		return -ENODEV;
 
+	prcm_setup_regs();
 	ret = pwrdm_for_each(pwrdms_setup, NULL);
 	if (ret) {
 		pr_err("Failed to setup powerdomains\n");
 		goto err1;
 	}
+	clkdm_for_each(clkdms_setup, NULL);
 #ifdef CONFIG_SUSPEND
 	suspend_set_ops(ti81xx_pm_ops);
 #endif
