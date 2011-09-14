@@ -91,6 +91,9 @@ do {								\
 #define CPTS_READ_TS_MAX_TRY		20
 #define CPTL_CLK_FREQ			250000000 /*250MHz*/
 #define DEFAULT_CPTS_CLK		CPTS_CLK_SEL_AUDIO
+#define NANOSEC_CPTSCOUNT_CONV_SHIFT	2	/*1GHz/250Mhz=4 "1<<2 - 4"*/
+#define NANOSEC_TO_CPTSCOUNT(_NS_)	(_NS_ >> NANOSEC_CPTSCOUNT_CONV_SHIFT)
+#define CPTSCOUNT_TO_NANOSEC(_NS_)	(_NS_ << NANOSEC_CPTSCOUNT_CONV_SHIFT)
 
 static int debug_level;
 module_param(debug_level, int, 0);
@@ -323,7 +326,7 @@ static int cpts_time_evts_fifo_push(struct cpts_evts_fifo *fifo,
 {
 
 	fifo->fifo[fifo->tail].event_high = evt->event_high;
-	fifo->fifo[fifo->tail].ts = evt->ts;
+	fifo->fifo[fifo->tail].ts = CPTSCOUNT_TO_NANOSEC(evt->ts);
 
 	fifo->tail++;
 	if (fifo->tail >= CPTS_FIFO_SIZE)
@@ -457,6 +460,7 @@ int cpts_systime_write(u64 ns)
 		printk(KERN_ERR "Device Error, No device found\n");
 		return -ENODEV;
 	}
+	ns = NANOSEC_TO_CPTSCOUNT(ns);
 	__raw_writel((u32)(ns & 0xffffffff), &cpts_regs->ts_load_val);
 	__raw_writel(0x1, &cpts_regs->ts_load_en);
 	gpriv->cpts_time.tshi = (u32)(ns >> 32);
@@ -483,9 +487,8 @@ int cpts_systime_read(u64 *ns)
 	if (i >= 20) {
 		*ns = 0;
 		ret = -EBUSY;
-	} else {
-		*ns = time_push;
-	}
+	} else
+		*ns = CPTSCOUNT_TO_NANOSEC(time_push);
 
 	return ret;
 }
