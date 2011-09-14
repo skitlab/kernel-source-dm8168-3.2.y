@@ -42,7 +42,8 @@ struct power_state {
 	struct list_head node;
 };
 
-static bool  enter_deep_sleep;
+static bool enter_deep_sleep;
+static bool turnoff_idle_pwrdms;
 static LIST_HEAD(pwrst_list);
 
 #ifdef CONFIG_SUSPEND
@@ -89,16 +90,19 @@ static int ti81xx_pm_suspend(void)
 
 	/* TBD: Keep DDR in self refresh mode here */
 	ti81xx_pm_enter_ddr_self_refresh();
-	/* Read current next_pwrsts */
-	list_for_each_entry(pwrst, &pwrst_list, node) {
-		pwrst->saved_state = pwrdm_read_next_pwrst(pwrst->pwrdm);
-	}
+	if (turnoff_idle_pwrdms) {
+		/* Read current next_pwrsts */
+		list_for_each_entry(pwrst, &pwrst_list, node) {
+			pwrst->saved_state =
+					pwrdm_read_next_pwrst(pwrst->pwrdm);
+		}
 
-	/* update pwrst->next_state */
-	list_for_each_entry(pwrst, &pwrst_list, node) {
-		if (ti81xx_pwrdms_set_suspend_state(pwrst->pwrdm)) {
-			pr_err("Failed to set pwrdm suspend states\n");
-			return ret;
+		/* update pwrst->next_state */
+		list_for_each_entry(pwrst, &pwrst_list, node) {
+			if (ti81xx_pwrdms_set_suspend_state(pwrst->pwrdm)) {
+				pr_err("Failed to set pwrdm suspend states\n");
+				return ret;
+			}
 		}
 	}
 #if defined(CONFIG_ARCH_TI814X)
@@ -119,8 +123,10 @@ resume:
 #if defined(CONFIG_ARCH_TI814X)
 	clk_set_rate(arm_clk, ARM_FREQ_OPP_100);
 #endif
-	list_for_each_entry(pwrst, &pwrst_list, node)
-		pwrdm_set_next_pwrst(pwrst->pwrdm, pwrst->saved_state);
+	if (turnoff_idle_pwrdms) {
+		list_for_each_entry(pwrst, &pwrst_list, node)
+			pwrdm_set_next_pwrst(pwrst->pwrdm, pwrst->saved_state);
+	}
 	return ret;
 }
 
@@ -224,6 +230,13 @@ void ti81xx_enable_deep_sleep(u32 deep_sleep_enabled)
 		enter_deep_sleep = false;
 }
 
+void ti81xx_powerdown_idle_pwrdms(u32 pwrdown_idle_pwrdms)
+{
+	if (pwrdown_idle_pwrdms)
+		turnoff_idle_pwrdms = true;
+	else
+		turnoff_idle_pwrdms = false;
+}
 /**
  * ti81xx_pm_init - Init routine for TI81XX PM
  *
