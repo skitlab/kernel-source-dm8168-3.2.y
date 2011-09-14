@@ -190,6 +190,45 @@ static struct snd_platform_data ti8148_evm_snd_data = {
 	.rxnumevt	= 1,
 };
 
+/* NOR Flash partitions */
+static struct mtd_partition ti814x_evm_norflash_partitions[] = {
+	/* bootloader (U-Boot, etc) in first 5 sectors */
+	{
+		.name		= "bootloader",
+		.offset		= 0,
+		.size		= 2 * SZ_128K,
+		.mask_flags	= MTD_WRITEABLE, /* force read-only */
+	},
+	/* bootloader params in the next 1 sectors */
+	{
+		.name		= "env",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_128K,
+		.mask_flags	= 0,
+	},
+	/* kernel */
+	{
+		.name		= "kernel",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 2 * SZ_2M,
+		.mask_flags	= 0
+	},
+	/* file system */
+	{
+		.name		= "filesystem",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 25 * SZ_2M,
+		.mask_flags	= 0
+	},
+	/* reserved */
+	{
+		.name		= "reserved",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= MTDPART_SIZ_FULL,
+		.mask_flags	= 0
+	}
+};
+
 /* NAND flash information */
 static struct mtd_partition ti814x_nand_partitions[] = {
 /* All the partition sizes are listed in terms of NAND block size */
@@ -405,6 +444,8 @@ static void __init ti8148_evm_init(void)
 	platform_add_devices(ti8148_devices, ARRAY_SIZE(ti8148_devices));
 #endif
 	regulator_use_dummy_regulator();
+	board_nor_init(ti814x_evm_norflash_partitions,
+		ARRAY_SIZE(ti814x_evm_norflash_partitions), 0);
 }
 
 static void __init ti8148_evm_map_io(void)
