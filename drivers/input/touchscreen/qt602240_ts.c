@@ -1256,17 +1256,20 @@ static int __devinit qt602240_probe(struct i2c_client *client,
 
 	/* For single touch */
 	input_set_abs_params(input_dev, ABS_X,
-			     0, QT602240_MAX_XC, 0, 0);
+			 0, ((struct qt602240_platform_data *)client->dev.
+					platform_data)->x_size, 0, 0);
 	input_set_abs_params(input_dev, ABS_Y,
-			     0, QT602240_MAX_YC, 0, 0);
-
+			 0, ((struct qt602240_platform_data *)client->dev.
+					platform_data)->y_size, 0, 0);
 	/* For multi touch */
 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR,
 			     0, QT602240_MAX_AREA, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_X,
-			     0, QT602240_MAX_XC, 0, 0);
+			 0, ((struct qt602240_platform_data *)client->dev.
+					platform_data)->x_size, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
-			     0, QT602240_MAX_YC, 0, 0);
+			 0, ((struct qt602240_platform_data *)client->dev.
+					platform_data)->y_size, 0, 0);
 
 	input_set_drvdata(input_dev, data);
 
