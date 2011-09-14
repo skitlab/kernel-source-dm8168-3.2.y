@@ -617,9 +617,9 @@ static int __init pm_dbg_init(void)
 
 	if (cpu_is_omap34xx())
 		pm_dbg_reg_modules = omap3_pm_reg_modules;
-	else if (cpu_is_ti81xx()) {
-		printk(KERN_INFO "Debugfs: Only enabling/disabling deep sleep "
-			"is supported now\n");
+	else if (cpu_is_ti814x()) {
+		pr_info("Debugfs: Only enabling/disabling deep sleep "
+			"and wakeup timer is supported now\n");
 	} else {
 		printk(KERN_ERR "%s: only OMAP3 supported\n", __func__);
 		return -ENODEV;
@@ -656,12 +656,13 @@ static int __init pm_dbg_init(void)
 				   &enable_off_mode, &pm_dbg_option_fops);
 	(void) debugfs_create_file("sleep_while_idle", S_IRUGO | S_IWUGO, d,
 				   &sleep_while_idle, &pm_dbg_option_fops);
+#endif
 	(void) debugfs_create_file("wakeup_timer_seconds", S_IRUGO | S_IWUGO, d,
 				   &wakeup_timer_seconds, &pm_dbg_option_fops);
 	(void) debugfs_create_file("wakeup_timer_milliseconds",
 			S_IRUGO | S_IWUGO, d, &wakeup_timer_milliseconds,
 			&pm_dbg_option_fops);
-#endif
+
 #if defined(CONFIG_ARCH_TI814X)
 	(void) debugfs_create_file("enable_deep_sleep", S_IRUGO | S_IWUGO, d,
 				   &enable_deep_sleep, &pm_dbg_option_fops);

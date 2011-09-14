@@ -82,6 +82,11 @@ static int ti81xx_pm_suspend(void)
 #endif
 	int ret = 0;
 
+	if ((wakeup_timer_seconds || wakeup_timer_milliseconds) &&
+		!enter_deep_sleep)
+		omap2_pm_wakeup_on_timer(wakeup_timer_seconds,
+					wakeup_timer_milliseconds);
+
 	/* TBD: Keep DDR in self refresh mode here */
 	ti81xx_pm_enter_ddr_self_refresh();
 	/* Read current next_pwrsts */
