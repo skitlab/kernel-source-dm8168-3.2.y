@@ -21,6 +21,7 @@
 #include <linux/list.h>
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <linux/clk.h>
 #include <asm/io.h>
 
 #include "pm.h"
@@ -76,6 +77,9 @@ static void ti81xx_enter_deep_sleep(void)
 static int ti81xx_pm_suspend(void)
 {
 	struct power_state *pwrst;
+#if defined(CONFIG_ARCH_TI814X)
+	struct clk *arm_clk;
+#endif
 	int ret = 0;
 
 	/* TBD: Keep DDR in self refresh mode here */
@@ -92,6 +96,11 @@ static int ti81xx_pm_suspend(void)
 			return ret;
 		}
 	}
+#if defined(CONFIG_ARCH_TI814X)
+	/* Reduce ARM operating frequency to that of OPP 50(lowest) */
+	arm_clk = clk_get(NULL, "arm_dpll_ck");
+	clk_set_rate(arm_clk, ARM_FREQ_OPP_50);
+#endif
 	if (enter_deep_sleep) {
 		pr_info("\n|       Entering DeepSleep       |\n");
 		ti81xx_enter_deep_sleep();
@@ -102,6 +111,9 @@ static int ti81xx_pm_suspend(void)
 	}
 	return ret;
 resume:
+#if defined(CONFIG_ARCH_TI814X)
+	clk_set_rate(arm_clk, ARM_FREQ_OPP_100);
+#endif
 	list_for_each_entry(pwrst, &pwrst_list, node)
 		pwrdm_set_next_pwrst(pwrst->pwrdm, pwrst->saved_state);
 	return ret;

@@ -25,6 +25,12 @@
 #define TI814X_ADPLL_REGADDR(adpll_base, reg)				\
 	TI81XX_L4_SLOW_IO_ADDRESS(TI814X_PLL_BASE + (adpll_base) + (reg))
 
+#if defined(CONFIG_ARCH_TI814X)
+/* ARM frequency */
+#define ARM_FREQ_OPP_100	600000000 /* Hz */
+#define ARM_FREQ_OPP_50		300000000 /* Hz */
+#endif
+
 /*
  * TI81XX common CM module offsets
  */
