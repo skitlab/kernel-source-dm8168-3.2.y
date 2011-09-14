@@ -41,6 +41,7 @@ struct power_state {
 	struct list_head node;
 };
 
+static bool  enter_deep_sleep;
 static LIST_HEAD(pwrst_list);
 
 #ifdef CONFIG_SUSPEND
@@ -57,6 +58,19 @@ static int ti81xx_pwrdms_set_suspend_state(struct powerdomain *pwrdm)
 static int ti81xx_pm_enter_ddr_self_refresh(void)
 {
 	return 0;
+}
+
+static void ti81xx_enter_deep_sleep(void)
+{
+	u32 v;
+
+	v = __raw_readl(TI814X_PLL_CMGC_DEEPSLEEP_CTRL);
+	v |= (TI814X_DEEPSLEEP_CTRL_DSPOLARITY_MASK);
+	__raw_writel(v, TI814X_PLL_CMGC_DEEPSLEEP_CTRL);
+
+	v = __raw_readl(TI814X_PLL_CMGC_DEEPSLEEP_CTRL);
+	v |= (TI814X_DEEPSLEEP_CTRL_DSENABLE_MASK);
+	__raw_writel(v, TI814X_PLL_CMGC_DEEPSLEEP_CTRL);
 }
 
 static int ti81xx_pm_suspend(void)
@@ -78,10 +92,16 @@ static int ti81xx_pm_suspend(void)
 			return ret;
 		}
 	}
-	/* Execute WFI on ARM */
-	do_wfi();
-
-	/* resume */
+	if (enter_deep_sleep) {
+		pr_info("\n|       Entering DeepSleep       |\n");
+		ti81xx_enter_deep_sleep();
+	} else {
+		do_wfi();
+		/* Got interrupt */
+		goto resume;
+	}
+	return ret;
+resume:
 	list_for_each_entry(pwrst, &pwrst_list, node)
 		pwrdm_set_next_pwrst(pwrst->pwrdm, pwrst->saved_state);
 	return ret;
@@ -177,6 +197,14 @@ static void __init prcm_setup_regs(void)
 							TI81XX_RM_RSTST);
 	omap2_prm_write_mod_reg(0xffffffff, TI814X_PRM_GFX_MOD,
 							TI81XX_RM_RSTST);
+}
+
+void ti81xx_enable_deep_sleep(u32 deep_sleep_enabled)
+{
+	if (deep_sleep_enabled)
+		enter_deep_sleep = true;
+	else
+		enter_deep_sleep = false;
 }
 
 /**

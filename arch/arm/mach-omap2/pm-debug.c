@@ -43,6 +43,9 @@ u32 enable_off_mode;
 u32 sleep_while_idle;
 u32 wakeup_timer_seconds;
 u32 wakeup_timer_milliseconds;
+#if defined(CONFIG_ARCH_TI814X)
+u32 enable_deep_sleep;
+#endif
 
 #define DUMP_PRM_MOD_REG(mod, reg)    \
 	regs[reg_count].name = #mod "." #reg; \
@@ -539,6 +542,7 @@ static int pwrdm_suspend_set(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(pwrdm_suspend_fops, pwrdm_suspend_get,
 			pwrdm_suspend_set, "%llu\n");
 
+#if defined(CONFIG_ARCH_OMAP3)
 static int __init pwrdms_setup(struct powerdomain *pwrdm, void *dir)
 {
 	int i;
@@ -562,6 +566,7 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *dir)
 
 	return 0;
 }
+#endif
 
 static int option_get(void *data, u64 *val)
 {
@@ -589,7 +594,12 @@ static int option_set(void *data, u64 val)
 		if (cpu_is_omap34xx())
 			omap3_pm_off_mode_enable(val);
 	}
-
+#if defined(CONFIG_ARCH_TI814X)
+	if (option == &enable_deep_sleep) {
+		if (val)
+			ti81xx_enable_deep_sleep(val);
+	}
+#endif
 	return 0;
 }
 
@@ -597,16 +607,20 @@ DEFINE_SIMPLE_ATTRIBUTE(pm_dbg_option_fops, option_get, option_set, "%llu\n");
 
 static int __init pm_dbg_init(void)
 {
-	int i;
 	struct dentry *d;
+#if defined(CONFIG_ARCH_OMAP3)
+	int i;
 	char name[2];
-
+#endif
 	if (pm_dbg_init_done)
 		return 0;
 
 	if (cpu_is_omap34xx())
 		pm_dbg_reg_modules = omap3_pm_reg_modules;
-	else {
+	else if (cpu_is_ti81xx()) {
+		printk(KERN_INFO "Debugfs: Only enabling/disabling deep sleep "
+			"is supported now\n");
+	} else {
 		printk(KERN_ERR "%s: only OMAP3 supported\n", __func__);
 		return -ENODEV;
 	}
@@ -615,6 +629,7 @@ static int __init pm_dbg_init(void)
 	if (IS_ERR(d))
 		return PTR_ERR(d);
 
+#if defined(CONFIG_ARCH_OMAP3)
 	(void) debugfs_create_file("count", S_IRUGO,
 		d, (void *)DEBUG_FILE_COUNTERS, &debug_fops);
 	(void) debugfs_create_file("time", S_IRUGO,
@@ -646,6 +661,11 @@ static int __init pm_dbg_init(void)
 	(void) debugfs_create_file("wakeup_timer_milliseconds",
 			S_IRUGO | S_IWUGO, d, &wakeup_timer_milliseconds,
 			&pm_dbg_option_fops);
+#endif
+#if defined(CONFIG_ARCH_TI814X)
+	(void) debugfs_create_file("enable_deep_sleep", S_IRUGO | S_IWUGO, d,
+				   &enable_deep_sleep, &pm_dbg_option_fops);
+#endif
 	pm_dbg_init_done = 1;
 
 	return 0;
