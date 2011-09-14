@@ -227,16 +227,22 @@ static int ti81xx_pwrdm_read_next_pwrst(struct powerdomain *pwrdm)
 
 static int ti81xx_pwrdm_read_pwrst(struct powerdomain *pwrdm)
 {
+	/* Hack to fix GFX pwstst and rstctrl reg offsets to be removed
+	 * if the register offsets are made same as other pwrdms
+	 */
 	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
-					     TI81XX_PM_PWSTST,
-					     OMAP_POWERSTATEST_MASK);
+		(pwrdm->prcm_offs == TI814X_PRM_GFX_MOD) ? TI81XX_RM_RSTCTRL :
+						TI81XX_PM_PWSTST,
+						OMAP_POWERSTATEST_MASK);
 }
 
 static int ti81xx_pwrdm_read_logic_pwrst(struct powerdomain *pwrdm)
 {
+	/* Hack to fix GFX pwstst and rstctrl reg offsets to be removed */
 	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
-					     TI81XX_PM_PWSTST,
-					     OMAP3430_LOGICSTATEST_MASK);
+		(pwrdm->prcm_offs == TI814X_PRM_GFX_MOD) ? TI81XX_RM_RSTCTRL :
+						TI81XX_PM_PWSTST,
+						OMAP3430_LOGICSTATEST_MASK);
 }
 
 static int ti81xx_pwrdm_wait_transition(struct powerdomain *pwrdm)
@@ -250,7 +256,10 @@ static int ti81xx_pwrdm_wait_transition(struct powerdomain *pwrdm)
 	 */
 
 	/* XXX Is this udelay() value meaningful? */
-	while ((omap2_prm_read_mod_reg(pwrdm->prcm_offs, TI81XX_PM_PWSTST) &
+	/* Hack to fix GFX pwstst and rstctrl reg offsets to be removed */
+	while ((omap2_prm_read_mod_reg(pwrdm->prcm_offs,
+		(pwrdm->prcm_offs == TI814X_PRM_GFX_MOD) ? TI81XX_RM_RSTCTRL :
+							  TI81XX_PM_PWSTST) &
 		OMAP_INTRANSITION_MASK) &&
 		(c++ < PWRDM_TRANSITION_BAILOUT))
 			udelay(1);
