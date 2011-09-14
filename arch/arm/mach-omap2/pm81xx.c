@@ -44,26 +44,46 @@ struct power_state {
 static LIST_HEAD(pwrst_list);
 
 #ifdef CONFIG_SUSPEND
-static int _pwrdms_set_suspend_state(struct powerdomain *pwrdm, void *unused)
+static int ti81xx_pwrdms_set_suspend_state(struct powerdomain *pwrdm)
 {
 	/* alwon*_pwrdm fail this check and return */
 	if (!pwrdm->pwrsts)
 		return 0;
 
-	return pwrdm_set_next_pwrst(pwrdm, PWRDM_POWER_OFF);
+	pwrdm_set_next_pwrst(pwrdm, PWRDM_POWER_OFF);
+	return pwrdm_wait_transition(pwrdm);
+}
+
+static int ti81xx_pm_enter_ddr_self_refresh(void)
+{
+	return 0;
 }
 
 static int ti81xx_pm_suspend(void)
 {
+	struct power_state *pwrst;
 	int ret = 0;
-	/* update pwrst->next_state */
-	ret = pwrdm_for_each(_pwrdms_set_suspend_state, NULL);
-	if (ret) {
-		pr_err("Failed to set pwrdm suspend states\n");
-		return ret;
+
+	/* TBD: Keep DDR in self refresh mode here */
+	ti81xx_pm_enter_ddr_self_refresh();
+	/* Read current next_pwrsts */
+	list_for_each_entry(pwrst, &pwrst_list, node) {
+		pwrst->saved_state = pwrdm_read_next_pwrst(pwrst->pwrdm);
 	}
-	/* do wfi */
+
+	/* update pwrst->next_state */
+	list_for_each_entry(pwrst, &pwrst_list, node) {
+		if (ti81xx_pwrdms_set_suspend_state(pwrst->pwrdm)) {
+			pr_err("Failed to set pwrdm suspend states\n");
+			return ret;
+		}
+	}
+	/* Execute WFI on ARM */
 	do_wfi();
+
+	/* resume */
+	list_for_each_entry(pwrst, &pwrst_list, node)
+		pwrdm_set_next_pwrst(pwrst->pwrdm, pwrst->saved_state);
 	return ret;
 }
 
