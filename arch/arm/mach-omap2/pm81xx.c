@@ -57,6 +57,19 @@ static int ti81xx_pwrdms_set_suspend_state(struct powerdomain *pwrdm)
 	return pwrdm_wait_transition(pwrdm);
 }
 
+static int ti81xx_pwrdms_read_suspend_state(struct powerdomain *pwrdm)
+{
+	int state;
+	if (!pwrdm->pwrsts)
+		return 0;
+
+	state = pwrdm_read_pwrst(pwrdm);
+	if (state != PWRDM_POWER_OFF)
+		pr_err("%s did not enter off mode, current state = %d\n",
+							pwrdm->name, state);
+	return 0;
+}
+
 static int ti81xx_pm_enter_ddr_self_refresh(void)
 {
 	return 0;
@@ -124,6 +137,10 @@ resume:
 	clk_set_rate(arm_clk, ARM_FREQ_OPP_100);
 #endif
 	if (turnoff_idle_pwrdms) {
+		/* Check if pwrdms successfully transitioned to off state */
+		list_for_each_entry(pwrst, &pwrst_list, node)
+			ti81xx_pwrdms_read_suspend_state(pwrst->pwrdm);
+		/* Restore the saved state */
 		list_for_each_entry(pwrst, &pwrst_list, node)
 			pwrdm_set_next_pwrst(pwrst->pwrdm, pwrst->saved_state);
 	}
