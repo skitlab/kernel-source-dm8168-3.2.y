@@ -57,7 +57,7 @@ struct ti816x_sr {
 	u32				irq_delay;
 	u32				ip_type;
 	int				init_volt_mv;
-	int				mvoltage_step_size;
+	int				uvoltage_step_size;
 	struct regulator		*reg;
 	struct work_struct		work;
 	struct sr_platform_data		*sr_data;
@@ -110,7 +110,7 @@ static int get_errvolt(struct ti816x_sr *sr, s32 srid)
 	uvoltage = (int)((terror * 25) >> 5);
 
 	uvoltage = (uvoltage + MARGIN_PERCEN_ERROR) *
-				sr->mvoltage_step_size;
+				sr->uvoltage_step_size;
 	uvoltage = uvoltage * sr->sen[srid].e2v_gain;
 
 	/* converting percentage to value by dividing 100 */
@@ -498,6 +498,7 @@ static int sr_curr_volt_show(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(curr_volt_fops, sr_curr_volt_show,
 		NULL, "%llu\n");
 
+#ifdef CONFIG_DEBUG_FS
 /* sr_debugfs_entries - Create debugfs entries
  * @sr_info:		contains SR driver data
  *
@@ -542,6 +543,12 @@ static int sr_debugfs_entries(struct ti816x_sr *sr_info)
 	}
 	return 0;
 }
+#else
+static int sr_debugfs_entries(struct ti816x_sr *sr_info)
+{
+	return 0;
+}
+#endif
 
 static int __init ti816x_sr_probe(struct platform_device *pdev)
 {
@@ -573,7 +580,7 @@ static int __init ti816x_sr_probe(struct platform_device *pdev)
 	sr_info->ip_type = pdata->ip_type;
 	sr_info->irq_delay = pdata->irq_delay;
 	sr_info->sens_per_vd = pdata->no_of_sens/pdata->no_of_vds;
-	sr_info->mvoltage_step_size = pdata->vstep_size_mv;
+	sr_info->uvoltage_step_size = pdata->vstep_size_uv;
 	sr_info->autocomp_active = false;
 
 	/* Reading nTarget Values */
@@ -657,11 +664,9 @@ static int __init ti816x_sr_probe(struct platform_device *pdev)
 
 	/* debugfs entries */
 	ret = sr_debugfs_entries(sr_info);
-	if (ret) {
-		dev_err(&pdev->dev, "%s: Failed to create Debugfs entries\n",
+	if (ret)
+		dev_warn(&pdev->dev, "%s: Debugfs entries are not created\n",
 						__func__);
-		goto err_free_irq;
-	}
 
 	sr_info->reg = regulator_get(NULL, pdata->vd_name);
 	if (IS_ERR(sr_info->reg))

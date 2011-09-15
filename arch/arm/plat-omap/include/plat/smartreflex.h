@@ -277,7 +277,7 @@ struct ti816x_sr_sdata {
  * @no_of_vds:		Number of voltage domains to which SR applicable
  * @no_of_sens:		Number of SR sensors used to monitor the device
  *			performance, temp etc...
- * @vstep_size_mv:	PMIC voltage step size in milli volt
+ * @vstep_size_uv:	PMIC voltage step size in micro volts
  * @enable_on_init:	whether this sr module needs to enabled at
  *			boot up or not.
  */
@@ -288,7 +288,7 @@ struct ti816x_sr_platform_data {
 	u32			irq_delay;
 	u32			no_of_vds;
 	u32			no_of_sens;
-	u32			vstep_size_mv;
+	u32			vstep_size_uv;
 	bool			enable_on_init;
 };
 
