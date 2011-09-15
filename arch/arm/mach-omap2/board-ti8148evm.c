@@ -45,6 +45,7 @@
 #include "clock.h"
 #include "mux.h"
 #include "hsmmc.h"
+#include "control.h"
 
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
@@ -301,14 +302,29 @@ static void __init ti814x_hdmi_init(void)
 
 static void __init ti8148_evm_init(void)
 {
+	int bw; /* bus-width */
+
 	ti814x_mux_init(board_mux);
 	omap_serial_init();
 	ti814x_evm_i2c_init();
 	ti81xx_register_mcasp(0, &ti8148_evm_snd_data);
 
 	omap2_hsmmc_init(mmc);
-	board_nand_init(ti814x_nand_partitions,
+
+	/* nand initialisation */
+	if (cpu_is_ti814x()) {
+		u32 *control_status = TI81XX_CTRL_REGADDR(0x40);
+		if (*control_status & (1<<16))
+			bw = 0; /*8-bit nand if BTMODE BW pin on board is ON*/
+		else
+			bw = 2; /*16-bit nand if BTMODE BW pin on board is OFF*/
+
+		board_nand_init(ti814x_nand_partitions,
+			ARRAY_SIZE(ti814x_nand_partitions), 0, bw);
+	} else
+		board_nand_init(ti814x_nand_partitions,
 		ARRAY_SIZE(ti814x_nand_partitions), 0, NAND_BUSWIDTH_16);
+
 	/* initialize usb */
 	usb_musb_init(&musb_board_data);
 
