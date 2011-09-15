@@ -586,14 +586,6 @@ static void __init ti816x_vpss_init(void)
 	/*FIXME add platform data here*/
 }
 
-static struct snd_hdmi_platform_data ti8168_snd_hdmi_pdata = {
-	.dma_addr = TI81xx_HDMI_WP + HDMI_WP_AUDIO_DATA,
-	.channel = 53,
-	.data_type = 4,
-	.acnt = 4,
-	.fifo_level = 0x20,
-};
-
 static struct platform_device ti816x_hdmi_plat_device = {
 	.name = "TI81XX_HDMI",
 	.id = -1,
@@ -602,6 +594,15 @@ static struct platform_device ti816x_hdmi_plat_device = {
 		/*.release = ti81xx_hdmi_platform_release,*/
 		.platform_data = NULL,
 	}
+};
+
+#ifdef CONFIG_SND_SOC_TI81XX_HDMI
+static struct snd_hdmi_platform_data ti8168_snd_hdmi_pdata = {
+	.dma_addr = TI81xx_HDMI_WP + HDMI_WP_AUDIO_DATA,
+	.channel = 53,
+	.data_type = 4,
+	.acnt = 4,
+	.fifo_level = 0x20,
 };
 
 static struct platform_device ti8168_hdmi_audio_device = {
@@ -621,6 +622,7 @@ static struct platform_device *ti8168_devices[] __initdata = {
 	&ti8168_hdmi_audio_device,
 	&ti8168_hdmi_codec_device,
 };
+#endif
 
 static void __init ti816x_hdmi_init(void)
 {
@@ -666,7 +668,9 @@ static void __init ti8168_evm_init(void)
 	ti816x_vpss_init();
 	ti816x_gpio_vr_init();
 	ti816x_hdmi_init();
+#ifdef CONFIG_SND_SOC_TI81XX_HDMI
 	platform_add_devices(ti8168_devices, ARRAY_SIZE(ti8168_devices));
+#endif
 	regulator_has_full_constraints();
 	regulator_use_dummy_regulator();
 }

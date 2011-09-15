@@ -248,6 +248,7 @@ static struct snd_soc_dai_link ti81xx_evm_dai[] = {
 		.init = evm_aic3x_init,
 		.ops = &evm_ops,
 	},
+#ifdef CONFIG_SND_SOC_TI81XX_HDMI
 	{
 		.name = "HDMI_SOC_LINK",
 		.stream_name = "hdmi",
@@ -256,6 +257,7 @@ static struct snd_soc_dai_link ti81xx_evm_dai[] = {
 		.codec_dai_name = "HDMI-DAI-CODEC",     /* DAI name */
 		.codec_name = "hdmi-dummy-codec",
 	},
+#endif
 };
 
 /* davinci dm6446 evm audio machine driver */

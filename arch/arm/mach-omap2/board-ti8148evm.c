@@ -261,6 +261,7 @@ static struct platform_device ti814x_hdmi_plat_device = {
 	}
 };
 
+#ifdef CONFIG_SND_SOC_TI81XX_HDMI
 static struct snd_hdmi_platform_data ti8148_snd_hdmi_pdata = {
 	.dma_addr = TI81xx_HDMI_WP + HDMI_WP_AUDIO_DATA,
 	.channel = 53,
@@ -286,6 +287,7 @@ static struct platform_device *ti8148_devices[] __initdata = {
 	&ti8148_hdmi_audio_device,
 	&ti8148_hdmi_codec_device,
 };
+#endif
 
 static void __init ti814x_hdmi_init(void)
 {
@@ -313,7 +315,9 @@ static void __init ti8148_evm_init(void)
 	ti8148_spi_init();
 	ti814x_vpss_init();
 	ti814x_hdmi_init();
+#ifdef CONFIG_SND_SOC_TI81XX_HDMI
 	platform_add_devices(ti8148_devices, ARRAY_SIZE(ti8148_devices));
+#endif
 	regulator_use_dummy_regulator();
 }
 
