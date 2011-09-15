@@ -1363,6 +1363,14 @@ static void usb_process_tx_queue(struct cppi41 *cppi, unsigned index)
 			 * failure with iperf.
 			 */
 			udelay(20);
+			if (is_otg_enabled(cppi->musb) &&
+				is_peripheral_active(cppi->musb)) {
+
+				void __iomem *epio = tx_ch->end_pt->regs;
+				u16 csr = musb_readw(epio, MUSB_TXCSR);
+				if (csr & MUSB_TXCSR_FIFONOTEMPTY)
+					udelay(10);
+			}
 			/* Tx completion routine callback */
 			musb_dma_completion(cppi->musb, ep_num, 1);
 		}
