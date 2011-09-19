@@ -1385,7 +1385,7 @@ static ssize_t blender_enabled_store(struct dc_blender_info *binfo,
 		}
 		/* If external encoder driver registered and enabled
 			,disable it */
-		if (extenc->panel_driver) {
+		if (extenc->panel_driver && (!dc_isvencrunning(vid))) {
 			enc_status = extenc->status;
 			if (enc_status == TI81xx_EXT_ENCODER_ENABLED ||
 			   enc_status == TI81xx_EXT_ENCODER_RESUMED) {
