@@ -753,7 +753,8 @@ static void __cpdma_chan_free(struct cpdma_chan *chan,
 
 	dma_unmap_single(ctlr->dev, buff_dma, origlen, chan->dir);
 	cpdma_desc_free(pool, desc, 1);
-	(*chan->handler)(token, outlen, status);
+	if(outlen > 0)
+		(*chan->handler)(token, outlen, status);
 }
 
 static int __cpdma_chan_process(struct cpdma_chan *chan)
