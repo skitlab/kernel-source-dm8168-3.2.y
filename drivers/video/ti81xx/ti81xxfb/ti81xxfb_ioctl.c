@@ -40,11 +40,7 @@ static void set_trans_key(struct fb_info *fbi,
 		regp->transenable = 0;
 
 	if (rp->transen) {
-		if (rp->transcolor > 0xFFFFFF)
-			regp->transcolorrgb24 = 0xFFFFFF;
-		else
-			regp->transcolorrgb24 = rp->transcolor;
-
+		regp->transcolorrgb24 = rp->transcolor & 0xFFFFFF;
 		regp->transtype = rp->transtype;
 	}
 }

@@ -747,7 +747,7 @@ static int ti81xxfb_blank(int blank, struct fb_info *fbi)
 	struct ti81xxfb_info *tfbi = FB2TFB(fbi);
 	struct vps_grpx_ctrl *gctrl = tfbi->gctrl;
 
-	TFBDBG("FB_BANK\n");
+	TFBDBG("FB_BLANK\n");
 	ti81xxfb_lock(tfbi);
 
 	switch (blank) {
@@ -1077,7 +1077,8 @@ static int ti81xxfb_alloc_fbmem(struct fb_info *fbi, unsigned long size)
 	struct ti81xxfb_mem_region *rg = &tfbi->mreg;
 	unsigned long		   paddr;
 	void			   *vaddr;
-
+	u32 w, h, bsize;
+	u8 sf;
 
 	size = PAGE_ALIGN(size);
 	memset(rg, 0, sizeof(*rg));
@@ -1094,7 +1095,15 @@ static int ti81xxfb_alloc_fbmem(struct fb_info *fbi, unsigned long size)
 			"failed to allocate framebuffer\n");
 		return -ENOMEM;
 	}
-
+	/*zeroed out memory*/
+	if (tfbi->gctrl->get_resolution(tfbi->gctrl, &w, &h, &sf)) {
+		w = 1920;
+		h = 1080;
+	}
+	bsize = (w * h * 32) >> 3;
+	if (bsize > size)
+		bsize = size;
+	memset(vaddr, 0 , bsize);
 	rg->paddr = paddr;
 	rg->vaddr = vaddr;
 	rg->size = size;
