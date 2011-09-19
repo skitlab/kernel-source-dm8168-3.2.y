@@ -69,7 +69,6 @@ const struct audio_timings audio_timings[] = {
 	{54000, 192000, 24576, 54000, IF_FS_192000},
 };
 
-static struct davinci_pcm_dma_params davinci_hdmi_dai_dma_params;
 static int davinci_hdmi_dai_startup(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
