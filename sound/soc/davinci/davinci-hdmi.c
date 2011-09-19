@@ -48,25 +48,25 @@
 /* Audio N / CTS values based on TMDS clks */
 const struct audio_timings audio_timings[] = {
 	/* TMDS 148.4 KHz */
-	{148500, 32000, 4096, 148500},
-	{148500, 44100, 6272, 165000},
-	{148500, 48000, 6144, 148500},
-	{148500, 96000, 12288, 148500},
-	{148500, 192000, 24576, 148500},
+	{148500, 32000, 4096, 148500, IF_FS_32000},
+	{148500, 44100, 6272, 165000, IF_FS_44100},
+	{148500, 48000, 6144, 148500, IF_FS_48000},
+	{148500, 96000, 12288, 148500, IF_FS_96000},
+	{148500, 192000, 24576, 148500, IF_FS_192000},
 
 	/* TMDS 74.25 KHz */
-	{74250, 32000, 4096, 74250},
-	{74250, 44100, 6272, 82500},
-	{74250, 48000, 6144, 74250},
-	{74250, 96000, 12288, 74250},
-	{74250, 192000, 24576, 74250},
+	{74250, 32000, 4096, 74250, IF_FS_32000},
+	{74250, 44100, 6272, 82500, IF_FS_44100},
+	{74250, 48000, 6144, 74250, IF_FS_48000},
+	{74250, 96000, 12288, 74250, IF_FS_96000},
+	{74250, 192000, 24576, 74250, IF_FS_192000} ,
 
 	/* TMDS 54 KHz */
-	{54000, 32000, 4096, 54000},
-	{54000, 44100, 6272, 60000},
-	{54000, 48000, 6144, 54000},
-	{54000, 96000, 12288, 54000},
-	{54000, 192000, 24576, 54000},
+	{54000, 32000, 4096, 54000, IF_FS_32000},
+	{54000, 44100, 6272, 60000, IF_FS_44100},
+	{54000, 48000, 6144, 54000, IF_FS_48000},
+	{54000, 96000, 12288, 54000, IF_FS_96000},
+	{54000, 192000, 24576, 54000, IF_FS_192000},
 };
 
 static struct davinci_pcm_dma_params davinci_hdmi_dai_dma_params;
@@ -192,7 +192,8 @@ static int davinci_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 	ret = hdmi_w1_audio_config_dma(HDMI_WP, &audio_dma);
 
 	/* HDMI Core config */
-	audio_cfg.if_fs = 0x01;
+	audio_cfg.if_fs = timing->audio_if_fs;
+	/*Currently we are supporting only 2CH*/
 	audio_cfg.layout = LAYOUT_2CH;
 	audio_cfg.if_channel_number = HDMI_STEREO_TWOCHANNELS;
 	audio_cfg.if_audio_channel_location = HDMI_CEA_CODE_00;

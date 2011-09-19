@@ -700,8 +700,11 @@ int hdmi_core_audio_config(u32 name,
 
 	/* Audio info frame setting refer to CEA-861-d spec p75 */
 	/* 0x0 because on HDMI CT must be = 0 / -1 because 1 is for 2 channel */
+	u8 sample =  (audio_cfg->if_sample_size & 0x1);
+	sample = (sample == HDMI_SAMPLE_16BITS) ? 0x1 : 0x3;
+
 	DBYTE1 = 0x10 + (audio_cfg->if_channel_number - 1);
-	DBYTE2 = (audio_cfg->if_fs << 2) + audio_cfg->if_sample_size;
+	DBYTE2 = (audio_cfg->if_fs << 2) + sample;
 	/* channel location according to CEA spec */
 	DBYTE4 = audio_cfg->if_audio_channel_location;
 

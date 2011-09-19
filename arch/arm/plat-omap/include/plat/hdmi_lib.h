@@ -447,6 +447,7 @@ struct audio_timings {
 	u32 audio_fs;
 	u32 audio_n;
 	u32 audio_cts;
+	enum hdmi_core_if_fs audio_if_fs;
 };
 
 /* hdmi audio platform data */
