@@ -117,9 +117,9 @@ static struct clockdomain ivahd_814x_clkdm = {
 };
 
 /* ISS is inside ISP */
-static struct clockdomain isp_814x_clkdm = {
-	.name		= "isp_clkdm",
-	.pwrdm		= { .name = "isp_pwrdm" },
+static struct clockdomain alwon2_mc_814x_clkdm = {
+	.name		= "alwon2_mc_clkdm",
+	.pwrdm		= { .name = "alwon_pwrdm" },
 	.cm_inst	= TI814X_CM_ALWON2_MOD,
 	.clkdm_offs	= TI814X_CM_ALWON2_MC_CLKDM,
 	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,

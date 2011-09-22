@@ -1705,7 +1705,7 @@ static struct clk ducati_ick = {
 	.ops		= &clkops_omap2_dflt,
 	.enable_reg	= TI814X_CM_ALWON2_MC_CLKCTRL,
 	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
-	.clkdm_name	= "iss_clkdm",
+	.clkdm_name	= "alwon2_mc_clkdm",
 	.recalc		= &followparent_recalc,
 };
 
