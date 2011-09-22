@@ -17,6 +17,10 @@
 
 #ifndef _BOARD_TI816X_H
 #define _BOARD_TI816X_H
+#include <linux/fvid2.h>
+
+#define VPS_SEL_TVP7002_DECODER	0
+#define VPS_SEL_SIL9135_DECODER	1
 
 
 enum ti816x_ths_filter_ctrl {
@@ -41,6 +45,8 @@ int pcf8575_ths7360_sd_enable(enum ti816x_ths_filter_ctrl ctrl);
 int pcf8575_ths7360_hd_enable(enum ti816x_ths7360_sf_ctrl ctrl);
 int ti816x_pcf8575_init(void);
 int ti816x_pcf8575_exit(void);
+int vps_ti816x_select_video_decoder(int vid_decoder_id);
+int vps_ti816x_set_tvp7002_filter(enum fvid2_standard standard);
 #else
 int pcf8575_ths7375_enable(enum ti816x_ths_filter_ctrl ctrl)
 {
@@ -62,7 +68,14 @@ int ti816x_pcf8575_exit(void)
 {
 	return 0;
 }
-
+int vps_ti816x_select_video_decoder(int vid_decoder_id)
+{
+	return 0;
+}
+int vps_ti816x_set_tvp7002_filter(enum fvid2_standard standard)
+{
+	return 0;
+}
 #endif
 #endif
 

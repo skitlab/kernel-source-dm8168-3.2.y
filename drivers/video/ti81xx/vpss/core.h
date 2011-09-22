@@ -112,6 +112,8 @@ void vps_sbuf_usage(void);
 int __init vps_system_init(struct platform_device *pdev);
 int __exit vps_system_deinit(struct platform_device *pdev);
 
+int __init vps_capt_init(struct platform_device *pdev);
+void __exit vps_capt_deinit(struct platform_device *pdev);
 
 static inline void *setaddr(struct vps_payload_info *dminfo,
 		     u32 *buf_offset,

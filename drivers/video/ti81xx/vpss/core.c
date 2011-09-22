@@ -94,6 +94,11 @@ static int vps_probe(struct platform_device *pdev)
 		VPSSERR("failed to init video.\n");
 		goto exit4;
 	}
+	r = vps_capt_init(pdev);
+	if (r) {
+		VPSSERR("failed to int video.\n");
+		goto exit4;
+	}
 	vps_sbuf_usage();
 	return 0;
 

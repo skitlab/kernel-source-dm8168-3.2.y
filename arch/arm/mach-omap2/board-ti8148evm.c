@@ -43,6 +43,7 @@
 #include <plat/gpmc.h>
 #include <plat/nand.h>
 #include <plat/hdmi_lib.h>
+#include <mach/board-ti814x.h>
 
 #include "board-flash.h"
 #include "clock.h"
@@ -96,7 +97,169 @@ static struct pcf857x_platform_data io_expander_data = {
 	.gpio_base	= 4 * 32,
 	.setup		= setup_gpio_ioexp,
 };
+static struct i2c_board_info __initdata ti814x_i2c_boardinfo1[] = {
+	{
+		I2C_BOARD_INFO("pcf8575_1", 0x21),
+	},
 
+};
+
+#define VPS_VC_IO_EXP_RESET_DEV_MASK        (0x0Fu)
+#define VPS_VC_IO_EXP_SEL_VIN0_S1_MASK      (0x04u)
+#define VPS_VC_IO_EXP_THS7368_DISABLE_MASK  (0x10u)
+#define VPS_VC_IO_EXP_THS7368_BYPASS_MASK   (0x20u)
+#define VPS_VC_IO_EXP_THS7368_FILTER1_MASK  (0x40u)
+#define VPS_VC_IO_EXP_THS7368_FILTER2_MASK  (0x80u)
+#define VPS_VC_IO_EXP_THS7368_FILTER_SHIFT  (0x06u)
+
+
+static const struct i2c_device_id pcf8575_video_id[] = {
+	{ "pcf8575_1", 0 },
+	{ }
+};
+static struct i2c_client *pcf8575_client;
+static unsigned char pcf8575_port[2] = {0x4F, 0x7F};
+int vps_ti814x_select_video_decoder(int vid_decoder_id);
+
+static int pcf8575_video_probe(struct i2c_client *client,
+				const struct i2c_device_id *id)
+{
+	pcf8575_client = client;
+	vps_ti814x_select_video_decoder(0);
+	return 0;
+}
+
+static int __devexit pcf8575_video_remove(struct i2c_client *client)
+{
+	pcf8575_client = NULL;
+	return 0;
+}
+
+static struct i2c_driver pcf8575_driver = {
+	.driver = {
+		.name   = "pcf8575_1",
+	},
+	.probe          = pcf8575_video_probe,
+	.remove         = pcf8575_video_remove,
+	.id_table       = pcf8575_video_id,
+};
+
+int ti814x_pcf8575_init(void)
+{
+	i2c_add_driver(&pcf8575_driver);
+	return 0;
+}
+EXPORT_SYMBOL(ti814x_pcf8575_init);
+
+int ti814x_pcf8575_exit(void)
+{
+	i2c_del_driver(&pcf8575_driver);
+	return 0;
+}
+#define VPS_VC_IO_EXP_RESET_DEV_MASK        (0x0Fu)
+#define VPS_VC_IO_EXP_SEL_VIN0_S1_MASK      (0x04u)
+#define VPS_VC_IO_EXP_THS7368_DISABLE_MASK  (0x10u)
+#define VPS_VC_IO_EXP_THS7368_BYPASS_MASK   (0x20u)
+#define VPS_VC_IO_EXP_THS7368_FILTER1_MASK  (0x40u)
+#define VPS_VC_IO_EXP_THS7368_FILTER2_MASK  (0x80u)
+#define VPS_VC_IO_EXP_THS7368_FILTER_SHIFT  (0x06u)
+int vps_ti814x_select_video_decoder(int vid_decoder_id)
+{
+	int ret = 0;
+	struct i2c_msg msg = {
+			.addr = pcf8575_client->addr,
+			.flags = 0,
+			.len = 2,
+		};
+	msg.buf = pcf8575_port;
+	if (VPS_SEL_TVP7002_DECODER == vid_decoder_id)
+		pcf8575_port[1] &= ~VPS_VC_IO_EXP_SEL_VIN0_S1_MASK;
+	else
+		pcf8575_port[1] |= VPS_VC_IO_EXP_SEL_VIN0_S1_MASK;
+	ret = (i2c_transfer(pcf8575_client->adapter, &msg, 1));
+	if (ret < 0)
+		printk(KERN_ERR "I2C: Transfer failed at %s %d with error code: %d\n",
+			__func__, __LINE__, ret);
+	return ret;
+}
+EXPORT_SYMBOL(vps_ti814x_select_video_decoder);
+
+#define I2C_RETRY_COUNT 10u
+int vps_ti814x_set_tvp7002_filter(enum fvid2_standard standard)
+{
+	int filter_sel;
+	int ret;
+	struct i2c_msg msg = {
+			.addr = pcf8575_client->addr,
+			.flags = 0,
+			.len = 2,
+		};
+
+	pcf8575_port[0] &= ~(VPS_VC_IO_EXP_THS7368_DISABLE_MASK
+		| VPS_VC_IO_EXP_THS7368_BYPASS_MASK
+		| VPS_VC_IO_EXP_THS7368_FILTER1_MASK
+		| VPS_VC_IO_EXP_THS7368_FILTER2_MASK);
+	switch (standard) {
+	case FVID2_STD_1080P_60:
+	case FVID2_STD_1080P_50:
+	case FVID2_STD_SXGA_60:
+	case FVID2_STD_SXGA_75:
+	case FVID2_STD_SXGAP_60:
+	case FVID2_STD_SXGAP_75:
+	case FVID2_STD_UXGA_60:
+		filter_sel = 0x03u;  /* Filter2: 1, Filter1: 1 */
+		break;
+	case FVID2_STD_1080I_60:
+	case FVID2_STD_1080I_50:
+	case FVID2_STD_1080P_24:
+	case FVID2_STD_1080P_30:
+	case FVID2_STD_720P_60:
+	case FVID2_STD_720P_50:
+	case FVID2_STD_SVGA_60:
+	case FVID2_STD_SVGA_72:
+	case FVID2_STD_SVGA_75:
+	case FVID2_STD_SVGA_85:
+	case FVID2_STD_XGA_60:
+	case FVID2_STD_XGA_70:
+	case FVID2_STD_XGA_75:
+	case FVID2_STD_XGA_85:
+	case FVID2_STD_WXGA_60:
+	case FVID2_STD_WXGA_75:
+	case FVID2_STD_WXGA_85:
+		filter_sel = 0x01u;  /* Filter2: 0, Filter1: 1 */
+		break;
+	case FVID2_STD_480P:
+	case FVID2_STD_576P:
+	case FVID2_STD_VGA_60:
+	case FVID2_STD_VGA_72:
+	case FVID2_STD_VGA_75:
+	case FVID2_STD_VGA_85:
+		filter_sel = 0x02u;  /* Filter2: 1, Filter1: 0 */
+		break;
+	case FVID2_STD_NTSC:
+	case FVID2_STD_PAL:
+	case FVID2_STD_480I:
+	case FVID2_STD_576I:
+	case FVID2_STD_D1:
+		filter_sel = 0x00u;  /* Filter2: 0, Filter1: 0 */
+		break;
+
+	default:
+		filter_sel = 0x01u;  /* Filter2: 0, Filter1: 1 */
+		break;
+	}
+	pcf8575_port[0] |=
+		(filter_sel << VPS_VC_IO_EXP_THS7368_FILTER_SHIFT);
+	msg.buf = pcf8575_port;
+	ret =  (i2c_transfer(pcf8575_client->adapter, &msg, 1));
+	if (ret < 0) {
+		printk(KERN_ERR "I2C: Transfer failed at %s %d with error code: %d\n",
+			__func__, __LINE__, ret);
+		return ret;
+	}
+	return ret;
+}
+EXPORT_SYMBOL(vps_ti814x_set_tvp7002_filter);
 /* Touchscreen platform data */
 static struct qt602240_platform_data ts_platform_data = {
 	.x_line		= 18,
@@ -129,9 +292,9 @@ static struct i2c_board_info __initdata ti814x_i2c_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("IO Expander", 0x20),
 	},
-        {
-                I2C_BOARD_INFO("tlc59108", 0x40),
-        },
+	{
+		I2C_BOARD_INFO("tlc59108", 0x40),
+	},
 	{
 		I2C_BOARD_INFO("pcf8575", 0x21),
 		.platform_data = &io_expander_data,
@@ -168,6 +331,8 @@ static void __init ti814x_evm_i2c_init(void)
 	 */
 	omap_register_i2c_bus(1, 100, ti814x_i2c_boardinfo,
 				ARRAY_SIZE(ti814x_i2c_boardinfo));
+	omap_register_i2c_bus(3, 100, ti814x_i2c_boardinfo1,
+				ARRAY_SIZE(ti814x_i2c_boardinfo1));
 }
 
 static u8 ti8148_iis_serializer_direction[] = {

@@ -32,6 +32,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <mach/board-ti816x.h>
+#include <mach/board-ti814x.h>
 
 #include "core.h"
 #include "system.h"
@@ -1343,7 +1344,29 @@ static ssize_t blender_mode_store(struct dc_blender_info *binfo,
 
 		}
 	}
-
+	/* if an external encoder is registered to this blender,
+		change the mode  */
+	enc_status = extenc->status;
+	if ((extenc->panel_driver) &&
+	    ((enc_status == TI81xx_EXT_ENCODER_DISABLED) ||
+	    (enc_status == TI81xx_EXT_ENCODER_REGISTERED))) {
+		/* Change mode */
+		/* FIXME :
+		   1. In later release two different enumerations will
+		   not be used. Only the FVID enumerations for
+		   resolutions.
+	 *         2. Currently only support 4 resolutions, till PLL
+		      locking is tested on other Std resolutions.
+	 */
+		timings.standard = mid;
+		timings.dvi_hdmi = TI81xx_MODE_HDMI;
+		dc_timing_to_device_timing(&venc_info.modeinfo[idx].minfo,
+					&timings);
+		if (extenc->panel_driver->set_timing)
+			extenc->panel_driver->set_timing(
+						&timings,
+						(void *)dummy);
+	}
 	r = size;
 exit:
 	dc_unlock(binfo->dctrl);
@@ -2413,6 +2436,8 @@ int __init vps_dc_init(struct platform_device *pdev,
 
 	VPSSDBG("dctrl init\n");
 
+	if (cpu_is_ti814x() && (!def_i2cmode))
+		ti814x_pcf8575_init();
 	if (cpu_is_ti816x() && (!def_i2cmode))
 		ti816x_pcf8575_init();
 
@@ -2629,7 +2654,6 @@ int __init vps_dc_init(struct platform_device *pdev,
 			disp_ctrl->blenders[HDCOMP].isdeviceon = false;
 		}
 		r = pcf8575_ths7360_sd_enable(TI816X_THSFILTER_ENABLE_MODULE);
-
 		if (r < 0) {
 			VPSSERR("setup 7360 filter failed.\n");
 			disp_ctrl->blenders[SDVENC].isdeviceon = false;

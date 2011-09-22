@@ -65,6 +65,14 @@ static struct omap2_hsmmc_info mmc[] = {
 	{}	/* Terminator */
 };
 
+#define VPS_VC_IO_EXP_RESET_DEV_MASK        (0x0Fu)
+#define VPS_VC_IO_EXP_SEL_VIN0_S1_MASK      (0x04u)
+#define VPS_VC_IO_EXP_THS7368_DISABLE_MASK  (0x10u)
+#define VPS_VC_IO_EXP_THS7368_BYPASS_MASK   (0x20u)
+#define VPS_VC_IO_EXP_THS7368_FILTER1_MASK  (0x40u)
+#define VPS_VC_IO_EXP_THS7368_FILTER2_MASK  (0x80u)
+#define VPS_VC_IO_EXP_THS7368_FILTER_SHIFT  (0x06u)
+
 static struct mtd_partition ti816x_evm_norflash_partitions[] = {
 	/* bootloader (U-Boot, etc) in first 5 sectors */
 	{
@@ -263,12 +271,203 @@ static struct i2c_board_info __initdata ti816x_i2c_boardinfo1[] = {
 	},
 	{
 		I2C_BOARD_INFO("sii9022a", 0x39),
-	}
+	},
+	{
+		I2C_BOARD_INFO("pcf8575_1", 0x21),
+	},
+	{
+		I2C_BOARD_INFO("pcf8575_1", 0x2e),
+	},
 };
 
 static struct i2c_client *pcf8575_1_client;
-static unsigned char pcf8575_port[2] = {0, 0};
+static unsigned char pcf8575_1_port[2] = {0, 0};
 
+static struct i2c_client *pcf8575_2_client;
+static unsigned char pcf8575_2_port[2] = {0xFF, 0x2F};
+
+static struct i2c_client *ths7353_client;
+
+int vps_ti816x_select_video_decoder(int vid_decoder_id)
+{
+	int ret = 0;
+	struct i2c_msg msg = {
+			.addr = pcf8575_2_client->addr,
+			.flags = 0,
+			.len = 2,
+		};
+	msg.buf = pcf8575_2_port;
+	if (VPS_SEL_TVP7002_DECODER == vid_decoder_id)
+		pcf8575_2_port[1] &= ~VPS_VC_IO_EXP_SEL_VIN0_S1_MASK;
+	else
+		pcf8575_2_port[1] |= VPS_VC_IO_EXP_SEL_VIN0_S1_MASK;
+	ret = (i2c_transfer(pcf8575_2_client->adapter, &msg, 1));
+
+	if (ret < 0)
+		printk(KERN_ERR "I2C: Transfer failed at %s %d with error code: %d\n",
+			__func__, __LINE__, ret);
+	return ret;
+}
+EXPORT_SYMBOL(vps_ti816x_select_video_decoder);
+#define I2C_RETRY_COUNT 10u
+int vps_ti816x_set_tvp7002_filter(enum fvid2_standard standard)
+{
+	int filter_sel;
+	int ret;
+	struct i2c_msg msg = {
+			.addr = pcf8575_2_client->addr,
+			.flags = 0,
+			.len = 2,
+		};
+
+	pcf8575_2_port[0] &= ~(VPS_VC_IO_EXP_THS7368_DISABLE_MASK
+			| VPS_VC_IO_EXP_THS7368_BYPASS_MASK
+			| VPS_VC_IO_EXP_THS7368_FILTER1_MASK
+			| VPS_VC_IO_EXP_THS7368_FILTER2_MASK);
+	switch (standard) {
+	case FVID2_STD_1080P_60:
+	case FVID2_STD_1080P_50:
+	case FVID2_STD_SXGA_60:
+	case FVID2_STD_SXGA_75:
+	case FVID2_STD_SXGAP_60:
+	case FVID2_STD_SXGAP_75:
+	case FVID2_STD_UXGA_60:
+		filter_sel = 0x03u;  /* Filter2: 1, Filter1: 1 */
+		break;
+	case FVID2_STD_1080I_60:
+	case FVID2_STD_1080I_50:
+	case FVID2_STD_1080P_24:
+	case FVID2_STD_1080P_30:
+	case FVID2_STD_720P_60:
+	case FVID2_STD_720P_50:
+	case FVID2_STD_SVGA_60:
+	case FVID2_STD_SVGA_72:
+	case FVID2_STD_SVGA_75:
+	case FVID2_STD_SVGA_85:
+	case FVID2_STD_XGA_60:
+	case FVID2_STD_XGA_70:
+	case FVID2_STD_XGA_75:
+	case FVID2_STD_XGA_85:
+	case FVID2_STD_WXGA_60:
+	case FVID2_STD_WXGA_75:
+	case FVID2_STD_WXGA_85:
+		filter_sel = 0x01u;  /* Filter2: 0, Filter1: 1 */
+		break;
+	case FVID2_STD_480P:
+	case FVID2_STD_576P:
+	case FVID2_STD_VGA_60:
+	case FVID2_STD_VGA_72:
+	case FVID2_STD_VGA_75:
+	case FVID2_STD_VGA_85:
+		filter_sel = 0x02u;  /* Filter2: 1, Filter1: 0 */
+		break;
+	case FVID2_STD_NTSC:
+	case FVID2_STD_PAL:
+	case FVID2_STD_480I:
+	case FVID2_STD_576I:
+	case FVID2_STD_D1:
+		filter_sel = 0x00u;  /* Filter2: 0, Filter1: 0 */
+		break;
+
+	default:
+		filter_sel = 0x01u;  /* Filter2: 0, Filter1: 1 */
+		break;
+	}
+	pcf8575_2_port[0] |=
+		(filter_sel << VPS_VC_IO_EXP_THS7368_FILTER_SHIFT);
+	msg.buf = pcf8575_2_port;
+	ret =  (i2c_transfer(pcf8575_2_client->adapter, &msg, 1));
+	if (ret < 0) {
+		printk(KERN_ERR "I2C: Transfer failed at %s %d with error code: %d\n",
+			__func__, __LINE__, ret);
+		return ret;
+	}
+	return 0;
+#if 0
+	int	status = FVID2_SOK;
+	u8	regAddr, regValue;
+	int	retry, error;
+
+	switch (standard) {
+	case FVID2_STD_1080P_60:
+	case FVID2_STD_1080P_50:
+	case FVID2_STD_SXGA_60:
+	case FVID2_STD_SXGA_75:
+	case FVID2_STD_SXGAP_60:
+	case FVID2_STD_SXGAP_75:
+	case FVID2_STD_UXGA_60:
+	    regValue = 0x9Cu;
+	    break;
+
+	case FVID2_STD_1080I_60:
+	case FVID2_STD_1080I_50:
+	case FVID2_STD_1080P_24:
+	case FVID2_STD_1080P_30:
+	case FVID2_STD_720P_60:
+	case FVID2_STD_720P_50:
+	case FVID2_STD_SVGA_60:
+	case FVID2_STD_SVGA_72:
+	case FVID2_STD_SVGA_75:
+	case FVID2_STD_SVGA_85:
+	case FVID2_STD_XGA_60:
+	case FVID2_STD_XGA_70:
+	case FVID2_STD_XGA_75:
+	case FVID2_STD_XGA_85:
+	case FVID2_STD_WXGA_60:
+	case FVID2_STD_WXGA_75:
+	case FVID2_STD_WXGA_85:
+	    regValue = 0x94u;
+	    break;
+
+	case FVID2_STD_480P:
+	case FVID2_STD_576P:
+	case FVID2_STD_VGA_60:
+	case FVID2_STD_VGA_72:
+	case FVID2_STD_VGA_75:
+	case FVID2_STD_VGA_85:
+	    regValue = 0x4Cu;
+	    break;
+
+	case FVID2_STD_NTSC:
+	case FVID2_STD_PAL:
+	case FVID2_STD_480I:
+	case FVID2_STD_576I:
+	case FVID2_STD_D1:
+	    regValue = 0x04u;
+	    break;
+
+	default:
+	    regValue = 0x94u;
+	    break;
+	}
+	for (retry = 0; retry < I2C_RETRY_COUNT; retry++) {
+		regAddr = 0x01u;
+		error = i2c_smbus_write_byte_data(ths7353_client,
+				regAddr, regValue);
+		if (error < 0) {
+			printk(KERN_ERR "I2C write failed at %d\n\n", __LINE__);
+			status = -1;
+		}
+		regAddr = 0x02u;
+		error = i2c_smbus_write_byte_data(ths7353_client,
+				regAddr, regValue);
+		if (error < 0) {
+			printk(KERN_ERR "I2C write failed at %d\n\n", __LINE__);
+			status = -1;
+		}
+		regAddr = 0x03u;
+		error = i2c_smbus_write_byte_data(ths7353_client,
+				regAddr, regValue);
+		if (error < 0) {
+			printk(KERN_ERR "I2C write failed at %d\n\n", __LINE__);
+			status = -1;
+		}
+	}
+
+	return status;
+#endif
+}
+EXPORT_SYMBOL(vps_ti816x_set_tvp7002_filter);
 int pcf8575_ths7375_enable(enum ti816x_ths_filter_ctrl ctrl)
 {
 	struct i2c_msg msg = {
@@ -277,9 +476,9 @@ int pcf8575_ths7375_enable(enum ti816x_ths_filter_ctrl ctrl)
 			.len = 2,
 		};
 
-	pcf8575_port[1] &= ~VPS_THS7375_MASK;
-	pcf8575_port[1] |= (ctrl & VPS_THS7375_MASK);
-	msg.buf = pcf8575_port;
+	pcf8575_1_port[1] &= ~VPS_THS7375_MASK;
+	pcf8575_1_port[1] |= (ctrl & VPS_THS7375_MASK);
+	msg.buf = pcf8575_1_port;
 
 	return i2c_transfer(pcf8575_1_client->adapter, &msg, 1);
 }
@@ -292,77 +491,84 @@ int pcf8575_ths7360_sd_enable(enum ti816x_ths_filter_ctrl ctrl)
 		.flags = 0,
 		.len = 2,
 	};
-
-	pcf8575_port[0] &= ~VPS_THS7360_SD_MASK;
-	switch (ctrl)	{
+	pcf8575_1_port[0] &= ~VPS_THS7360_SD_MASK;
+	switch (ctrl) {
 	case TI816X_THSFILTER_ENABLE_MODULE:
-		pcf8575_port[0] &= ~(VPS_THS7360_SD_MASK);
+		pcf8575_1_port[0] &= ~(VPS_THS7360_SD_MASK);
 		break;
 	case TI816X_THSFILTER_BYPASS_MODULE:
-		pcf8575_port[0] |= VPS_PCF8575_PIN2;
+		pcf8575_1_port[0] |= VPS_PCF8575_PIN2;
 		break;
 	case TI816X_THSFILTER_DISABLE_MODULE:
-		pcf8575_port[0] |= VPS_THS7360_SD_MASK;
+		pcf8575_1_port[0] |= VPS_THS7360_SD_MASK;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	msg.buf = pcf8575_port;
-
+	msg.buf = pcf8575_1_port;
 	return i2c_transfer(pcf8575_1_client->adapter, &msg, 1);
 }
 EXPORT_SYMBOL(pcf8575_ths7360_sd_enable);
 
 int pcf8575_ths7360_hd_enable(enum ti816x_ths7360_sf_ctrl ctrl)
 {
+	int ret_val;
 	struct i2c_msg msg = {
 		.addr = pcf8575_1_client->addr,
 		.flags = 0,
 		.len = 2,
 	};
 
-	pcf8575_port[0] &= ~VPS_THS7360_SF_MASK;
-
+	pcf8575_1_port[0] &= ~VPS_THS7360_SF_MASK;
 	switch (ctrl) {
 	case TI816X_THS7360_DISABLE_SF:
-		pcf8575_port[0] |= VPS_PCF8575_PIN4;
+		pcf8575_1_port[0] |= VPS_PCF8575_PIN4;
 		break;
 	case TI816X_THS7360_BYPASS_SF:
-		pcf8575_port[0] |= VPS_PCF8575_PIN3;
+		pcf8575_1_port[0] |= VPS_PCF8575_PIN3;
 		break;
 	case TI816X_THS7360_SF_SD_MODE:
-		pcf8575_port[0] &= ~(VPS_THS7360_SF_MASK);
+		pcf8575_1_port[0] &= ~(VPS_THS7360_SF_MASK);
 		break;
 	case TI816X_THS7360_SF_ED_MODE:
-		pcf8575_port[0] |= VPS_PCF8575_PIN0;
+		pcf8575_1_port[0] |= VPS_PCF8575_PIN0;
 		break;
 	case TI816X_THS7360_SF_HD_MODE:
-		pcf8575_port[0] |= VPS_PCF8575_PIN1;
+		pcf8575_1_port[0] |= VPS_PCF8575_PIN1;
 		break;
 	case TI816X_THS7360_SF_TRUE_HD_MODE:
-		pcf8575_port[0] |= VPS_PCF8575_PIN0|VPS_PCF8575_PIN1;
+		pcf8575_1_port[0] |= VPS_PCF8575_PIN0|VPS_PCF8575_PIN1;
 		break;
 	default:
-			return -EINVAL;
+		return -EINVAL;
 	}
+	msg.buf = pcf8575_1_port;
 
-	msg.buf = pcf8575_port;
+	ret_val = i2c_transfer(pcf8575_1_client->adapter, &msg, 1);
+	return ret_val;
 
-	return i2c_transfer(pcf8575_1_client->adapter, &msg, 1);
 }
 EXPORT_SYMBOL(pcf8575_ths7360_hd_enable);
 
 static int pcf8575_video_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
-	pcf8575_1_client = client;
+	if (client->addr == 0x20)
+		pcf8575_1_client = client;
+	else if (client->addr == 0x21)
+		pcf8575_2_client = client;
+	else if (client->addr == 0x2e)
+		ths7353_client = client;
+	 else
+		BUG();
 	return 0;
 }
 
 static int __devexit pcf8575_video_remove(struct i2c_client *client)
 {
 	pcf8575_1_client = NULL;
+	pcf8575_2_client = NULL;
 	return 0;
 }
 

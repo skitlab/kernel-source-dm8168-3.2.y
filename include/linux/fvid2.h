@@ -549,6 +549,16 @@ enum fvid2_fid {
 #define FVID2_FID_NONE                             (FVID2_FID_FRAME)
 
 /**
+ * \brief Buffer storage format.
+ */
+enum FVID2_BUFFER_FMT {
+	FVID2_BUF_FMT_FIELD = 0,
+	/**< Buffers are captured/displayed as fields instead of frames */
+	FVID2_BUF_FMT_FRAME,
+	/**< Buffers are captured/displayed as frames instead of frames */
+} ;
+
+/**
  *	\brief Bits per pixel.
  */
 enum fvid2_bitsperpixel {
@@ -772,6 +782,23 @@ struct fvid2_modeinfo {
 	u32              reserved[4u];
 	/**< For future use. Not used currently. */
 };
+
+/**
+ *  \brief FVID2 callback that is called by subframe mode C
+ *
+ *  This callback is called for every subframe of frame tha
+ *  is captured. This function is used by Capture Driver an
+ *  drivers.
+ *
+ *  Users should apply same rules as that of FVID2_CbFxn wh
+ *  subframe callbacks.
+ *
+ *  \param handle       [OUT] FVID2 handle for which this c
+ *  \param subFrameInfo    [OUT] SubFrame information.
+ *
+ *  \return FVID2_SOK on success, else appropriate FVID2 er
+ */
+typedef int (*FVID2_SubFrameCbFxn) (void *handle, struct fvid2_frame *subFrame);
 
 /**
  *	\brief FVID2 frame buffer list used to exchange multiple FVID2

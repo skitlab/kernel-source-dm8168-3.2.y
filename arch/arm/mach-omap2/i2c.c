@@ -36,16 +36,23 @@
 
 void __init omap2_i2c_mux_pins(int bus_id)
 {
-	char mux_name[sizeof("i2c2_scl.i2c2_scl")];
+	char mux_name[100];
 
 	/* First I2C bus is not muxable */
 	if (bus_id == 1)
 		return;
 
-	sprintf(mux_name, "i2c%i_scl.i2c%i_scl", bus_id, bus_id);
-	omap_mux_init_signal(mux_name, OMAP_PIN_INPUT);
-	sprintf(mux_name, "i2c%i_sda.i2c%i_sda", bus_id, bus_id);
-	omap_mux_init_signal(mux_name, OMAP_PIN_INPUT);
+	if (cpu_is_ti814x() && bus_id == 3) {
+		sprintf(mux_name, "uart0_dcdn.i2c2_scl_mux0");
+		omap_mux_init_signal(mux_name, OMAP_PIN_INPUT);
+		sprintf(mux_name, "uart0_dsrn.i2c2_sda_mux0");
+		omap_mux_init_signal(mux_name, OMAP_PIN_INPUT);
+	} else {
+		sprintf(mux_name, "i2c%i_scl.i2c%i_scl", bus_id, bus_id);
+		omap_mux_init_signal(mux_name, OMAP_PIN_INPUT);
+		sprintf(mux_name, "i2c%i_sda.i2c%i_sda", bus_id, bus_id);
+		omap_mux_init_signal(mux_name, OMAP_PIN_INPUT);
+	}
 }
 
 /**

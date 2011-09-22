@@ -186,6 +186,8 @@ obj-y	+= davinci/
 obj-$(CONFIG_ARCH_OMAP)	+= omap/
 obj-$(CONFIG_TI_TILER)  += tiler/
 obj-$(CONFIG_VIDEO_TI81XX_VIDOUT)	+= ti81xx/
+#obj-$(CONFIG_TI81XX_HDVPSS_CAPTURE)	+= ti81xx/
+
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core
 EXTRA_CFLAGS += -Idrivers/media/dvb/frontends
 EXTRA_CFLAGS += -Idrivers/media/common/tuners
