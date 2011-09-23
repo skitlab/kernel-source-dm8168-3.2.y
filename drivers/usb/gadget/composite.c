@@ -1300,7 +1300,7 @@ void usb_composite_unregister(struct usb_composite_driver *driver)
 {
 	int i;
 
-	for (i = 0; i < get_gadget_cur_drv_id(); ++i)
+	for (i = 0; i < get_gadget_max_drv_id(); ++i)
 		if (composite[i] == driver) {
 			usb_gadget_unregister_driver(&composite_driver[i]);
 			put_gadget_drv_id();

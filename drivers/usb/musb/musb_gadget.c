@@ -48,6 +48,8 @@
 #include "musb_core.h"
 
 
+#define MAX_MUSB_INSTANCE 2
+
 /* MUSB PERIPHERAL status 3-mar-2006:
  *
  * - EP0 seems solid.  It passes both USBCV and usbtest control cases.
@@ -1749,12 +1751,12 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 
 	id = driver->id;
 	musb = the_gadget[id];
-	musb->g.id = id;
 	/* driver must be initialized to support peripheral mode */
 	if (!musb) {
 		DBG(1, "%s, no dev??\n", __func__);
 		return -ENODEV;
 	}
+	musb->g.id = id;
 
 	DBG(3, "registering driver %s\n", driver->function);
 	spin_lock_irqsave(&musb->lock, flags);
@@ -1833,7 +1835,7 @@ int num_composite_drv;
 int get_gadget_drv_id(void)
 {
 	int id;
-	if (num_composite_drv >= 2)
+	if (num_composite_drv >= MAX_MUSB_INSTANCE)
 		return -EINVAL;
 	id = num_composite_drv;
 	num_composite_drv++;
@@ -1850,11 +1852,11 @@ int put_gadget_drv_id(void)
 }
 EXPORT_SYMBOL(put_gadget_drv_id);
 
-int get_gadget_cur_drv_id(void)
+int get_gadget_max_drv_id(void)
 {
-	return num_composite_drv;
+	return MAX_MUSB_INSTANCE;
 }
-EXPORT_SYMBOL(get_gadget_cur_drv_id);
+EXPORT_SYMBOL(get_gadget_max_drv_id);
 static void stop_activity(struct musb *musb, struct usb_gadget_driver *driver)
 {
 	int			i;
