@@ -3157,6 +3157,7 @@ static void fsg_release(struct kref *ref)
 
 	kfree(fsg->luns);
 	kfree(fsg);
+	put_gadget_drv_id();
 }
 
 static void lun_release(struct device *dev)
@@ -3644,7 +3645,6 @@ static int __init fsg_init(void)
 	rc = usb_gadget_probe_driver(&fsg_driver, fsg_bind);
 	if (rc != 0) {
 		kref_put(&fsg->ref, fsg_release);
-		put_gadget_drv_id();
 	}
 	return rc;
 }
