@@ -2496,9 +2496,10 @@ static inline void ti81xx_init_pcie(void)
 
 		/* Configure SERDES misc bits - values as is from h/w */
 		if (omap_rev() > TI8148_REV_ES1_0)
-			omap_ctrl_writel(0x0000039E, 0x481406FC);
+			omap_ctrl_writel(0x0000039E,
+					TI814X_CONTROL_PCIE_MISCCFG);
 		else
-			omap_ctrl_writel(0x00000E7B, 0x48141318);
+			omap_ctrl_writel(0x00000E7B, TI814X_CONTROL_SMA0);
 
 		udelay(50);
 		omap_ctrl_writel(0x00000004, TI814X_CONTROL_PCIE_PLLCFG0);
