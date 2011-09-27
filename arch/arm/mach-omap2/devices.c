@@ -958,7 +958,8 @@ void __init omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
 	char *name;
 
 	for (i = 0; i < nr_controllers; i++) {
-		unsigned long base, size;
+		unsigned long base = 0;
+		unsigned long size;
 		unsigned int irq = 0;
 
 		if (!mmc_data[i])
