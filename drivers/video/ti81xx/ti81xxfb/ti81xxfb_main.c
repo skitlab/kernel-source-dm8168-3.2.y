@@ -491,6 +491,7 @@ static int check_fb_var(struct fb_info *fbi, struct fb_var_screeninfo *var)
 	struct vps_grpx_ctrl            *gctrl = tfbi->gctrl;
 	enum   fvid2_dataformat		df;
 	unsigned long			line_size;
+	struct vps_grpxregionparams	regp;
 
 	TFBDBG("check_fb_var\n");
 
@@ -574,6 +575,12 @@ static int check_fb_var(struct fb_info *fbi, struct fb_var_screeninfo *var)
 			var->xres, var->yres,
 			var->xres_virtual, var->yres_virtual,
 			var->xoffset, var->yoffset);
+
+	gctrl->get_regparams(gctrl, &regp);
+	regp.regionwidth = var->xres;
+	regp.regionheight = var->yres;
+	if (gctrl->check_params(gctrl, &regp, 0))
+		return -EINVAL;
 
 	var->height = -1;
 	var->width = -1;

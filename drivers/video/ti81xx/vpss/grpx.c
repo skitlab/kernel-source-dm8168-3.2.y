@@ -175,32 +175,63 @@ static int grpx_pre_start(struct vps_grpx_ctrl *gctrl)
 	u8  fmt;
 	int bpp;
 	u32 pitch;
+	u32 ow, oh;
 
 	gctrl->get_resolution(gctrl, &w, &h, &fmt);
-	/*set the dimension*/
-	if ((gctrl->inputf->width == 0) || (gctrl->inputf->height == 0) ||
-		(gctrl->inputf->width > w) || (gctrl->inputf->height > h))
-		gctrl->set_input(gctrl, w, h, fmt);
 
 	/*check the setting and reset to resolution if necessary*/
-	if (gctrl->gparams->regparams.regionwidth +
-	    gctrl->gparams->regparams.regionposx > w) {
-		gctrl->gparams->regparams.regionwidth = w;
-		gctrl->gparams->regparams.regionposx = 0;
+	if (gctrl->gparams->regparams.scenable) {
+		ow = gctrl->gscparams->outwidth;
+		oh = gctrl->gscparams->outheight;
+	} else {
+
+		ow = gctrl->gparams->regparams.regionwidth;
+		oh = gctrl->gparams->regparams.regionheight;
+
+		/*set the dimension*/
+		if ((gctrl->inputf->width == 0) ||
+		    (gctrl->inputf->height == 0) ||
+		    (gctrl->inputf->width > w) ||
+		    (gctrl->inputf->height > h))
+			gctrl->set_input(gctrl, w, h, fmt);
+	}
+	/*set the dimension or scaling coefficent accordingly*/
+	if (ow +  gctrl->gparams->regparams.regionposx > w) {
+		pitch = gctrl->gparams->pitch[FVID2_RGB_ADDR_IDX];
 		bpp = vps_get_bitspp(gctrl->inputf->bpp);
-		pitch = (w * bpp >> 3);
+		if (ow > w) {
+			if (gctrl->gparams->regparams.scenable)
+				gctrl->gscparams->outwidth = w;
+			else {
+				gctrl->gparams->regparams.regionwidth = w;
+				pitch = (w * bpp >> 3);
+			}
+			gctrl->gparams->regparams.regionposx = 0;
+
+		} else
+			gctrl->gparams->regparams.regionposx = w - ow;
+
+
 		/*pitch should 16 byte boundary*/
 		if (pitch & 0xF)
 			pitch += 16 - (pitch & 0xF);
-		gctrl->gparams->pitch[FVID2_RGB_ADDR_IDX] =
-					(w * bpp >> 3);
+		gctrl->gparams->pitch[FVID2_RGB_ADDR_IDX] = pitch;
+	}
+
+	if (oh + gctrl->gparams->regparams.regionposy > h) {
+		if (oh > h) {
+			if (gctrl->gparams->regparams.scenable)
+				gctrl->gscparams->outheight = h;
+			else
+				gctrl->gparams->regparams.regionheight = h;
+			gctrl->gparams->regparams.regionposy = 0;
+		} else
+			gctrl->gparams->regparams.regionposy = h - oh;
 
 	}
-	if (gctrl->gparams->regparams.regionheight +
-	    gctrl->gparams->regparams.regionposy > h) {
-		gctrl->gparams->regparams.regionheight = h;
-		gctrl->gparams->regparams.regionposy = 0;
-	}
+
+	memcpy(gctrl->grtparam, gctrl->gparams,
+		sizeof(struct vps_grpxrtparams));
 	return 0;
 }
 
