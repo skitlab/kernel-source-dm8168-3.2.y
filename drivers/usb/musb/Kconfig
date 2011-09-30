@@ -106,7 +106,7 @@ config USB_MUSB_UX500
 choice
 	prompt "TI816X usb connector's ID pin control"
 	depends on ARCH_TI816X
-	depends on USB_MUSB_HDRC && USB_GADGET && USB_MUSB_TI81XX_GLUE
+	depends on USB_MUSB_HDRC && USB_MUSB_TI81XX_GLUE
 	help
 	  Dual-Role devices can support both host and peripheral roles,
 	  as well as a the special "OTG Device" role which can switch
@@ -115,18 +115,8 @@ choice
 	  ID pin (mini-A cable has ID pin grounded and mini-B side of
 	  cable the ID pin is open)
 
-config USB_TI816X_USBID_CTRL_HW
-	depends on USB
-	bool "from usb connector"
-	help
-	  Say Y here if your system supports the dual role configuration
-	  based on the external usb connectors ID pin. For host role
-	  use mini-A/micro-A usb cable (ID pin grounded) and for device
-	  role use mini-B/micro-B usb cable. The USB-ID pin controlled
-	  through external ID pin based on usb cable connected.
-
 config USB_TI816X_USBID_CTRL_SW
-	depends on USB
+	depends on USB_MUSB_HDRC
 	bool "from software setting"
 	help
 	  Say Y here if your system supports the dual role configuration
@@ -134,11 +124,20 @@ config USB_TI816X_USBID_CTRL_SW
 	  device role can be controlled by setting ID pin value (ground or
 	  open) through software.
 
+config USB_TI816X_USBID_CTRL_HW
+	depends on USB_MUSB_HDRC
+	bool "from usb connector"
+	help
+	  Say Y here if your system supports the dual role configuration
+	  based on the external usb connectors ID pin. For host role
+	  use mini-A/micro-A usb cable (ID pin grounded) and for device
+	  role use mini-B/micro-B usb cable. The USB-ID pin controlled
+	  through external ID pin based on usb cable connected.
 endchoice
 
 choice
 	prompt "Force TI816X USB0 to "
-	depends on USB_MUSB_HDRC && USB_GADGET && USB_TI816X_USBID_CTRL_SW
+	depends on USB_MUSB_HDRC && USB_MUSB_OTG && USB_TI816X_USBID_CTRL_SW
 	help
 	  The usb0 controller can be configured to host role or
 	  device role. The USB ID pin configuration is done
@@ -146,7 +145,7 @@ choice
 	  and for device role the USB ID pin is open.
 
 config USB_MUSB0_HOST
-	depends on USB
+	depends on USB_MUSB_HDRC
 	bool "Host mode"
 	help
 	  Select this configuration to configure the usb0 for
@@ -155,7 +154,7 @@ config USB_MUSB0_HOST
 	  and for device role the USB ID pin is open.
 
 config USB_MUSB0_DEVICE
-	depends on USB
+	depends on USB_MUSB_HDRC
 	bool "Device mode"
 	help
 	  Select this configuration to configure the usb0 for
@@ -167,7 +166,7 @@ endchoice
 
 choice
 	prompt "Force TI816X USB1 to "
-	depends on USB_MUSB_HDRC && USB_GADGET && USB_TI816X_USBID_CTRL_SW
+	depends on USB_MUSB_HDRC && USB_MUSB_OTG && USB_TI816X_USBID_CTRL_SW
 	help
 	  The usb1 controller can be configured to host role or
 	  device role. The USB ID pin configuration is done
@@ -175,7 +174,7 @@ choice
 	  and for device role the USB ID pin is open.
 
 config USB_MUSB1_HOST
-	depends on USB
+	depends on USB_MUSB_HDRC
 	bool "Host mode"
 	help
 	  Select this configuration to configure the usb1 for
@@ -184,7 +183,7 @@ config USB_MUSB1_HOST
 	  and for device role the USB ID pin is open.
 
 config USB_MUSB1_DEVICE
-	depends on USB
+	depends on USB_MUSB_HDRC
 	bool "Device mode"
 	help
 	  Select this configuration to configure the usb1 for
