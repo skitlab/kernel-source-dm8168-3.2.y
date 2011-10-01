@@ -780,7 +780,7 @@ static int ti81xx_pcie_setup(int nr, struct pci_sys_data *sys)
 
 	if ((msi_irq >= 0) && msi_irq_num) {
 		if (msi_irq_num > CFG_MAX_MSI_NUM) {
-			msi_irq_num = max(msi_irq_num, CFG_MAX_MSI_NUM);
+			msi_irq_num = CFG_MAX_MSI_NUM;
 			pr_warning(DRIVER_NAME
 				": Restricting MSI count to max supported (%d)",
 				msi_irq_num);
