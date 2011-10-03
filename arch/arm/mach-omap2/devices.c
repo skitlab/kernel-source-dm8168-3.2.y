@@ -2540,6 +2540,19 @@ static inline void ti81xx_init_pcie(void)
 static inline void ti81xx_init_pcie(void) {}
 #endif
 
+#ifdef CONFIG_ARCH_TI814X
+static inline void ti814x_enable_i2c2(void)
+{
+	struct clk *fclk;
+
+	fclk = clk_get(NULL, "i2c3_fck");
+	if (!IS_ERR(fclk))
+		clk_enable(fclk);
+	else
+		printk(KERN_WARNING "clk get on i2c3 fck failed\n");
+}
+#endif
+
 static int __init omap2_init_devices(void)
 {
 	/*
@@ -2566,6 +2579,9 @@ static int __init omap2_init_devices(void)
 	ti81xx_init_pcm();
 	ti816x_sr_init();
 	ti81xx_video_mux();
+#ifdef CONFIG_ARCH_TI814X
+	ti814x_enable_i2c2();
+#endif
 #ifdef CONFIG_MTD_CFI
 	ti814x_nor_init();
 #endif
