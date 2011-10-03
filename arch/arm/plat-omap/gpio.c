@@ -1853,7 +1853,8 @@ static void __init omap_gpio_chip_init(struct gpio_bank *bank)
 		     j < bank->virtual_irq_start + bank_width; j++) {
 		struct irq_desc *d = irq_to_desc(j);
 
-		lockdep_set_class(&d->lock, &gpio_lock_class);
+		if (d)
+			lockdep_set_class(&d->lock, &gpio_lock_class);
 		set_irq_chip_data(j, bank);
 		if (bank_is_mpuio(bank))
 			set_irq_chip(j, &mpuio_irq_chip);
