@@ -22,7 +22,7 @@
 #if defined(CONFIG_DEBUG_ICEDCC)
 		@@ debug using ARM EmbeddedICE DCC channel
 
-		.macro	addruart, rp, rv
+		.macro	addruart, rp, rv, tmp
 		.endm
 
 #if defined(CONFIG_CPU_V6)
@@ -123,7 +123,7 @@ wait:		mrc	p14, 0, pc, c0, c1, 0
 
 #ifdef CONFIG_MMU
 		.macro	addruart_current, rx, tmp1, tmp2
-		addruart	\tmp1, \tmp2
+		addruart	\tmp1, \tmp2, \rx
 		mrc		p15, 0, \rx, c1, c0
 		tst		\rx, #1
 		moveq		\rx, \tmp1
