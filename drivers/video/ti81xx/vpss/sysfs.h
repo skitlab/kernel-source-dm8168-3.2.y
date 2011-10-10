@@ -165,7 +165,14 @@ static const struct dc_vencmode_info vmode_info[] = {
 	{"800x480@60", FVID2_STD_WVGA_60,
 	    {FVID2_STD_CUSTOM, 800, 480, FVID2_SF_PROGRESSIVE,
 		33500, 60, 164, 89, 10, 10, 23, 10}
+	},
+
+	/*480P*/
+	{"480p-60", FVID2_STD_480P,
+	    {FVID2_STD_480P, 720, 480, FVID2_SF_PROGRESSIVE,
+		27000, 60, 16, 60, 62, 9, 20, 6}
 	}
+
 };
 /*use for the venc name*/
 static const struct dc_vencname_info venc_name[VPS_DC_MAX_VENC] = {

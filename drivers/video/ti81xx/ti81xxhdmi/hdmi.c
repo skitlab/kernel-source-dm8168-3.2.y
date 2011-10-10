@@ -156,6 +156,7 @@ struct hdmi {
 	int deep_color;
 	int lr_fr;
 	int force_set;
+	int freq;
 	enum hdmi_power_state power_state;
 	/* added for DM814x Power management */
 	enum ti81xx_display_status status;
@@ -182,13 +183,6 @@ struct hdmi_cm {
 	int code;
 	int mode;
 };
-
-struct hdmi_pll_ctrl gpll_ctrl[] = {
-	{19, 1485, 10, 0x200a0000 + 0x00001001},
-	{19,  745, 10, 0x200a0000 + 0x00001001}
-};
-
-
 
 static struct platform_driver ti81xx_hdmi_driver = {
 	.probe = ti81xx_hdmi_probe,
@@ -615,98 +609,6 @@ static int ti814x_hdmi_pll_power_on(void)
 
 	return r;
 }
-/*
- * ti814x_configure_hdmi_pll() funciton is borrowed from ti81xx HDMI librabry
- */
-static void ti814x_configure_hdmi_pll(u32  b_addr,
-		u32 __n,
-		u32 __m,
-		u32 __m2,
-		u32 clkctrl_val)
-{
-	u32 m2nval, mn2val, read_clkctrl;
-	u32 read_m2nval, read_mn2val;
-	volatile u32 repeatCnt = 0;
-	/* Put PLL in idle bypass mode */
-	read_clkctrl = __raw_readl(b_addr + TI814x_HDMI_PLL_CLKCTRL_OFF);
-	read_clkctrl |= 0x1 << 23;
-	if (cpu_is_ti814x())
-		read_clkctrl &= ~0x1;
-
-	__raw_writel(read_clkctrl, b_addr + TI814x_HDMI_PLL_CLKCTRL_OFF);
-
-	/* poll for the bypass acknowledgement */
-	repeatCnt = 0u;
-	while (repeatCnt < VPS_PRCM_MAX_REP_CNT) {
-		if (((__raw_readl(b_addr+TI814x_HDMI_PLL_STATUS_OFF)) &
-		    0x00000101) == 0x00000101) {
-			break;
-		}
-		/* Wait for the 100 cycles */
-		udelay(100);
-		repeatCnt++;
-	}
-
-	if (((__raw_readl(b_addr+TI814x_HDMI_PLL_STATUS_OFF)) & 0x00000101) ==
-	    0x00000101) {
-		;
-	} else {
-		THDMIDBG("Not able to Keep PLL in bypass state!!!\n");
-	}
-	m2nval = (__m2 << 16) | __n;
-	mn2val =  __m;
-	/*ref_clk	 = OSC_FREQ/(__n+1);
-	  clkout_dco  = ref_clk*__m;
-	  clk_out	 = clkout_dco/__m2;
-	 */
-
-	__raw_writel(m2nval, (b_addr+TI814x_HDMI_PLL_M2NDIV_OFF));
-	read_m2nval = __raw_readl((b_addr+TI814x_HDMI_PLL_M2NDIV_OFF));
-
-	__raw_writel(mn2val, (b_addr+TI814x_HDMI_PLL_MN2DIV_OFF));
-	read_mn2val = __raw_readl((b_addr+TI814x_HDMI_PLL_MN2DIV_OFF));
-
-	__raw_writel(0x1, (b_addr+TI814x_HDMI_PLL_TENABLEDIV_OFF));
-
-	__raw_writel(0x0, (b_addr+TI814x_HDMI_PLL_TENABLEDIV_OFF));
-
-	__raw_writel(0x1, (b_addr+TI814x_HDMI_PLL_TENABLE_OFF));
-
-	__raw_writel(0x0, (b_addr+TI814x_HDMI_PLL_TENABLE_OFF));
-
-	read_clkctrl = __raw_readl(b_addr+TI814x_HDMI_PLL_CLKCTRL_OFF);
-
-	/*configure the TINITZ(bit0) and CLKDCO bits if required */
-	__raw_writel((read_clkctrl & 0xff7fe3ff) | clkctrl_val,
-			b_addr+TI814x_HDMI_PLL_CLKCTRL_OFF);
-
-	read_clkctrl = __raw_readl(b_addr+TI814x_HDMI_PLL_CLKCTRL_OFF);
-
-
-	/* poll for the freq,phase lock to occur */
-	repeatCnt = 0u;
-	while (repeatCnt < VPS_PRCM_MAX_REP_CNT) {
-		if (((__raw_readl(b_addr+TI814x_HDMI_PLL_STATUS_OFF)) &
-		    0x00000600) == 0x00000600) {
-			break;
-		}
-		/* Wait for the 100 cycles */
-		udelay(100);
-		repeatCnt++;
-	}
-
-
-	if (((__raw_readl(b_addr+TI814x_HDMI_PLL_STATUS_OFF)) & 0x00000600) ==
-	    0x00000600) {
-		/*THDMIDBG("PLL Locked\n");*/
-	} else {
-		THDMIDBG("PLL Not Getting Locked!!!\n");
-	}
-
-
-	/*wait fot the clocks to get stabized */
-	udelay(100);
-}
 
 static inline void print_omap_video_timings(struct video_timings *timings)
 {
@@ -1053,8 +955,6 @@ static long hdmi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static int hdmi_power_on(void)
 {
 	int r = 0;
-	struct hdmi_pll_ctrl *pll_ctrl;
-	int tmds_freq;
 
 	hdmi.power_state = HDMI_POWER_FULL;
 
@@ -1077,30 +977,10 @@ static int hdmi_power_on(void)
 		if (r)
 			goto err;
 	}
-
-	/* Program the PLL */
-	if (cpu_is_ti814x()) {
-		if (hdmi.code == 16)
-			pll_ctrl = &gpll_ctrl[0];
-		else
-			pll_ctrl = &gpll_ctrl[1];
-
-		ti814x_configure_hdmi_pll((u32)hdmi.base_pll,
-				pll_ctrl->__n,
-				pll_ctrl->__m,
-				pll_ctrl->__m2,
-				pll_ctrl->clk_ctrl_value);
-	}
-
 	/* Configure PHY */
 	if (cpu_is_ti814x()) {
-		if (hdmi.code == 16) /* 1080P-60 */
-			tmds_freq = 0x2;
-		else
-			tmds_freq = 0x1;
-
 		r = ti814x_hdmi_phy_init(TI81xx_HDMI_WP,
-					 TI814x_HDMI_PHY_0_REGS, tmds_freq);
+					 TI814x_HDMI_PHY_0_REGS, hdmi.freq);
 		if (r) {
 			THDMIDBG("DM814x : Failed to start PHY\n");
 			r = -EIO;
@@ -1416,6 +1296,15 @@ static int hdmi_get_panel_edid(char *inbuf, void *data)
 static int hdmi_set_timings(struct TI81xx_video_timings *timings, void *data)
 {
 	THDMIDBG("\n Enter Panel function : hdmi_set_timings()\n");
+	if (cpu_is_ti814x()) {
+		if (timings->pixel_clock >= 100000)
+			hdmi.freq = 0x2;
+		else if (timings->pixel_clock < 50000)
+			hdmi.freq = 0;
+		else
+			hdmi.freq = 0x1;
+	}
+
 
 	/* In OMAP, to change the resolutions, driver stopped and then restarted
 	 * However in slave mode of 81xx, the VENC has to be stopped to change
