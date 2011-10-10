@@ -238,15 +238,18 @@ static int grpx_pre_start(struct vps_grpx_ctrl *gctrl)
 static int grpx_scparams_check(struct vps_grpx_ctrl *gctrl,
 			       struct vps_grpxscparams *scparam)
 {
-	u16 fw, fh;
+	u32 fw, fh;
 	u16 xend, yend;
-	u8 vscaled, hscaled;
+	u8 vscaled, hscaled, scfmt;
 	struct vps_grpxregionparams regp;
 
-	gctrl->get_regparams(gctrl, &regp);
+	if (gctrl->gstate.isstarted) {
+		fw = gctrl->framewidth;
+		fh = gctrl->frameheight;
+	} else
+		gctrl->get_resolution(gctrl, &fw, &fh, &scfmt);
 
-	fw = gctrl->framewidth;
-	fh = gctrl->frameheight;
+	gctrl->get_regparams(gctrl, &regp);
 
 	if ((scparam->inheight == 0) || (scparam->inwidth == 0) ||
 	(scparam->outheight == 0) || (scparam->outwidth == 0)) {
@@ -421,17 +424,21 @@ static int vps_grpx_set_format(struct vps_grpx_ctrl *gctrl,
 static int vps_grpx_check_regparams(struct vps_grpx_ctrl *gctrl,
 			      struct vps_grpxregionparams *regp, u16 ridx)
 {
-	u16 fw, fh;
+	u32 fw, fh;
 	u16 xend, yend;
-	u8 vscaled, hscaled;
+	u8 vscaled, hscaled, scfmt;
 	struct vps_grpxscparams scparam;
 
-	gctrl->get_scparams(gctrl, &scparam);
-	/*FIX ME fw and fh should be get from the display controller,
-	 by know we just put a default number here*/
 
-	fw = gctrl->framewidth;
-	fh = gctrl->frameheight;
+
+	gctrl->get_scparams(gctrl, &scparam);
+
+	/*get the frame information*/
+	if (gctrl->gstate.isstarted) {
+		fw = gctrl->framewidth;
+		fh = gctrl->frameheight;
+	} else
+		gctrl->get_resolution(gctrl, &fw, &fh, &scfmt);
 
 	/* does not support stencling until stenciling buffer is set*/
 	if (regp->stencilingenable == true) {

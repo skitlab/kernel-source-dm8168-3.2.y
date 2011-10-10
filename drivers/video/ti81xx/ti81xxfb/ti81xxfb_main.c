@@ -848,13 +848,10 @@ static int ti81xxfb_setcmap(struct fb_cmap *cmap, struct fb_info *fbi)
 	if (memcmp(palette, tempclut, cmap->len)) {
 		TFBDBG("clut not same ,set\n");
 		r = gctrl->set_clutptr(gctrl, (u32)tfbi->pclut);
-		if ((r == 0) && (gctrl->gstate.isstarted)) {
-			r = vps_fvid2_queue(
-				gctrl->handle,
-				(struct fvid2_framelist *)gctrl->frmls_phy,
-				0);
-		}
-		memcpy(tempclut, palette, cmap->len);
+		if (!r)
+			r = gctrl->apply_changes(gctrl);
+		if (!r)
+			memcpy(tempclut, palette, cmap->len);
 	}
 
 	ti81xxfb_unlock(tfbi);

@@ -195,7 +195,6 @@ static int ti81xxfb_set_region_params(struct fb_info *fbi,
 	struct ti81xxfb_device *fbdev = tfbi->fbdev;
 	struct vps_grpx_ctrl *gctrl = tfbi->gctrl;
 	struct vps_grpxregionparams regp;
-	struct fb_var_screeninfo *var = &fbi->var;
 	int r = 0;
 
 	TFBDBG("ti81xxfb_set_regparams\n");
@@ -207,13 +206,10 @@ static int ti81xxfb_set_region_params(struct fb_info *fbi,
 	}
 	ti81xxfb_lock(tfbi);
 	gctrl->get_regparams(gctrl, &regp);
-	/* only update if it are not same*/
 
 
 	regp.regionposx = regparam->pos_x;
 	regp.regionposy = regparam->pos_y;
-	regp.regionwidth = var->xres;
-	regp.regionheight = var->yres;
 
 	regp.disppriority = regparam->priority;
 	regp.firstregion = 1;
