@@ -124,9 +124,23 @@ static void ti81xx_musb_phy_power(u8 id, u8 on)
 
 	if (on) {
 		if (cpu_is_ti816x()) {
+			u32 phy_ctrl_offs, phy_ctrl_reg;
+
 			usbphycfg |= (TI816X_USBPHY0_NORMAL_MODE
 					| TI816X_USBPHY1_NORMAL_MODE);
 			usbphycfg &= ~(TI816X_USBPHY_REFCLK_OSC);
+
+			/* fine tuning phy parameters in phy control
+			 * register to generate symmetrical eye diagram
+			 * and better signal quality
+			 */
+			phy_ctrl_offs = id ? TI816X_PHYCTRL1 : TI816X_PHYCTRL0;
+			phy_ctrl_reg = omap_ctrl_readl(phy_ctrl_offs);
+			phy_ctrl_reg |= TI816X_PHY_TXRISETUNE |
+					TI816X_PHY_TXVREFTUNE |
+					TI816X_PHY_TXPREEMTUNE;
+			omap_ctrl_writel(phy_ctrl_reg, phy_ctrl_offs);
+
 		} else if (cpu_is_ti814x()) {
 			usbphycfg &= ~(TI814X_USBPHY_CM_PWRDN
 				| TI814X_USBPHY_OTG_PWRDN

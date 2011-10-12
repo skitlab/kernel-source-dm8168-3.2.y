@@ -332,6 +332,12 @@ static inline u32 omap1_usb2_init(unsigned nwires, unsigned alt_pingroup)
 #define	TI816X_USBPHY0_NORMAL_MODE		(1 << 0)
 #define	TI816X_USBPHY1_NORMAL_MODE		(1 << 1)
 #define	TI816X_USBPHY_REFCLK_OSC		(1 << 8)
+#define TI816X_PHYCTRL0				0x0624
+#define TI816X_PHYCTRL1				0x062c
+#define TI816X_PHY_TXRISETUNE			1
+#define TI816X_PHY_TXVREFTUNE			0xc
+#define TI816X_PHY_TXPREEMTUNE			0x2
+
 
 /* TI814X PHY controls bits */
 #define TI814X_USBPHY_CM_PWRDN		(1 << 0)
