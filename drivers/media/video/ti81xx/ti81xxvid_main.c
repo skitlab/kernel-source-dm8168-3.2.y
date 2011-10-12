@@ -353,7 +353,8 @@ static void ti81xx_vidout_free_buffer(unsigned long virtaddr, u32 buf_size)
 /*
  * Try format
  */
-static int ti81xx_vidout_try_format(struct v4l2_pix_format *pix, int *sbpp)
+static int ti81xx_vidout_try_format(struct ti81xx_vidout_dev *vout,
+			struct v4l2_pix_format *pix, int *sbpp)
 {
 	int ifmt, bpp = 0;
 
@@ -370,7 +371,26 @@ static int ti81xx_vidout_try_format(struct v4l2_pix_format *pix, int *sbpp)
 		ifmt = 0;
 
 	pix->pixelformat = ti81xx_formats[ifmt].pixelformat;
-	pix->field = V4L2_FIELD_ANY;
+
+	/*support INTERLACED, INTERLACED TB, SEQ_TB only for interlaced output
+	   no filed support for progressive output*/
+	if (vout->isprogressive)
+		pix->field = V4L2_FIELD_NONE;
+	else {
+		if ((pix->field == V4L2_FIELD_SEQ_TB) ||
+			(pix->field == V4L2_FIELD_SEQ_BT))
+				pix->field = V4L2_FIELD_SEQ_TB;
+
+		if (pix->field == V4L2_FIELD_INTERLACED_BT)
+			pix->field = V4L2_FIELD_INTERLACED_TB;
+		/*not sure field only*/
+		if ((pix->field == V4L2_FIELD_ALTERNATE) ||
+			(pix->field == V4L2_FIELD_TOP) ||
+			(pix->field == V4L2_FIELD_BOTTOM))
+			pix->field = V4L2_FIELD_SEQ_TB;
+
+	}
+	/*FIXME add luma/chroma buffer offset in priv in future.*/
 	pix->priv = 0;
 
 	switch (pix->pixelformat) {
@@ -544,7 +564,7 @@ int ti81xxvid_setup_video(struct ti81xx_vidout_dev *vout,
 	int height, width;
 	int left, top;
 	bool crop = 0;
-
+	u8 fidmeg;
 	if (video_mode_to_vpss_mode(vout, &dfmt) == -EINVAL) {
 		v4l2_err(&vout->vid_dev->v4l2_dev,
 			"VIDEO%d: unsupport mode\n", vout->vid);
@@ -575,9 +595,10 @@ int ti81xxvid_setup_video(struct ti81xx_vidout_dev *vout,
 		vout->pix.bytesperline, 0, &ffmt); */
 	ffmt.height = vout->crop.height;
 	ffmt.width = vout->crop.width;
+	fidmeg = vout->pix.field == V4L2_FIELD_SEQ_TB ? 0 : 1;
 	vctrl->try_format(vctrl, vout->crop.width,
 			  vout->crop.height, dfmt,
-			  vout->pix.bytesperline, 0, &ffmt);
+			  vout->pix.bytesperline, fidmeg, &ffmt);
 
 	if (vctrl->check_format(vctrl, &ffmt)) {
 		ret = -EINVAL;
@@ -1178,7 +1199,6 @@ static int vidioc_try_fmt_vid_out(struct file *file, void *priv,
 	struct ti81xx_vidout_dev *vout = fh->voutdev;
 	struct vps_video_ctrl  *vctrl = vout->vctrl;
 	u32 width, height;
-	bool isp;
 	int sbpp;
 
 	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev,
@@ -1197,12 +1217,12 @@ static int vidioc_try_fmt_vid_out(struct file *file, void *priv,
 	}
 
 	/* get the display device attached to the overlay */
-	vctrl->get_resolution(vctrl, &width, &height, &isp);
+	vctrl->get_resolution(vctrl, &width, &height, &vout->isprogressive);
 
 	vout->fbuf.fmt.height = height;
 	vout->fbuf.fmt.width = width;
 
-	ti81xx_vidout_try_format(&f->fmt.pix, &sbpp);
+	ti81xx_vidout_try_format(vout, &f->fmt.pix, &sbpp);
 	return 0;
 }
 
@@ -1213,7 +1233,6 @@ static int vidioc_s_fmt_vid_out(struct file *file, void *priv,
 	struct ti81xxvideo_fh *fh = priv;
 	struct ti81xx_vidout_dev *vout = fh->voutdev;
 	struct vps_video_ctrl *vctrl = vout->vctrl;
-	bool p;
 
 	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev,
 		"VIDOUT%d: set format ioctl\n", vout->vid);
@@ -1239,13 +1258,13 @@ static int vidioc_s_fmt_vid_out(struct file *file, void *priv,
 	ret = vctrl->get_resolution(vctrl,
 			      &vout->fbuf.fmt.width,
 			      &vout->fbuf.fmt.height,
-			      &p);
+			      &vout->isprogressive);
 
 	if (ret)
 		goto error;
 	/* change to samller size is OK */
 
-	bpp = ti81xx_vidout_try_format(&f->fmt.pix, &sbpp);
+	bpp = ti81xx_vidout_try_format(vout, &f->fmt.pix, &sbpp);
 	f->fmt.pix.sizeimage = (f->fmt.pix.width * f->fmt.pix.height
 					* sbpp) >> 3;
 
@@ -1514,7 +1533,6 @@ static int vidioc_s_crop(struct file *file, void *priv, struct v4l2_crop *crop)
 	struct ti81xxvideo_fh *fh = priv;
 	struct ti81xx_vidout_dev *vout = fh->voutdev;
 	struct vps_video_ctrl *vctrl = vout->vctrl;
-	bool p;
 	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev,
 		"VIDOUT%d: set crop ioctl\n",
 		vout->vid);
@@ -1529,7 +1547,7 @@ static int vidioc_s_crop(struct file *file, void *priv, struct v4l2_crop *crop)
 	/* get the display device attached to the overlay */
 
 	ret = vctrl->get_resolution(vctrl, &vout->fbuf.fmt.width,
-				&vout->fbuf.fmt.height, &p);
+				&vout->fbuf.fmt.height, &vout->isprogressive);
 
 	if (ret)
 		goto error;

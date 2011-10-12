@@ -410,7 +410,7 @@ static int video_set_buffer(struct vps_video_ctrl *vctrl, u32 addr, u8 idx)
 				    [FVID2_YUV_INT_ADDR_IDX] = (void *)addr;
 				frame->addr[FVID2_FIELD_ODD_ADDR_IDX] \
 				    [FVID2_YUV_INT_ADDR_IDX] = (void *)(addr +
-				    dfmt->height * pitch);
+				    (dfmt->height  * pitch >> 1));
 			}
 		}
 	break;
@@ -442,7 +442,7 @@ static int video_set_buffer(struct vps_video_ctrl *vctrl, u32 addr, u8 idx)
 				frame->addr[FVID2_FIELD_ODD_ADDR_IDX] \
 					[FVID2_YUV_SP_CBCR_ADDR_IDX] =
 						(void *)(addr +
-						((dfmt->height + 1) * pitch));
+						((dfmt->height  + 1) * pitch));
 			} else {
 				/*no field merge*/
 				frame->addr[FVID2_FIELD_EVEN_ADDR_IDX] \
@@ -647,15 +647,16 @@ static int video_try_format(struct vps_video_ctrl *vctrl, u32 width,
 		if (vctrl->scformat == FVID2_SF_PROGRESSIVE)
 			fieldmerged = 0;
 		else
-			fieldmerged = 1;
+			fieldmerged = merged;
 
 		fmt->fieldmerged[FVID2_YUV_SP_Y_ADDR_IDX] = fieldmerged;
 		fmt->fieldmerged[FVID2_YUV_SP_CBCR_ADDR_IDX] = fieldmerged;
 
-		VPSSDBG("try format %dx%d df %d pitch %d %d\n",
+		VPSSDBG("try format %dx%d df %d pitch %d %d fidmerged %d\n",
 			width, height, df,
 			fmt->pitch[FVID2_YUV_SP_Y_ADDR_IDX],
-			fmt->pitch[FVID2_YUV_SP_CBCR_ADDR_IDX]);
+			fmt->pitch[FVID2_YUV_SP_CBCR_ADDR_IDX],
+			fieldmerged);
 
 		break;
 	case FVID2_DF_YUV422I_YUYV:
@@ -663,11 +664,13 @@ static int video_try_format(struct vps_video_ctrl *vctrl, u32 width,
 		if (vctrl->scformat == FVID2_SF_PROGRESSIVE)
 			fieldmerged = 0;
 		else
-			fieldmerged = 1;
+			fieldmerged = merged;
 
 		fmt->fieldmerged[FVID2_YUV_INT_ADDR_IDX] = fieldmerged;
-		VPSSDBG("try format %dx%d df %d pitch %d\n",
-			width, height, df, fmt->pitch[FVID2_YUV_INT_ADDR_IDX]);
+		VPSSDBG("try format %dx%d df %d pitch %d fidmerged %d\n",
+			width, height, df,
+			fmt->pitch[FVID2_YUV_INT_ADDR_IDX],
+			fieldmerged);
 
 		break;
 
