@@ -1064,7 +1064,7 @@ int ti81xx_musb_init(struct musb *musb)
 	musb->a_wait_bcon = A_WAIT_BCON_TIMEOUT;
 	musb->isr = ti81xx_interrupt;
 
-#ifdef CONFIG_USB_TI816X_USBID_CTRL_SW
+#ifdef CONFIG_USB_TI81XX_USBID_CTRL_SW
 	usbid_sw_ctrl = 1;
 #endif
 	if (is_otg_enabled(musb)) {
@@ -1073,7 +1073,7 @@ int ti81xx_musb_init(struct musb *musb)
 		 * configure the usb0 in peripheral mode and usb1 in
 		 * host mode
 		*/
-		if (usbid_sw_ctrl && cpu_is_ti816x()) {
+		if (usbid_sw_ctrl && cpu_is_ti81xx()) {
 			if (musb->id == 0) {
 			#ifdef CONFIG_USB_MUSB0_DEVICE
 				mode = MUSB_PERIPHERAL;
