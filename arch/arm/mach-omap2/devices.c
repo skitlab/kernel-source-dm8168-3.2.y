@@ -2581,9 +2581,11 @@ static struct platform_device ti81xx_rtc_device = {
 
 #define KICK0_REG	0x6c
 #define KICK1_REG	0x70
+#define OSC_REG		0x54
 
 #define KICK0_REG_VAL	0x83e70b13
 #define KICK1_REG_VAL	0x95a4f1e0
+#define RESET_VAL	BIT(5)
 
 static int ti81xx_rtc_init(void)
 {
@@ -2610,10 +2612,21 @@ static int ti81xx_rtc_init(void)
 	__raw_writel(KICK0_REG_VAL, base + KICK0_REG);
 	__raw_writel(KICK1_REG_VAL, base + KICK1_REG);
 
+	/* Reset the RTC */
+	__raw_writel(RESET_VAL, base + OSC_REG);
+
 	/*
-	 * Enable the 32K OSc
+	 * After setting the SW_RESET bit, RTC registers must not be accessed
+	 * for 3 32kHz clock cycles (roughly 2200 OCP cycles).
 	 */
-	__raw_writel(0x48, base + 0x54);
+	udelay(100);
+
+	/*
+	 * Unlock the rtc's registers again as the registers would have been
+	 * locked due to reset
+	 */
+	__raw_writel(KICK0_REG_VAL, base + KICK0_REG);
+	__raw_writel(KICK1_REG_VAL, base + KICK1_REG);
 
 	iounmap(base);
 
