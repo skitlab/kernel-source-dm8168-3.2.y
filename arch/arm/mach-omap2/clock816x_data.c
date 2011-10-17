@@ -1536,6 +1536,17 @@ static struct clk mcasp2_fck = {
 	.set_rate	= &ti816x_clksel_set_rate,
 };
 
+/* RTC Functional clock */
+static struct clk rtc_c32k_fck = {
+	.name		= "rtc_c32k_fck",
+	.parent		= &sysclk18_ck,
+	.ops		= &clkops_ti81xx_dflt_wait,
+	.enable_reg	= TI81XX_CM_ALWON_RTC_CLKCTRL,
+	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
 /*
  * clkdev
  *
@@ -1649,6 +1660,7 @@ static struct omap_clk ti816x_clks[] = {
 	CLK("davinci-mcasp.0",	NULL,			&mcasp0_fck,		CK_TI816X),
 	CLK("davinci-mcasp.1",	NULL,			&mcasp1_fck,		CK_TI816X),
 	CLK("davinci-mcasp.2",	NULL,			&mcasp2_fck,		CK_TI816X),
+	CLK(NULL,		"rtc_c32k_fck",		&rtc_c32k_fck,		CK_TI816X),
 };
 
 int __init ti816x_clk_init(void)
