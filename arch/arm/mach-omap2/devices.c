@@ -2553,11 +2553,11 @@ static inline void ti814x_enable_i2c2(void)
 }
 #endif
 
-#ifdef CONFIG_ARCH_TI814X
-static struct resource ti814x_rtc_resources[] = {
+#ifdef CONFIG_ARCH_TI81XX
+static struct resource ti81xx_rtc_resources[] = {
 	{
-		.start	= TI814X_RTC_BASE,
-		.end	= TI814X_RTC_BASE + SZ_4K - 1,
+		.start	= TI81XX_RTC_BASE,
+		.end	= TI81XX_RTC_BASE + SZ_4K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{ /* timer irq */
@@ -2572,11 +2572,11 @@ static struct resource ti814x_rtc_resources[] = {
 	},
 };
 
-static struct platform_device ti814x_rtc_device = {
+static struct platform_device ti81xx_rtc_device = {
 	.name		= "omap_rtc",
 	.id		= -1,
-	.num_resources	= ARRAY_SIZE(ti814x_rtc_resources),
-	.resource	= ti814x_rtc_resources,
+	.num_resources	= ARRAY_SIZE(ti81xx_rtc_resources),
+	.resource	= ti81xx_rtc_resources,
 };
 
 #define KICK0_REG	0x6c
@@ -2585,7 +2585,7 @@ static struct platform_device ti814x_rtc_device = {
 #define KICK0_REG_VAL	0x83e70b13
 #define KICK1_REG_VAL	0x95a4f1e0
 
-static int ti814x_rtc_init(void)
+static int ti81xx_rtc_init(void)
 {
 	void __iomem *base;
 	struct clk *clk;
@@ -2601,7 +2601,7 @@ static int ti814x_rtc_init(void)
 		return -1;
 	}
 
-	base = ioremap(TI814X_RTC_BASE, SZ_4K);
+	base = ioremap(TI81XX_RTC_BASE, SZ_4K);
 
 	if (WARN_ON(!base))
 		return -ENOMEM;
@@ -2617,7 +2617,7 @@ static int ti814x_rtc_init(void)
 
 	iounmap(base);
 
-	return  platform_device_register(&ti814x_rtc_device);
+	return  platform_device_register(&ti81xx_rtc_device);
 }
 #endif
 
@@ -2656,8 +2656,8 @@ static int __init omap2_init_devices(void)
 	ti81xx_init_vout();
 #endif
 	omap_init_ahci();
-#ifdef CONFIG_ARCH_TI814X
-	ti814x_rtc_init();
+#ifdef CONFIG_ARCH_TI81XX
+	ti81xx_rtc_init();
 #endif
 	return 0;
 }
