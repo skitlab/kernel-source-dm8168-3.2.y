@@ -156,7 +156,7 @@ static void __init ti814x_tsc_init(void)
 	}
 
 	gpio_direction_input(GPIO_TSC);
-	ti814x_i2c_boardinfo[5].irq = gpio_to_irq(GPIO_TSC);
+	ti814x_i2c_boardinfo[6].irq = gpio_to_irq(GPIO_TSC);
 
 	gpio_export(31, true);
 }
