@@ -33,6 +33,7 @@
 #define TLC59108_MODE1   0x00
 #define TLC59108_PWM2    0x04
 #define TLC59108_LEDOUT0 0x0c
+#define TLC59108_LEDOUT1 0x0d
 #define TLC59108_MAX_BRIGHTNESS 0xFF
 
 struct tlc59108_bl {
@@ -51,6 +52,8 @@ static void tlc59108_bl_set_backlight(struct tlc59108_bl *data, int brightness)
 	/* Set Backlight Duty Cycle*/
 	i2c_smbus_write_byte_data(data->client, TLC59108_PWM2,
 				  brightness & 0xff);
+	/* Set MODE3, UPDN*/
+	i2c_smbus_write_byte_data(data->client, TLC59108_LEDOUT1, 0x11);
 }
 
 static int tlc59108_bl_get_brightness(struct backlight_device *dev)
