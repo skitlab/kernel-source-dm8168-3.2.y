@@ -100,3 +100,4 @@ obj-$(CONFIG_JS_RTC)		+= js-rtc.o
 js-rtc-y = rtc.o
 
 obj-$(CONFIG_TI81XX_PCIE_BOOTDRV) += ti81xx_pcie_bootdrv.o
+obj-$(CONFIG_TI81XX_PCIE_EPDRV) += ti81xx_pcie_epdrv.o

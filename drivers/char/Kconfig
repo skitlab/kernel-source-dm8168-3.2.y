@@ -1145,6 +1145,15 @@ config TI81XX_PCIE_BOOTDRV
 	  can then be controlled using ioctls provided by this driver to
 	  perform the boot operation. Use 'M' to build as module.
 
+config TI81XX_PCIE_EPDRV
+        tristate "TI81XX PCIe Endpoint Driver"
+        depends on !PCI
+        help
+	  This option builds driver required for controlling PCIe configuration
+	  of TI816X/TI814X Endpoint device it is running on. A device with name
+	  "ti81xx_pcie_ep" is created to enable application to control the
+	  device using ioctls provided. Use 'M' to build as module.
+
 source "drivers/s390/char/Kconfig"
 
 config RAMOOPS
