@@ -101,4 +101,14 @@ extern struct device *omap2_get_iva_device(void);
 extern struct device *omap2_get_l3_device(void);
 extern struct device *omap4_get_dsp_device(void);
 
+#if defined(CONFIG_TI81XX_PCIE_EPDRV) || \
+	defined(CONFIG_TI81XX_PCIE_EPDRV_MODULE)
+/**
+ * Reserve memory for PCIe
+ */
+extern void ti81xx_pcie_mem_reserve_sdram_memblock(void);
+#else
+static inline void ti81xx_pcie_mem_reserve_sdram_memblock(void) { }
+#endif
+
 #endif /* __ARCH_ARM_MACH_OMAP_COMMON_H */

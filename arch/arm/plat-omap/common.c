@@ -66,6 +66,7 @@ EXPORT_SYMBOL(omap_get_var_config);
 void  __init ti81xx_reserve(void)
 {
 	ti81xxfb_reserve_sdram_memblock();
+	ti81xx_pcie_mem_reserve_sdram_memblock();
 }
 
 void __init omap_reserve(void)

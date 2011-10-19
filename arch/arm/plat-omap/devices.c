@@ -310,6 +310,49 @@ phys_addr_t omap_dsp_get_mempool_base(void)
 EXPORT_SYMBOL(omap_dsp_get_mempool_base);
 #endif
 
+#if defined(CONFIG_TI81XX_PCIE_EPDRV) || \
+	defined(CONFIG_TI81XX_PCIE_EPDRV_MODULE)
+/**
+ * PCIe memory reservation for DM81xx Endpoint
+ */
+static u32 ti81xx_def_sdram_pcie_mem_size __initdata;
+
+u32 ti81xx_ep_mem_start;
+EXPORT_SYMBOL_GPL(ti81xx_ep_mem_start);
+
+u32 ti81xx_ep_mem_size;
+EXPORT_SYMBOL_GPL(ti81xx_ep_mem_size);
+
+static int __init ti81xx_early_pcie_mem(char *p)
+{
+	ti81xx_def_sdram_pcie_mem_size = memparse(p, &p);
+	pr_info("DM81xx PCIe EP memory  size = %d ",
+			ti81xx_def_sdram_pcie_mem_size);
+	return 0;
+}
+early_param("pcie_mem", ti81xx_early_pcie_mem);
+
+void __init ti81xx_pcie_mem_reserve_sdram_memblock(void)
+{
+
+	phys_addr_t paddr;
+
+	if (!ti81xx_def_sdram_pcie_mem_size)
+		return;
+
+	paddr = memblock_alloc(ti81xx_def_sdram_pcie_mem_size, SZ_1M);
+	if (!paddr) {
+		pr_err("%s: failed to reserve %x bytes\n",
+			__func__, ti81xx_def_sdram_pcie_mem_size);
+		return;
+	}
+	memblock_free(paddr, ti81xx_def_sdram_pcie_mem_size);
+	memblock_remove(paddr, ti81xx_def_sdram_pcie_mem_size);
+	ti81xx_ep_mem_start = paddr;
+	ti81xx_ep_mem_size = ti81xx_def_sdram_pcie_mem_size;
+}
+#endif /* CONFIG_TI81XX_PCIE_EPDRV || CONFIG_TI81XX_PCIE_EPDRV_MODULE */
+
 /*
  * This gets called after board-specific INIT_MACHINE, and initializes most
  * on-chip peripherals accessible on this board (except for few like USB):
