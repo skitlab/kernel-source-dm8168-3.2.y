@@ -33,7 +33,7 @@
 
 #define MAX_INPUT_NODES_BLENDER   5
 
-
+#define DM814X_PLL_CLOCK_SOURCE	0x2C8
 
 enum dc_idtype {
 	DC_BLEND_ID = 0,
@@ -47,6 +47,7 @@ struct dc_vencmode_info {
 	const char            *name;
 	u32                   standard;
 	struct fvid2_modeinfo minfo;
+	u8                    dvimode;
 };
 
 struct dc_vencname_info {
@@ -66,6 +67,7 @@ struct dc_blender_info {
 	struct vps_dispctrl      *dctrl;
 	struct vps_dcvencclksrc  clksrc;
 	bool                     isdeviceon;
+	struct list_head         dev_list;
 };
 
 struct vps_dispctrl {

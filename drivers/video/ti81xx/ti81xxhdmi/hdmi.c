@@ -217,6 +217,7 @@ static int hdmi_set_timings(struct TI81xx_video_timings *timings, void *);
 
 static struct TI81xx_display_driver hdmi_driver = {
 	.display	= TI81xx_DISPLAY_HDMI,
+	.type		= TI81xx_DEVICE_TYPE_MASTER,
 	.enable		= hdmi_panel_enable,
 	.disable	= hdmi_panel_disable,
 	.suspend	= hdmi_panel_suspend,
@@ -642,28 +643,13 @@ static struct hdmi_cm hdmi_get_code(struct TI81xx_video_timings *timing)
 	cm.code = 16; /* 1080P-60 */
 
 	cm.mode = timing->dvi_hdmi;
-
-	/* Check if it maps to standard timings */
-	if (timing->standard == FVID2_STD_720P_60) {
-		cm.code = 4;
-		custom = 0;
-	}
-	if (timing->standard == FVID2_STD_1080I_60) {
-		cm.code = 5;
-		custom = 0;
-	}
-	if (timing->standard == FVID2_STD_1080P_30) {
-		cm.code = 34;
-		custom = 0;
-	}
-	if (timing->standard == FVID2_STD_1080P_60) {
-		cm.code = 16;
-		custom = 0;
-	}
 	if (custom) {
 
 		for (i = 0; i < 33; i++) {
 			temp = all_timings_direct[i];
+			if (!timing->scanformat)
+				temp.y_res *= 2;
+
 			if (temp.pixel_clock != timing->pixel_clock ||
 				temp.x_res != timing->width ||
 				temp.y_res != timing->height)
@@ -674,9 +660,9 @@ static struct hdmi_cm hdmi_get_code(struct TI81xx_video_timings *timing)
 			temp_vsync = temp.vfp + temp.vsw + temp.vbp;
 			timing_vsync = timing->vfp + timing->vsw + timing->vbp;
 
-			printk(KERN_INFO "Temp_hsync = %d, temp_vsync = %d, "
+			THDMIDBG("Temp_hsync = %d, temp_vsync = %d, "
 				"timing_hsync = %d, timing_vsync = %d",
-					temp_hsync, temp_hsync,
+					temp_hsync, temp_vsync,
 					timing_hsync, timing_vsync);
 
 			if (temp_hsync == timing_hsync &&
@@ -684,7 +670,7 @@ static struct hdmi_cm hdmi_get_code(struct TI81xx_video_timings *timing)
 				code = i;
 				cm.code = code_index[i];
 				cm.mode = code < 14;
-				printk("Hdmi_code = %d mode = %d\n",
+				THDMIDBG("Hdmi_code = %d mode = %d\n",
 					cm.code, cm.mode);
 				print_omap_video_timings(&temp);
 				break;
@@ -1219,6 +1205,16 @@ void ti81xx_map_timings_to_code(struct TI81xx_video_timings *timings)
 	cm = hdmi_get_code(timings);
 	hdmi.code = cm.code;
 	hdmi.mode = cm.mode;
+	hdmi.cfg.pixel_clock = timings->pixel_clock;
+	hdmi.cfg.hbp = timings->hbp;
+	hdmi.cfg.hfp = timings->hfp;
+	hdmi.cfg.hsw = timings->hsw;
+	hdmi.cfg.vfp = timings->vfp;
+	hdmi.cfg.vbp = timings->vbp;
+	hdmi.cfg.vsw = timings->vsw;
+	hdmi.cfg.interlace = timings->scanformat ? 0 : 1;
+	hdmi.cfg.ppl = timings->width;
+	hdmi.cfg.lpp = timings->height >> hdmi.cfg.interlace;
 	return;
 }
 

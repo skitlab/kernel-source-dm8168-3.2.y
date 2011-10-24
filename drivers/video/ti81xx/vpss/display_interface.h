@@ -201,6 +201,7 @@ struct ti81xx_external_encoder{
 	 * For the middle layer the status information is 'Read Only'.
 	 */
 	enum   ti81xx_display_status status;
+	struct list_head list;
 };
 
 
