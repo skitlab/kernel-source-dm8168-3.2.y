@@ -512,6 +512,8 @@ struct musb {
 #endif
 	/* id for multiple musb instances */
 	u8			id;
+	struct	timer_list	otg_workaround;
+	unsigned long		last_timer;
 };
 
 #ifdef CONFIG_USB_GADGET_MUSB_HDRC
