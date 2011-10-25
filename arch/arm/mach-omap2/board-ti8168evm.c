@@ -475,7 +475,6 @@ struct mtd_partition ti816x_spi_partitions[] = {
 };
 
 const struct flash_platform_data ti816x_spi_flash = {
-	.type		= "w25x32",
 	.name		= "spi_flash",
 	.parts		= ti816x_spi_partitions,
 	.nr_parts	= ARRAY_SIZE(ti816x_spi_partitions),
