@@ -751,7 +751,7 @@ static int dc_set_vencmode(struct vps_dcvencinfo *vinfo)
 		memcpy(&disp_ctrl->vinfo->modeinfo[0],
 			&ntied_vi.modeinfo[i],
 			sizeof(struct vps_dcmodeinfo));
-		mdelay(10);
+		mdelay(24);
 		r = vps_fvid2_control(disp_ctrl->fvid2_handle,
 				IOCTL_VPS_DCTRL_SET_VENC_MODE,
 				(void *)disp_ctrl->vinfo_phy,
