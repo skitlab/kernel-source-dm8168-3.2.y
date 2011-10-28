@@ -217,6 +217,8 @@ static int hdmi_set_timings(struct TI81xx_video_timings *timings, void *);
 
 static struct TI81xx_display_driver hdmi_driver = {
 	.display	= TI81xx_DISPLAY_HDMI,
+	/*HDMI must be master device to config HDMI_PLL at 10x
+	other external device should be slaver*/
 	.type		= TI81xx_DEVICE_TYPE_MASTER,
 	.enable		= hdmi_panel_enable,
 	.disable	= hdmi_panel_disable,
