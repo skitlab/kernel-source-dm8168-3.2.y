@@ -74,7 +74,7 @@ static struct omap2_hsmmc_info mmc[] = {
 
 #define GPIO_LCD_PWR_DOWN	0
 
-static int __init setup_gpio_ioexp(struct i2c_client *client, int gpio_base,
+static int setup_gpio_ioexp(struct i2c_client *client, int gpio_base,
 	 unsigned ngpio, void *context) {
 	int ret = 0;
 	int gpio = gpio_base + GPIO_LCD_PWR_DOWN;
