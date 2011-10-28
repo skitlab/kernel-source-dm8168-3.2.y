@@ -760,7 +760,6 @@ static struct platform_driver smartreflex_driver = {
 		.name	= "smartreflex",
 		.owner	= THIS_MODULE,
 	},
-	.probe		= ti816x_sr_probe,
 	.remove		= ti816x_sr_remove,
 };
 
@@ -768,7 +767,7 @@ static int __init sr_init(void)
 {
 	int ret;
 
-	ret = platform_driver_register(&smartreflex_driver);
+	ret = platform_driver_probe(&smartreflex_driver, ti816x_sr_probe);
 	if (ret) {
 		pr_err("%s: platform driver register failed\n", __func__);
 		return ret;
