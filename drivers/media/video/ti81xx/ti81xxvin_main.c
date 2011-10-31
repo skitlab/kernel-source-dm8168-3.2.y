@@ -85,21 +85,6 @@ static struct ti81xxvin_config_params config_params = {
 /**
  * ch_params: video standard configuration parameters for TI81xx capture
  */
-static struct ti81xxvin_buffer_params buf_params[] = {
-	{
-		"720P60", 1280, 720, 60, 0, 0, 525, V4L2_DV_720P60, 2560,
-	},
-	{
-		"1080P30", 1920, 1080, 30, 0, 0, 1080, V4L2_DV_1080P30, 3840,
-	},
-	{
-		"1080P60", 1920, 1080, 60, 0, 0, 1080, V4L2_DV_1080P60, 3840,
-	},
-	{
-		"1080I60", 1920, 1080, 60, 1, 0, 1080, V4L2_DV_1080I60, 3840,
-	},
-};
-
 /* global variables */
 static struct ti81xxvin_device ti81xxvin_obj = { {NULL} };
 static struct device *ti81xxvin_dev;
@@ -409,26 +394,26 @@ static void ti81xxvin_config_format(struct ti81xxvin_instance_obj *inst)
  * For a given standard selected by application, update values
  * in the device data structures
  */
-static int ti81xxvin_update_std_info(struct ti81xxvin_instance_obj *inst)
+static int ti81xxvin_update_std_info(struct ti81xxvin_instance_obj *inst,
+	struct v4l2_mbus_framefmt *mbus_framefmt)
 {
 	struct ti81xxvin_buffer_obj *buf_obj = &inst->buf_obj;
 	struct ti81xxvin_obj *vid_ch = &inst->video;
 	struct ti81xxvin_buffer_params *buf_params_cfg;
-	int index;
 
 	ti81xxvin_dbg(2, debug, "ti81xxvin_update_std_info\n");
 
-	for (index = 0; index < ARRAY_SIZE(buf_params); index++) {
-		buf_params_cfg = &buf_params[index];
-		if (buf_params_cfg->dv_preset == vid_ch->cur_dv_preset.preset) {
-			memcpy(&(vid_ch->buf_params), buf_params_cfg,
-					sizeof(*buf_params_cfg));
-			break;
-		}
-	}
-	/* standard not found */
-	if (index == ARRAY_SIZE(buf_params))
-		return -EINVAL;
+	buf_params_cfg = &vid_ch->buf_params;
+
+	vid_ch->buf_params.width = mbus_framefmt->width;
+	vid_ch->buf_params.height = mbus_framefmt->height;
+	if (V4L2_FIELD_NONE == mbus_framefmt->field)
+		vid_ch->buf_params.interlaced = 0;
+	else
+		vid_ch->buf_params.interlaced = 1;
+	vid_ch->buf_params.bytesperline =
+		mbus_framefmt->width * mbus_framefmt->height * 2;
+	vid_ch->buf_params.dv_preset = vid_ch->cur_dv_preset.preset;
 
 	buf_obj->fmt.fmt.pix.width = buf_params_cfg->width;
 	buf_obj->fmt.fmt.pix.height = buf_params_cfg->height;
@@ -1282,6 +1267,7 @@ static int vidioc_query_dv_preset(struct file *file,
 	struct ti81xxvin_instance_obj *inst = fh->instance;
 	struct ti81xxvin_buffer_obj *buf_obj = &inst->buf_obj;
 	int ret = 0;
+	struct v4l2_mbus_framefmt mbus_framefmt;
 
 	ti81xxvin_dbg(2, debug, "vidioc_query_dv_preset\n");
 
@@ -1298,8 +1284,10 @@ static int vidioc_query_dv_preset(struct file *file,
 	}
 	inst->video.cur_dv_preset = *qpreset;
 
+	ret = v4l2_subdev_call(ti81xxvin_obj.sd[inst->curr_sd_index], video,
+			g_mbus_fmt, &mbus_framefmt);
 	/* Get the information about the standard */
-	if (ti81xxvin_update_std_info(inst)) {
+	if (ti81xxvin_update_std_info(inst, &mbus_framefmt)) {
 		ret = -EINVAL;
 		ti81xxvin_err("Error getting the standard info\n");
 		goto s_dv_preset_exit;
@@ -1328,6 +1316,7 @@ static int vidioc_s_dv_preset(struct file *file,
 	struct ti81xxvin_instance_obj *inst = fh->instance;
 	struct ti81xxvin_buffer_obj *buf_obj = &inst->buf_obj;
 	int ret = 0;
+	struct v4l2_mbus_framefmt mbus_framefmt;
 
 	ti81xxvin_dbg(2, debug, "vidioc_s_dv_preset\n");
 
@@ -1352,8 +1341,10 @@ static int vidioc_s_dv_preset(struct file *file,
 		goto s_dv_preset_exit;
 	inst->video.cur_dv_preset = *dv_preset;
 
+	ret = v4l2_subdev_call(ti81xxvin_obj.sd[inst->curr_sd_index], video,
+			g_mbus_fmt, &mbus_framefmt);
 	/* Get the information about the standard */
-	if (ti81xxvin_update_std_info(inst)) {
+	if (ti81xxvin_update_std_info(inst, &mbus_framefmt)) {
 		ret = -EINVAL;
 		ti81xxvin_err("Error getting the standard info\n");
 		goto s_dv_preset_exit;
