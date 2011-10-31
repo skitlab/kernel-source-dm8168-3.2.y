@@ -34,6 +34,22 @@ struct ti81xxvin_subdev_info {
 	struct Vps_VipPortConfig vip_port_cfg;
 	/* How VIP should be configured for the subdevice */
 	struct Vps_VipConfig vip_cfg;
+
+	u32 video_capture_mode;
+	/* How is video captured, like Embedded Sync, discrete sync,
+	   single channel etc For details see #Vps_CaptVideoCaptureMode
+	 */
+	u32 video_if_mode;
+	/* How is decoder interfaced, 8bit, 16bit, 24 bit etc.
+	   For details see #Vps_CaptVideoIfMode
+	 */
+	u32 input_data_format;
+	/** Input source color data format, valid values are given below \n
+	    FVID2_DF_YUV422P, ( 'P' is not relavent for input data format) \n
+	    FVID2_DF_YUV444P, ( 'P' is not relavent for input data format) \n
+	    FVID2_DF_RGB24_888.
+	    For valid values see #FVID2_DataFormat.
+	 */
 };
 
 

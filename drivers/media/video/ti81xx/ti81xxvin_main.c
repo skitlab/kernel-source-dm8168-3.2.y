@@ -223,6 +223,10 @@ static int ti81xxvin_vps_config_format(struct ti81xxvin_instance_obj *inst)
 	cparams->numStream = 1;
 
 	sdev_info = inst->curr_subdev_info;
+
+	cparams->videoCaptureMode = sdev_info->video_capture_mode;
+	cparams->videoIfMode = sdev_info->video_if_mode;
+	cparams->inDataFormat = sdev_info->input_data_format;
 	memcpy(cctrl->vipcfg, &sdev_info->vip_cfg,
 			sizeof(struct Vps_VipConfig));
 	memcpy(cctrl->vipportcfg, &sdev_info->vip_port_cfg,

@@ -29,6 +29,7 @@
 #include <linux/platform_device.h>
 #include <linux/bootmem.h>
 #include <linux/io.h>
+#include <linux/vps_capture.h>
 #include <linux/ti81xxfb.h>
 #include <linux/ti81xx.h>
 #include <mach/hardware.h>
@@ -84,6 +85,10 @@ static struct ti81xxvin_subdev_info hdvpss_capture_sdev_info[] = {
 				.hsyncPol = VPS_VIP_POLARITY_DONT_CARE,
 			}
 		},
+		.video_capture_mode =
+			VPS_CAPT_VIDEO_CAPTURE_MODE_SINGLE_CH_NON_MUX_EMBEDDED_SYNC,
+		.video_if_mode = VPS_CAPT_VIDEO_IF_MODE_16BIT,
+		.input_data_format = FVID2_DF_YUV422P,
 	},
 	{
 		.name	= TVP7002_INST1,
@@ -113,6 +118,10 @@ static struct ti81xxvin_subdev_info hdvpss_capture_sdev_info[] = {
 				.hsyncPol = VPS_VIP_POLARITY_DONT_CARE,
 			}
 		},
+		.video_capture_mode =
+			VPS_CAPT_VIDEO_CAPTURE_MODE_SINGLE_CH_NON_MUX_EMBEDDED_SYNC,
+		.video_if_mode = VPS_CAPT_VIDEO_IF_MODE_16BIT,
+		.input_data_format = FVID2_DF_YUV422P,
 	},
 };
 
