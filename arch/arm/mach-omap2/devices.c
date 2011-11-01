@@ -2443,8 +2443,8 @@ static struct resource ti81xx_pcie_resources[] = {
 	{
 		/* Inbound memory window */
 		.name		= "pcie-inbound0",
-		.start		= PHYS_OFFSET,
-		.end		= PHYS_OFFSET + SZ_2G - 1,
+		.start		= PLAT_PHYS_OFFSET,
+		.end		= PLAT_PHYS_OFFSET + SZ_2G - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 	{
