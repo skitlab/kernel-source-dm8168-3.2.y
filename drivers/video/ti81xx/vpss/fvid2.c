@@ -79,7 +79,7 @@ static unsigned long    vps_timeout = 0u;
 #define VPS_FVID2_RESERVED_NOTIFY	0x09
 #define VPS_FVID2_M3_INIT_VALUE      (0xAAAAAAAA)
 #define VPS_FVID2_PS_LINEID          0
-#define CURRENT_VPS_FIRMWARE_VERSION        (0x01000132)
+#define CURRENT_VPS_FIRMWARE_VERSION        (0x01000133)
 
 static inline u32 time_diff(struct timeval stime, struct timeval etime)
 {

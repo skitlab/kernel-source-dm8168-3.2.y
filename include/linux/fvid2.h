@@ -511,7 +511,17 @@ enum  fvid2_standard {
 	 Used in display mode. */
 	FVID2_STD_WVGA_60,
 	/**< 800x480 60PFS WVGA */
-	FVID2_STD_MAX
+	FVID2_STD_1368_768_60 = 0x10000000,
+	/**< 1368x768 60 PFS VESA>*/
+	FVID2_STD_1366_768_60,
+	/**< 1366x768 60 PFS VESA>*/
+	FVID2_STD_1360_768_60,
+	/**< 1360x768 60 PFS VESA>*/
+	FVID2_STD_1680_1050_60,
+	/**< 1680x1050 60 PFS VESA>*/
+	FVID2_STD_1440_900_60,
+	/**< 1440x900 60 PFS VESA>*/
+	FVID2_STD_MAX = 0xFFFFFFFF
 	/**< Should be the last value of this enumeration.
 	 Will be used by driver for validating the input parameters. */
 };

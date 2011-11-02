@@ -211,6 +211,33 @@ static const struct dc_vencmode_info vmode_info[] = {
 		27000, 60, 16, 60, 62, 9, 20, 6},
 	    TI81xx_MODE_HDMI
 	},
+	{"1366x768@60", FVID2_STD_1366_768_60,
+	    {FVID2_STD_CUSTOM, 1366, 768, FVID2_SF_PROGRESSIVE,
+		85500, 60, 70, 213, 143, 3, 24, 3},
+	    TI81xx_MODE_DVI
+	},
+	{"1360x768@60", FVID2_STD_1360_768_60,
+	    {FVID2_STD_CUSTOM, 1360, 768, FVID2_SF_PROGRESSIVE,
+		85500, 60, 64, 256, 112, 3, 18, 6},
+	    TI81xx_MODE_DVI
+	},
+	{"1368x768@60", FVID2_STD_1368_768_60,
+	    {FVID2_STD_CUSTOM, 1368, 768, FVID2_SF_PROGRESSIVE,
+		85860, 60, 72, 216, 144, 1, 23, 3},
+	    TI81xx_MODE_DVI
+	},
+	{"1680x1050@60", FVID2_STD_1680_1050_60,
+	    {FVID2_STD_CUSTOM, 1680, 1050, FVID2_SF_PROGRESSIVE,
+		146250, 60, 176, 280, 104, 6, 30, 3},
+	    TI81xx_MODE_DVI
+	},
+	{"1440x900@60", FVID2_STD_1440_900_60,
+	    {FVID2_STD_CUSTOM, 1440, 900, FVID2_SF_PROGRESSIVE,
+		106500, 60, 152, 232, 80, 6, 25, 3},
+	    TI81xx_MODE_DVI
+	}
+
+
 };
 /*use for the venc name*/
 static const struct dc_vencname_info venc_name[VPS_DC_MAX_VENC] = {
