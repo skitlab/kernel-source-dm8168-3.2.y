@@ -1,6 +1,8 @@
 #ifndef __TI81XX_H__
 #define __TI81XX_H__
 
+#ifdef __KERNEL__
+
 #include <linux/videodev2.h>
 #include <linux/vps_cfgVipParser.h>
 
@@ -72,4 +74,5 @@ struct ti81xxvin_config {
 	int subdev_count;
 	const char *card_name;
 };
+#endif /*  #ifdef __KERNEL__ */
 #endif /* #ifndef __TI81XX_H__ */

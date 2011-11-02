@@ -23,6 +23,8 @@
 #ifndef _VPS_CFG_VIP_PARSER_H
 #define _VPS_CFG_VIP_PARSER_H
 
+#ifdef __KERNEL__
+
 /** \brief Use this when a particular value for VIP parser config
   is dont care */
 #define VPS_VIP_VALUE_DONT_CARE     (-1)
@@ -250,4 +252,5 @@ struct Vps_VipPortConfig {
 
 };
 
-#endif
+#endif /* #ifdef _KERNEL_H_ */
+#endif /* #ifdef _VPS_CFG_VIP_PARSER_H */

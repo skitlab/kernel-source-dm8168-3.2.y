@@ -23,6 +23,8 @@
 #ifndef __LINUX_VPS_CAPTURE_H__
 #define __LINUX_VPS_CAPTURE_H__
 
+#ifdef __KERNEL__
+
 #include <linux/vps_proxyserver.h>
 #include <linux/fvid2.h>
 #include <linux/vps.h>
@@ -885,5 +887,5 @@ static inline u32 Vps_captMakeChannelNum (u32 instId, u32 streamId,
 	return instId * VPS_CAPT_CH_PER_PORT_MAX * VPS_CAPT_STREAM_ID_MAX
 		+ streamId * VPS_CAPT_CH_PER_PORT_MAX + chId;
 }
-
-#endif
+#endif /*#ifdef __KERNEL__ */
+#endif /* #ifdef __LINUX_VPS_CAPTURE_H__ */
