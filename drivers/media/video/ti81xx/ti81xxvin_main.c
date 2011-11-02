@@ -45,8 +45,8 @@
 #include <mach/capt.h>
 #include <mach/board-ti816x.h>
 #include <mach/board-ti814x.h>
-#include <linux/ti81xxcapt.h>
-#include "ti81xxvin.h"
+#include <linux/ti81xxvin.h>
+#include "ti81xxvin_pvt.h"
 
 
 MODULE_DESCRIPTION("TI 81xx Capture driver");
@@ -2536,3 +2536,7 @@ static void ti81xxvin_cleanup(void)
 /* Function for module initialization and cleanup */
 module_init(ti81xxvin_init);
 module_exit(ti81xxvin_cleanup);
+
+MODULE_AUTHOR("Hardik Shah(hardik.shah@ti.com");
+MODULE_DESCRIPTION("DM81xx Vin Capture driver");
+MODULE_LICENSE("GPL");

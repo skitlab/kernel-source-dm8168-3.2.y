@@ -143,5 +143,5 @@ int ti81xxvin_new_crop(u32 width, u32 height,
 }
 EXPORT_SYMBOL_GPL(ti81xxvin_new_crop);
 MODULE_AUTHOR("Hardik Shah(hardik.shah@ti.com");
-MODULE_DESCRIPTION("TI 81xx Capture driver library");
+MODULE_DESCRIPTION("DM81xx Vin Capture driver library");
 MODULE_LICENSE("GPL");
