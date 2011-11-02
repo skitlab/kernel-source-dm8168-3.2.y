@@ -357,16 +357,21 @@ static void ti81xxvin_config_format(struct ti81xxvin_instance_obj *inst)
 
 	ti81xxvin_dbg(2, debug, "ti81xxvin_config_format\n");
 
-	switch (inst->video.cur_dv_preset.preset) {
-	case V4L2_DV_1080I30:
-	case V4L2_DV_1080I25:
-	case V4L2_DV_1080I50:
-	case V4L2_DV_1080I60:
+	if (V4L2_DV_INVALID != inst->video.cur_dv_preset.preset) {
+		switch (inst->video.cur_dv_preset.preset) {
+		case V4L2_DV_1080I30:
+		case V4L2_DV_1080I25:
+		case V4L2_DV_1080I50:
+		case V4L2_DV_1080I60:
+			buf_obj->fmt.fmt.pix.field = V4L2_FIELD_INTERLACED;
+			break;
+		default:
+			buf_obj->fmt.fmt.pix.field = V4L2_FIELD_NONE;
+		}
+	} else if (V4L2_STD_UNKNOWN != inst->video.cur_std_id)
 		buf_obj->fmt.fmt.pix.field = V4L2_FIELD_INTERLACED;
-		break;
-	default:
+	else
 		buf_obj->fmt.fmt.pix.field = V4L2_FIELD_NONE;
-	}
 	buf_obj->memory = V4L2_MEMORY_MMAP;
 
 	buf_obj->fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
@@ -1253,7 +1258,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 }
 
 /**
- * hdvpss_querystd() - querystd handler
+ * vidioc_query_dv_preset() - querystd handler
  * @file: file ptr
  * @priv: file handle
  * @std_id: ptr to std id
@@ -1280,8 +1285,10 @@ static int vidioc_query_dv_preset(struct file *file,
 	if (ret < 0) {
 		ti81xxvin_dbg(1, debug, "Failed to set dv format"
 		" for sub devices\n");
-		goto s_dv_preset_exit;
+		goto vidioc_query_dv_preset_exit;
 	}
+	inst->video.cur_dv_preset.preset = V4L2_DV_INVALID;
+	inst->video.cur_std_id = V4L2_STD_UNKNOWN;
 	inst->video.cur_dv_preset = *qpreset;
 
 	ret = v4l2_subdev_call(ti81xxvin_obj.sd[inst->curr_sd_index], video,
@@ -1290,7 +1297,7 @@ static int vidioc_query_dv_preset(struct file *file,
 	if (ti81xxvin_update_std_info(inst, &mbus_framefmt)) {
 		ret = -EINVAL;
 		ti81xxvin_err("Error getting the standard info\n");
-		goto s_dv_preset_exit;
+		goto vidioc_query_dv_preset_exit;
 	}
 	/* Configure the default format information according to the std
 	 * selected
@@ -1298,7 +1305,59 @@ static int vidioc_query_dv_preset(struct file *file,
 	ti81xxvin_config_format(inst);
 
 	ti81xxvin_vps_config_format(inst);
-s_dv_preset_exit:
+vidioc_query_dv_preset_exit:
+	mutex_unlock(&buf_obj->buf_lock);
+	return ret;
+}
+
+/**
+ * vidioc_query_dv_preset() - querystd handler
+ * @file: file ptr
+ * @priv: file handle
+ * @std_id: ptr to std id
+ *
+ * This function is called to detect standard at the selected input
+ */
+static int vidioc_querystd(struct file *file, void *priv, v4l2_std_id *norm)
+{
+	struct ti81xxvin_fh *fh = priv;
+	struct ti81xxvin_instance_obj *inst = fh->instance;
+	struct ti81xxvin_buffer_obj *buf_obj = &inst->buf_obj;
+	int ret = 0;
+	struct v4l2_mbus_framefmt mbus_framefmt;
+
+	ti81xxvin_dbg(2, debug, "vidioc_query_dv_preset\n");
+
+	if (mutex_lock_interruptible(&buf_obj->buf_lock))
+		return -ERESTARTSYS;
+
+	/* Call querystd function of decoder device */
+	ret = v4l2_subdev_call(ti81xxvin_obj.sd[inst->curr_sd_index], video,
+			querystd, norm);
+	if (ret < 0) {
+		ti81xxvin_dbg(1, debug, "Failed to set dv format"
+		" for sub devices\n");
+		goto querystd_exit;
+	}
+	inst->video.cur_dv_preset.preset = V4L2_DV_INVALID;
+	inst->video.cur_std_id = V4L2_STD_UNKNOWN;
+	inst->video.cur_std_id = *norm;
+
+	ret = v4l2_subdev_call(ti81xxvin_obj.sd[inst->curr_sd_index], video,
+			g_mbus_fmt, &mbus_framefmt);
+	/* Get the information about the standard */
+	if (ti81xxvin_update_std_info(inst, &mbus_framefmt)) {
+		ret = -EINVAL;
+		ti81xxvin_err("Error getting the standard info\n");
+		goto querystd_exit;
+	}
+	/* Configure the default format information according to the std
+	 * selected
+	 */
+	ti81xxvin_config_format(inst);
+
+	ti81xxvin_vps_config_format(inst);
+querystd_exit:
 	mutex_unlock(&buf_obj->buf_lock);
 	return ret;
 }
@@ -1339,6 +1398,8 @@ static int vidioc_s_dv_preset(struct file *file,
 			s_dv_preset, dv_preset);
 	if (ret)
 		goto s_dv_preset_exit;
+	inst->video.cur_dv_preset.preset = V4L2_DV_INVALID;
+	inst->video.cur_std_id = V4L2_STD_UNKNOWN;
 	inst->video.cur_dv_preset = *dv_preset;
 
 	ret = v4l2_subdev_call(ti81xxvin_obj.sd[inst->curr_sd_index], video,
@@ -1364,7 +1425,69 @@ s_dv_preset_exit:
 }
 
 /**
- * hdvpss_g_std() - get STD handler
+ * vidioc_s_std() - set STD handler
+ * @file: file ptr
+ * @priv: file handle
+ * @std_id: ptr to std id
+ */
+static int vidioc_s_std(struct file *file,
+		void *priv, v4l2_std_id *norm)
+{
+	struct ti81xxvin_fh *fh = priv;
+	struct ti81xxvin_instance_obj *inst = fh->instance;
+	struct ti81xxvin_buffer_obj *buf_obj = &inst->buf_obj;
+	int ret = 0;
+	struct v4l2_mbus_framefmt mbus_framefmt;
+
+	ti81xxvin_dbg(2, debug, "vidioc_s_std\n");
+
+	if (buf_obj->started) {
+		ti81xxvin_err("streaming in progress\n");
+		return -EBUSY;
+	}
+
+	ret = v4l2_prio_check(&inst->prio, fh->prio);
+	if (0 != ret)
+		return ret;
+
+	fh->initialized = 1;
+
+	/* Call encoder subdevice function to set the standard */
+	if (mutex_lock_interruptible(&buf_obj->buf_lock))
+		return -ERESTARTSYS;
+	/* Call the V4l2 subdev to set the preset */
+	ret = v4l2_subdev_call(ti81xxvin_obj.sd[inst->curr_sd_index], core,
+			s_std, *norm);
+	if (ret)
+		goto s_std_exit;
+	inst->video.cur_dv_preset.preset = V4L2_DV_INVALID;
+	inst->video.cur_std_id = V4L2_STD_UNKNOWN;
+	inst->video.cur_std_id = *norm;
+
+	ret = v4l2_subdev_call(ti81xxvin_obj.sd[inst->curr_sd_index], video,
+			g_mbus_fmt, &mbus_framefmt);
+	/* Get the information about the standard */
+	if (ti81xxvin_update_std_info(inst, &mbus_framefmt)) {
+		ret = -EINVAL;
+		ti81xxvin_err("Error getting the standard info\n");
+		goto s_std_exit;
+	}
+
+	/* Configure the default format information according to the std
+	 * selected
+	 */
+	ti81xxvin_config_format(inst);
+s_std_exit:
+	if (ret < 0)
+		ti81xxvin_dbg(1, debug, "Failed to set standard"
+		" for sub devices\n");
+
+	mutex_unlock(&buf_obj->buf_lock);
+	return ret;
+}
+
+/**
+ * vidioc_g_dv_preset() - get STD handler
  * @file: file ptr
  * @priv: file handle
  * @std_id: ptr to std id
@@ -1378,6 +1501,24 @@ static int vidioc_g_dv_preset(struct file *file, void *priv,
 	ti81xxvin_dbg(2, debug, "vidioc_g_dv_preset\n");
 
 	preset->preset = inst->video.cur_dv_preset.preset;
+	return 0;
+}
+
+/**
+ * vidioc_g_std() - get STD handler
+ * @file: file ptr
+ * @priv: file handle
+ * @std_id: ptr to std id
+ */
+static int vidioc_g_std(struct file *file, void *priv,
+		v4l2_std_id *norm)
+{
+	struct ti81xxvin_fh *fh = priv;
+	struct ti81xxvin_instance_obj *inst = fh->instance;
+
+	ti81xxvin_dbg(2, debug, "vidioc_g_std\n");
+
+	*norm = inst->video.cur_std_id;
 	return 0;
 }
 
@@ -1890,6 +2031,9 @@ static const struct v4l2_ioctl_ops hdvpss_ioctl_ops = {
 	.vidioc_s_dv_preset		= vidioc_s_dv_preset,
 	.vidioc_g_dv_preset		= vidioc_g_dv_preset,
 	.vidioc_enum_dv_presets		= vidioc_enum_dv_presets,
+	.vidioc_querystd		= vidioc_querystd,
+	.vidioc_g_std			= vidioc_g_std,
+	.vidioc_s_std			= vidioc_s_std,
 	.vidioc_reqbufs			= vidioc_reqbufs,
 	.vidioc_querybuf		= vidioc_querybuf,
 	.vidioc_qbuf			= vidioc_qbuf,

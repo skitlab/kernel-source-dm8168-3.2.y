@@ -89,6 +89,8 @@ struct ti81xxvin_obj {
 	enum v4l2_field buf_field;
 	/* Currently selected or default dv standard */
 	struct v4l2_dv_preset cur_dv_preset;
+	/* Currently selected or default dv standard */
+	v4l2_std_id cur_std_id;
 	/* This is to track the last input that is passed to application */
 	u32 input_idx;
 	/* Pointer for holding the buffer params */
