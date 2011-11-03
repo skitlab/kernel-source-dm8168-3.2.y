@@ -923,8 +923,10 @@ static long hdmi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return  -EFAULT;
 /*		if (copy_to_user((void __user *)arg, &edid,
 		    sizeof(struct HDMI_EDID)))*/
-		r = copy_to_user((void __user *)arg, &edid,
-				 sizeof(struct HDMI_EDID));
+		/*make sure arg is not NULL*/
+		if (arg)
+			r = copy_to_user((void __user *)arg, &edid,
+					 sizeof(struct HDMI_EDID));
 		if (r) {
 			THDMIDBG("Error : copy_to_user, r = %d ", r);
 			r = -EFAULT;
@@ -1283,12 +1285,16 @@ static int hdmi_get_panel_edid(char *inbuf, void *data)
 	/* TODo : Fixme:: Maybe check HPD status and also whether HDCP is ON,
 	   before getting edid */
 
+	if (!inbuf)
+		return -1;
 	hpd_state = hdmi_get_hpd_pin_state();
 
 	if (hdmi_get_edid() != 0)
 		return -1;
+
 	memcpy(inbuf, edid, HDMI_EDID_MAX_LENGTH);
 	return HDMI_EDID_MAX_LENGTH;
+
 }
 
 static int hdmi_set_timings(struct TI81xx_video_timings *timings, void *data)

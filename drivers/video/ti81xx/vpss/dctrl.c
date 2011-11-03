@@ -916,7 +916,7 @@ static int dc_set_comp_rtconfig(struct vps_dispctrl *dctrl,
 }
 static int dc_get_edid(int vid, u8 *edid)
 {
-	int r = 0, idx;
+	int r = -EINVAL, idx;
 	struct dc_blender_info *binfo;
 	struct ti81xx_external_encoder *extenc;
 	int enc_status = 0;
@@ -930,12 +930,13 @@ static int dc_get_edid(int vid, u8 *edid)
 		    extenc->panel_driver->get_edid) {
 			r = extenc->panel_driver->get_edid(edid, NULL);
 		}
-		if (r == -1) {
-			VPSSERR(" Failed to get EDID info\n");
-			r = -EINVAL;
-			goto exit;
-		}
 	}
+	if (r < 0) {
+		VPSSERR(" Failed to get EDID info\n");
+		r = -EINVAL;
+		goto exit;
+	}
+
 exit:
 	return r;
 
@@ -1834,22 +1835,53 @@ static ssize_t blender_name_show(struct dc_blender_info *binfo, char *buf)
 
 static ssize_t blender_edid_show(struct dc_blender_info *binfo, char *buf)
 {
-	int r = 0;
+	int r = 0, l = 0;
+	u8 *ed;
+	ed = kzalloc(512, GFP_KERNEL);
+	if (!ed)
+		return 0;
 	dc_lock(disp_ctrl);
-	r = dc_get_edid(venc_name[binfo->idx].vid, buf);
+	r = dc_get_edid(venc_name[binfo->idx].vid, ed);
 	dc_unlock(disp_ctrl);
-	if (!r) {
-		printk(KERN_INFO "\nblender_edid_show"
-			": r = %d ", r);
-		printk(KERN_INFO "\n %x %x %x %x %x %x"
-			"%x %x\n",
-		buf[0], buf[1], buf[2], buf[3],
-		buf[126], buf[127], buf[128],
-		buf[129]);
-		memset(buf, 0, r);
+	if (r >= 0) {
+		int i;
+		u32 start;
+		int length = 128;
+
+		l = start = 0;
+		/*display up to 512B*/
+		length += 128 * ed[0x7e];
+		if (length > 512)
+			length = 512;
+		l += snprintf(buf + l, PAGE_SIZE - l,
+			"\t   EDID Information    \t\n\n");
+		l += snprintf(buf + l, PAGE_SIZE - l,
+			"      00 01 02 03 04 05 06 07 "
+			"08 09 0A 0B 0C 0D 0E 0F\n");
+		l += snprintf(buf + l, PAGE_SIZE - l,
+			"------------------------------"
+			"-----------------------\n");
+
+		for (i = 0 ; i < length; i += 16) {
+			if (!(i % 16))
+				l += snprintf(buf + l, PAGE_SIZE - l,
+					"%4.4x: ", start + i);
+
+			l += snprintf(buf + l, PAGE_SIZE - l,
+			    "%2.2x %2.2x %2.2x %2.2x "
+			    "%2.2x %2.2x %2.2x %2.2x "
+			    "%2.2x %2.2x %2.2x %2.2x "
+			    "%2.2x %2.2x %2.2x %2.2x\n",
+			    ed[i], ed[i + 1], ed[i + 2], ed[i + 3],
+			    ed[i + 4], ed[i + 5], ed[i + 6], ed[i + 7],
+			    ed[i + 8], ed[i + 9], ed[i + 10], ed[i + 11],
+			    ed[i + 12], ed[i + 13], ed[i + 14], ed[i + 15]);
+		}
 	}
 
-	return r;
+	kfree(ed);
+
+	return l;
 }
 
 static ssize_t blender_edid_store(struct dc_blender_info *binfo,
