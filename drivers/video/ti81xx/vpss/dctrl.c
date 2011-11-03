@@ -914,6 +914,32 @@ static int dc_set_comp_rtconfig(struct vps_dispctrl *dctrl,
 	return r;
 
 }
+static int dc_get_edid(int vid, u8 *edid)
+{
+	int r = 0, idx;
+	struct dc_blender_info *binfo;
+	struct ti81xx_external_encoder *extenc;
+	int enc_status = 0;
+
+	get_idx_from_vid(vid, &idx);
+	binfo = &disp_ctrl->blenders[idx];
+	list_for_each_entry(extenc, &binfo->dev_list, list) {
+		enc_status = extenc->status;
+		if ((enc_status != TI81xx_EXT_ENCODER_UNREGISTERED) &&
+		    extenc->panel_driver &&
+		    extenc->panel_driver->get_edid) {
+			r = extenc->panel_driver->get_edid(edid, NULL);
+		}
+		if (r == -1) {
+			VPSSERR(" Failed to get EDID info\n");
+			r = -EINVAL;
+			goto exit;
+		}
+	}
+exit:
+	return r;
+
+}
 /*E******************************** private functions *********************/
 
 /*S*******************************  public functions  *********************/
@@ -939,13 +965,41 @@ int vps_dc_get_id(char *name, int *id, enum dc_idtype type)
 	return r;
 }
 
+/*get current venc output format*/
+int vps_dc_get_outpfmt(int id, u32 *width,
+		       u32 *height,
+		       u8 *scformat,
+		       enum dc_idtype type)
+{
+	int r;
+
+	if ((disp_ctrl == NULL) || (disp_ctrl->fvid2_handle == NULL))
+		return -EINVAL;
+
+	VPSSDBG("enter get output format\n");
+
+	dc_lock(disp_ctrl);
+	if (type == DC_VENC_ID)
+		r = dc_get_format_from_vid(id, width, height, scformat);
+	 else if (type == DC_BLEND_ID)
+		r = dc_get_format_from_bid(id, width, height, scformat);
+	 else if (type == DC_MODE_ID)
+		r = dc_get_format_from_mid(id, width, height, scformat);
+	 else
+		r = -EINVAL;
+
+	dc_unlock(disp_ctrl);
+	return r;
+}
+
+
 /*get the tied venc information*/
 int vps_dc_get_tiedvenc(u8 *tiedvenc)
 {
 	*tiedvenc = disp_ctrl->tiedvenc;
 	return 0;
 }
-
+EXPORT_SYMBOL(vps_dc_get_tiedvenc);
 /*get the venc infor for the desired vencs*/
 int vps_dc_get_vencinfo(struct vps_dcvencinfo *vinfo)
 {
@@ -956,7 +1010,7 @@ int vps_dc_get_vencinfo(struct vps_dcvencinfo *vinfo)
 
 	return r;
 }
-
+EXPORT_SYMBOL(vps_dc_get_vencinfo);
 /*get the node name based on the id*/
 int vps_dc_get_node_name(int id, char *name)
 {
@@ -971,7 +1025,7 @@ int vps_dc_get_node_name(int id, char *name)
 	return -EINVAL;
 
 }
-
+EXPORT_SYMBOL(vps_dc_get_node_name);
 /*set dc config not used now*/
 int vps_dc_set_config(struct vps_dcconfig *usercfg, int setflag)
 {
@@ -1017,33 +1071,7 @@ int vps_dc_set_config(struct vps_dcconfig *usercfg, int setflag)
 
 	return r;
 }
-
-/*get current venc output format*/
-int vps_dc_get_outpfmt(int id, u32 *width,
-		       u32 *height,
-		       u8 *scformat,
-		       enum dc_idtype type)
-{
-	int r;
-
-	if ((disp_ctrl == NULL) || (disp_ctrl->fvid2_handle == NULL))
-		return -EINVAL;
-
-	VPSSDBG("enter get output format\n");
-
-	dc_lock(disp_ctrl);
-	if (type == DC_VENC_ID)
-		r = dc_get_format_from_vid(id, width, height, scformat);
-	 else if (type == DC_BLEND_ID)
-		r = dc_get_format_from_bid(id, width, height, scformat);
-	 else if (type == DC_MODE_ID)
-		r = dc_get_format_from_mid(id, width, height, scformat);
-	 else
-		r = -EINVAL;
-
-	dc_unlock(disp_ctrl);
-	return r;
-}
+EXPORT_SYMBOL(vps_dc_set_config);
 
 /* set/clear the node path/edge */
 int vps_dc_set_node(u8 nodeid, u8 inputid, u8 enable)
@@ -1089,6 +1117,7 @@ exit:
 	dc_unlock(disp_ctrl);
 	return r;
 }
+EXPORT_SYMBOL(vps_dc_set_node);
 
 int vps_dc_set_color(struct vps_dccigrtconfig *cigconfig)
 {
@@ -1112,6 +1141,7 @@ int vps_dc_set_color(struct vps_dccigrtconfig *cigconfig)
 	dc_unlock(disp_ctrl);
 	return r;
 }
+EXPORT_SYMBOL(vps_dc_get_color);
 
 int vps_dc_get_color(struct vps_dccigrtconfig *cigconfig)
 {
@@ -1137,7 +1167,7 @@ int vps_dc_get_color(struct vps_dccigrtconfig *cigconfig)
 	return r;
 
 }
-
+EXPORT_SYMBOL(vps_dc_set_color);
 int vps_dc_enum_node_input(struct vps_dcenumnodeinput *eninput)
 {
 	int r = 0;
@@ -1148,7 +1178,7 @@ int vps_dc_enum_node_input(struct vps_dcenumnodeinput *eninput)
 	dc_unlock(disp_ctrl);
 	return r;
 }
-
+EXPORT_SYMBOL(vps_dc_enum_node_input);
 int vps_dc_get_node_status(struct vps_dcnodeinput *ninput)
 {
 	int r = 0;
@@ -1160,6 +1190,7 @@ int vps_dc_get_node_status(struct vps_dcnodeinput *ninput)
 	return r;
 
 }
+EXPORT_SYMBOL(vps_dc_get_node_status);
 int vps_dc_get_timing(u32 bid, struct fvid2_modeinfo *tinfo)
 {
 	int i;
@@ -1180,6 +1211,55 @@ int vps_dc_get_timing(u32 bid, struct fvid2_modeinfo *tinfo)
 	}
 	return -EINVAL;
 }
+EXPORT_SYMBOL(vps_dc_get_timing);
+
+int vps_dc_set_vencmode(struct vps_dcvencinfo *vinfo)
+{
+	int r;
+	dc_lock(disp_ctrl);
+	r = dc_set_vencmode(vinfo);
+	dc_unlock(disp_ctrl);
+	return r;
+}
+EXPORT_SYMBOL(vps_dc_set_vencmode);
+int vps_dc_venc_disable(int vid)
+{
+	int r;
+	dc_lock(disp_ctrl);
+	r = dc_venc_disable(vid);
+	dc_unlock(disp_ctrl);
+	return r;
+}
+EXPORT_SYMBOL(vps_dc_venc_disable);
+int vps_dc_get_edid(int vid, u8 *edid)
+{
+	int r = 0;
+
+	dc_lock(disp_ctrl);
+	r = dc_get_edid(vid, edid);
+	dc_unlock(disp_ctrl);
+	return r;
+}
+EXPORT_SYMBOL(vps_dc_get_edid);
+int vps_dc_set_comp_rtconfig(struct vps_dccomprtconfig *compcfg)
+{
+	int r;
+	dc_lock(disp_ctrl);
+	r = dc_set_comp_rtconfig(disp_ctrl, compcfg);
+	dc_unlock(disp_ctrl);
+	return r;
+}
+EXPORT_SYMBOL(vps_dc_set_comp_rtconfig);
+
+int vps_dc_get_comp_rtconfig(struct vps_dccomprtconfig *compcfg)
+{
+	int r;
+	dc_lock(disp_ctrl);
+	r = dc_get_comp_rtconfig(disp_ctrl, compcfg);
+	dc_unlock(disp_ctrl);
+	return r;
+}
+EXPORT_SYMBOL(vps_dc_get_comp_rtconfig);
 /*E********************************* public functions *****************/
 
 /*sysfs function for blender starting from here*/
@@ -1755,42 +1835,20 @@ static ssize_t blender_name_show(struct dc_blender_info *binfo, char *buf)
 static ssize_t blender_edid_show(struct dc_blender_info *binfo, char *buf)
 {
 	int r = 0;
-	int enc_status = 0;
-	struct ti81xx_external_encoder *extenc;
-
-	dc_lock(binfo->dctrl);
-
-	/* FIXME : In future, need to support multiple encoders
-	that are registered */
-	list_for_each_entry(extenc, &binfo->dev_list, list) {
-		enc_status = extenc->status;
-		if ((enc_status != TI81xx_EXT_ENCODER_UNREGISTERED) &&
-		    extenc->panel_driver &&
-		    extenc->panel_driver->get_edid) {
-			r = extenc->panel_driver->get_edid(buf, NULL);
-			if (!r) {
-				printk(KERN_INFO "\nblender_edid_show"
-					": r = %d ", r);
-				printk(KERN_INFO "\n %x %x %x %x %x %x"
-					"%x %x\n",
-				buf[0], buf[1], buf[2], buf[3],
-				buf[126], buf[127], buf[128],
-				buf[129]);
-			}
-		}
-		if (r == -1) {
-			VPSSERR(" Failed to get EDID info\n");
-			r = -EINVAL;
-			goto exit;
-		}
+	dc_lock(disp_ctrl);
+	r = dc_get_edid(venc_name[binfo->idx].vid, buf);
+	dc_unlock(disp_ctrl);
+	if (!r) {
+		printk(KERN_INFO "\nblender_edid_show"
+			": r = %d ", r);
+		printk(KERN_INFO "\n %x %x %x %x %x %x"
+			"%x %x\n",
+		buf[0], buf[1], buf[2], buf[3],
+		buf[126], buf[127], buf[128],
+		buf[129]);
 		memset(buf, 0, r);
 	}
-	/* FIXME : doing this becasue we do not want any screen output
-	r = snprintf(buf, PAGE_SIZE, "%d\n", vinfo.modeinfo[0].isvencrunning);
-	*/
 
-exit:
-	dc_unlock(binfo->dctrl);
 	return r;
 }
 

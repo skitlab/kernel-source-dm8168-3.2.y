@@ -116,23 +116,8 @@ struct vps_dispctrl {
 };
 
 int vps_dc_get_id(char *name, int *id, enum dc_idtype type);
-
-int vps_dc_get_node_name(int id, char *name);
-
 int vps_dc_get_outpfmt(int id, u32 *width, u32 *height,
 		      u8 *scformat, enum dc_idtype type);
-
-int vps_dc_set_node(u8 nodeid, u8 inputid, u8 enable);
-
-int vps_dc_get_vencinfo(struct vps_dcvencinfo *vinfo);
-
-int vps_dc_get_tiedvenc(u8 *tiedvenc);
-int vps_dc_set_color(struct vps_dccigrtconfig *cigconfig);
-int vps_dc_get_color(struct vps_dccigrtconfig *cigconfig);
-
-int vps_dc_enum_node_input(struct vps_dcenumnodeinput *eninput);
-int vps_dc_get_node_status(struct vps_dcnodeinput *ninput);
-int vps_dc_get_timing(u32 id, struct fvid2_modeinfo *tinfo);
 
 #endif
 #endif

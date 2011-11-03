@@ -261,4 +261,23 @@ int vps_video_register_isr(vsync_callback_t cb , void *arg, int idx);
 
 int vps_video_unregister_isr(vsync_callback_t cb , void *arg, int idx);
 
+/*display controller function*/
+int vps_dc_get_edid(int vid, u8 *edid);
+int vps_dc_venc_disable(int vid);
+int vps_dc_set_node(u8 nodeid, u8 inputid, u8 enable);
+int vps_dc_set_vencmode(struct vps_dcvencinfo *vinfo);
+int vps_dc_get_vencinfo(struct vps_dcvencinfo *vinfo);
+int vps_dc_get_timing(u32 id, struct fvid2_modeinfo *tinfo);
+int vps_dc_set_color(struct vps_dccigrtconfig *cigconfig);
+int vps_dc_get_color(struct vps_dccigrtconfig *cigconfig);
+int vps_dc_get_node_name(int id, char *name);
+
+int vps_dc_get_tiedvenc(u8 *tiedvenc);
+int vps_dc_enum_node_input(struct vps_dcenumnodeinput *eninput);
+int vps_dc_get_node_status(struct vps_dcnodeinput *ninput);
+int vps_dc_set_comp_rtconfig(struct vps_dccomprtconfig *compcfg);
+int vps_dc_get_comp_rtconfig(struct vps_dccomprtconfig *compcfg);
+
+
+
 #endif
