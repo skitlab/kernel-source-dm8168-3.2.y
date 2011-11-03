@@ -2415,16 +2415,6 @@ static __init int ti81xxvin_probe(struct platform_device *pdev)
 			" v4l2 device\n");
 		goto probe_subdev_out;
 	}
-	/* TODO: TVP7002 should be configured as a platform specific way
-	 * through platform data function pointer
-	 */
-	if (cpu_is_ti816x()) {
-		vps_ti816x_select_video_decoder(VPS_SEL_TVP7002_DECODER);
-		vps_ti816x_set_tvp7002_filter(FVID2_STD_720P_60);
-	} else if (cpu_is_ti814x()) {
-		vps_ti814x_select_video_decoder(VPS_SEL_TVP7002_DECODER);
-		vps_ti814x_set_tvp7002_filter(FVID2_STD_720P_60);
-	}
 	for (i = 0; i < 1; i++) {
 		subdevdata = &config->subdev_info[i];
 		ti81xxvin_obj.sd[i] =
@@ -2437,6 +2427,20 @@ static __init int ti81xxvin_probe(struct platform_device *pdev)
 			ti81xxvin_err("Error registering v4l2 subdevice\n");
 			goto probe_subdev_out;
 		}
+		if (subdevdata->ti81xxvin_select_decoder)
+			err = subdevdata->ti81xxvin_select_decoder(
+				subdevdata->decoder_id);
+		if (err < 0) {
+			ti81xxvin_err("Error selecting decoder\n");
+			goto probe_subdev_out;
+		}
+		if (subdevdata->ti81xxvin_set_mode)
+			err = subdevdata->ti81xxvin_set_mode(FVID2_STD_720P_60);
+		if (err < 0) {
+			ti81xxvin_err("Error setting mode on decoder\n");
+			goto probe_subdev_out;
+		}
+
 		v4l2_info(&ti81xxvin_obj.v4l2_dev, "registered sub device %s\n",
 			  subdevdata->name);
 

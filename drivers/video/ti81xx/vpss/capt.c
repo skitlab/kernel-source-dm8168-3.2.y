@@ -67,11 +67,9 @@ static inline void capture_print_status(struct vps_capt_ctrl *cctrl)
 	if ((cctrl == NULL) || (cctrl->handle == NULL))
 		return;
 
-	/* TODO Why this is not compiling */
-#if 0
+	/* TODO Get Ch Stataus is not working */
 	cctrl->cchstatusargs->channelNum = cctrl->capt_num * 64;
 	cctrl->cchstatusargs->frameInterval = 16;
-#endif
 	r = vps_fvid2_control(
 		 cctrl->handle,
 		 IOCTL_VPS_CAPT_GET_CH_STATUS,
@@ -277,7 +275,7 @@ static int capture_stop(struct vps_capt_ctrl *cctrl)
 		r = vps_fvid2_stop(cctrl->handle, NULL);
 		if (!r) {
 			cctrl->isstarted = false;
-			capture_print_status(cctrl);
+			/*capture_print_status(cctrl);*/
 		}
 	}
 	return r;

@@ -33,6 +33,8 @@
 #include <linux/ti81xxfb.h>
 #include <linux/ti81xx.h>
 #include <mach/hardware.h>
+#include <mach/board-ti814x.h>
+#include <mach/board-ti816x.h>
 #include <asm/mach/map.h>
 
 
@@ -262,6 +264,29 @@ static inline int ti81xx_init_fb(void)
 	int retval = 0;
 	retval =  platform_device_register(&ti81xx_fb_device);
 	hdvpss_capture_dev.dev.platform_data = &ti81xx_hsvpss_capture_cfg;
+	if (cpu_is_ti814x()) {
+		hdvpss_capture_sdev_info[0].ti81xxvin_select_decoder =
+			vps_ti814x_select_video_decoder;
+		hdvpss_capture_sdev_info[0].ti81xxvin_set_mode =
+			vps_ti814x_set_tvp7002_filter;
+		hdvpss_capture_sdev_info[0].decoder_id = 0;
+		hdvpss_capture_sdev_info[1].ti81xxvin_select_decoder =
+			NULL;
+		hdvpss_capture_sdev_info[1].ti81xxvin_set_mode =
+			NULL;
+		hdvpss_capture_sdev_info[1].decoder_id = 0;
+	} else {
+		hdvpss_capture_sdev_info[0].ti81xxvin_select_decoder =
+			vps_ti816x_select_video_decoder;
+		hdvpss_capture_sdev_info[0].ti81xxvin_set_mode =
+			vps_ti816x_set_tvp7002_filter;
+		hdvpss_capture_sdev_info[0].decoder_id = 0;
+		hdvpss_capture_sdev_info[1].ti81xxvin_select_decoder =
+			NULL;
+		hdvpss_capture_sdev_info[1].ti81xxvin_set_mode =
+			NULL;
+		hdvpss_capture_sdev_info[1].decoder_id = 0;
+	}
 	retval += platform_device_register(&hdvpss_capture_dev);
 	return retval;
 }

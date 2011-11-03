@@ -9,14 +9,6 @@
 #define TVP7002_INST0 "tvp7002"
 #define TVP7002_INST1 "tvp7002"
 #define TI81XXVIN_NUM_INSTANCES		4
-#define TI81XXVIN_MAX_DV_PRESETS	8
-
-
-enum ti81xxvin_if_type {
-TI81XXVIN_IF_BT656,
-TI81XXVIN_IF_BT1120,
-TI81XXVIN_IF_RAW_BAYER
-};
 
 
 struct ti81xxvin_interface {
@@ -52,6 +44,18 @@ struct ti81xxvin_subdev_info {
 	    FVID2_DF_RGB24_888.
 	    For valid values see #FVID2_DataFormat.
 	 */
+	int (*ti81xxvin_select_decoder) (int decoder_id);
+	/* This function is used to select the decoder. Number of
+	   decoders are muxed on board to same VIP port. This
+	   function connects, this decoder to VIP
+	 */
+	int (*ti81xxvin_set_mode) (enum fvid2_standard standard);
+	/* There are filters on board which needs to be configured
+	   based on dv_preset. This function allows to configure
+	   those filter if they are present.
+	 */
+	int decoder_id;
+	/* ID of the decoder to be passed to select this decoder */
 };
 
 
