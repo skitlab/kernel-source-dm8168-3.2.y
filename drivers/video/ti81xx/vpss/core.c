@@ -119,6 +119,7 @@ exit0:
 static int vps_remove(struct platform_device *pdev)
 {
 	int r;
+	vps_capt_deinit(pdev);
 	vps_video_deinit(pdev);
 
 	vps_grpx_deinit(pdev);

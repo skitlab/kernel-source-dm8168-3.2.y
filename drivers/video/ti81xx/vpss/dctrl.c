@@ -32,7 +32,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <mach/board-ti816x.h>
-#include <mach/board-ti814x.h>
 
 #include "core.h"
 #include "system.h"
@@ -2413,8 +2412,6 @@ int __init vps_dc_init(struct platform_device *pdev,
 
 	VPSSDBG("dctrl init\n");
 
-	if (cpu_is_ti814x() && (!def_i2cmode))
-		ti814x_pcf8575_init();
 	if (cpu_is_ti816x() && (!def_i2cmode))
 		ti816x_pcf8575_init();
 

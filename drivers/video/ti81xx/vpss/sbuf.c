@@ -180,21 +180,7 @@ int vps_sbuf_free(u32 paddr, void *vaddr, size_t size)
 	mutex_unlock(&sbuf_mutex);
 	return 0;
 }
-#if 0
-void *vps_sbuf_phy_to_virt(void* paddr)
-{
-	struct sbuf_alloc  *sba;
-	void *vaddr = NULL;
 
-	vaddr = NULL;
-	mutex_lock(&sbuf_mutex);
-	list_for_each_entry(sba, &sbinfo->alloc_list, list) {
-		if (sba->paddr == paddr) {
-			vaddr =
-		}
-
-	}
-#endif
 void vps_sbuf_usage(void)
 {
 	VPSSDBG("sharing buffer used %d byte, left %d bytes",

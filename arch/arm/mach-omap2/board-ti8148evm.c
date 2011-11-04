@@ -156,6 +156,7 @@ int ti814x_pcf8575_exit(void)
 	i2c_del_driver(&pcf8575_driver);
 	return 0;
 }
+EXPORT_SYMBOL(ti814x_pcf8575_exit);
 #define VPS_VC_IO_EXP_RESET_DEV_MASK        (0x0Fu)
 #define VPS_VC_IO_EXP_SEL_VIN0_S1_MASK      (0x04u)
 #define VPS_VC_IO_EXP_THS7368_DISABLE_MASK  (0x10u)
