@@ -1344,29 +1344,6 @@ static ssize_t blender_mode_store(struct dc_blender_info *binfo,
 
 		}
 	}
-	/* if an external encoder is registered to this blender,
-		change the mode  */
-	enc_status = extenc->status;
-	if ((extenc->panel_driver) &&
-	    ((enc_status == TI81xx_EXT_ENCODER_DISABLED) ||
-	    (enc_status == TI81xx_EXT_ENCODER_REGISTERED))) {
-		/* Change mode */
-		/* FIXME :
-		   1. In later release two different enumerations will
-		   not be used. Only the FVID enumerations for
-		   resolutions.
-	 *         2. Currently only support 4 resolutions, till PLL
-		      locking is tested on other Std resolutions.
-	 */
-		timings.standard = mid;
-		timings.dvi_hdmi = TI81xx_MODE_HDMI;
-		dc_timing_to_device_timing(&venc_info.modeinfo[idx].minfo,
-					&timings);
-		if (extenc->panel_driver->set_timing)
-			extenc->panel_driver->set_timing(
-						&timings,
-						(void *)dummy);
-	}
 	r = size;
 exit:
 	dc_unlock(binfo->dctrl);
