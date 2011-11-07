@@ -27,6 +27,7 @@
 #include <linux/i2c/qt602240_ts.h>
 #include <linux/i2c/pcf857x.h>
 #include <linux/regulator/machine.h>
+#include <linux/mfd/tps65910.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -279,6 +280,174 @@ static struct at24_platform_data eeprom_info = {
 	.flags          = AT24_FLAG_ADDR16,
 };
 
+static struct regulator_consumer_supply ti8148evm_mpu_supply =
+	REGULATOR_SUPPLY("mpu", "mpu");
+
+/*
+ * DM814x/AM387x (TI814x) devices have restriction that none of the supply to
+ * the device should be turned of.
+ *
+ * NOTE: To prevent turning off regulators not explicitly consumed by drivers
+ * depending on it, ensure following:
+ *	1) Set always_on = 1 for them OR
+ *	2) Avoid calling regulator_has_full_constraints()
+ *
+ * With just (2), there will be a warning about incomplete constraints.
+ * E.g., "regulator_init_complete: incomplete constraints, leaving LDO8 on"
+ *
+ * In either cases, the supply won't be disabled.
+ *
+ * We are taking approach (1).
+ */
+static struct regulator_init_data tps65911_reg_data[] = {
+	/* VRTC */
+	{
+		.constraints = {
+			.min_uV = 1800000,
+			.max_uV = 1800000,
+			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE |
+						REGULATOR_CHANGE_STATUS,
+			.always_on = 1,
+		},
+	},
+
+	/* VIO -VDDA 1.8V */
+	{
+		.constraints = {
+			.min_uV = 1500000,
+			.max_uV = 1500000,
+			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE |
+						REGULATOR_CHANGE_STATUS,
+			.always_on = 1,
+		},
+	},
+
+	/* VDD1 - MPU */
+	{
+		.constraints = {
+			.min_uV = 600000,
+			.max_uV = 1500000,
+			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
+			.always_on = 1,
+		},
+		.num_consumer_supplies	= 1,
+		.consumer_supplies	= &ti8148evm_mpu_supply,
+	},
+
+	/* VDD2 - DSP */
+	{
+		.constraints = {
+			.min_uV = 600000,
+			.max_uV = 1500000,
+			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE |
+						REGULATOR_CHANGE_STATUS,
+			.always_on = 1,
+		},
+	},
+
+	/* VDDCtrl - CORE */
+	{
+		.constraints = {
+			.min_uV = 600000,
+			.max_uV = 1400000,
+			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
+			.always_on = 1,
+		},
+	},
+
+	/* LDO1 - VDAC */
+	{
+		.constraints = {
+			.min_uV = 1100000,
+			.max_uV = 3300000,
+			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE |
+						REGULATOR_CHANGE_STATUS,
+			.always_on = 1,
+		},
+	},
+
+	/* LDO2 - HDMI */
+	{
+		.constraints = {
+			.min_uV = 1100000,
+			.max_uV = 3300000,
+			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE |
+						REGULATOR_CHANGE_STATUS,
+			.always_on = 1,
+		},
+	},
+
+	/* LDO3 - GPIO 3.3V */
+	{
+		.constraints = {
+			.min_uV = 1100000,
+			.max_uV = 3300000,
+			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE |
+						REGULATOR_CHANGE_STATUS,
+			.always_on = 1,
+		},
+	},
+
+	/* LDO4 - PLL 1.8V */
+	{
+		.constraints = {
+			.min_uV = 1100000,
+			.max_uV = 3300000,
+			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
+			.always_on = 1,
+		},
+	},
+
+	/* LDO5 - SPARE */
+	{
+		.constraints = {
+			.min_uV = 1100000,
+			.max_uV = 3300000,
+			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE |
+						REGULATOR_CHANGE_STATUS,
+			.always_on = 1,
+		},
+	},
+
+	/* LDO6 - CDC */
+	{
+		.constraints = {
+			.min_uV = 1100000,
+			.max_uV = 3300000,
+			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
+			.always_on = 1,
+		},
+	},
+
+	/* LDO7 - SPARE */
+	{
+		.constraints = {
+			.min_uV = 1100000,
+			.max_uV = 3300000,
+			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE |
+						REGULATOR_CHANGE_STATUS,
+			.always_on = 1,
+		},
+	},
+
+	/* LDO8 - USB 1.8V */
+	{
+		.constraints = {
+			.min_uV = 1100000,
+			.max_uV = 3300000,
+			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE |
+						REGULATOR_CHANGE_STATUS,
+			.always_on = 1,
+		},
+	},
+};
+
+static struct tps65910_board __refdata tps65911_pdata = {
+	.irq				= 0,	/* No support currently */
+	.gpio_base			= 0,	/* No support currently */
+	.tps65910_pmic_init_data	= tps65911_reg_data,
+};
+
 static struct i2c_board_info __initdata ti814x_i2c_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("eeprom", 0x50),
@@ -303,6 +472,10 @@ static struct i2c_board_info __initdata ti814x_i2c_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("qt602240_ts", 0x4A),
 		.platform_data = &ts_platform_data,
+	},
+	{
+		I2C_BOARD_INFO("tps65911", 0x2D),
+		.platform_data = &tps65911_pdata,
 	},
 };
 
