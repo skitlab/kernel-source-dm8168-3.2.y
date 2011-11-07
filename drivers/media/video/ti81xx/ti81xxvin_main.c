@@ -918,8 +918,6 @@ static int ti81xxvin_hdvpss_stop(struct ti81xxvin_instance_obj *inst)
 	int ret;
 
 	buf_obj->started = 0;
-	/* Reset io_usrs member of instance object */
-	buf_obj->io_usrs = 0;
 
 	/* Disable interrupt first */
 	vps_capture_unregister_isr(ti81xxvin_instance_isr,
@@ -1996,6 +1994,10 @@ static int vidioc_streamoff(struct file *file, void *priv,
 
 	ret = ti81xxvin_hdvpss_stop(inst);
 
+	/* Set io_allowed member to false */
+	fh->io_allowed = 0;
+	/* Reset io_usrs member of instance object */
+	buf_obj->io_usrs = 0;
 	mutex_unlock(&buf_obj->buf_lock);
 	return ret;
 }
@@ -2156,6 +2158,8 @@ static int ti81xxvin_release(struct file *filep)
 	if (mutex_lock_interruptible(&buf_obj->buf_lock))
 		return -ERESTARTSYS;
 
+	/* Reset io_usrs member of instance object */
+	buf_obj->io_usrs = 0;
 	/* If streaming is not started, return error */
 	if (buf_obj->started)
 		ti81xxvin_hdvpss_stop(inst);
@@ -2166,6 +2170,8 @@ static int ti81xxvin_release(struct file *filep)
 		videobuf_queue_cancel(&buf_obj->buffer_queue);
 		videobuf_mmap_free(&buf_obj->buffer_queue);
 	}
+	/* Set io_allowed member to false */
+	fh->io_allowed = 0;
 	retry_count = 0;
 	do {
 		ret = del_timer(&inst->overflow_timer);
