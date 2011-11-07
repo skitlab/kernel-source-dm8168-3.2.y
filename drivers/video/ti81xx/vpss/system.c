@@ -43,6 +43,7 @@ struct vps_system_ctrl {
 	u32                        *pid;
 	u32                        pid_phy;
 	void __iomem		  *pbase;
+	struct vps_systemvpllclk   vpllcfg[3];
 };
 
 /*************************************************
@@ -104,7 +105,7 @@ struct system_videopll {
 #define MHZ                  (KHZ * KHZ)
 #define TI814X_OSC_FREQ      (20 * MHZ)
 #define VPS_PRCM_MAX_REP_CNT	100
-
+#define HDMI_CLOCK		0x80000000
 static struct vps_payload_info   *system_payload_info;
 static struct vps_system_ctrl   *sys_ctrl;
 
@@ -141,7 +142,25 @@ static inline bool isvalidpllclk(struct vps_systemvpllclk *pllclk)
 	return true;
 }
 
+static inline bool ispllchanged(struct vps_systemvpllclk *pllclk)
+{
+	struct vps_systemvpllclk  *pllcfg;
 
+	u32 idx, clk;
+
+	idx = pllclk->outputvenc;
+	clk = pllclk->outputclk;
+	if (pllclk->outputvenc == VPS_SYSTEM_VPLL_OUTPUT_VENC_HDMI) {
+		idx = VPS_SYSTEM_VPLL_OUTPUT_VENC_A;
+		clk |= HDMI_CLOCK;
+	}
+
+	pllcfg = &sys_ctrl->vpllcfg[idx];
+	if (pllcfg->outputclk != clk)
+		return true;
+
+	return false;
+}
 /******************************************************************************
 ****
 ****                                   ********* RANGE ************
@@ -414,8 +433,18 @@ static u32 system_program_pll(struct vps_systemvpllclk *pll)
 	int r;
 	u32 offset;
 	struct system_videopll vpll = {0};
-	if (pll->outputvenc == VPS_SYSTEM_VPLL_OUTPUT_VENC_HDMI)
+	u32 idx;
+
+
+	/*if the requested pll is the same as previous, do thing*/
+	if (cpu_is_ti814x() && ((!ispllchanged(pll))))
+		return 0;
+
+	idx = pll->outputvenc;
+	if (pll->outputvenc == VPS_SYSTEM_VPLL_OUTPUT_VENC_HDMI) {
 		offset = VIDPLL_SIZE * VPS_SYSTEM_VPLL_OUTPUT_VENC_A;
+		idx = VPS_SYSTEM_VPLL_OUTPUT_VENC_A;
+	}
 	else
 		offset = VIDPLL_SIZE * pll->outputvenc;
 
@@ -430,6 +459,17 @@ static u32 system_program_pll(struct vps_systemvpllclk *pll)
 					vpll.__sd,
 					vpll.clkcfg);
 
+	/*store back*/
+	if (!r) {
+
+		sys_ctrl->vpllcfg[idx].outputclk = pll->outputclk;
+		sys_ctrl->vpllcfg[idx].outputvenc = pll->outputvenc;
+		if (pll->outputvenc == VPS_SYSTEM_VPLL_OUTPUT_VENC_HDMI) {
+			sys_ctrl->vpllcfg[idx].outputclk |= HDMI_CLOCK;
+			sys_ctrl->vpllcfg[idx].outputvenc =
+					VPS_SYSTEM_VPLL_OUTPUT_VENC_A;
+		}
+	}
 	return r;
 }
 
@@ -444,11 +484,12 @@ int vps_system_setpll(struct vps_systemvpllclk *pll)
 	if ((sctrl == NULL) || (sctrl->handle == NULL))
 		return 0;
 
+	if (!isvalidpllclk(pll))
+		return -EINVAL;
+
 	VPSSDBG("enter set pll %dKHz for VENC %d\n",
 		pll->outputclk, pll->outputvenc);
 
-	if (!isvalidpllclk(pll))
-		return -EINVAL;
 
 	*sctrl->pllclk = *pll;
 
