@@ -475,7 +475,8 @@ int cpsw_ale_del_ucast(struct cpsw_ale *ale, u8 *addr, int port)
 	return 0;
 }
 
-int cpsw_ale_add_mcast(struct cpsw_ale *ale, u8 *addr, int port_mask)
+int cpsw_ale_add_mcast(struct cpsw_ale *ale, u8 *addr, int port_mask,
+			int super, int mcast_state)
 {
 	u32 ale_entry[ALE_ENTRY_WORDS] = {0, 0, 0};
 	int idx, mask;
@@ -487,6 +488,8 @@ int cpsw_ale_add_mcast(struct cpsw_ale *ale, u8 *addr, int port_mask)
 	cpsw_ale_set_entry_type(ale_entry, ALE_TYPE_ADDR);
 	cpsw_ale_set_addr(ale_entry, addr);
 	cpsw_ale_set_mcast_state(ale_entry, ALE_MCAST_FWD_2);
+	cpsw_ale_set_super(ale_entry, super);
+	cpsw_ale_set_mcast_state(ale_entry, mcast_state);
 
 	mask = cpsw_ale_get_port_mask(ale_entry);
 	port_mask |= mask;
@@ -647,7 +650,7 @@ int cpsw_ale_vlan_del_ucast(struct cpsw_ale *ale, u8 *addr, int port, u16 vid)
 }
 
 int cpsw_ale_vlan_add_mcast(struct cpsw_ale *ale, u8 *addr,
-				int port_mask, u16 vid)
+		int port_mask, u16 vid, int super, int mcast_state)
 {
 	u32 ale_entry[ALE_ENTRY_WORDS] = {0, 0, 0};
 	int idx, mask;
@@ -660,6 +663,8 @@ int cpsw_ale_vlan_add_mcast(struct cpsw_ale *ale, u8 *addr,
 	cpsw_ale_set_addr(ale_entry, addr);
 	cpsw_ale_set_mcast_state(ale_entry, ALE_MCAST_FWD_2);
 	cpsw_ale_set_vlan_id(ale_entry, vid);
+	cpsw_ale_set_super(ale_entry, super);
+	cpsw_ale_set_mcast_state(ale_entry, mcast_state);
 
 	mask = cpsw_ale_get_port_mask(ale_entry);
 	port_mask |= mask;

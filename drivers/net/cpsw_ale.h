@@ -83,7 +83,8 @@ int cpsw_ale_set_ageout(struct cpsw_ale *ale, int ageout);
 int cpsw_ale_flush(struct cpsw_ale *ale, int port_mask);
 int cpsw_ale_add_ucast(struct cpsw_ale *ale, u8 *addr, int port, int flags);
 int cpsw_ale_del_ucast(struct cpsw_ale *ale, u8 *addr, int port);
-int cpsw_ale_add_mcast(struct cpsw_ale *ale, u8 *addr, int port_mask);
+int cpsw_ale_add_mcast(struct cpsw_ale *ale, u8 *addr, int port_mask,
+			int super, int mcast_state);
 int cpsw_ale_del_mcast(struct cpsw_ale *ale, u8 *addr, int port_mask);
 int cpsw_ale_add_vlan(struct cpsw_ale *ale, u16 vid, int port, int untag,
 			int reg_mcast, int unreg_mcast);
@@ -93,7 +94,7 @@ int cpsw_ale_vlan_add_ucast(struct cpsw_ale *ale, u8 *addr, int port,
 int cpsw_ale_vlan_del_ucast(struct cpsw_ale *ale, u8 *addr, int port,
 			u16 vid);
 int cpsw_ale_vlan_add_mcast(struct cpsw_ale *ale, u8 *addr, int port_mask,
-			u16 vid);
+			u16 vid, int super, int mcast_state);
 int cpsw_ale_vlan_del_mcast(struct cpsw_ale *ale, u8 *addr, int port_mask,
 			u16 vid);
 
