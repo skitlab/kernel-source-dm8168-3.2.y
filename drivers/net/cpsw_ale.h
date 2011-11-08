@@ -73,6 +73,8 @@ enum cpsw_ale_port_state {
 #define ALE_SECURE	1
 #define ALE_BLOCKED	2
 
+#define HOST_PORT	2
+
 struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params);
 int cpsw_ale_destroy(struct cpsw_ale *ale);
 

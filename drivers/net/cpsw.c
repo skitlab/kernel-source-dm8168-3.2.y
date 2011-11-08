@@ -28,6 +28,7 @@
 #include <linux/net_tstamp.h>
 #include <linux/ethtool.h>
 #include <linux/cpsw.h>
+#include <linux/net_switch_config.h>
 
 #include "cpsw_ale.h"
 #include "davinci_cpdma.h"
@@ -51,6 +52,17 @@ do {								\
 #define CPSW_POLL_WEIGHT	64
 #define CPSW_MIN_PACKET_SIZE	60
 #define CPSW_MAX_PACKET_SIZE	(1500 + 14 + 4 + 4)
+#define CPSW_USE_DEFAULT	0x0afbdce1  /**< Flag to indicate use of a
+						default */
+
+#define CPSW_PRIMAP_PRI0(_x_)	(_x_ << 0)
+#define CPSW_PRIMAP_PRI1(_x_)	(_x_ << 4)
+#define CPSW_PRIMAP_PRI2(_x_)	(_x_ << 8)
+#define CPSW_PRIMAP_PRI3(_x_)	(_x_ << 12)
+#define CPSW_PRIMAP_PRI4(_x_)	(_x_ << 16)
+#define CPSW_PRIMAP_PRI5(_x_)	(_x_ << 20)
+#define CPSW_PRIMAP_PRI6(_x_)	(_x_ << 24)
+#define CPSW_PRIMAP_PRI7(_x_)	(_x_ << 28)
 
 #define CPSW_IRQ_QUIRK
 #ifdef CPSW_IRQ_QUIRK
@@ -141,6 +153,11 @@ struct cpsw_regs {
 	u32	soft_reset;
 	u32	stat_port_en;
 	u32	ptype;
+	u32	soft_idle;
+	u32	thru_rate;
+	u32	gap_thresh;
+	u32	tx_start_wds;
+	u32	flow_control;
 };
 
 struct cpsw_slave_regs {
@@ -320,6 +337,7 @@ struct cpsw_priv {
 		for (idx = 0; idx < (priv)->data.slaves; idx++)	\
 			(func)((priv)->slaves + idx, ##arg);	\
 	} while (0)
+#define slave(priv, idx)		((priv)->slaves + idx)
 
 	struct cpdma_ctlr		*dma;
 	struct cpdma_chan		*txch, *rxch;
@@ -1279,6 +1297,879 @@ static int cpsw_hwtstamp_ioctl(struct net_device *ndev,
 }
 #endif
 
+/**
+ *  cpsw_set_priority_mapping
+ *    This function configures the packet priority handling on each port.
+ */
+static int cpsw_set_priority_mapping(struct cpsw_priv *priv, int port,
+	int rxpriority, int txpriority, int switchpriority)
+{
+	if (port == 0) {
+		switch (rxpriority) {
+		case 0:
+			__raw_writel(CPSW_PRIMAP_PRI0(txpriority),
+				&priv->host_port_regs->cpdma_tx_pri_map);
+			break;
+		case 1:
+			__raw_writel(CPSW_PRIMAP_PRI1(txpriority),
+				&priv->host_port_regs->cpdma_tx_pri_map);
+			break;
+		case 2:
+			__raw_writel(CPSW_PRIMAP_PRI2(txpriority),
+				&priv->host_port_regs->cpdma_tx_pri_map);
+			break;
+		case 3:
+			__raw_writel(CPSW_PRIMAP_PRI3(txpriority),
+				&priv->host_port_regs->cpdma_tx_pri_map);
+			break;
+		case 4:
+			__raw_writel(CPSW_PRIMAP_PRI4(txpriority),
+				&priv->host_port_regs->cpdma_tx_pri_map);
+			break;
+		case 5:
+			__raw_writel(CPSW_PRIMAP_PRI5(txpriority),
+				&priv->host_port_regs->cpdma_tx_pri_map);
+			break;
+		case 6:
+			__raw_writel(CPSW_PRIMAP_PRI6(txpriority),
+				&priv->host_port_regs->cpdma_tx_pri_map);
+			break;
+		case 7:
+			__raw_writel(CPSW_PRIMAP_PRI7(txpriority),
+				&priv->host_port_regs->cpdma_tx_pri_map);
+			break;
+		default:
+			printk(KERN_INFO "cpsw_set_priority_mapping:"
+						" Invalid rxpriority value");
+			return -EFAULT;
+		}
+
+		if (switchpriority != CPSW_USE_DEFAULT) {
+			switch (txpriority) {
+			case 0:
+				__raw_writel(CPSW_PRIMAP_PRI0(switchpriority),
+					&priv->host_port_regs->tx_pri_map);
+				break;
+			case 1:
+				__raw_writel(CPSW_PRIMAP_PRI1(switchpriority),
+					&priv->host_port_regs->tx_pri_map);
+				break;
+			case 2:
+				__raw_writel(CPSW_PRIMAP_PRI2(switchpriority),
+					&priv->host_port_regs->tx_pri_map);
+				break;
+			case 3:
+				__raw_writel(CPSW_PRIMAP_PRI3(switchpriority),
+					&priv->host_port_regs->tx_pri_map);
+				break;
+			case 4:
+				__raw_writel(CPSW_PRIMAP_PRI4(switchpriority),
+					&priv->host_port_regs->tx_pri_map);
+				break;
+			case 5:
+				__raw_writel(CPSW_PRIMAP_PRI5(switchpriority),
+					&priv->host_port_regs->tx_pri_map);
+				break;
+			case 6:
+				__raw_writel(CPSW_PRIMAP_PRI6(switchpriority),
+					&priv->host_port_regs->tx_pri_map);
+				break;
+			case 7:
+				__raw_writel(CPSW_PRIMAP_PRI7(switchpriority),
+					&priv->host_port_regs->tx_pri_map);
+				break;
+			default:
+				printk(KERN_INFO "cpsw_set_priority_mapping:"
+						"Invalid txpriority value");
+				return -EFAULT;
+			}
+		}
+	} else {
+		/* Configure sliver priority mapping registers */
+		switch (rxpriority) {
+		case 0:
+			__raw_writel(CPSW_PRIMAP_PRI0(txpriority),
+				&slave(priv, port-1)->sliver->rx_pri_map);
+			break;
+		case 1:
+			__raw_writel(CPSW_PRIMAP_PRI1(txpriority),
+				&slave(priv, port-1)->sliver->rx_pri_map);
+			break;
+		case 2:
+			__raw_writel(CPSW_PRIMAP_PRI2(txpriority),
+				&slave(priv, port-1)->sliver->rx_pri_map);
+			break;
+		case 3:
+			__raw_writel(CPSW_PRIMAP_PRI3(txpriority),
+				&slave(priv, port-1)->sliver->rx_pri_map);
+			break;
+		case 4:
+			__raw_writel(CPSW_PRIMAP_PRI4(txpriority),
+				&slave(priv, port-1)->sliver->rx_pri_map);
+			break;
+		case 5:
+			__raw_writel(CPSW_PRIMAP_PRI5(txpriority),
+				&slave(priv, port-1)->sliver->rx_pri_map);
+			break;
+		case 6:
+			__raw_writel(CPSW_PRIMAP_PRI6(txpriority),
+				&slave(priv, port-1)->sliver->rx_pri_map);
+			break;
+		case 7:
+			__raw_writel(CPSW_PRIMAP_PRI7(txpriority),
+				&slave(priv, port-1)->sliver->rx_pri_map);
+			break;
+		default:
+			printk(KERN_INFO "\nWARN: cpsw_set_priority_mapping:"
+					" Invalid rxpriority value");
+			return -EFAULT;
+		}
+
+		if (switchpriority != CPSW_USE_DEFAULT) {
+			switch (txpriority) {
+			case 0:
+				__raw_writel(CPSW_PRIMAP_PRI0(switchpriority),
+					&slave(priv, port-1)->regs->tx_pri_map);
+				break;
+			case 1:
+				__raw_writel(CPSW_PRIMAP_PRI1(switchpriority),
+					&slave(priv, port-1)->regs->tx_pri_map);
+				break;
+			case 2:
+				__raw_writel(CPSW_PRIMAP_PRI2(switchpriority),
+					&slave(priv, port-1)->regs->tx_pri_map);
+				break;
+			case 3:
+				__raw_writel(CPSW_PRIMAP_PRI3(switchpriority),
+					&slave(priv, port-1)->regs->tx_pri_map);
+				break;
+			case 4:
+				__raw_writel(CPSW_PRIMAP_PRI4(switchpriority),
+					&slave(priv, port-1)->regs->tx_pri_map);
+				break;
+			case 5:
+				__raw_writel(CPSW_PRIMAP_PRI5(switchpriority),
+					&slave(priv, port-1)->regs->tx_pri_map);
+				break;
+			case 6:
+				__raw_writel(CPSW_PRIMAP_PRI6(switchpriority),
+					&slave(priv, port-1)->regs->tx_pri_map);
+				break;
+			case 7:
+				__raw_writel(CPSW_PRIMAP_PRI7(switchpriority),
+					&slave(priv, port-1)->regs->tx_pri_map);
+				break;
+			default:
+				printk(KERN_INFO "cpsw_set_priority_mapping:"
+						" Invalid txpriority value");
+				return -EFAULT;
+			}
+		}
+	}
+	return 0;
+}
+
+/**
+ *    cpsw_rate_limit_tx
+ *    Limits the number of Tx packets on a port for a 100ms time period.
+ *    Rate limit can be done either on Tx or Rx for all the ports due to
+ *    hardware limitation
+ */
+static int cpsw_rate_limit_tx(struct cpsw_ale *ale, u32 enable, u32 port,
+				u32 addr_type, u32 limit)
+{
+	if (!enable) {
+		cpsw_ale_control_set(ale, port, ALE_RATE_LIMIT, 0);
+		return 0;
+	}
+
+	/* ALE prescale is set for 100 ms time */
+	if (addr_type == ADDR_TYPE_BROADCAST)
+		cpsw_ale_control_set(ale, port, ALE_PORT_BCAST_LIMIT, limit);
+	else if (addr_type == ADDR_TYPE_MULTICAST)
+		cpsw_ale_control_set(ale, port, ALE_PORT_MCAST_LIMIT, limit);
+	else
+		return -EFAULT;
+
+	/* Enable the bit for rate limiting transmission */
+	cpsw_ale_control_set(ale, port, ALE_RATE_LIMIT_TX, 1);
+	cpsw_ale_control_set(ale, port, ALE_RATE_LIMIT, 1);
+
+	return 0;
+}
+
+/**
+ *    cpsw_rate_limit_rx
+ *    Limits the number of Rx packets on a port for a 100ms time period.
+ *    Rate limit can be done either on Tx or Rx for all the ports due to
+ *    hardware limitation
+ */
+static int cpsw_rate_limit_rx(struct cpsw_ale *ale, u32 enable, u32 port,
+				u32 addr_type, u32 limit)
+{
+	if (!enable) {
+		cpsw_ale_control_set(ale, port, ALE_RATE_LIMIT, 0);
+		return 0;
+	}
+
+	/* ALE prescale is set for 100 ms time */
+	if (addr_type == ADDR_TYPE_BROADCAST)
+		cpsw_ale_control_set(ale, port, ALE_PORT_BCAST_LIMIT, limit);
+	else if (addr_type == ADDR_TYPE_MULTICAST)
+		cpsw_ale_control_set(ale, port, ALE_PORT_MCAST_LIMIT, limit);
+	else
+		return -EFAULT;
+
+	/* Disable the bit for rate limiting reception */
+	cpsw_ale_control_set(ale, port, ALE_RATE_LIMIT_TX, 0);
+	cpsw_ale_control_set(ale, port, ALE_RATE_LIMIT, 1);
+
+	return 0;
+}
+
+int cpsw_rate_limit(struct cpsw_ale *ale, u32 enable, u32 direction, u32 port,
+			u32 packet_type, u32 limit)
+{
+
+	if (port == 0) {
+		/* For host port transmit/receive terminlogy is inverse
+			of cpgmac port */
+		if (direction)
+			cpsw_rate_limit_rx(ale, enable, HOST_PORT,
+					packet_type, limit);
+		else
+			cpsw_rate_limit_tx(ale, enable, HOST_PORT,
+					packet_type, limit);
+	} else {
+		if (direction)
+			cpsw_rate_limit_tx(ale, enable, port - 1,
+					packet_type, limit);
+		else
+			cpsw_rate_limit_rx(ale, enable, port - 1,
+					packet_type, limit);
+	}
+	return 0;
+}
+
+static int cpsw_config_dump(struct cpsw_priv *priv, u8 *buf, u32 size)
+{
+	int vlan_aware = 0;
+	int out_len = 0;
+
+	out_len += snprintf(buf, size, "Switch Configuarion\n");
+
+	vlan_aware = __raw_readl(&priv->regs->control) & CPSW_VLAN_AWARE;
+
+	out_len += snprintf(buf + out_len, size - out_len, "VLAN Aware Mode"
+			"                              :  %s\n",
+			(vlan_aware ? "Yes" : "No"));
+	out_len += snprintf(buf + out_len, size - out_len, "ALE VLAN Aware "
+			"Mode                          :  %s\n",
+			(cpsw_ale_control_get(priv->ale, priv->host_port,
+				ALE_VLAN_AWARE) ? "Yes" : "No"));
+	out_len += snprintf(buf + out_len, size - out_len, "Unknown VLAN "
+			"Members                         :  %u\n",
+			cpsw_ale_control_get(priv->ale, 0,
+				ALE_PORT_UNKNOWN_VLAN_MEMBER));
+	out_len += snprintf(buf + out_len, size - out_len, "Unknown Multicast"
+			" Flood Mask                 :  %u\n",
+			cpsw_ale_control_get(priv->ale, 0,
+				ALE_PORT_UNKNOWN_MCAST_FLOOD));
+	out_len += snprintf(buf + out_len, size - out_len, "Unknown Registered"
+			" Multicast Flood Mask      :  %u\n",
+			cpsw_ale_control_get(priv->ale, 0,
+				ALE_PORT_UNKNOWN_REG_MCAST_FLOOD));
+	out_len += snprintf(buf + out_len, size - out_len, "Unknown VLAN Force"
+			" Untagged Egress           :  %u\n",
+			cpsw_ale_control_get(priv->ale, 0,
+				ALE_PORT_UNTAGGED_EGRESS));
+
+	out_len += snprintf(buf + out_len, size - out_len,
+			"\nPort Configuration\n");
+	out_len += snprintf(buf + out_len, size - out_len,
+			"\t%-8s %-8s %-8s %s\n", "PORT", "PVID", "PRIORITY",
+			"STATE");
+	out_len += snprintf(buf + out_len, size - out_len,
+			"\t---------------------------------\n");
+
+	if (vlan_aware) {
+		int port_vlan;
+		char *port_state;
+
+		switch (cpsw_ale_control_get(priv->ale, 0, ALE_PORT_STATE)) {
+		case 0:
+			port_state = "disabled";
+			break;
+		case 1:
+			port_state = "blocked";
+			break;
+		case 2:
+			port_state = "learn";
+			break;
+		case 3:
+			port_state = "forward";
+			break;
+		}
+		port_vlan = __raw_readl(&priv->host_port_regs->port_vlan);
+		out_len += snprintf(buf + out_len, size - out_len,
+			"\t%-8u %-8u %-8u %s\n", 0,
+			port_vlan & 0xfff, (port_vlan > 13) & 0x7, port_state);
+
+		switch (cpsw_ale_control_get(priv->ale, 1, ALE_PORT_STATE)) {
+		case 0:
+			port_state = "disabled";
+			break;
+		case 1:
+			port_state = "blocked";
+			break;
+		case 2:
+			port_state = "learn";
+			break;
+		case 3:
+			port_state = "forward";
+			break;
+		}
+		port_vlan = __raw_readl(&priv->slaves[0].regs->port_vlan);
+		out_len += snprintf(buf + out_len, size - out_len,
+			"\t%-8u %-8u %-8u %s\n", 1,
+			port_vlan & 0xfff, (port_vlan > 13) & 0x7, port_state);
+
+		switch (cpsw_ale_control_get(priv->ale, 2, ALE_PORT_STATE)) {
+		case 0:
+			port_state = "disabled";
+			break;
+		case 1:
+			port_state = "blocked";
+			break;
+		case 2:
+			port_state = "learn";
+			break;
+		case 3:
+			port_state = "forward";
+			break;
+		}
+		port_vlan = __raw_readl(&priv->slaves[1].regs->port_vlan);
+		out_len += snprintf(buf + out_len, size - out_len,
+			"\t%-8u %-8u %-8u %s\n", 2,
+			port_vlan & 0xfff, (port_vlan > 13) & 0x7, port_state);
+	} else {
+		char *port_state;
+
+		switch (cpsw_ale_control_get(priv->ale, 0, ALE_PORT_STATE)) {
+		case 0:
+			port_state = "disabled";
+			break;
+		case 1:
+			port_state = "blocked";
+			break;
+		case 2:
+			port_state = "learn";
+			break;
+		case 3:
+			port_state = "forward";
+			break;
+		}
+		out_len += snprintf(buf + out_len, size - out_len,
+			"\t%-8u %-8s %-8s %s\n", 0,
+			"-", "-", port_state);
+
+		switch (cpsw_ale_control_get(priv->ale, 1, ALE_PORT_STATE)) {
+		case 0:
+			port_state = "disabled";
+			break;
+		case 1:
+			port_state = "blocked";
+			break;
+		case 2:
+			port_state = "learn";
+			break;
+		case 3:
+			port_state = "forward";
+			break;
+		}
+		out_len += snprintf(buf + out_len, size - out_len,
+			"\t%-8u %-8s %-8s %s\n", 1,
+			"-", "-", port_state);
+
+		switch (cpsw_ale_control_get(priv->ale, 2, ALE_PORT_STATE)) {
+		case 0:
+			port_state = "disabled";
+			break;
+		case 1:
+			port_state = "blocked";
+			break;
+		case 2:
+			port_state = "learn";
+			break;
+		case 3:
+			port_state = "forward";
+			break;
+		}
+		out_len += snprintf(buf + out_len, size - out_len,
+			"\t%-8u %-8s %-8s %s\n", 2,
+			"-", "-", port_state);
+	}
+
+	return out_len;
+}
+#define switchcmd(__xx__)	__xx__.cmd_data.switchcmd
+#define portcmd(__xx__)	__xx__.cmd_data.portcmd
+#define priocmd(__xx__)	__xx__.cmd_data.priocmd
+
+static int cpsw_switch_config_ioctl(struct net_device *ndev,
+		struct ifreq *ifrq, int cmd)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	struct net_switch_config switch_config;
+	int ret = -EFAULT;
+
+	/*
+	* Only SIOCDEVPRIVATE is used as cmd argument and hence, there is no
+	* switch statement required.
+	* Function calls are based on switch_config.cmd
+	*/
+	if (cmd != SIOCDEVPRIVATE)
+		return ret;
+
+	if (copy_from_user(&switch_config,
+			(struct net_switch_config *)(ifrq->ifr_data),
+			sizeof(struct net_switch_config)))
+		return ret;
+
+	switch (switch_config.cmd) {
+	case CONFIG_SWITCH_ADD_MULTICAST:
+		if ((switchcmd(switch_config).untag_port <= 3) &&
+				(switchcmd(switch_config).vid <= 4095) &&
+				(switchcmd(switch_config).mem_port > 0) &&
+				(switchcmd(switch_config).mem_port <= 7) &&
+				is_multicast_ether_addr(
+				switchcmd(switch_config).addr)) {
+			if (switchcmd(switch_config).vid == 0)
+				ret = cpsw_ale_add_mcast(priv->ale,
+					switchcmd(switch_config).addr,
+					switchcmd(switch_config).mem_port
+						<< priv->host_port,
+					switchcmd(switch_config).flag,
+					switchcmd(switch_config).untag_port);
+			else
+				ret = cpsw_ale_vlan_add_mcast(priv->ale,
+					switchcmd(switch_config).addr,
+					switchcmd(switch_config).mem_port
+						<< priv->host_port,
+					switchcmd(switch_config).vid,
+					switchcmd(switch_config).flag,
+					switchcmd(switch_config).untag_port);
+		} else {
+			printk(KERN_ERR "Invalid Switch config arguments\n");
+			ret = -EFAULT;
+		}
+		break;
+
+	case CONFIG_SWITCH_ADD_UNICAST:
+		if ((switchcmd(switch_config).vid <= 4095) &&
+				(switchcmd(switch_config).mem_port <= 2) &&
+				is_valid_ether_addr(
+					switchcmd(switch_config).addr)) {
+			if (switchcmd(switch_config).vid == 0)
+				ret = cpsw_ale_add_ucast(priv->ale,
+					switchcmd(switch_config).addr,
+					priv->host_port, 0);
+			else
+				ret = cpsw_ale_vlan_add_ucast(priv->ale,
+					switchcmd(switch_config).addr,
+					priv->host_port, 0,
+					switchcmd(switch_config).vid);
+		} else {
+			printk(KERN_ERR "Invalid Switch config arguments\n");
+			ret = -EFAULT;
+		}
+		break;
+
+	case CONFIG_SWITCH_ADD_OUI:
+		if (!is_zero_ether_addr(switchcmd(switch_config).addr)) {
+			ret = cpsw_ale_add_oui(priv->ale,
+				switchcmd(switch_config).addr);
+		} else {
+			printk(KERN_ERR "Invalid Switch config arguments\n");
+			ret = -EFAULT;
+		}
+		break;
+
+	case CONFIG_SWITCH_FIND_ADDR:
+		if ((switchcmd(switch_config).vid <= 4095) &&
+			!is_zero_ether_addr(switchcmd(switch_config).addr)) {
+			ret = cpsw_ale_match_addr(priv->ale,
+				switchcmd(switch_config).addr,
+				switchcmd(switch_config).vid);
+			if (ret >= 0) {
+				switch_config.ret_type = ret;
+				ret = copy_to_user(ifrq->ifr_data,
+					&switch_config,
+					sizeof(switch_config)) ? -EFAULT : 0;
+			}
+		} else {
+			printk(KERN_ERR "Invalid Arguments\n");
+			ret = -EFAULT;
+		}
+		break;
+
+	case CONFIG_SWITCH_DEL_MULTICAST:
+		if ((switchcmd(switch_config).vid <= 4095) &&
+				is_multicast_ether_addr(
+				switchcmd(switch_config).addr)) {
+			if (switchcmd(switch_config).vid == 0)
+				ret = cpsw_ale_del_mcast(priv->ale,
+					switchcmd(switch_config).addr,
+					switchcmd(switch_config).mem_port
+						<< priv->host_port);
+			else
+				ret = cpsw_ale_vlan_del_mcast(priv->ale,
+					switchcmd(switch_config).addr,
+					switchcmd(switch_config).mem_port
+						<< priv->host_port,
+					switchcmd(switch_config).vid);
+		} else {
+			printk(KERN_ERR "Invalid Arguments\n");
+			ret = -EFAULT;
+		}
+		break;
+
+	case CONFIG_SWITCH_DEL_UNICAST:
+		if ((switchcmd(switch_config).vid <= 4095) &&
+			is_valid_ether_addr(switchcmd(switch_config).addr)) {
+			if (switchcmd(switch_config).vid == 0) {
+				if (!memcmp(switchcmd(switch_config).addr,
+						priv->mac_addr, 6)) {
+					ret = -EPERM;
+					break;
+				}
+				ret = cpsw_ale_del_ucast(priv->ale,
+					switchcmd(switch_config).addr, 0);
+			} else
+				ret = cpsw_ale_del_ucast(priv->ale,
+					switchcmd(switch_config).addr,
+					switchcmd(switch_config).vid);
+		} else {
+			printk(KERN_ERR "Invalid Arguments\n");
+			ret = -EFAULT;
+		}
+		break;
+
+	case CONFIG_SWITCH_ADD_VLAN:
+		if ((switchcmd(switch_config).vid > 0) &&
+				(switchcmd(switch_config).vid <= 4095) &&
+				(switchcmd(switch_config).mem_port > 0) &&
+				(switchcmd(switch_config).mem_port <= 7)) {
+			ret = cpsw_ale_add_vlan(priv->ale,
+				switchcmd(switch_config).vid,
+				switchcmd(switch_config).mem_port
+					<< priv->host_port,
+				switchcmd(switch_config).untag_port,
+				switchcmd(switch_config).reg_multi,
+				switchcmd(switch_config).unreg_multi);
+		} else {
+			printk(KERN_ERR "Invalid Arguments\n");
+			ret = -EFAULT;
+		}
+		break;
+
+	case CONFIG_SWITCH_FIND_VLAN:
+		if ((switchcmd(switch_config).vid > 0) &&
+				(switchcmd(switch_config).vid <= 4095)) {
+			switch_config.ret_type = cpsw_ale_match_vlan(priv->ale,
+				switchcmd(switch_config).vid);
+			ret = copy_to_user(ifrq->ifr_data, &switch_config,
+				sizeof(switch_config)) ? -EFAULT : 0;
+		} else {
+			printk(KERN_ERR "Invalid Arguments\n");
+			ret = -EFAULT;
+		}
+		break;
+
+	case CONFIG_SWITCH_DEL_VLAN:
+		if ((switchcmd(switch_config).vid > 0) &&
+				(switchcmd(switch_config).vid <= 4095) &&
+				(switchcmd(switch_config).mem_port <= 7)) {
+			ret = cpsw_ale_del_vlan(priv->ale,
+				switchcmd(switch_config).vid,
+				switchcmd(switch_config).mem_port
+				<< priv->host_port);
+		} else {
+			printk(KERN_ERR "Invalid Arguments\n");
+			ret = -EFAULT;
+		}
+		break;
+
+	case CONFIG_SWITCH_SET_PORT_VLAN_CONFIG:
+	{
+		int port_vlan = switchcmd(switch_config).vid |
+				switchcmd(switch_config).prio_port << 13;
+
+		if ((switchcmd(switch_config).vid <= 4095) &&
+				(switchcmd(switch_config).port <= 2) &&
+				(switchcmd(switch_config).prio_port <= 7)) {
+			if (switchcmd(switch_config).CFI_port)
+				port_vlan |= (1 << 12);
+
+			if (switchcmd(switch_config).port == 0)
+				__raw_writel(port_vlan,
+					&priv->host_port_regs->port_vlan);
+			else if (switchcmd(switch_config).port == 1)
+				__raw_writel(port_vlan,
+					&(priv->slaves[0].regs->port_vlan));
+			else
+				__raw_writel(port_vlan,
+					&(priv->slaves[1].regs->port_vlan));
+			ret = 0;
+		} else {
+			printk(KERN_ERR "Invalid Arguments\n");
+			ret = -EFAULT;
+		}
+		break;
+	}
+
+	case CONFIG_SWITCH_TIMEOUT:
+		ret = cpsw_ale_set_ageout(priv->ale,
+			switchcmd(switch_config).ale_timeout);
+		break;
+
+	case CONFIG_SWITCH_DUMP:
+		ret = cpsw_ale_dump(priv->ale,
+			switchcmd(switch_config).aledump,
+			switch_config.cmd_data.buf, 4095);
+		if (ret)
+			ret = copy_to_user(ifrq->ifr_data, &switch_config,
+				sizeof(switch_config)) ? -EFAULT : 0;
+		break;
+
+	case CONFIG_SWITCH_SET_FLOW_CONTROL:
+		if (portcmd(switch_config).port <= 7) {
+			__raw_writel(portcmd(switch_config).port,
+				&priv->regs->flow_control);
+		} else {
+			printk(KERN_ERR "Invalid Arguments\n");
+			ret = -EFAULT;
+		}
+		break;
+
+	case CONFIG_SWITCH_SET_PRIORITY_MAPPING:
+		if ((priocmd(switch_config).port <= 2) &&
+			(priocmd(switch_config).prio_rx <= 7) &&
+			(priocmd(switch_config).prio_tx <= 7) &&
+			(priocmd(switch_config).prio_switch <= 3)) {
+			ret = cpsw_set_priority_mapping(priv,
+				priocmd(switch_config).port,
+				priocmd(switch_config).prio_rx,
+				priocmd(switch_config).prio_tx,
+				priocmd(switch_config).prio_switch);
+		} else {
+			printk(KERN_ERR "Invalid Arguments\n");
+			ret = -EFAULT;
+		}
+		break;
+
+	case CONFIG_SWITCH_PORT_STATISTICS_ENABLE:
+		if (portcmd(switch_config).port <= 7) {
+			__raw_writel(portcmd(switch_config).port,
+				&priv->regs->stat_port_en);
+			ret = 0;
+		} else {
+			printk(KERN_ERR "Invalid Arguments\n");
+			ret = -EFAULT;
+		}
+		break;
+
+	case CONFIG_SWITCH_CONFIG_DUMP:
+		cpsw_config_dump(priv, switch_config.cmd_data.buf, 4096);
+		ret = copy_to_user(ifrq->ifr_data, &switch_config,
+			sizeof(switch_config)) ? -EFAULT : 0;
+		break;
+
+	case CONFIG_SWITCH_RATELIMIT:
+		if ((portcmd(switch_config).port <= 2) &&
+				((portcmd(switch_config).addr_type
+					== ADDR_TYPE_BROADCAST) ||
+				(portcmd(switch_config).addr_type
+					== ADDR_TYPE_MULTICAST)) &&
+				(portcmd(switch_config).limit <= 255)) {
+			ret = cpsw_rate_limit(priv->ale,
+				portcmd(switch_config).enable,
+				portcmd(switch_config).direction,
+				portcmd(switch_config).port,
+				portcmd(switch_config).addr_type,
+				portcmd(switch_config).limit);
+		} else {
+			printk(KERN_ERR "Invalid Arguments\n");
+			ret = -EFAULT;
+		}
+		break;
+
+	case CONFIG_SWITCH_VID_INGRESS_CHECK:
+		if (portcmd(switch_config).port <= 2) {
+			cpsw_ale_control_set(priv->ale,
+				portcmd(switch_config).port,
+				ALE_PORT_DROP_UNTAGGED, 1);
+			cpsw_ale_control_set(priv->ale,
+				portcmd(switch_config).port,
+				ALE_PORT_DROP_UNKNOWN_VLAN, 1);
+			ret = 0;
+		} else {
+			printk(KERN_ERR "Invalid Arguments\n");
+			ret = -EFAULT;
+		}
+		break;
+
+	case CONFIG_SWITCH_ADD_UNKNOWN_VLAN_INFO:
+		if ((portcmd(switch_config).port <= 7) &&
+				(portcmd(switch_config).
+					reg_multi_port_mask <= 7) &&
+				(portcmd(switch_config).
+					unknown_reg_multi_port_mask <= 7) &&
+				(portcmd(switch_config).
+					unknown_vlan_member <= 7)) {
+			cpsw_ale_control_set(priv->ale, 0,
+				ALE_PORT_UNTAGGED_EGRESS,
+				portcmd(switch_config).port);
+			cpsw_ale_control_set(priv->ale, 0,
+				ALE_PORT_UNKNOWN_REG_MCAST_FLOOD,
+				portcmd(switch_config).reg_multi_port_mask);
+			cpsw_ale_control_set(priv->ale, 0,
+				ALE_PORT_UNKNOWN_MCAST_FLOOD,
+				portcmd(switch_config).
+					unknown_reg_multi_port_mask);
+			cpsw_ale_control_set(priv->ale, 0,
+				ALE_PORT_UNKNOWN_VLAN_MEMBER,
+				portcmd(switch_config).unknown_vlan_member);
+			ret = 0;
+		} else {
+			printk(KERN_ERR "Invalid Arguments\n");
+			ret = -EFAULT;
+		}
+		break;
+
+	case CONFIG_SWITCH_802_1:
+	{
+		char addr_802_1[6] = {0x01, 0x80, 0xc2, 0x0, 0x0, 0x03};
+		if (portcmd(switch_config).enable)
+			ret = cpsw_ale_add_mcast(priv->ale,
+					addr_802_1, 0x7, 0, 0);
+		else
+			ret = cpsw_ale_add_mcast(priv->ale,
+					addr_802_1, 0x3, 0, 0);
+		break;
+	}
+
+	case CONFIG_SWITCH_MACAUTH:
+		ret = cpsw_ale_control_set(priv->ale, priv->host_port,
+			ALE_AUTH_ENABLE, 1);
+		break;
+
+	case CONFIG_SWITCH_SET_PORT_CONFIG:
+	{
+		struct ethtool_cmd ecmd;
+
+		if (portcmd(switch_config).port == 1) {
+			ecmd.phy_address = priv->slaves[0].phy->addr;
+			ret = phy_ethtool_gset(priv->slaves[0].phy, &ecmd);
+		} else if (portcmd(switch_config).port == 2) {
+			ecmd.phy_address = priv->slaves[1].phy->addr;
+			ret = phy_ethtool_gset(priv->slaves[1].phy, &ecmd);
+		} else {
+			printk(KERN_ERR "Invalid Arguments\n");
+			ret = -EFAULT;
+			break;
+		}
+
+		if (((portcmd(switch_config).limit == 0) ||
+			(portcmd(switch_config).limit == 10) ||
+			(portcmd(switch_config).limit == 100) ||
+			(portcmd(switch_config).limit == 1000))) {
+
+			if (portcmd(switch_config).limit == 0)
+				ecmd.autoneg = AUTONEG_ENABLE;
+			else {
+				ecmd.autoneg = AUTONEG_DISABLE;
+				ecmd.speed =
+					portcmd(switch_config).limit;
+				if (portcmd(switch_config).direction
+						== 1)
+					ecmd.duplex = DUPLEX_FULL;
+				else
+					ecmd.duplex = DUPLEX_HALF;
+			}
+
+			if (portcmd(switch_config).port == 1)
+				ret = phy_ethtool_sset(priv->slaves[0].phy,
+					&ecmd);
+			else
+				ret = phy_ethtool_sset(priv->slaves[1].phy,
+					&ecmd);
+		} else {
+			printk(KERN_ERR "Invalid Arguments\n");
+			ret = -EFAULT;
+		}
+		break;
+	}
+
+	case CONFIG_SWITCH_GET_PORT_CONFIG:
+	{
+		struct ethtool_cmd ecmd;
+
+		if (portcmd(switch_config).port == 1) {
+			ecmd.phy_address = priv->slaves[0].phy->addr;
+			ret = phy_ethtool_gset(priv->slaves[0].phy, &ecmd);
+		} else if (portcmd(switch_config).port == 2) {
+			ecmd.phy_address = priv->slaves[1].phy->addr;
+			ret = phy_ethtool_gset(priv->slaves[1].phy, &ecmd);
+		} else {
+			printk(KERN_ERR "Invalid Arguments\n");
+			ret = -EFAULT;
+			break;
+		}
+
+		if (!ret) {
+			portcmd(switch_config).limit = ecmd.speed;
+			if (ecmd.duplex == DUPLEX_FULL)
+				portcmd(switch_config).direction = 1;
+			else
+				portcmd(switch_config).direction = 0;
+			ret = copy_to_user(ifrq->ifr_data, &switch_config,
+				sizeof(switch_config)) ? -EFAULT : 0;
+		}
+
+		break;
+	}
+
+	case CONFIG_SWITCH_PORT_STATE:
+		if (portcmd(switch_config).port <= 2) {
+			if (portcmd(switch_config).port == 0)
+				ret = cpsw_ale_control_set(priv->ale, 2,
+					ALE_PORT_STATE,
+					portcmd(switch_config).port_state);
+			else
+				ret = cpsw_ale_control_set(priv->ale,
+					portcmd(switch_config).port - 1,
+					ALE_PORT_STATE,
+					portcmd(switch_config).port_state);
+		} else {
+			printk(KERN_ERR "Invalid Arguments\n");
+			ret = -EFAULT;
+		}
+		break;
+
+	case CONFIG_SWITCH_RESET:
+		ret = cpsw_ndo_stop(ndev);
+		if (!ret)
+			ret = cpsw_ndo_open(ndev);
+		break;
+
+	default:
+		ret = -EOPNOTSUPP;
+	}
+
+	return ret;
+}
+
 static int cpsw_ndo_do_ioctl(struct net_device *ndev, struct ifreq *ifrq,
 		int cmd)
 {
@@ -1292,6 +2183,8 @@ static int cpsw_ndo_do_ioctl(struct net_device *ndev, struct ifreq *ifrq,
 #else
 		return -EOPNOTSUPP;
 #endif
+	case SIOCDEVPRIVATE:
+		return cpsw_switch_config_ioctl(ndev, ifrq, cmd);
 	default:
 		return -EOPNOTSUPP;
 	}
