@@ -101,5 +101,9 @@ int cpsw_ale_control_get(struct cpsw_ale *ale, int port, int control);
 int cpsw_ale_control_set(struct cpsw_ale *ale, int port,
 			 int control, int value);
 int cpsw_ale_flush_multicast(struct cpsw_ale *ale, int port_mask);
+int cpsw_ale_dump(struct cpsw_ale *ale, int index, char *buf, int len);
+int cpsw_ale_match_addr(struct cpsw_ale *ale, u8* addr, u16 vid);
+int cpsw_ale_match_vlan(struct cpsw_ale *ale, u16 vid);
+int cpsw_ale_add_oui(struct cpsw_ale *ale, u8 *addr);
 
 #endif

@@ -157,7 +157,7 @@ static int cpsw_ale_write(struct cpsw_ale *ale, int idx, u32 *ale_entry)
 	return idx;
 }
 
-static int cpsw_ale_match_addr(struct cpsw_ale *ale, u8* addr, u16 vid)
+int cpsw_ale_match_addr(struct cpsw_ale *ale, u8* addr, u16 vid)
 {
 	u32 ale_entry[ALE_ENTRY_WORDS];
 	int type, idx;
@@ -178,7 +178,7 @@ static int cpsw_ale_match_addr(struct cpsw_ale *ale, u8* addr, u16 vid)
 	return -ENOENT;
 }
 
-static int cpsw_ale_match_vlan(struct cpsw_ale *ale, u16 vid)
+int cpsw_ale_match_vlan(struct cpsw_ale *ale, u16 vid)
 {
 	u32 ale_entry[ALE_ENTRY_WORDS];
 	int type, idx;
@@ -397,6 +397,25 @@ static int cpsw_ale_dump_entry(int idx, u32 *ale_entry, char *buf, int len)
 	return outlen;
 }
 
+int cpsw_ale_dump(struct cpsw_ale *ale, int index, char *buf, int len)
+{
+	int outlen = 0, idx;
+	u32 ale_entry[ALE_ENTRY_WORDS];
+
+	if (index) {
+		cpsw_ale_read(ale, index, ale_entry);
+		outlen += cpsw_ale_dump_entry(index, ale_entry,
+				buf + outlen, len - outlen);
+	} else {
+		for (idx = 0; idx < ale->ale_entries; idx++) {
+			cpsw_ale_read(ale, idx, ale_entry);
+			outlen += cpsw_ale_dump_entry(idx, ale_entry,
+					buf + outlen, len - outlen);
+		}
+	}
+	return outlen;
+}
+
 int cpsw_ale_add_ucast(struct cpsw_ale *ale, u8 *addr, int port, int flags)
 {
 	u32 ale_entry[ALE_ENTRY_WORDS] = {0, 0, 0};
@@ -408,6 +427,27 @@ int cpsw_ale_add_ucast(struct cpsw_ale *ale, u8 *addr, int port, int flags)
 	cpsw_ale_set_secure(ale_entry, (flags & ALE_SECURE) ? 1 : 0);
 	cpsw_ale_set_blocked(ale_entry, (flags & ALE_BLOCKED) ? 1 : 0);
 	cpsw_ale_set_port_num(ale_entry, port);
+
+	idx = cpsw_ale_match_addr(ale, addr, 0);
+	if (idx < 0)
+		idx = cpsw_ale_match_free(ale);
+	if (idx < 0)
+		idx = cpsw_ale_find_ageable(ale);
+	if (idx < 0)
+		return -ENOMEM;
+
+	cpsw_ale_write(ale, idx, ale_entry);
+	return 0;
+}
+
+int cpsw_ale_add_oui(struct cpsw_ale *ale, u8 *addr)
+{
+	u32 ale_entry[ALE_ENTRY_WORDS] = {0, 0, 0};
+	int idx;
+
+	cpsw_ale_set_entry_type(ale_entry, ALE_TYPE_ADDR);
+	cpsw_ale_set_addr(ale_entry, addr);
+	cpsw_ale_set_ucast_type(ale_entry, ALE_UCAST_OUI);
 
 	idx = cpsw_ale_match_addr(ale, addr, 0);
 	if (idx < 0)
