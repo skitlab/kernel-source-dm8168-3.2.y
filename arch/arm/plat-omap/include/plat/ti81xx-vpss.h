@@ -277,7 +277,8 @@ int vps_dc_enum_node_input(struct vps_dcenumnodeinput *eninput);
 int vps_dc_get_node_status(struct vps_dcnodeinput *ninput);
 int vps_dc_set_comp_rtconfig(struct vps_dccomprtconfig *compcfg);
 int vps_dc_get_comp_rtconfig(struct vps_dccomprtconfig *compcfg);
-
+int vps_dc_get_output(struct vps_dcoutputinfo *oinfo);
+int vps_dc_set_output(struct vps_dcoutputinfo *oinfo);
 
 
 #endif

@@ -213,7 +213,7 @@ static inline u8 dc_timing_to_device_timing(struct fvid2_modeinfo *minfo,
 	timings->vsw = minfo->vsynclen;
 
 	/*get the dvi or hdmi information from the table
-	if not found, force to HDMI,
+	if not found, force to DVI,
 	FIXME: will add sysfs to support change DVI or HDMI
 	*/
 	for (i = 0; i < ARRAY_SIZE(vmode_info); i++) {
@@ -231,7 +231,7 @@ static inline u8 dc_timing_to_device_timing(struct fvid2_modeinfo *minfo,
 		    (t->pixelclock == minfo->pixelclock))
 			return vm->dvimode;
 	}
-	return TI81xx_MODE_HDMI;
+	return TI81xx_MODE_DVI;
 
 
 }
@@ -1261,6 +1261,26 @@ int vps_dc_get_comp_rtconfig(struct vps_dccomprtconfig *compcfg)
 	return r;
 }
 EXPORT_SYMBOL(vps_dc_get_comp_rtconfig);
+int vps_dc_get_output(struct vps_dcoutputinfo *oinfo)
+{
+	int r;
+	dc_lock(disp_ctrl);
+	r = dc_get_output(oinfo);
+	dc_unlock(disp_ctrl);
+	return r;
+}
+EXPORT_SYMBOL(vps_dc_get_output);
+
+int vps_dc_set_output(struct vps_dcoutputinfo *oinfo)
+{
+	int r;
+	dc_lock(disp_ctrl);
+	r = dc_set_output(oinfo);
+	dc_unlock(disp_ctrl);
+	return r;
+
+}
+EXPORT_SYMBOL(vps_dc_set_output);
 /*E********************************* public functions *****************/
 
 /*sysfs function for blender starting from here*/
@@ -1320,7 +1340,6 @@ static ssize_t blender_mode_store(struct dc_blender_info *binfo,
 		goto exit;
 
 
-	/*only set the PLL if it is auto mode*/
 	r = dc_set_pll_by_mid(binfo->idx, mid);
 	if (r)
 		goto exit;
