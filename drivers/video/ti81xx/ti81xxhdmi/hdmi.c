@@ -644,6 +644,9 @@ static struct hdmi_cm hdmi_get_code(struct TI81xx_video_timings *timing)
 	cm.mode = 1;  /* HDMI mode */
 	cm.code = 16; /* 1080P-60 */
 
+	if (timing->standard == FVID2_STD_1080P_30)
+		cm.code = 34;
+
 	cm.mode = timing->dvi_hdmi;
 	if (custom) {
 
