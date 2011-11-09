@@ -2441,7 +2441,8 @@ static __init int ti81xxvin_probe(struct platform_device *pdev)
 			goto probe_subdev_out;
 		}
 		if (subdevdata->ti81xxvin_set_mode)
-			err = subdevdata->ti81xxvin_set_mode(FVID2_STD_720P_60);
+			err = subdevdata->ti81xxvin_set_mode(
+					FVID2_STD_1080P_60);
 		if (err < 0) {
 			ti81xxvin_err("Error setting mode on decoder\n");
 			goto probe_subdev_out;
