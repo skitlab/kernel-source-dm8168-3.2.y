@@ -514,6 +514,12 @@ struct musb {
 	u8			id;
 	struct	timer_list	otg_workaround;
 	unsigned long		last_timer;
+	int			old_state;
+	struct	timer_list	otg_timer;
+#ifndef CONFIG_MUSB_PIO_ONLY
+	u64			*orig_dma_mask;
+#endif
+	short			fifo_mode;
 };
 
 #ifdef CONFIG_USB_GADGET_MUSB_HDRC

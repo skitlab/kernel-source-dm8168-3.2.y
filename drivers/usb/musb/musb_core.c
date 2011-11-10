@@ -403,7 +403,7 @@ EXPORT_SYMBOL_GPL(otg_state_string);
 /*
  * Handles OTG hnp timeouts, such as b_ase0_brst
  */
-void musb_otg_timer_func(unsigned long data)
+static void musb_otg_timer_func(unsigned long data)
 {
 	struct musb	*musb = (struct musb *)data;
 	unsigned long	flags;
@@ -426,8 +426,6 @@ void musb_otg_timer_func(unsigned long data)
 	musb->ignore_disconnect = 0;
 	spin_unlock_irqrestore(&musb->lock, flags);
 }
-
-static DEFINE_TIMER(musb_otg_timer, musb_otg_timer_func, 0, 0);
 
 /*
  * Stops the B-device HNP state. Caller must take care of locking.
@@ -704,8 +702,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 #ifdef	CONFIG_USB_MUSB_OTG
 				musb->xceiv->state = OTG_STATE_B_WAIT_ACON;
 				DBG(1, "HNP: Setting timer for b_ase0_brst\n");
-				musb_otg_timer.data = (unsigned long)musb;
-				mod_timer(&musb_otg_timer, jiffies
+				mod_timer(&musb->otg_timer, jiffies
 					+ msecs_to_jiffies(TB_ASE0_BRST));
 #endif
 			}
@@ -876,8 +873,8 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 			case OTG_STATE_A_WAIT_BCON:	/* OPT TD.4.7-900ms */
 				DBG(1, "HNP: Setting timer as %s\n",
 						otg_state_string(musb));
-				musb_otg_timer.data = (unsigned long)musb;
-				mod_timer(&musb_otg_timer, jiffies
+				musb->otg_timer.data = (unsigned long)musb;
+				mod_timer(&musb->otg_timer, jiffies
 					+ msecs_to_jiffies(100));
 				break;
 			case OTG_STATE_A_PERIPHERAL:
@@ -1072,22 +1069,6 @@ static void musb_shutdown(struct platform_device *pdev)
 
 
 /*-------------------------------------------------------------------------*/
-
-/*
- * The silicon either has hard-wired endpoint configurations, or else
- * "dynamic fifo" sizing.  The driver has support for both, though at this
- * writing only the dynamic sizing is very well tested.   Since we switched
- * away from compile-time hardware parameters, we can no longer rely on
- * dead code elimination to leave only the relevant one in the object file.
- *
- * We don't currently use dynamic fifo setup capability to do anything
- * more than selecting one of a bunch of predefined configurations.
- */
-static short __devinitdata fifo_mode = -1;
-
-/* "modprobe ... fifo_mode=1" etc */
-module_param(fifo_mode, short, 0);
-MODULE_PARM_DESC(fifo_mode, "initial endpoint configuration");
 
 /*
  * tables defining fifo_mode values.  define more if you like.
@@ -1305,7 +1286,7 @@ fifo_setup(struct musb *musb, struct musb_hw_ep  *hw_ep,
 	return offset + (maxpacket << ((c_size & MUSB_FIFOSZ_DPB) ? 1 : 0));
 }
 
-	static struct musb_fifo_cfg __devinitdata ep0_cfg = {
+static struct musb_fifo_cfg __devinitdata ep0_cfg = {
 	.style = FIFO_RXTX, .maxpacket = 64,
 };
 
@@ -1317,16 +1298,16 @@ static int __devinit ep_config_from_table(struct musb *musb)
 	struct musb_hw_ep	*hw_ep = musb->endpoints;
 
 	if (musb->config->fifo_mode)
-		fifo_mode = musb->config->fifo_mode;
+		musb->fifo_mode = musb->config->fifo_mode;
 	else if (musb->config->fifo_cfg) {
 		cfg = musb->config->fifo_cfg;
 		n = musb->config->fifo_cfg_size;
 		goto done;
 	}
 
-	switch (fifo_mode) {
+	switch (musb->fifo_mode) {
 	default:
-		fifo_mode = 0;
+		musb->fifo_mode = 0;
 		/* FALLTHROUGH */
 	case 0:
 		cfg = mode_0_cfg;
@@ -1359,7 +1340,7 @@ static int __devinit ep_config_from_table(struct musb *musb)
 	}
 
 	printk(KERN_DEBUG "%s: setup fifo_mode %d\n",
-			musb_driver_name, fifo_mode);
+			musb_driver_name, musb->fifo_mode);
 
 
 done:
@@ -1713,12 +1694,6 @@ irqreturn_t musb_interrupt(struct musb *musb)
 EXPORT_SYMBOL_GPL(musb_interrupt);
 
 #ifndef CONFIG_MUSB_PIO_ONLY
-static int __devinitdata use_dma = 1;
-
-/* "modprobe ... use_dma=0" etc */
-module_param(use_dma, bool, 0);
-MODULE_PARM_DESC(use_dma, "enable/disable use of DMA");
-
 void musb_dma_completion(struct musb *musb, u8 epnum, u8 transmit)
 {
 	u8	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
@@ -1757,9 +1732,6 @@ void musb_dma_completion(struct musb *musb, u8 epnum, u8 transmit)
 	}
 }
 EXPORT_SYMBOL_GPL(musb_dma_completion);
-
-#else
-#define use_dma			0
 #endif
 
 /*-------------------------------------------------------------------------*/
@@ -1890,10 +1862,9 @@ static const struct attribute_group musb_attr_group = {
 static void musb_irq_work(struct work_struct *data)
 {
 	struct musb *musb = container_of(data, struct musb, irq_work);
-	static int old_state;
 
-	if (musb->xceiv->state != old_state) {
-		old_state = musb->xceiv->state;
+	if (musb->xceiv->state != musb->old_state) {
+		musb->old_state = musb->xceiv->state;
 		sysfs_notify(&musb->controller->kobj, NULL, "mode");
 	}
 }
@@ -1976,6 +1947,10 @@ static void musb_free(struct musb *musb)
 		(void) c->stop(c);
 		musb->ops->dma_controller_destroy(c);
 	}
+
+#ifdef	CONFIG_USB_MUSB_OTG
+	del_timer_sync(&musb->otg_timer);
+#endif
 
 #ifdef CONFIG_USB_MUSB_HDRC_HCD
 	if (musb->gb_queue)
@@ -2066,9 +2041,11 @@ bad_config:
 	musb->ops = plat->platform_ops;
 	musb->id = pdev->id;
 
-	if (fifo_mode == -1)
-		fifo_mode = musb->ops->fifo_mode;
+	musb->fifo_mode = musb->ops->fifo_mode;
 
+#ifndef CONFIG_MUSB_PIO_ONLY
+	musb->orig_dma_mask = dev->dma_mask;
+#endif
 	if (musb->ops->flags & MUSB_GLUE_TUSB_STYLE) {
 		musb_readb = __tusb_musb_readb;
 		musb_writeb = __tusb_musb_writeb;
@@ -2106,7 +2083,7 @@ bad_config:
 	}
 
 #ifndef CONFIG_MUSB_PIO_ONLY
-	if (use_dma && dev->dma_mask) {
+	if (dev->dma_mask) {
 		struct dma_controller	*c;
 
 		if (!musb->ops->dma_controller_create) {
@@ -2246,6 +2223,11 @@ bad_config:
 
 #endif
 
+#ifdef	CONFIG_USB_MUSB_OTG
+	/* setup otg_timer */
+	setup_timer(&musb->otg_timer, musb_otg_timer_func,
+						(unsigned long) musb);
+#endif
 	return 0;
 
 #ifdef CONFIG_USB_MUSB_HDRC_HCD
@@ -2284,11 +2266,6 @@ fail0:
 /* all implementations (PCI bridge to FPGA, VLYNQ, etc) should just
  * bridge to a platform device; this driver then suffices.
  */
-
-#ifndef CONFIG_MUSB_PIO_ONLY
-static u64	*orig_dma_mask;
-#endif
-
 static int __devinit musb_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
@@ -2321,10 +2298,6 @@ static int __devinit musb_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-#ifndef CONFIG_MUSB_PIO_ONLY
-	/* clobbered by use_dma=n */
-	orig_dma_mask = dev->dma_mask;
-#endif
 	status = musb_init_controller(dev, irq, base, iomem->start);
 	if (status < 0)
 		iounmap(base);
@@ -2352,7 +2325,7 @@ static int __exit musb_remove(struct platform_device *pdev)
 	iounmap(ctrl_base);
 	device_init_wakeup(&pdev->dev, 0);
 #ifndef CONFIG_MUSB_PIO_ONLY
-	pdev->dev.dma_mask = orig_dma_mask;
+	pdev->dev.dma_mask = musb->orig_dma_mask;
 #endif
 	return 0;
 }
