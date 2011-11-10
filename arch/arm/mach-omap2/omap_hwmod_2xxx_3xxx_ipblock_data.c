@@ -11,7 +11,7 @@
 #include <plat/omap_hwmod.h>
 #include <plat/serial.h>
 #include <plat/dma.h>
-#include <plat/common.h>
+#include "common.h"
 
 #include <mach/irqs.h>
 
