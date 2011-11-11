@@ -130,15 +130,15 @@ static int vps_grpx_apply_changes(struct vps_grpx_ctrl *gctrl)
 				(struct vps_grpxscparams *)gctrl->grtlist_phy;
 		}
 
-		if (gstate->clutSet) {
+		if (gstate->clutSet)
 			gctrl->framelist->perlistcfg =
 				(struct vps_grpxscparams *)gctrl->grtlist_phy;
-		}
 
-		if ((gstate->regset) || (gstate->varset)) {
+
+		if ((gstate->regset) || (gstate->varset))
 			gctrl->frames->perframecfg =
 				(struct vps_grpxrtparams *)gctrl->grtp_phy;
-		}
+
 
 		if (gstate->stenset)
 			gctrl->frames->perframecfg =
@@ -385,8 +385,6 @@ static int vps_grpx_set_format(struct vps_grpx_ctrl *gctrl,
 
 	gctrl->gparams->format = df;
 	gctrl->gparams->pitch[FVID2_RGB_ADDR_IDX] = pitch;
-	gctrl->grtparam->format = df;
-	gctrl->grtparam->pitch[FVID2_RGB_ADDR_IDX] = pitch;
 
 	gctrl->inputf->bpp = fbpp;
 	gctrl->inputf->channelnum = 0;
@@ -396,6 +394,8 @@ static int vps_grpx_set_format(struct vps_grpx_ctrl *gctrl,
 	grpx_cs_lock(gctrl);
 	if (gctrl->gstate.isstarted == false) {
 		gctrl->gstate.varset = true;
+		gctrl->grtparam->format = df;
+		gctrl->grtparam->pitch[FVID2_RGB_ADDR_IDX] = pitch;
 		r = gctrl->apply_changes(gctrl);
 	}
 
