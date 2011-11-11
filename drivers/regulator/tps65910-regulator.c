@@ -197,6 +197,32 @@ static struct tps_info tps65910_regs[] = {
 	},
 };
 
+/* VSEL tables for TPS65911 specific LDOs */
+
+/* supported LDO1, LDO2, LDO4 voltages in milivolts */
+static const u16 LDO_50mv_VSEL_table[] = {
+	1000, 1050, 1100, 1150, 1200, 1250, 1300, 1350,
+	1400, 1450, 1500, 1550, 1600, 1650, 1700, 1750,
+	1800, 1850, 1900, 1950, 2000, 2050, 2100, 2150,
+	2200, 2250, 2300, 2350, 2400, 2450, 2500, 2550,
+	2600, 2650, 2700, 2750, 2800, 2850, 2900, 2950,
+	2300, 2350, 2400, 2450, 2500, 2550, 2600, 2650,
+	2700, 2750, 2800, 2850, 2900, 2950, 3000, 3050,
+	3100, 3150, 3200, 3250, 3300,
+};
+
+/* supported LDO3, LDO5 to LDO8 voltages in milivolts */
+static const u16 LDO_100mv_VSEL_table[] = {
+	1000, 1100, 1200, 1300,
+	1400, 1500, 1600, 1700,
+	1800, 1900, 2000, 2100,
+	2200, 2300, 2400, 2500,
+	2600, 2700, 2800, 2900,
+	2300, 2400, 2500, 2600,
+	2700, 2800, 2900, 3000,
+	3100, 3200, 3300,
+};
+
 static struct tps_info tps65911_regs[] = {
 	{
 		.name = "VRTC",
@@ -227,41 +253,57 @@ static struct tps_info tps65911_regs[] = {
 		.name = "LDO1",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
+		.table_len = ARRAY_SIZE(LDO_50mv_VSEL_table),
+		.table = LDO_50mv_VSEL_table,
 	},
 	{
 		.name = "LDO2",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
+		.table_len = ARRAY_SIZE(LDO_50mv_VSEL_table),
+		.table = LDO_50mv_VSEL_table,
 	},
 	{
 		.name = "LDO3",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
+		.table_len = ARRAY_SIZE(LDO_100mv_VSEL_table),
+		.table = LDO_100mv_VSEL_table,
 	},
 	{
 		.name = "LDO4",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
+		.table_len = ARRAY_SIZE(LDO_50mv_VSEL_table),
+		.table = LDO_50mv_VSEL_table,
 	},
 	{
 		.name = "LDO5",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
+		.table_len = ARRAY_SIZE(LDO_100mv_VSEL_table),
+		.table = LDO_100mv_VSEL_table,
 	},
 	{
 		.name = "LDO6",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
+		.table_len = ARRAY_SIZE(LDO_100mv_VSEL_table),
+		.table = LDO_100mv_VSEL_table,
 	},
 	{
 		.name = "LDO7",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
+		.table_len = ARRAY_SIZE(LDO_100mv_VSEL_table),
+		.table = LDO_100mv_VSEL_table,
 	},
 	{
 		.name = "LDO8",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
+		.table_len = ARRAY_SIZE(LDO_100mv_VSEL_table),
+		.table = LDO_100mv_VSEL_table,
 	},
 };
 
