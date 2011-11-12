@@ -101,7 +101,7 @@ static inline void capture_print_status(struct vps_capt_ctrl *cctrl)
 static int capture_set_storage_fmt(struct vps_capt_ctrl *cctrl,
 		struct Vps_CaptStoragePrms *cstorageprms)
 {
-	int r;
+	int r = 0;
 
 	if (cctrl == NULL)
 		return -EINVAL;
@@ -118,7 +118,7 @@ static int capture_set_storage_fmt(struct vps_capt_ctrl *cctrl,
 
 static int capture_reset(struct vps_capt_ctrl *cctrl, u32 cmd)
 {
-	int r;
+	int r = 0;
 
 	if (cctrl == NULL)
 		return -EINVAL;
@@ -130,7 +130,7 @@ static int capture_reset(struct vps_capt_ctrl *cctrl, u32 cmd)
 static int capture_return_err_frms(struct vps_capt_ctrl *cctrl,
 		struct Vps_CaptReturnErrFrms *creturnerrfrms)
 {
-	int r;
+	int r = 0;
 
 	if (cctrl == NULL)
 		return -EINVAL;
@@ -149,7 +149,7 @@ static int capture_return_err_frms(struct vps_capt_ctrl *cctrl,
 static int capture_one_cb_per_frm(struct vps_capt_ctrl *cctrl,
 		struct Vps_CaptReturnErrFrms *conecbperfrm)
 {
-	int r;
+	int r = 0;
 
 	if (cctrl == NULL)
 		return -EINVAL;

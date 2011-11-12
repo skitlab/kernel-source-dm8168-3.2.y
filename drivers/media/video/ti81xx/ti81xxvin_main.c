@@ -2306,7 +2306,7 @@ hdvpss_init_free_instance_objects:
  * This creates device entries by register itself to the V4L2 driver and
  * initializes fields of eainst instance objects
  */
-static __init int ti81xxvin_probe(struct platform_device *pdev)
+static int ti81xxvin_probe(struct platform_device *pdev)
 {
 	struct ti81xxvin_subdev_info *subdevdata;
 	struct ti81xxvin_config *config;
