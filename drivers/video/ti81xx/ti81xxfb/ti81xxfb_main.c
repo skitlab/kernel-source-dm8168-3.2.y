@@ -818,6 +818,7 @@ static int ti81xxfb_setcmap(struct fb_cmap *cmap, struct fb_info *fbi)
 {
 	int				i, index, r = 0;
 	struct ti81xxfb_info		*tfbi = FB2TFB(fbi);
+	struct fb_var_screeninfo	*var = &fbi->var;
 	struct vps_grpx_ctrl		*gctrl = tfbi->gctrl;
 	unsigned long			*palette = tfbi->vclut;
 	u16				*red, *green, *blue, *transp;
@@ -835,13 +836,24 @@ static int ti81xxfb_setcmap(struct fb_cmap *cmap, struct fb_info *fbi)
 	ti81xxfb_lock(tfbi);
 	for (i = 0; i < cmap->len; i++) {
 		if (transp)
-			trans = *transp++;
+			trans = transp[index];
 
 		palette[i] =
-			(((*red++) & TI81XXFB_CLUT_MASK) << 24) |
-			 (((*green++) & TI81XXFB_CLUT_MASK) << 16) |
-			 (((*blue++) & TI81XXFB_CLUT_MASK) << 8) |
+			((red[index] & TI81XXFB_CLUT_MASK) << 24) |
+			 ((green[index] & TI81XXFB_CLUT_MASK) << 16) |
+			 ((blue[index] & TI81XXFB_CLUT_MASK) << 8) |
 			 (trans & TI81XXFB_CLUT_MASK);
+		/*set up the pseudo palette*/
+		if (i < 16)
+			((u32 *)fbi->pseudo_palette)[i] =
+				(red[index] >> (16 - var->red.length) <<
+					var->red.offset) |
+				(green[index] >> (16 - var->green.length) <<
+					 var->green.offset) |
+				(blue[index] >> (16 - var->blue.length) <<
+					var->blue.offset) |
+				(trans >> (16 - var->transp.length) <<
+					var->transp.offset);
 		index++;
 	}
 	/*only update if these is a new settings*/
