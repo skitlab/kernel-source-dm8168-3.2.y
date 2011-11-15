@@ -116,6 +116,10 @@ do {								\
 #define CPSW_CMINTMAX_INTVL	(1000 / CPSW_CMINTMIN_CNT)
 #define CPSW_CMINTMIN_INTVL	((1000 / CPSW_CMINTMAX_CNT) + 1)
 
+#define switchcmd(__xx__)	__xx__.cmd_data.switchcmd
+#define portcmd(__xx__)		__xx__.cmd_data.portcmd
+#define priocmd(__xx__)		__xx__.cmd_data.priocmd
+
 static int debug_level;
 module_param(debug_level, int, 0);
 MODULE_PARM_DESC(debug_level, "cpsw debug level (NETIF_MSG bits)");
@@ -322,9 +326,10 @@ struct cpsw_priv {
 
 	struct cpts_time_handle	cpts_time;
 
+	u8				port_state[3];
 	u32				msg_enable;
-	u32 coal_intvl;
-	u32 bus_freq_mhz;
+	u32				coal_intvl;
+	u32				bus_freq_mhz;
 	struct net_device_stats		stats;
 	int				rx_packet_max;
 	int				host_port;
@@ -742,7 +747,8 @@ static void _cpsw_adjust_link(struct cpsw_slave *slave,
 	if (phy->link) {
 		/* enable forwarding */
 		cpsw_ale_control_set(priv->ale, slave_port,
-			     ALE_PORT_STATE, ALE_PORT_STATE_FORWARD);
+			     ALE_PORT_STATE,
+			     priv->port_state[slave_port]);
 
 		mac_control = (priv->data.mac_control &
 				~(BIT(0) | BIT(7) | BIT(18)));
@@ -936,6 +942,7 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 	slave_port = cpsw_get_slave_port(priv, slave->slave_num);
 	cpsw_ale_add_mcast(priv->ale, priv->ndev->broadcast,
 			   1 << slave_port, 0, 0);
+	priv->port_state[slave_port] = ALE_PORT_STATE_FORWARD;
 
 	slave->phy = phy_connect(priv->ndev, slave->data->phy_id,
 				 &cpsw_adjust_link, 0, slave->data->phy_if);
@@ -1535,17 +1542,17 @@ int cpsw_rate_limit(struct cpsw_ale *ale, u32 enable, u32 direction, u32 port,
 		/* For host port transmit/receive terminlogy is inverse
 			of cpgmac port */
 		if (direction)
-			cpsw_rate_limit_rx(ale, enable, HOST_PORT,
+			cpsw_rate_limit_rx(ale, enable, port,
 					packet_type, limit);
 		else
-			cpsw_rate_limit_tx(ale, enable, HOST_PORT,
+			cpsw_rate_limit_tx(ale, enable, port,
 					packet_type, limit);
 	} else {
 		if (direction)
-			cpsw_rate_limit_tx(ale, enable, port - 1,
+			cpsw_rate_limit_tx(ale, enable, port,
 					packet_type, limit);
 		else
-			cpsw_rate_limit_rx(ale, enable, port - 1,
+			cpsw_rate_limit_rx(ale, enable, port,
 					packet_type, limit);
 	}
 	return 0;
@@ -1594,7 +1601,7 @@ static int cpsw_config_dump(struct cpsw_priv *priv, u8 *buf, u32 size)
 
 	if (vlan_aware) {
 		int port_vlan;
-		char *port_state;
+		char *port_state = NULL;
 
 		switch (cpsw_ale_control_get(priv->ale, 0, ALE_PORT_STATE)) {
 		case 0:
@@ -1653,7 +1660,7 @@ static int cpsw_config_dump(struct cpsw_priv *priv, u8 *buf, u32 size)
 			"\t%-8u %-8u %-8u %s\n", 2,
 			port_vlan & 0xfff, (port_vlan > 13) & 0x7, port_state);
 	} else {
-		char *port_state;
+		char *port_state = NULL;
 
 		switch (cpsw_ale_control_get(priv->ale, 0, ALE_PORT_STATE)) {
 		case 0:
@@ -1712,9 +1719,39 @@ static int cpsw_config_dump(struct cpsw_priv *priv, u8 *buf, u32 size)
 
 	return out_len;
 }
-#define switchcmd(__xx__)	__xx__.cmd_data.switchcmd
-#define portcmd(__xx__)	__xx__.cmd_data.portcmd
-#define priocmd(__xx__)	__xx__.cmd_data.priocmd
+
+static int cpsw_set_port_state(struct cpsw_priv *priv, int port,
+			int port_state)
+{
+	int ret = -EFAULT;
+	switch (port_state) {
+	case PORT_STATE_DISABLED:
+		ret = cpsw_ale_control_set(priv->ale,
+			port, ALE_PORT_STATE,
+			ALE_PORT_STATE_DISABLE);
+		priv->port_state[port] = ALE_PORT_STATE_DISABLE;
+		break;
+	case PORT_STATE_BLOCKED:
+		ret = cpsw_ale_control_set(priv->ale,
+			port, ALE_PORT_STATE,
+			ALE_PORT_STATE_BLOCK);
+		priv->port_state[port] = ALE_PORT_STATE_BLOCK;
+		break;
+	case PORT_STATE_LEARN:
+		ret = cpsw_ale_control_set(priv->ale,
+			port, ALE_PORT_STATE,
+			ALE_PORT_STATE_LEARN);
+		priv->port_state[port] = ALE_PORT_STATE_LEARN;
+		break;
+	case PORT_STATE_FORWARD:
+		ret = cpsw_ale_control_set(priv->ale,
+			port, ALE_PORT_STATE,
+			ALE_PORT_STATE_FORWARD);
+		priv->port_state[port] = ALE_PORT_STATE_FORWARD;
+		break;
+	}
+	return ret;
+}
 
 static int cpsw_switch_config_ioctl(struct net_device *ndev,
 		struct ifreq *ifrq, int cmd)
@@ -1987,6 +2024,11 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 
 	case CONFIG_SWITCH_RATELIMIT:
 		if ((portcmd(switch_config).port <= 2) &&
+				(portcmd(switch_config).enable == 0))
+			ret = cpsw_ale_control_set(priv->ale,
+				portcmd(switch_config).port,
+				ALE_RATE_LIMIT, 0);
+		else if ((portcmd(switch_config).port <= 2) &&
 				((portcmd(switch_config).addr_type
 					== ADDR_TYPE_BROADCAST) ||
 				(portcmd(switch_config).addr_type
@@ -2142,15 +2184,9 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 
 	case CONFIG_SWITCH_PORT_STATE:
 		if (portcmd(switch_config).port <= 2) {
-			if (portcmd(switch_config).port == 0)
-				ret = cpsw_ale_control_set(priv->ale, 2,
-					ALE_PORT_STATE,
-					portcmd(switch_config).port_state);
-			else
-				ret = cpsw_ale_control_set(priv->ale,
-					portcmd(switch_config).port - 1,
-					ALE_PORT_STATE,
-					portcmd(switch_config).port_state);
+			ret = cpsw_set_port_state(priv,
+				portcmd(switch_config).port,
+				portcmd(switch_config).port_state);
 		} else {
 			printk(KERN_ERR "Invalid Arguments\n");
 			ret = -EFAULT;
