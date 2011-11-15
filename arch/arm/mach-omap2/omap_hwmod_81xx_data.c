@@ -425,6 +425,7 @@ static struct omap_hwmod ti816x_mpu_hwmod = {
 	.name		= "mpu",
 	.class		= &mpu_hwmod_class,
 	.main_clk	= "mpu_ck",
+	.vdd_name	= "mpu",
 	.masters	= ti816x_mpu_masters,
 	.masters_cnt	= ARRAY_SIZE(ti816x_mpu_masters),
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
