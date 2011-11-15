@@ -247,7 +247,15 @@ config PM_OPS
 	default y
 
 config ARCH_HAS_OPP
-	bool
+	bool "Architecure Supports multiple OPPs"
+	depends on PM
+	---help---
+	  Enable if current architecture supports different OPP. OPP stands for
+	  Operating Performance Point which is a combination of frequency and voltage
+	  of processor.
+
+	  CONFIG_PM_OPP depends on CONFIG_ARCH_HAS_OPP, hence it must be enabled
+	  to use OPP layer library.
 
 config PM_OPP
 	bool "Operating Performance Point (OPP) Layer library"
