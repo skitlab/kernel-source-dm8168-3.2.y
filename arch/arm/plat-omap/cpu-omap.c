@@ -31,7 +31,8 @@
 #include <plat/clock.h>
 #include <asm/system.h>
 
-#if defined(CONFIG_ARCH_OMAP3) && !defined(CONFIG_OMAP_PM_NONE)
+#if (defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_TI814X)) && \
+	!defined(CONFIG_OMAP_PM_NONE)
 #include <plat/omap-pm.h>
 #include <plat/common.h>
 #endif
@@ -45,6 +46,8 @@ static struct cpufreq_frequency_table *freq_table;
 #define MPU_CLK		"mpu"
 #elif defined(CONFIG_ARCH_OMAP3)
 #define MPU_CLK		"arm_fck"
+#elif defined(CONFIG_ARCH_TI814X)
+#define MPU_CLK		"arm_dpll_ck"
 #else
 #define MPU_CLK		"virt_prcm_set"
 #endif
@@ -89,7 +92,7 @@ static int omap_target(struct cpufreq_policy *policy,
 #ifdef CONFIG_ARCH_OMAP1
 	struct cpufreq_freqs freqs;
 #endif
-#if defined(CONFIG_ARCH_OMAP3)
+#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_TI814X)
 	unsigned long freq;
 	struct device *mpu_dev = omap2_get_mpuss_device();
 #endif
@@ -116,7 +119,7 @@ static int omap_target(struct cpufreq_policy *policy,
 #endif
 	ret = clk_set_rate(mpu_clk, freqs.new * 1000);
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
-#elif defined(CONFIG_ARCH_OMAP3)
+#elif defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_TI814X)
 	freq = target_freq * 1000;
 	if (opp_find_freq_ceil(mpu_dev, &freq))
 		omap_device_scale(mpu_dev, mpu_dev, freq);
@@ -137,7 +140,7 @@ static int __init omap_cpu_init(struct cpufreq_policy *policy)
 
 	policy->cur = policy->min = policy->max = omap_getspeed(0);
 
-	if (!cpu_is_omap34xx()) {
+	if (!cpu_is_omap34xx() && !cpu_is_ti814x()) {
 		clk_init_cpufreq_table(&freq_table);
 	} else {
 		struct device *mpu_dev = omap2_get_mpuss_device();
