@@ -93,6 +93,17 @@
 #define HDMI_CORE_SYS__DE_LINL			0xE0ul
 #define HDMI_CORE_SYS__DE_LINH__1		0xE4ul
 
+#define HDMI_CORE_SYS__HBIT_2HSYNC1		0x100ul
+#define HDMI_CORE_SYS__HBIT_2HSYNC2		0x104ul
+#define HDMI_CORE_SYS__FLD2_HS_OFSTL		0x108ul
+#define HDMI_CORE_SYS__FLD2_HS_OFSTH		0x10cul
+#define HDMI_CORE_SYS__HWIDTH1			0x110ul
+#define HDMI_CORE_SYS__HWIDTH2			0x114ul
+#define HDMI_CORE_SYS__VBIT_TO_VSYNC		0x118ul
+#define HDMI_CORE_SYS__VWIDTH			0x11cul
+
+
+
 /* HDMI IP Core Audio Video */
 #define HDMI_CORE_AV_HDMI_CTRL			0xBCul
 #define HDMI_CORE_AV_DPD			0xF4ul
@@ -587,7 +598,13 @@ static int hdmi_core_video_config(struct hdmi_core_video_config_t *cfg)
 		r = FLD_MOD(r, cfg->CoreOutputDitherTruncation, 7, 6);
 		r = FLD_MOD(r, 0, 5, 5);
 	}
-	hdmi_write_reg(name, HDMI_CORE_SYS__VID_MODE, r);
+	/* For TI816x and TI814x, HDMI gets data in embedded sync format.
+	   So below is required to set HDMI to extract sync from data
+	 */
+	if (cpu_is_ti814x() || cpu_is_ti816x()) {
+		r = FLD_MOD(r, 1, 0, 0);
+		hdmi_write_reg(name, HDMI_CORE_SYS__VID_MODE, r);
+	}
 
 	/* HDMI_CTRL */
 	r = hdmi_read_reg(av_name, HDMI_CORE_AV_HDMI_CTRL);
@@ -1292,7 +1309,46 @@ static int hdmi_w1_audio_config(void)
 
 	return ret;
 }
+static void hdmi_core_extract_sync_config(struct hdmi_video_format *f_p,
+		struct hdmi_video_timing *t_p)
+{
+	u32 hbit2_hsync1, hbit2_hsync2, fld2_hs_ofstl, fld2_hs_ofsth;
+	u32 hwidth1, hwidth2, vbit2_vsync, vwidth, total_pixels;
 
+	total_pixels = f_p->pixelPerLine + t_p->horizontalBackPorch +
+		t_p->horizontalFrontPorch + t_p->horizontalSyncPulse;
+	hbit2_hsync1 = t_p->horizontalFrontPorch & 0xFF;
+	hbit2_hsync2 = ((t_p->horizontalFrontPorch & 0x300) >> 8);
+
+	fld2_hs_ofstl = ((total_pixels >> 1) & 0xFF);
+	fld2_hs_ofsth = (((total_pixels >> 1) & 0xF00) >> 8);
+
+	hwidth1 = t_p->horizontalSyncPulse & 0xFF;
+	hwidth2 = ((t_p->horizontalSyncPulse & 0x300) >> 8);
+
+	vbit2_vsync = t_p->verticalFrontPorch & 0x3F;
+
+	vwidth = t_p->verticalSyncPulse & 0x3F;
+#if 0
+	printk("total_pixels = %d\n", total_pixels);
+	printk("hbit2_hsync1 = %d\n", hbit2_hsync1);
+	printk("hbit2_hsync2 = %d\n", hbit2_hsync2);
+	printk("fld2_hs_ofstl  = %d\n",fld2_hs_ofstl );
+	printk("fld2_hs_ofsth  = %d\n",fld2_hs_ofsth );
+	printk("hwidth1  = %d\n",hwidth1 );
+	printk("hwidth2  = %d\n",hwidth2 );
+	printk("vbit2_vsync  = %d\n",vbit2_vsync );
+	printk(" vwidth = %d\n",vwidth );
+#endif
+	hdmi_write_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__HBIT_2HSYNC1, hbit2_hsync1);
+	hdmi_write_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__HBIT_2HSYNC2, hbit2_hsync2);
+	hdmi_write_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__FLD2_HS_OFSTL, fld2_hs_ofstl);
+	hdmi_write_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__FLD2_HS_OFSTH, fld2_hs_ofsth);
+	hdmi_write_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__HWIDTH1, hwidth1);
+	hdmi_write_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__HWIDTH2, hwidth2);
+	hdmi_write_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__VBIT_TO_VSYNC, vbit2_vsync);
+	hdmi_write_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__VWIDTH, vwidth);
+}
 int hdmi_lib_enable(struct hdmi_config *cfg)
 {
 	u32 r;
@@ -1336,12 +1392,15 @@ int hdmi_lib_enable(struct hdmi_config *cfg)
 	}
 	mdelay(100);
 
-	if ( cpu_is_omap44xx()){
-//	if (!( cpu_is_ti816x() || cpu_is_ti814x())){
-		hdmi_w1_video_init_format(&VideoFormatParam, &VideoTimingParam, cfg);	 // ToDo : TI81xx , HDMI wrapper only slave mode. 'cfg' may not have resolution information, as it is controlled by external VENC
+	hdmi_w1_video_init_format(&VideoFormatParam, &VideoTimingParam, cfg);
+	if ( cpu_is_omap44xx())
 		hdmi_w1_video_config_timing(&VideoTimingParam);
-	}
 
+	/* TI816x and TI814x works in embedded sync mode. So this is to extract
+	   sync from data
+	 */
+	if (cpu_is_ti814x() || cpu_is_ti816x())
+		hdmi_core_extract_sync_config(&VideoFormatParam, &VideoTimingParam);
 	/* video config */
 	switch (cfg->deep_color) {
 	case 0:

@@ -2541,7 +2541,7 @@ int __init vps_dc_init(struct platform_device *pdev,
 		switch (i) {
 		case HDMI:
 			opinfo.vencnodenum = VPS_DC_VENC_HDMI;
-			opinfo.dvofmt = VPS_DC_DVOFMT_TRIPLECHAN_DISCSYNC;
+			opinfo.dvofmt = VPS_DC_DVOFMT_TRIPLECHAN_EMBSYNC;
 			opinfo.dataformat = FVID2_DF_RGB24_888;
 			if (cpu_is_ti816x() && (TI8168_REV_ES1_0 ==
 			    omap_rev()))
