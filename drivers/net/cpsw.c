@@ -637,7 +637,7 @@ void cpsw_rx_handler(void *token, int len, int status)
 			return;
 
 		ret = cpdma_chan_submit(priv->rxch, skb, skb->data,
-				skb_tailroom(skb), GFP_KERNEL);
+				skb_tailroom(skb), 0, GFP_KERNEL);
 	}
 
 	WARN_ON(ret < 0);
@@ -1027,7 +1027,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		if (!skb)
 			break;
 		ret = cpdma_chan_submit(priv->rxch, skb, skb->data,
-					skb_tailroom(skb), GFP_KERNEL);
+					skb_tailroom(skb), 0, GFP_KERNEL);
 		if (WARN_ON(ret < 0))
 			break;
 	}
@@ -1109,7 +1109,7 @@ static netdev_tx_t cpsw_ndo_start_xmit(struct sk_buff *skb,
 	}
 
 	ret = cpdma_chan_submit(priv->txch, skb, skb->data,
-				skb->len, GFP_KERNEL);
+				skb->len, 0, GFP_KERNEL);
 	if (unlikely(ret != 0)) {
 		msg(err, tx_err, "desc submit failed");
 		goto fail;
