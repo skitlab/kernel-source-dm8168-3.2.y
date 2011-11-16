@@ -24,12 +24,16 @@
 #include "omap_opp_data.h"
 
 static struct omap_opp_def __initdata ti814x_opp_def_list[] = {
+	/* Disabling OPP50/120 and keep system default/reset voltage as
+	 * enough testing is not done
+	 * and may cause system instability on some boards
+	 */
 	/* MPU OPP1 - OPP 50 */
-	OPP_INITIALIZER("mpu", true, 300000000, 950000),
+	OPP_INITIALIZER("mpu", false, 300000000, 1200000),
 	/* MPU OPP2 - OPP 100 */
-	OPP_INITIALIZER("mpu", true, 600000000, 1100000),
+	OPP_INITIALIZER("mpu", true, 600000000, 1200000),
 	/* MPU OPP3 - OPP 120 */
-	OPP_INITIALIZER("mpu", true, 720000000, 1200000),
+	OPP_INITIALIZER("mpu", false, 720000000, 1200000),
 
 	/* L3 OPP1 - OPP 50 */
 	OPP_INITIALIZER("l3_slow", true, 100000000, 950000),
