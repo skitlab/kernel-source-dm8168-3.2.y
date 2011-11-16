@@ -2068,6 +2068,7 @@ static struct cpsw_platform_data ti814x_cpsw_pdata = {
 	.ale_entries		= 1024,
 	.host_port_reg_ofs      = 0x28,
 	.hw_stats_reg_ofs       = 0x400,
+	.cpts_reg_ofs		= 0x500,
 	.bd_ram_ofs		= 0x2000,
 	.bd_ram_size		= SZ_8K,
 	.rx_descs               = 64,

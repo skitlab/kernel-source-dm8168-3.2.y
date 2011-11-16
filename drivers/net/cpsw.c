@@ -257,27 +257,14 @@ struct cpts_regs {
 	u32	ts_push;
 	u32	ts_load_val;
 	u32	ts_load_en;
-	u32 mem_allign1[2];
+	u32	mem_allign1[2];
 	u32	intstat_raw;
 	u32	intstat_masked;
 	u32	int_enable;
-	u32 mem_allign2;
+	u32	mem_allign2;
 	u32	event_pop;
 	u32	event_low;
 	u32	event_high;
-};
-
-struct cpsw_ss_intr_status_regs {
-	u32	C0_mis_intr_stat;
-};
-
-/*
- * CPSW Time Sync Regs
- */
-struct cpsw_time_sync_regs {
-	u32 control;
-	u32 seq_ltype;
-	u32 vlan_type;
 };
 
 /*
@@ -320,10 +307,6 @@ struct cpsw_priv {
 	struct cpsw_host_regs __iomem	*host_port_regs;
 
 	struct cpts_regs __iomem	*cpts_reg;
-	struct cpsw_ss_intr_status_regs __iomem	*cpsw_ss_intr;
-	struct cpsw_time_sync_regs __iomem	*port1_time_sync_regs;
-	struct cpsw_time_sync_regs __iomem	*port2_time_sync_regs;
-
 	struct cpts_time_handle	cpts_time;
 
 	u8				port_state[3];
@@ -364,7 +347,6 @@ static int cpsw_set_coalesce(struct net_device *ndev,
 DEFINE_SPINLOCK(cpts_time_lock);
 static struct cpsw_priv *gpriv;
 static u64 time_push;
-static struct cpts_regs __iomem	*cpts_regs;
 
 static int cpts_time_evts_fifo_push(struct cpts_evts_fifo *fifo,
 				struct cpts_time_evts *evt)
@@ -506,8 +488,8 @@ int cpts_systime_write(u64 ns)
 		return -ENODEV;
 	}
 	ns = NANOSEC_TO_CPTSCOUNT(ns);
-	__raw_writel((u32)(ns & 0xffffffff), &cpts_regs->ts_load_val);
-	__raw_writel(0x1, &cpts_regs->ts_load_en);
+	__raw_writel((u32)(ns & 0xffffffff), &gpriv->cpts_reg->ts_load_val);
+	__raw_writel(0x1, &gpriv->cpts_reg->ts_load_en);
 	gpriv->cpts_time.tshi = (u32)(ns >> 32);
 
 	return 0;
@@ -523,7 +505,7 @@ int cpts_systime_read(u64 *ns)
 		return -ENODEV;
 	}
 
-	__raw_writel(0x1, &cpts_regs->ts_push);
+	__raw_writel(0x1, &gpriv->cpts_reg->ts_push);
 	for (i = 0; i < 20; i++) {
 		cpts_isr(gpriv);
 		if (time_push)
@@ -666,7 +648,9 @@ static irqreturn_t cpsw_interrupt(int irq, void *dev_id)
 {
 	struct cpsw_priv *priv = dev_id;
 
+#ifdef CONFIG_PTP_1588_CLOCK_CPTS
 	cpts_isr(priv);
+#endif /* CONFIG_PTP_1588_CLOCK_CPTS */
 
 	if (likely(netif_running(priv->ndev))) {
 		cpsw_intr_disable(priv);
@@ -1072,7 +1056,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		/* Enable CPTS Interrupt */
 		__raw_writel(0x01, &priv->cpts_reg->int_enable);
 		/* Enable CPSW_SS Misc Interrupt */
-		__raw_writel(0x10, &priv->cpsw_ss_intr->C0_mis_intr_stat);
+		__raw_writel(0x10, &priv->ss_regs->misc_stat);
 	} else {
 		printk(KERN_ERR"Cannot find CPTS\n");
 	}
@@ -1269,9 +1253,9 @@ static int cpsw_hwtstamp_ioctl(struct net_device *ndev,
 	/* Enabling Time stamping is done only for Port 1 */
 	if (config.tx_type == HWTSTAMP_TX_OFF &&
 			config.rx_filter == HWTSTAMP_FILTER_NONE) {
-		__raw_writel(0x0, &priv->port1_time_sync_regs->control);
+		__raw_writel(0x0, &priv->slaves[0].regs->ts_ctl);
 		__raw_writel(0x001e0000,
-			&priv->port1_time_sync_regs->seq_ltype);
+			&priv->slaves[0].regs->ts_seq_ltype);
 
 		/* Empty Queue */
 		priv->cpts_time.rx_fifo.head = 0;
@@ -1287,9 +1271,9 @@ static int cpsw_hwtstamp_ioctl(struct net_device *ndev,
 		val |= (1<<4);			/* enable TX */
 		val |= (0xFFFFu << 16);		/* enable all message types */
 
-		__raw_writel(val, &priv->port1_time_sync_regs->control);
+		__raw_writel(val, &priv->slaves[0].regs->ts_ctl);
 		__raw_writel(0x001e88f7,
-			&priv->port1_time_sync_regs->seq_ltype);
+			&priv->slaves[0].regs->ts_seq_ltype);
 
 		/* Empty Queue */
 		priv->cpts_time.rx_fifo.head = 0;
@@ -2620,11 +2604,7 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 	}
 
 	/* Init CPTS Regs offsets */
-	priv->cpts_reg = regs + 0x500;
-	priv->port1_time_sync_regs = regs + 0x64;
-	priv->port2_time_sync_regs = regs + 0xa4;
-	priv->cpsw_ss_intr = regs + 0x94c;
-	cpts_regs = priv->cpts_reg;
+	priv->cpts_reg = regs + data->cpts_reg_ofs;
 
 	regs = ioremap(priv->cpsw_ss_res->start,
 				resource_size(priv->cpsw_ss_res));

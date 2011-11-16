@@ -26,6 +26,8 @@ struct cpsw_platform_data {
 
 	u32	hw_stats_reg_ofs;  /* cpsw hardware statistics counters */
 
+	u32	cpts_reg_ofs;	/* cpts registers offset */
+
 	u32	bd_ram_ofs;   /* embedded buffer descriptor RAM offset*/
 	u32	bd_ram_size;  /*buffer descriptor ram size */
 	u32	hw_ram_addr; /*if the HW address for BD RAM is different */
