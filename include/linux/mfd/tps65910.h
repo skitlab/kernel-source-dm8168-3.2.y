@@ -250,6 +250,7 @@
 #define VDD3_ST_SHIFT					0
 #define VDDCTRL_MIN_VOLT				6000
 #define VDDCTRL_OFFSET					125
+#define VDDCTRL_NUM_VOLTS				65
 
 /*Registers VDIG (0x80) to VDAC register.RegisterDescription */
 #define LDO_SEL_MASK					0x0C

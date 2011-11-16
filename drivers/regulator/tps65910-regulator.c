@@ -237,17 +237,20 @@ static struct tps_info tps65911_regs[] = {
 	{
 		.name = "VDD1",
 		.min_uV = 600000,
-		.max_uV = 4500000,
+		.max_uV = 1500000,
+		.table_len = VDD1_2_NUM_VOLTS,
 	},
 	{
 		.name = "VDD2",
 		.min_uV = 600000,
-		.max_uV = 4500000,
+		.max_uV = 1500000,
+		.table_len = VDD1_2_NUM_VOLTS,
 	},
 	{
 		.name = "VDDCTRL",
 		.min_uV = 600000,
 		.max_uV = 1400000,
+		.table_len = VDDCTRL_NUM_VOLTS,
 	},
 	{
 		.name = "LDO1",
@@ -736,8 +739,8 @@ static int tps65910_set_voltage_dcdc(struct regulator_dev *dev,
 	int dcdc_mult = 0;
 	unsigned selector;
 
-	if (tps6591x_get_voltage_selector(dev, min_uV, max_uV, &selector)) {
-		pr_err("%s: Failed to selection voltage for %d:%d\n",
+	if (tps6591x_get_voltage_selector(dev, min_uV, max_uV, &selector) < 0) {
+		pr_err("%s: Failed to get selection voltage for %d:%d\n",
 				__FUNCTION__, min_uV, max_uV);
 		return -EINVAL;
 	}
@@ -780,8 +783,8 @@ static int tps65910_set_voltage(struct regulator_dev *dev,
 	int reg, id = rdev_get_id(dev);
 	unsigned selector;
 
-	if (tps6591x_get_voltage_selector(dev, min_uV, max_uV, &selector)) {
-		pr_err("%s: Failed to selection voltage for %d:%d\n",
+	if (tps6591x_get_voltage_selector(dev, min_uV, max_uV, &selector) < 0) {
+		pr_err("%s: Failed to get selection voltage for %d:%d\n",
 				__FUNCTION__, min_uV, max_uV);
 		return -EINVAL;
 	}
@@ -818,8 +821,8 @@ static int tps65911_set_voltage(struct regulator_dev *dev,
 	if (reg < 0)
 		return reg;
 
-	if (tps6591x_get_voltage_selector(dev, min_uV, max_uV, &selector)) {
-		pr_err("%s: Failed to selection voltage for %d:%d\n",
+	if (tps6591x_get_voltage_selector(dev, min_uV, max_uV, &selector) < 0) {
+		pr_err("%s: Failed to get selection voltage for %d:%d\n",
 				__FUNCTION__, min_uV, max_uV);
 		return -EINVAL;
 	}
