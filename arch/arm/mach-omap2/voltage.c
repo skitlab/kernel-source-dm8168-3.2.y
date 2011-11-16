@@ -2036,7 +2036,7 @@ static void __init am3517_vp_init(struct omap_vdd_info *vdd)
 static void __init ti814x_vc_vp_init_nop(struct omap_vdd_info *vdd)
 {
 }
-
+#if defined(CONFIG_ARCH_TI814X)
 static int ti814x_vdd_volt_scale(struct omap_vdd_info *vdd,
 				unsigned long target_volt)
 {
@@ -2090,7 +2090,18 @@ static int __init ti814x_vdd_data_configure(struct omap_vdd_info *vdd)
 	mutex_init(&vdd->scaling_mutex);
 	return ret;
 }
+#else
+static int ti814x_vdd_volt_scale(struct omap_vdd_info *vdd,
+				unsigned long target_volt)
+{
+	return 0;
+}
 
+static int __init ti814x_vdd_data_configure(struct omap_vdd_info *vdd)
+{
+	return 0;
+}
+#endif
 
 /**
  * omap_voltage_early_init()- Volatage driver early init
