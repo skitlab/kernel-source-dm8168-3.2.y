@@ -2065,6 +2065,7 @@ static int ti814x_vdd_volt_scale(struct omap_vdd_info *vdd,
  */
 static int __init ti814x_vdd_data_configure(struct omap_vdd_info *vdd)
 {
+	int ret = 0;
 	/* Initialize voltage parameters */
 	vdd->curr_volt = 1200000;
 
@@ -2074,6 +2075,11 @@ static int __init ti814x_vdd_data_configure(struct omap_vdd_info *vdd)
 		vdd->regulator = regulator_get(mpu_dev, "mpu");
 		if (!vdd->regulator)
 			pr_err("Unable to get regulator supplyi for vdd mpu\n");
+		else {
+			ret = regulator_enable(vdd->regulator);
+			if (ret)
+				regulator_put(vdd->regulator);
+		}
 	}
 	vdd->volt_scale	= ti814x_vdd_volt_scale;
 	/* Init the plist */
@@ -2082,7 +2088,7 @@ static int __init ti814x_vdd_data_configure(struct omap_vdd_info *vdd)
 
 	/* Init the DVFS mutex */
 	mutex_init(&vdd->scaling_mutex);
-	return 0;
+	return ret;
 }
 
 
