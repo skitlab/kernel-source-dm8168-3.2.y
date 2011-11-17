@@ -468,6 +468,8 @@ int read_edid(u8 *pEDID, u16 max_length)
 }
 
 static void hdmi_core_init(enum hdmi_deep_mode deep_color,
+	enum hdmi_data_format input_df,
+	enum hdmi_data_format output_df,
 	struct hdmi_core_video_config_t *v_cfg,
 	struct hdmi_core_audio_config *audio_cfg,
 	struct hdmi_core_infoframe_avi *avi,
@@ -533,6 +535,9 @@ static void hdmi_core_init(enum hdmi_deep_mode deep_color,
 	r_p->MPEGInfoFrameRepeat = 0;
 	r_p->SPDInfoFrameED = 0;
 	r_p->SPDInfoFrameRepeat = 0;
+	v_cfg->enable_downsampler = 0;
+	if (input_df == HDMI_DF_YUV444 && output_df == HDMI_DF_YUV422)
+		v_cfg->enable_downsampler = 1;
 }
 
 void hdmi_core_powerdown_disable(void)
@@ -587,6 +592,9 @@ static int hdmi_core_video_config(struct hdmi_core_video_config_t *cfg)
 	hdmi_write_reg(name, HDMI_CORE_CTRL1, r);
 
 	REG_FLD_MOD(name, HDMI_CORE_SYS__VID_ACEN, cfg->CoreInputBusWide, 7, 6);
+	REG_FLD_MOD(name, HDMI_CORE_SYS__VID_ACEN,
+			cfg->enable_downsampler, 0, 0);
+
 
 	/* Vid_Mode */
 	r = hdmi_read_reg(name, HDMI_CORE_SYS__VID_MODE);
@@ -1376,10 +1384,10 @@ int hdmi_lib_enable(struct hdmi_config *cfg)
 	{
 		cfg->deep_color = HDMI_DEEP_COLOR_24BIT; // ToDo : TI81xx , verify support for other modes
 	}
-	hdmi_core_init(cfg->deep_color, &v_core_cfg,
-		&audio_cfg,
-		&hdmi.avi_param,
-		&repeat_param);
+	hdmi_core_init(cfg->deep_color, cfg->input_df,
+			cfg->output_df, &v_core_cfg,
+			&audio_cfg, &hdmi.avi_param,
+			&repeat_param);
 
 	/* Enable PLL Lock and UnLock intrerrupts */
 	IrqHdmiVectorEnable.pllUnlock = 1;
@@ -1460,7 +1468,23 @@ int hdmi_lib_enable(struct hdmi_config *cfg)
 
 	/* configure packet */
 	/* info frame video see doc CEA861-D page 65 */
-	hdmi.avi_param.db1y_rgb_yuv422_yuv444 = INFOFRAME_AVI_DB1Y_RGB;
+	switch (cfg->output_df) {
+	case HDMI_DF_YUV422:
+		hdmi.avi_param.db1y_rgb_yuv422_yuv444 =
+			INFOFRAME_AVI_DB1Y_YUV422;
+		break;
+	case HDMI_DF_YUV444:
+		hdmi.avi_param.db1y_rgb_yuv422_yuv444 =
+			INFOFRAME_AVI_DB1Y_YUV444;
+		break;
+	case HDMI_DF_RGB:
+		hdmi.avi_param.db1y_rgb_yuv422_yuv444 =
+			INFOFRAME_AVI_DB1Y_RGB;
+		break;
+	default:
+		hdmi.avi_param.db1y_rgb_yuv422_yuv444 = INFOFRAME_AVI_DB1Y_RGB;
+
+	}
 	hdmi.avi_param.db1a_active_format_off_on =
 		INFOFRAME_AVI_DB1A_ACTIVE_FORMAT_OFF;
 	hdmi.avi_param.db1b_no_vert_hori_verthori = INFOFRAME_AVI_DB1B_NO;

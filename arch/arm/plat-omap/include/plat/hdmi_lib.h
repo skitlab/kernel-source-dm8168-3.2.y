@@ -114,6 +114,7 @@ struct hdmi_core_video_config_t {
 	enum hdmi_core_packet_mode	CorePacketMode;
 	enum hdmi_core_hdmi_dvi		CoreHdmiDvi;
 	enum hdmi_core_tclkselclkmult	CoreTclkSelClkMult;
+	u16  enable_downsampler;
 };
 
 enum hdmi_core_fs {
@@ -315,6 +316,11 @@ enum hdmi_block_start_end {
 	HDMI_BLOCK_STARTEND_ON = 0,
 	HDMI_BLOCK_STARTEND_OFF = 1
 };
+enum hdmi_data_format {
+	HDMI_DF_YUV422 = 0,
+	HDMI_DF_YUV444 = 1,
+	HDMI_DF_RGB = 2
+};
 
 struct hdmi_audio_dma {
 	u8				dma_transfer;
@@ -397,6 +403,8 @@ struct hdmi_config {
 	u16 hdmi_dvi;
 	u16 video_format;
 	u16 deep_color;
+	enum hdmi_data_format input_df;
+	enum hdmi_data_format output_df;
 };
 
 enum hdmi_core_if_fs {

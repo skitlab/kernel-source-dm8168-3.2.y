@@ -189,9 +189,11 @@ struct TI81xx_display_driver {
 	/* Read EDID */
 	int (*get_edid) (char *, void *);
 	/* To set differnt outputs like HDMI, DVI, Component, Composite etc. */
-	int (*set_output) (enum TI81xx_outputs, void *);
+	int (*set_output) (enum TI81xx_outputs,
+			struct vps_dcoutputinfo *outinfo, void *);
 	/* To get the current output set */
-	int (*get_output) (enum TI81xx_outputs, void *);
+	int (*get_output) (enum TI81xx_outputs,
+			struct ti81xx_venc_info *vencinfo, void *);
 };
 
 

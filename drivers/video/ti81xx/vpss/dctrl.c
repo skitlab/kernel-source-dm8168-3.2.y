@@ -1659,6 +1659,8 @@ static ssize_t blender_output_store(struct dc_blender_info *binfo,
 	enum vps_dcdigitalfmt dfmt = VPS_DC_DVOFMT_MAX;
 	enum vps_dcanalogfmt afmt = VPS_DC_A_OUTPUT_MAX;
 	enum fvid2_dataformat fmt = FVID2_DF_MAX;
+	struct ti81xx_external_encoder *extenc;
+	int enc_status = 0;
 	u8   pol = 0;
 	int   polarity[4];
 	oinfo.vencnodenum = venc_name[binfo->idx].vid;
@@ -1765,6 +1767,24 @@ static ssize_t blender_output_store(struct dc_blender_info *binfo,
 	if (fmt != FVID2_DF_MAX)
 		oinfo.dataformat = fmt;
 
+	list_for_each_entry(extenc, &binfo->dev_list, list) {
+		enc_status = extenc->status;
+		/*setup timing first*/
+		if ((extenc->panel_driver) &&
+				((enc_status == TI81xx_EXT_ENCODER_DISABLED) ||
+				 (enc_status ==
+				  TI81xx_EXT_ENCODER_REGISTERED)) &&
+				extenc->panel_driver->set_output) {
+
+			r = extenc->panel_driver->set_output(TI81xx_OUTPUT_HDMI,
+					&oinfo, NULL);
+			if (r)
+				VPSSERR("Set output failed on external "
+						"encoder\n");
+
+		}
+
+	}
 	r = dc_set_output(&oinfo);
 	if (!r)
 		r = size;

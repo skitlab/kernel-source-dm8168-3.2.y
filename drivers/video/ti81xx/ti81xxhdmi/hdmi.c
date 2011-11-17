@@ -213,6 +213,8 @@ static int hdmi_panel_suspend(void *);
 static int hdmi_panel_resume(void *);
 static int hdmi_get_panel_edid(char *inbuf, void *);
 static int hdmi_set_timings(struct TI81xx_video_timings *timings, void *);
+static int hdmi_set_output(enum TI81xx_outputs outputs,
+		struct vps_dcoutputinfo *outinfo, void *data);
 
 
 static struct TI81xx_display_driver hdmi_driver = {
@@ -226,12 +228,7 @@ static struct TI81xx_display_driver hdmi_driver = {
 	.resume		= hdmi_panel_resume,
 	.set_timing	= hdmi_set_timings,
 	.get_edid	= hdmi_get_panel_edid,
-/*	.get_timings	= hdmi_get_timings,
-	.check_timings	= hdmi_check_timings,
-	.probe		= hdmi_panel_probe,
-	.remove		= hdmi_panel_remove,
-	.hpd_enable	=	hdmi_enable_hpd,
- */
+	.set_output	= hdmi_set_output,
 };
 
 /*E*******************************  Driver structure *********************/
@@ -1175,6 +1172,11 @@ int __init hdmi_init(void)
 		THDMIDBG("TI81xx_hdmi: Registered to display controller\n");
 		goto err_unregister_platform_driver;
 	}
+	r = hdmi_set_output(TI81xx_OUTPUT_HDMI, &hdmi.vencinfo.outinfo, NULL);
+	if (r) {
+		THDMIDBG("TI81xx_hdmi: Setting output failed\n");
+		goto err_unregister_panel;
+	}
 
 	r = hdmi_set_timings(&hdmi.vencinfo.vtimings, NULL);
 	if (r) {
@@ -1279,7 +1281,33 @@ static int hdmi_panel_resume(void *data)
 	hdmi_display_resume();
 	return 0;
 }
-
+static int hdmi_set_output(enum TI81xx_outputs outputs,
+		struct vps_dcoutputinfo *outinfo, void *data)
+{
+	memcpy(&hdmi.vencinfo.outinfo, outinfo,
+			sizeof(struct vps_dcoutputinfo));
+	if (outinfo->dataformat == FVID2_DF_RGB24_888) {
+		hdmi.cfg.input_df = HDMI_DF_RGB;
+		hdmi.cfg.output_df = HDMI_DF_RGB;
+	} else if (outinfo->dataformat == FVID2_DF_YUV422SP_UV &&
+			outinfo->dvofmt == VPS_DC_DVOFMT_TRIPLECHAN_EMBSYNC) {
+		hdmi.cfg.input_df = HDMI_DF_YUV444;
+		hdmi.cfg.output_df = HDMI_DF_YUV422;
+	} else if (outinfo->dataformat == FVID2_DF_YUV422SP_UV &&
+			outinfo->dvofmt == VPS_DC_DVOFMT_DOUBLECHAN) {
+		hdmi.cfg.input_df = HDMI_DF_YUV422;
+		hdmi.cfg.output_df = HDMI_DF_YUV422;
+	} else if (outinfo->dataformat == FVID2_DF_YUV444P &&
+			outinfo->dvofmt == VPS_DC_DVOFMT_TRIPLECHAN_EMBSYNC) {
+		hdmi.cfg.input_df = HDMI_DF_YUV444;
+		hdmi.cfg.output_df = HDMI_DF_YUV444;
+	} else {
+		hdmi.cfg.input_df = HDMI_DF_RGB;
+		hdmi.cfg.output_df = HDMI_DF_RGB;
+		return -EINVAL;
+	}
+	return 0;
+}
 static int hdmi_get_panel_edid(char *inbuf, void *data)
 {
 	int hpd_state;
