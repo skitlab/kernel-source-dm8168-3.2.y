@@ -2094,13 +2094,27 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 	{
 		struct ethtool_cmd ecmd;
 
-		if (portcmd(switch_config).port == 1) {
-			ecmd.phy_address = priv->slaves[0].phy->addr;
-			ret = phy_ethtool_gset(priv->slaves[0].phy, &ecmd);
-		} else if (portcmd(switch_config).port == 2) {
-			ecmd.phy_address = priv->slaves[1].phy->addr;
-			ret = phy_ethtool_gset(priv->slaves[1].phy, &ecmd);
-		} else {
+		if (portcmd(switch_config).port == 1)
+			if (priv->slaves[0].phy) {
+				ecmd.phy_address = priv->slaves[0].phy->addr;
+				ret = phy_ethtool_gset(priv->slaves[0].phy,
+						&ecmd);
+			} else {
+				printk(KERN_ERR "Phy not Found\n");
+				ret = -EFAULT;
+				break;
+			}
+		else if (portcmd(switch_config).port == 2)
+			if (priv->slaves[1].phy) {
+				ecmd.phy_address = priv->slaves[1].phy->addr;
+				ret = phy_ethtool_gset(priv->slaves[1].phy,
+						&ecmd);
+			} else {
+				printk(KERN_ERR "Phy not Found\n");
+				ret = -EFAULT;
+				break;
+			}
+		else {
 			printk(KERN_ERR "Invalid Arguments\n");
 			ret = -EFAULT;
 			break;
@@ -2141,13 +2155,27 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 	{
 		struct ethtool_cmd ecmd;
 
-		if (portcmd(switch_config).port == 1) {
-			ecmd.phy_address = priv->slaves[0].phy->addr;
-			ret = phy_ethtool_gset(priv->slaves[0].phy, &ecmd);
-		} else if (portcmd(switch_config).port == 2) {
-			ecmd.phy_address = priv->slaves[1].phy->addr;
-			ret = phy_ethtool_gset(priv->slaves[1].phy, &ecmd);
-		} else {
+		if (portcmd(switch_config).port == 1)
+			if (priv->slaves[0].phy) {
+				ecmd.phy_address = priv->slaves[0].phy->addr;
+				ret = phy_ethtool_gset(priv->slaves[0].phy,
+						&ecmd);
+			} else {
+				printk(KERN_ERR "Phy not Found\n");
+				ret = -EFAULT;
+				break;
+			}
+		else if (portcmd(switch_config).port == 2)
+			if (priv->slaves[1].phy) {
+				ecmd.phy_address = priv->slaves[1].phy->addr;
+				ret = phy_ethtool_gset(priv->slaves[1].phy,
+						&ecmd);
+			} else {
+				printk(KERN_ERR "Phy not Found\n");
+				ret = -EFAULT;
+				break;
+			}
+		else {
 			printk(KERN_ERR "Invalid Arguments\n");
 			ret = -EFAULT;
 			break;
