@@ -1049,7 +1049,7 @@ static int tvp7002_probe(struct i2c_client *c, const struct i2c_device_id *id)
 	if (error < 0)
 		goto found_error;
 
-	polarity_b = 0x01  | device->pdata->fid_polarity << 2
+	polarity_b = device->pdata->fid_polarity << 2
 			| device->pdata->sog_polarity << 1
 			| device->pdata->clk_polarity;
 	error = tvp7002_write(sd, TVP7002_MISC_CTL_3, polarity_b);
