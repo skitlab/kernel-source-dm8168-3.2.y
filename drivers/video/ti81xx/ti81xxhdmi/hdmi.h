@@ -75,28 +75,5 @@
 #define TI814x_CM_ALWON_SDIO_CLKCTRL			(0x15B0)
 
 
-/* \brief structure to keep track of pll configurations for a video mode */
-struct hdmi_pll_ctrl
-{
-	u32                  __n;
-	/**< Divider N for the PLL.*/
-	u32                  __m;
-	/**< Multiplier M for the PLL.*/
-	u32                  __m2;
-	/**< Divider M2 for the PLL.*/
-	u32                  clk_ctrl_value;
-	/**< For comparison based on the clkOut used */
-};
-
-// This data is specific to OMAP /DM814x Library, for HDMI PLL
-struct hdmi_pll_info {
-	u16 regn;
-	u16 regm;
-	u32 regmf;
-	u16 regm2;
-	u16 regsd;
-	u16 dcofreq;
-};
-
 #endif
 

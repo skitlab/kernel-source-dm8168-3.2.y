@@ -170,7 +170,7 @@ __u32 get_edid_timing_info(union HDMI_EDID_DTD *edid_dtd,
 				(limits->min_vert_freq <= hz) &&
 				(hz <= limits->max_vert_freq)) {
 				int area = timings->x_res * timings->y_res;
-				/* printk(KERN_INFO " -> %d: %dx%d\n", i, 
+				/* printk(KERN_INFO " -> %d: %dx%d\n", i,
 					timings->x_res, timings->y_res); */
 				if (area > max_area) {
 					max_area = area;
@@ -180,7 +180,7 @@ __u32 get_edid_timing_info(union HDMI_EDID_DTD *edid_dtd,
 		}
 		if (best_idx > 0) {
 			*timings = video_timings[best_idx];
-			printk(KERN_INFO "found best resolution: %dx%d (%d)\n",
+			printk(KERN_DEBUG "found best resolution: %dx%d (%d)\n",
 				timings->x_res, timings->y_res, best_idx);
 		}
 		return 0;
@@ -352,4 +352,37 @@ __u32 hdmi_tv_yuv_supported(__u8 *edid)
 		return 1;
 	}
 	return 0;
+}
+bool hdmi_tv_hdmi_supported(__u8 *edid)
+{
+	/*check with TV suppport HDMI or not
+	if no externsion block, HDMI is not supported*/
+	if (edid[0x7e] == 0x00)
+		return false;
+	else {
+		enum extension_edid_db db = DATABLOCK_VENDOR;
+		int offset, i, blocks, index = 0;
+		blocks = edid[0x7e];
+		for (i = 1; i <= blocks; i++) {
+			/*only version 3 or up and
+				CEA EDID is possible to support EDID*/
+			if ((edid[128 * i] == 0x02) &&
+			    (edid[128 * i + 1] >= 0x03)) {
+				/*if IEEE code(first three bytes)
+				  in Vender specific data block
+				  are 00-0C-00, it is HDMI*/
+				if (!hdmi_get_datablock_offset(
+				    &edid[index], db, &offset)) {
+					if ((edid[index + offset + 1] == 0x3) &&
+					(edid[index + offset + 2] == 0xc) &&
+					(edid[index + offset + 3] == 0x0))
+						return true;
+				}
+			}
+			index = i*128;
+		}
+
+	}
+	return false;
+
 }

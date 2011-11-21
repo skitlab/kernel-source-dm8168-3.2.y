@@ -289,5 +289,5 @@ __u32 hdmi_get_audio_format(__u8 *edid, struct audio_format *format);
 void hdmi_get_av_delay(__u8 *edid, struct latency *lat);
 void hdmi_deep_color_support_info(__u8 *edid, struct deep_color *format);
 __u32 hdmi_tv_yuv_supported(__u8 *edid);
-
+bool hdmi_tv_hdmi_supported(__u8 *edid);
 #endif
