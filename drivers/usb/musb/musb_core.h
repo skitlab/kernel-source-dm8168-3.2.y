@@ -520,6 +520,7 @@ struct musb {
 	u64			*orig_dma_mask;
 #endif
 	short			fifo_mode;
+	u8			txfifo_intr_enable;
 };
 
 #ifdef CONFIG_USB_GADGET_MUSB_HDRC

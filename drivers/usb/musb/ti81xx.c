@@ -544,6 +544,10 @@ void ti81xx_musb_enable(struct musb *musb)
 	       ((musb->epmask & USB_RX_EP_MASK) << USB_INTR_RX_SHIFT);
 	coremask = (0x01ff << USB_INTR_USB_SHIFT);
 
+	/* TX endpoint Empty FIFO interrupts */
+	if (musb->txfifo_intr_enable)
+		coremask |= (0xffff << 16);
+
 	coremask &= ~MUSB_INTR_SOF;
 
 	musb_writel(reg_base, USB_EP_INTR_SET_REG, epmask);
@@ -846,6 +850,14 @@ static irqreturn_t ti81xx_interrupt(int irq, void *hci)
 	musb->int_usb =	(usbintr & USB_INTR_USB_MASK) >> USB_INTR_USB_SHIFT;
 
 	DBG(4, "usbintr (%x) epintr(%x)\n", usbintr, epintr);
+
+	if (musb->txfifo_intr_enable && (usbintr & USB_INTR_TXFIFO_MASK)) {
+#ifdef CONFIG_USB_TI_CPPI41_DMA
+		cppi41_handle_txfifo_intr(musb);
+		ret = IRQ_HANDLED;
+		goto eoi;
+#endif
+	}
 	/*
 	 * DRVVBUS IRQs are the only proxy we have (a very poor one!) for
 	 * AM3517's missing ID change IRQ.  We need an ID change IRQ to
@@ -1016,7 +1028,6 @@ int ti81xx_musb_init(struct musb *musb)
 	/* mentor is at offset of 0x400 in am3517/ti81xx */
 	musb->mregs += USB_MENTOR_CORE_OFFSET;
 
-
 	/* Returns zero if e.g. not clocked */
 	rev = musb_readl(reg_base, USB_REVISION_REG);
 	if (!rev)
@@ -1074,6 +1085,21 @@ int ti81xx_musb_init(struct musb *musb)
 	/* set musb controller to host mode */
 	musb_platform_set_mode(musb, mode);
 
+#ifdef CONFIG_USB_TI_CPPI41_DMA
+	if (cpu_is_ti81xx() && ((omap_rev() == TI8168_REV_ES2_0) ||
+		(omap_rev() == TI8148_REV_ES2_0))) {
+
+		/* Enabling txfifo intr features, is not working
+		 * reliablely, hence disable txfifo intr logic
+		 */
+		musb->txfifo_intr_enable = 0;
+
+		if (musb->txfifo_intr_enable)
+			printk(KERN_DEBUG "TxFifo Empty intr disabled\n");
+		else
+			printk(KERN_DEBUG "TxFifo Empty intr enabled\n");
+	}
+#endif
 	/* enable babble workaround */
 	INIT_WORK(&musb->work, evm_deferred_musb_restart);
 	musb->enable_babble_work = 1;

@@ -52,4 +52,9 @@ extern struct usb_cppi41_info usb_cppi41_info[];
  */
 void cppi41_completion(struct musb *musb, u32 rx, u32 tx);
 
+/**
+ * cppi41_handle_txfifo_intr - Handles tx fifo empty interupts
+ * @musb:	the controller
+ */
+void cppi41_handle_txfifo_intr(struct musb *musb);
 #endif	/* _CPPI41_DMA_H_ */

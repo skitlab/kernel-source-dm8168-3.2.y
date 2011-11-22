@@ -130,6 +130,7 @@ struct cppi41 {
 	u32 teardown_reg_offs;		/* USB_TEARDOWN_REG offset */
 	u32 bd_size;
 	u8  inf_mode;
+	u8  txfifo_intr_enable;		/* txfifo empty interrupt logic */
 };
 
 struct usb_cppi41_info usb_cppi41_info[2];
@@ -1292,8 +1293,9 @@ void txdma_completion_work(struct work_struct *data)
 				epio = tx_ch->end_pt->regs;
 				csr = musb_readw(epio, MUSB_TXCSR);
 
-				if (csr & (MUSB_TXCSR_TXPKTRDY |
-					MUSB_TXCSR_FIFONOTEMPTY)) {
+				if (!cppi->txfifo_intr_enable &&
+					(csr & (MUSB_TXCSR_TXPKTRDY |
+					MUSB_TXCSR_FIFONOTEMPTY))) {
 					resched = 1;
 				} else {
 					tx_ch->tx_complete = 0;
@@ -1303,7 +1305,7 @@ void txdma_completion_work(struct work_struct *data)
 		}
 		spin_unlock_irqrestore(&musb->lock, flags);
 
-		if (resched) {
+		if (!cppi->txfifo_intr_enable && resched) {
 			resched = 0;
 			cond_resched();
 		} else {
@@ -1312,6 +1314,15 @@ void txdma_completion_work(struct work_struct *data)
 	}
 
 }
+
+void cppi41_handle_txfifo_intr(struct musb *musb)
+{
+	struct cppi41 *cppi;
+
+	cppi = container_of(musb->dma_controller, struct cppi41, controller);
+	schedule_work(&cppi->txdma_work);
+}
+EXPORT_SYMBOL(cppi41_handle_txfifo_intr);
 
 /**
  * cppi41_dma_controller_create -
@@ -1336,6 +1347,7 @@ cppi41_dma_controller_create(struct musb  *musb, void __iomem *mregs)
 	cppi->controller.channel_abort = cppi41_channel_abort;
 	cppi->cppi_info = (struct usb_cppi41_info *)&usb_cppi41_info[musb->id];;
 	cppi->en_bd_intr = cppi->cppi_info->bd_intr_ctrl;
+	cppi->txfifo_intr_enable = musb->txfifo_intr_enable;
 	INIT_WORK(&cppi->txdma_work, txdma_completion_work);
 
 	/* enable infinite mode only for ti81xx silicon rev2 */
@@ -1419,7 +1431,8 @@ static void usb_process_tx_queue(struct cppi41 *cppi, unsigned index)
 			 * failure with iperf.
 			 */
 			tx_ch->tx_complete = 1;
-			schedule_work(&cppi->txdma_work);
+			if (!cppi->txfifo_intr_enable)
+				schedule_work(&cppi->txdma_work);
 		}
 	}
 }
