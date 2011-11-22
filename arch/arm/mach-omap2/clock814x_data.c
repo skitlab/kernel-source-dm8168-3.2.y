@@ -291,18 +291,22 @@ static const struct clksel_rate div4_b3c1_rates[] = {
 /************************** Clocking Started *********************************/
 
 /* DCAN0 Func Clock(final) No PRCM */
-static struct clk dcan1_fck = {
-	.name		= "dcan1_fck",
+static struct clk dcan0_fck = {
+	.name		= "dcan0_fck",
 	.parent		= &osc0_clkin_ck,
-	.ops		= &clkops_null,
+	.ops		= &clkops_ti81xx_dflt_wait,
+	.enable_reg	= TI814X_CM_ALWON_DCAN_0_1_CLKCTRL,
+	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
 	.recalc		= &followparent_recalc,
 };
 
 /* DCAN1 Func Clock(final) No PRCM */
-static struct clk dcan2_fck = {
-	.name		= "dcan2_fck",
+static struct clk dcan1_fck = {
+	.name		= "dcan1_fck",
 	.parent		= &osc0_clkin_ck,
-	.ops		= &clkops_null,
+	.ops		= &clkops_ti81xx_dflt_wait,
+	.enable_reg	= TI814X_CM_ALWON_DCAN_0_1_CLKCTRL,
+	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
 	.recalc		= &followparent_recalc,
 };
 
@@ -1608,8 +1612,8 @@ static struct clk rtc_c32k_ick = {
 };
 
 /* dcan interface clocks(final) */
-static struct clk dcan1_ick = {
-	.name		= "dcan1_ick",
+static struct clk dcan0_ick = {
+	.name		= "dcan0_ick",
 	.parent		= &sysclk6_ck,
 	.ops		= &clkops_null,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
@@ -1617,8 +1621,8 @@ static struct clk dcan1_ick = {
 };
 
 /* dcan interface clocks(final) */
-static struct clk dcan2_ick = {
-	.name		= "dcan2_ick",
+static struct clk dcan1_ick = {
+	.name		= "dcan1_ick",
 	.parent		= &sysclk6_ck,
 	.ops		= &clkops_null,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
@@ -3770,8 +3774,8 @@ static struct omap_clk ti814x_clks[] = {
 	CLK(NULL,		"atl1_clk_ck",			&atl1_clk_ck,			CK_TI814X),
 	CLK(NULL,		"atl2_clk_ck",			&atl2_clk_ck,			CK_TI814X),
 	CLK(NULL,		"atl3_clk_ck",			&atl3_clk_ck,			CK_TI814X),
+	CLK(NULL,		"dcan0_fck",			&dcan0_fck,			CK_TI814X),
 	CLK(NULL,		"dcan1_fck",			&dcan1_fck,			CK_TI814X),
-	CLK(NULL,		"dcan2_fck",			&dcan2_fck,			CK_TI814X),
 	CLK(NULL,		"sr1_fck",			&sr1_fck,			CK_TI814X),
 	CLK(NULL,		"sr2_fck",			&sr2_fck,			CK_TI814X),
 	CLK(NULL,		"sr3_fck",			&sr3_fck,			CK_TI814X),
@@ -3884,8 +3888,8 @@ static struct omap_clk ti814x_clks[] = {
 	CLK(NULL,		"atl_ick",			&atl_ick,			CK_TI814X),
 	CLK(NULL,		"fdif_enb_ck",			&fdif_enb_ck,			CK_TI814X),
 	CLK(NULL,		"rtc_c32k_ick",			&rtc_c32k_ick,			CK_TI814X),
+	CLK(NULL,		"dcan0_ick",			&dcan0_ick,			CK_TI814X),
 	CLK(NULL,		"dcan1_ick",			&dcan1_ick,			CK_TI814X),
-	CLK(NULL,		"dcan2_ick",			&dcan2_ick,			CK_TI814X),
 	CLK(NULL,		"iss_dpll_ck",			&iss_dpll_ck,			CK_TI814X),
 	CLK(NULL,		"iss_ick",			&iss_ick,			CK_TI814X),
 	CLK(NULL,		"tppss_tso_ick",		&tppss_tso_ick,			CK_TI814X),

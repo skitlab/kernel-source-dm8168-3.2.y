@@ -19,6 +19,7 @@
 #include <linux/cpsw.h>
 #include <linux/ahci_platform.h>
 #include <linux/delay.h>
+#include <linux/can/platform/d_can.h>
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
@@ -163,6 +164,79 @@ static inline void omap_init_camera(void)
 	if (cpu_is_omap24xx())
 		platform_device_register(&omap2cam_device);
 #endif
+}
+
+#define TI814X_D_CAN_RAM_BASE			0x1000
+#define TI814X_D_CAN_NUM_MSG_OBJS		64
+#define TI814X_CTL_DCAN_RAMINIT_OFFSET		0x644
+#define TI814X_D_CAN_RAMINIT_START(n)		(0x1 << n)
+
+static void d_can_hw_raminit(unsigned int instance)
+{
+	u32 val;
+
+	/* Read the value */
+	val = __raw_readl(TI81XX_CTRL_REGADDR(TI814X_CTL_DCAN_RAMINIT_OFFSET));
+
+	/* Modify by setting "0" */
+	val &= ~TI814X_D_CAN_RAMINIT_START(instance);
+	__raw_writel(val, TI81XX_CTRL_REGADDR(TI814X_CTL_DCAN_RAMINIT_OFFSET));
+
+	/* Reset to one */
+	val |= TI814X_D_CAN_RAMINIT_START(instance);
+	__raw_writel(val, TI81XX_CTRL_REGADDR(TI814X_CTL_DCAN_RAMINIT_OFFSET));
+
+	/* Give some time delay for transition from 0 -> 1 */
+	udelay(1);
+}
+
+static struct d_can_platform_data ti814x_evm_d_can0_pdata = {
+	.d_can_offset		= 0,
+	.d_can_ram_offset	= TI814X_D_CAN_RAM_BASE,
+	.num_of_msg_objs	= TI814X_D_CAN_NUM_MSG_OBJS,
+	.dma_support		= false,
+	.parity_check		= false,
+	.fck_name		= "dcan0_fck",
+	.ick_name		= "dcan0_ick",
+};
+
+static struct resource ti814x_d_can0_resources[] = {
+	{
+		.start	= TI814X_D_CAN0_BASE,
+		.end	= TI814X_D_CAN0_BASE + 0x3FFF,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "int0",
+		.start	= TI814X_IRQ_DCAN0_INT0,
+		.end	= TI814X_IRQ_DCAN0_INT0,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.name	= "int1",
+		.start	= TI814X_IRQ_DCAN0_INT1,
+		.end	= TI814X_IRQ_DCAN0_INT1,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device ti814x_d_can0_device = {
+	.dev		= {
+		.platform_data = &ti814x_evm_d_can0_pdata,
+	},
+	.name		= "d_can",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(ti814x_d_can0_resources),
+	.resource	= ti814x_d_can0_resources,
+};
+
+static void ti814x_d_can_init(unsigned int instance)
+{
+	omap_mux_init_signal("dcan0_tx.dcan0_tx", 0);
+	omap_mux_init_signal("dcan0_rx.dcan0_rx", TI814X_INPUT_EN |
+						TI814X_PULL_UP);
+	d_can_hw_raminit(instance);
+	platform_device_register(&ti814x_d_can0_device);
 }
 
 #if defined(CONFIG_OMAP_MBOX_FWK) || defined(CONFIG_OMAP_MBOX_FWK_MODULE)
@@ -2669,6 +2743,7 @@ static int __init omap2_init_devices(void)
 	ti81xx_video_mux();
 #ifdef CONFIG_ARCH_TI814X
 	ti814x_enable_i2c2();
+	ti814x_d_can_init(0);
 #endif
 #ifdef CONFIG_MTD_CFI
 	ti814x_nor_init();
