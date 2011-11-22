@@ -104,6 +104,7 @@ int ti816x_fapll_set_rate(struct clk *clk, unsigned long rate);
 int ti816x_fapll_enable(struct clk *clk);
 void ti816x_fapll_disable(struct clk *clk);
 int ti816x_clksel_set_rate(struct clk *clk, unsigned long rate);
+void mcb_clk_sel_pins(int clk, int rate);
 
 void ti814x_init_dpll_parent(struct clk *clk);
 unsigned long ti814x_dpll_recalc(struct clk *clk);

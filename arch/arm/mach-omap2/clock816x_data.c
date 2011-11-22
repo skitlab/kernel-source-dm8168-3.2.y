@@ -1267,6 +1267,11 @@ static const struct clksel_rate div_1_2_rates[] = {
 	{ .div = 0 },
 };
 
+static const struct clksel_rate div_1_3_rates[] = {
+	{ .div = 1, .val = 3, .flags = RATE_IN_TI816X },
+	{ .div = 0 },
+};
+
 static const struct clksel sysclk18_mux_sel[] = {
 	{ .parent = &sys_32k_ck, .rates = div_1_0_rates },
 	{ .parent = &audio_pll_a_ck, .rates = div_1_1_rates },
@@ -1350,6 +1355,38 @@ static const struct clksel mcasp0to2_mux_sel[] = {
 	{ .parent = &sysclk21_ck, .rates = div_1_1_rates },
 	{ .parent = &sysclk22_ck, .rates = div_1_1_rates },
 	{ .parent = NULL}
+};
+
+static struct clk mcb_fsx_ck = {
+	.name		= "mcb_fsx_ck",
+	.ops		= &clkops_ti81xx_dflt_wait,
+	.enable_reg	= TI816X_CM_ALWON_MCBSP_FSX_EN,
+	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
+	.rate		= 0,
+};
+
+static struct clk mcb_clks_ck = {
+	.name		= "mcb_clks_ck",
+	.ops		= &clkops_ti81xx_dflt_wait,
+	.enable_reg	= TI816X_CM_ALWON_MCBSP_CLKS_EN,
+	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
+	.rate		= 0,
+};
+
+static struct clk pin_mux_out_ck = {
+	.name		= "pin_mux_out_ck",
+	.parent		= &mcb_fsx_ck,
+	.ops		= &clkops_null,
+	.recalc		= &omap2_clksel_recalc,
+	.round_rate	= &omap2_clksel_round_rate,
+	.set_rate	= &omap2_clksel_set_rate,
+};
+
+static const struct clksel mcbsp_mux_sel[] = {
+	{ .parent = &sysclk20_ck, .rates = div_1_0_rates },
+	{ .parent = &sysclk21_ck, .rates = div_1_1_rates },
+	{ .parent = &sysclk22_ck, .rates = div_1_2_rates },
+	{ .parent = &pin_mux_out_ck, .rates = div_1_3_rates}
 };
 
 static struct clk gpt1_fck = {
@@ -1547,6 +1584,22 @@ static struct clk rtc_c32k_fck = {
 	.recalc		= &followparent_recalc,
 };
 
+static struct clk mcbsp_fck = {
+	.name		= "mcbsp_fck",
+	.parent		= &sysclk20_ck,
+	.init		= &omap2_init_clksel_parent,
+	.clksel		= mcbsp_mux_sel,
+	.ops		= &clkops_ti81xx_dflt_wait,
+	.enable_reg	= TI81XX_CM_ALWON_MCBSP_CLKCTRL,
+	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
+	.clksel_reg	= TI81XX_CM_DPLL_AUDIOCLK_MCBSP_CLKSEL,
+	.clksel_mask	= TI81XX_CLKSEL_0_1_MASK,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &omap2_clksel_recalc,
+	.round_rate	= &omap2_clksel_round_rate,
+	.set_rate	= &ti816x_clksel_set_rate,
+};
+
 /*
  * clkdev
  *
@@ -1661,6 +1714,10 @@ static struct omap_clk ti816x_clks[] = {
 	CLK("davinci-mcasp.1",	NULL,			&mcasp1_fck,		CK_TI816X),
 	CLK("davinci-mcasp.2",	NULL,			&mcasp2_fck,		CK_TI816X),
 	CLK(NULL,		"rtc_c32k_fck",		&rtc_c32k_fck,		CK_TI816X),
+	CLK("hdmi-dai", 	NULL,			&mcbsp_fck,		CK_TI816X),
+	CLK(NULL,		"mcb_fsx_ck",		&mcb_fsx_ck,		CK_TI816X),
+	CLK(NULL,		"mcb_clks_ck",		&mcb_clks_ck,		CK_TI816X),
+	CLK(NULL,		"pin_mux_out_ck",	&pin_mux_out_ck,	CK_TI816X),
 };
 
 int __init ti816x_clk_init(void)
@@ -1694,4 +1751,28 @@ int __init ti816x_clk_init(void)
 	clk_enable_init_clocks();
 
 	return 0;
+}
+/*
+ *  This function is used to select the input clock from
+ *  PINCTRL149 or PINCTRL153 (MCA2_ASFX/MCB_SFX or MCA2_AHCLKR/MCB_CLKS)
+ *  clk 1 - MCA2_ASFX
+ *  clk 2 - MCA2_AHCLKR
+ *  rate  - rate of the external clk
+ */
+void mcb_clk_sel_pins(int clk, int rate)
+{
+	switch (clk) {
+	case 1:
+		mcb_fsx_ck.rate = rate;
+		clk_enable(&mcb_fsx_ck);
+		clk_reparent(&pin_mux_out_ck, &mcb_fsx_ck);
+		break;
+	case 2:
+		mcb_clks_ck.rate = rate;
+		clk_enable(&mcb_clks_ck);
+		clk_reparent(&pin_mux_out_ck, &mcb_clks_ck);
+		break;
+	default:
+		break;
+	}
 }
