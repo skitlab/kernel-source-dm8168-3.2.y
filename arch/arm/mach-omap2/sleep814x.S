@@ -23,154 +23,195 @@
 
 #include "cm2xxx_3xxx.h"
 #include "prm2xxx_3xxx.h"
-#include "sdrc.h"
+#include "cm-regbits-81xx.h"
 #include "control.h"
 #include "cm81xx.h"
 
-/* DDR PMCR configuration for Self-refresh
+/*
+ * DDR PMCR configuration for Self-refresh
  * LP_MOD - Self refresh
- * SR_TIM - 16 ddr cycles
-*/
-#define ENTER_SELF_REFRESH				0x210
+ * SR_TIM - 16 ddr cycles lsb = 0x10... for now, use 0
+ */
+#define ENTER_SELF_REFRESH			0x200
 
 /* Wait time for cke low (~1ms) */
-#define CKE_WAIT_LOOP_COUNT				1000
+#define CKE_WAIT_LOOP_COUNT			1000
 
 /* DLL wait count - 1s (should be >10ms) */
-#define DLL_LOCK_WAIT_COUNT				3000000
+#define DLL_LOCK_WAIT_COUNT			0x300000
 
 /* EMIF clk Gate reg val */
-#define EMIF_DDR_PHY_CLK_GATE_VAL			0x3
+#define EMIF_DDR_PHY_CLK_GATE_VAL		0x3
 
-/* DDR PLL control */
-#define DDR_PLL_DIS_TINITZ				0xfffffffe
-#define DDR_PLL_EN_TINITZ				0x1
-#define DDR_PLL_CLEAR_IDLE_BIT				0xff7fffff
-#define DDR_PLL_CONTROL	TI814X_PLL_REGADDR(DDR_PLL_BASE + ADPLLJ_CLKCTRL)
-#define DDR_PLL_STATUS	TI814X_PLL_REGADDR(DDR_PLL_BASE + ADPLLJ_STATUS)
+/* OSC1_CTRL: disable OSC1 */
+#define OSC1_DISABLE				(1 << 3)
 
-/*
- * ======================
- * == Idle entry point ==
- * ======================
+/* Offsets from PLL base */
+#define DDR_PLL_CONTROL_OFFSET			(DDR_PLL_BASE + ADPLLJ_CLKCTRL)
+#define DDR_PLL_STATUS_OFFSET			(DDR_PLL_BASE + ADPLLJ_STATUS)
+#define DEEPSLEEP_CONTROL			0x324
+#define DEEPSLEEP_STATUS			0x328
+
+/* Offsets from control module base */
+#define EMIF_CLK_GATE_OFFSET			0x0694	/* PG 2.x only */
+#define OSC1_CTRL				0x046C
+
+/**
+ * ti814x_cpu_suspend - Put DDR in self refresh and enter processor
+ * idle/DeepSleep.
+ *
+ * This routine is supposed to be executed from internal RAM and expects the
+ * array of base addresses of various registers required to enter idle are
+ * passed in r0 _strictly_ in following order:
+ * 	1) EMIF0 base virtual address [r0]
+ * 	2) EMIF1 base virtual address [r1]
+ * 	3) DMM base virtual address [r2]
+ * 	4) PLL base virtual address [r3]
+ * 	5) Control module base virtual address [r4]
+ * 	6) Flag indicating whether to proceed for DeepSleep (non-zero = yes)
+ * 	[r5]
+ *
+ * The code loads these addresses taking r0 value as reference to the array in
+ * registers starting from r0, that is, EMIF0 base virtual address goes into r0
+ * and so on till r5. Note that we still keep a room till r6 register and use
+ * rest in the code for other purpose (r7 to r12).
+ *
+ * Notes:
+ * 	1) Support DeepSleep is untested so far
+ *	2) It is assumed that no TLB management is required for this mode. E.g.,
+ *	not doing any invalidate operation on TLBs.
+ *	3) All targets for load/store in this file during the time DDR is in
+ *	self refresh need to be ensured having TLB entries and not lead a TLB
+ *	miss.
+ *	4) It is assumed that the DeepSleep wakeup signal polatiry configuration
+ *	is done outside and *before* this routine and thus, just setting
+ *	DSENABLE bit should lead to entry in DeepSleep state.
+ *
+ *	***DeepSleep support is currently incomplete & untested***
  */
 
 ENTRY(ti814x_cpu_suspend)
 	stmfd	sp!, {r0-r12, lr}	@ save registers on stack
 
-/* Accessing some register may result in tlb miss and lead to page table walk
- * which is in ddr. Accessing ddr while its in self-refresh may result
- * in content loss, to prevent this access all registers once before
- * entering self-refresh, so that page table entries are available in tlb
- */
-load_regs_to_mem:
-	ldr	r1, _emif0_base
-	ldr	r1, _emif1_base
-	ldr	r1, _dmm_base
-	ldr	r1, emif_pmcr_offset
-	ldr	r1, enter_self_refresh
-	ldr	r1, dmm_lisa_0
-	ldr	r1, emif_clk_gate
-	ldr	r1, ddr_pll_control
-	ldr	r1, ddr_pll_status
-	ldr	r1, _ddr_pll_dis_tinitz
-	ldr	r1, _ddr_pll_en_tinitz
-	ldr	r1, _ddr_pll_clear_idle
-	ldr	r1, _dll_wait_count
-	ldr	r1, _wait_count
-	ldr	r1, emif_phy_clk_gate_val
+	/*
+	 * Flush cache - we rely on current implementation of
+	 * v7_flush_dcache_all not to destroy r8 (which is the case as of
+	 * 2.6.37, else, may need to maintain private stack to restore.
+	 *
+	 * This also ensures isb.
+	 */
+	mov	r8, r0			@ same arg list passed to us
+	ldr	r0, dcache_flush
+	blx	r0
 
-/* Enter self refresh by configuring PMCR register of EMIF 0/1 */
+	/* Same as v7_flush_icache_all - saving a branch */
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c5, 0		@ I+BTB cache invalidate
+
+	ldm	r8, {r0-r5}		@ gather virtual addresses of cfg regs
+
+	/*
+	 * Accessing register space  may result in tlb miss and cause ARM doing
+	 * page table walk in ddr. To avoid any such indirect access to DDR when
+	 * it is in self refresh (which may result in data loss), we do dummy
+	 * loads from, respective bases (assuming we only go within 4KB around
+	 * them) to ensure the translations be in TLB.
+	 *
+	 * Note: Since the DeepSleep is register is from PLL base and we really
+	 * treat r5 as value, no dummy load is made.
+	 */
+	ldr	r8, [r0]
+	ldr	r8, [r1]
+	ldr	r8, [r2]
+	ldr	r8, [r3]
+	ldr	r8, [r4]
+
+	/* DDR self refresh - NO ACCESS TO DDR FROM THIS POINT */
 enter_ddr_self_refresh:
-	ldr	r1, _emif0_base
-	ldr	r4, emif_pmcr_offset
-	add	r1, r1, r4
-	ldr	r3, enter_self_refresh
-	str	r3, [r1]
-	ldr	r1, _emif1_base
-	add	r1, r1, r4
-	str	r3, [r1]
+	mov	r8, #ENTER_SELF_REFRESH
+	str	r8, [r0, #TI814X_PMCR]		@ EMIF0
+	str	r8, [r1, #TI814X_PMCR]		@ EMIF1
+
 wait_for_cke_low:
-	ldr	r1, _wait_count
-cke_loop:
-	subs	r1, r1, #0x1
-	bne	cke_loop
+	ldr	r8, [r4, #EMIF_CLK_GATE_OFFSET]
+	and	r8, r8, #0xc
+	cmp	r8, #0
+	bne	wait_for_cke_low
 
-/* Once in self refresh emif should not be accessed so configure dmm
- * for no emif, only mmr access is allowed
- * Save the configuration to r9,r10,r11 and r12 to restore later
- */
+	/*
+	 * Once in self refresh, emif should not be accessed so configure dmm
+	 * for no emif, only mmr access is allowed
+	 *
+	 * We need to save DMM configuration context here - have option to use
+	 * area in the OCMC RAM but since currently we don't destroy r9-r12,
+	 * skipping that part to save time (see block inside #if 0).
+	 */
 configure_dmm_for_no_emif:
-	ldr	r4, _dmm_base
-	ldr	r1, dmm_lisa_0
-	add	r1, r1, r4
-	ldr	r2, [r1]
-	mov	r9, r2
-	mov	r3, #0x0
-	str	r3, [r1]
-	ldr	r1, dmm_lisa_1
-	add	r1, r1, r4
-	ldr	r2, [r1]
-	mov	r10, r2
-	str	r3, [r1]
-	ldr	r1, dmm_lisa_2
-	add	r1, r1, r4
-	ldr	r2, [r1]
-	mov	r11, r2
-	str	r3, [r1]
-	ldr	r1, dmm_lisa_3
-	add	r1, r1, r4
-	ldr	r2, [r1]
-	mov	r12, r2
-	str	r3, [r1]
+	add	r8, r2, #TI814X_DMM_LISA_MAP_0
+	ldm	r8, {r9-r12}
 
-/* Gate DDR PHY 0/1 clocks */
+#if 0
+	adr	r8, dmm_context
+	stm	r8, {r9-r12}
+#endif
+
+	mov	r8, #0x0
+	str	r8, [r2, #TI814X_DMM_LISA_MAP_0]
+	str	r8, [r2, #TI814X_DMM_LISA_MAP_1]
+	str	r8, [r2, #TI814X_DMM_LISA_MAP_2]
+	str	r8, [r2, #TI814X_DMM_LISA_MAP_3]
+
+	/* Gate DDR PHY 0/1 clocks */
 gate_dfi_clocks:
-	ldr	r1, emif_clk_gate
-	ldr	r3, emif_phy_clk_gate_val
-	str	r3, [r1]
+	mov	r8, #EMIF_DDR_PHY_CLK_GATE_VAL
+	str	r8, [r4, #EMIF_CLK_GATE_OFFSET]
 
-/* Place DDR_PLL in Bypass, to save power
- * Clearing tinitz drives pll to bypass
- */
+	/*
+	 * Place DDR_PLL in Bypass, to save power
+	 * Clearing tinitz drives pll to bypass
+	 */
 ddr_pll_enter_bypass:
-	ldr	r1, ddr_pll_control
-	ldr	r2, [r1]
-	ldr	r3, _ddr_pll_dis_tinitz
-	and	r2, r2, r3
-	str	r2, [r1]
+	ldr	r8, [r3, #DDR_PLL_CONTROL_OFFSET]
+	bic	r8, r8, #1				@ clear bit 0
+	str	r8, [r3, #DDR_PLL_CONTROL_OFFSET]
 
-/* Wait for Frequency and Phase lock bits to clear */
-wait_for_freq_unlock:
-	ldr	r1, ddr_pll_status
+	/* Wait for Frequency and Phase lock bits to clear */
 unlock_loop:
-	ldr	r2, [r1]
-	mov	r3, #0x600
-	and	r2, r2, r3
-	cmp	r2, #0x0
+	ldr	r8, [r3, #DDR_PLL_STATUS_OFFSET]
+	and	r8, r8, #0x600
+	cmp	r8, #0x0
 	bne	unlock_loop
 
-/* Execute wfi on A8 */
-ti814x_do_wfi:
+ti814x_do_ds_wfi:
 
-/* Data memory barrier and Data sync barrier */
-	dmb
 	dsb
-/*
- * ===================================
- * == WFI instruction => Enter idle ==
- * ===================================
- */
 
-	wfi				@ wait for interrupt
+	/*
+	 * XXX: Perhaps it is better to use a branch than all conditional
+	 * instructions below. To be analyzed.
+	 */
 
-/*
- * ===================================
- * == Resume path ==
- * ===================================
- */
+	cmp	r5, #0
 
-/* NOPs to clear pipe line */
+	ldrne	r8, [r4, #OSC1_CTRL]
+	orrne	r8, r8, #OSC1_DISABLE
+	strne	r8, [r4, #OSC1_CTRL]		@ OSC1 disable in DS mode
+
+	ldrne	r8, [r3, #DEEPSLEEP_CONTROL]
+	orrne	r8, r8, #TI814X_DEEPSLEEP_CTRL_DSENABLE_MASK
+
+	strne	r8, [r3, #DEEPSLEEP_CONTROL]	@ enter DeepSleep
+	ldrne	r8, [r3, #DEEPSLEEP_CONTROL]	@ and readback
+
+	wfieq					@ or WFI
+
+	/*
+	 * XXX: Ensure sanity before resume path: specifically required for DS
+	 * else the DS disable instruction gets executed (see below) and we
+	 * never enter DS. None of the isb/dsb/dmb help here.
+	 *
+	 * To be analyzed the exact constraint. For now, use this as quick fix.
+	 */
 	nop
 	nop
 	nop
@@ -188,134 +229,118 @@ ti814x_do_wfi:
 	nop
 	nop
 
-/* Bring pll out of bypass
- * Setting tinitz starts locking sequence
- * DDR_PLL will be locked to the same frequncy as before entering self-refresh
- * Clear idle bypass bit to ensure it does not go into idle
- * Wait till Frequency is locked
- */
+	/*
+	 * ===================================
+	 * == Resume path ==
+	 * ===================================
+	 */
+
+	dsb
+
+	bicne	r8, r8, #TI814X_DEEPSLEEP_CTRL_DSENABLE_MASK
+	strne   r8, [r3, #DEEPSLEEP_CONTROL]
+
+	ldrne	r8, [r4, #OSC1_CTRL]
+	bicne	r8, r8, #OSC1_DISABLE
+	strne	r8, [r4, #OSC1_CTRL]
+
+	/*
+	 * Bring pll out of bypass - Setting tinitz starts locking sequence
+	 *
+	 * DDR_PLL will be locked to the same frequncy as before entering
+	 * self-refresh. Clear idle bypass bit (automatically set as part of
+	 * TINITZ clear) to ensure it does not go into idle Wait till Frequency
+	 * is locked
+	 */
 ddr_pll_exit_bypass:
-	ldr	r1, ddr_pll_control
-	ldr	r2, [r1]
-	ldr	r3, _ddr_pll_en_tinitz
-	orr	r2, r2, r3
-	str	r2, [r1]
-clear_idle_bit:
-	ldr	r1, ddr_pll_control
-	ldr	r2, [r1]
-	ldr	r3, _ddr_pll_clear_idle
-	and	r2, r2, r3
-	str	r2, [r1]
+	ldr	r8, [r3, #DDR_PLL_CONTROL_OFFSET]
+	orr	r8, r8, #1					@ set bit 0
+	str	r8, [r3, #DDR_PLL_CONTROL_OFFSET]
 
-/* Wait till Frequency lock and Phase lock bits are asserted */
-wait_for_freq_lock:
-	ldr	r1, ddr_pll_status
+clear_idle_bit:
+	ldr	r8, [r3, #DDR_PLL_CONTROL_OFFSET]
+	bic	r8, r8, #1 << 23				@ clear bit 23
+	str	r8, [r3, #DDR_PLL_CONTROL_OFFSET]
+
+	/* Wait till Frequency lock and Phase lock bits are asserted */
 lock_loop:
-	ldr	r2, [r1]
-	mov	r3, #0x600
-	and	r2, r2, r3
-	cmp	r2, #0x600
+	ldr	r8, [r3, #DDR_PLL_STATUS_OFFSET]
+	and	r8, r8, #0x600
+	cmp	r8, #0x600
 	bne	lock_loop
 
-/* Frequency lock bit is asserted as soon as frequency is
- * +/- 1% close to the target frequency, so when frequency is locked
- * we might have not achieved final frequency.
- * Wait for some time to allow frequency synthesis(this should take some ns)
- */
+	/*
+	 * Frequency lock bit is asserted as soon as frequency is +/- 1% close
+	 * to the target frequency, so when frequency is locked we might have
+	 * not achieved final frequency.
+	 *
+	 * Wait for some time to allow frequency synthesis(this should take some
+	 * ns)
+	 */
 wait_for_pll_synthesis:
-	ldr	r1, _wait_count
+	mov	r7, #CKE_WAIT_LOOP_COUNT
 pll_loop:
-	subs	r1, r1, #0x1
+	subs	r7, r7, #0x1
 	bne	pll_loop
 
-/* Ungate DDR pHY 0/1 Clocks */
+	/* Ungate DDR pHY 0/1 Clocks */
 ungate_dfi_clocks:
-	ldr	r1, emif_clk_gate
-	mov	r3, #0x0
-	str	r3, [r1]
+	mov	r8, #0x0
+	str	r8, [r4, #EMIF_CLK_GATE_OFFSET]
 
-/* Wait for DLL to lock before configuring dmm */
+	/* Wait for DLL to lock before configuring dmm */
 wait_for_dll_lock:
-	ldr	r1, _dll_wait_count
+	mov	r7, #DLL_LOCK_WAIT_COUNT
 dll_lock_loop:
-	subs	r1, r1, #0x1
+	subs	r7, r7, #0x1
 	bne	dll_lock_loop
-/* Restore DMM configuration back to what it was before self-refresh
- * We have saved configuration to r9,r10,r11 and r12
- */
+
+	/*
+	 * Restore DMM configuration back to what it was before self-refresh
+	 *
+	 * We could also save configuration to r9,r10,r11 and r12.
+	 */
 reconfigure_dmm:
-	ldr	r4, _dmm_base
-	ldr	r1, dmm_lisa_0
-	add	r1, r1, r4
-	str	r9, [r1]
-	ldr	r1, dmm_lisa_1
-	add	r1, r1, r4
-	str	r10, [r1]
-	ldr	r1, dmm_lisa_2
-	add	r1, r1, r4
-	str	r11, [r1]
-	ldr	r1, dmm_lisa_3
-	add	r1, r1, r4
-	str	r12, [r1]
+#if 0
+	adr	r8, dmm_context
+	ldm	r8, {r9-r12}
+#endif
+	add	r8, r2, #TI814X_DMM_LISA_MAP_0
+	stm	r8, {r9-r12}
 
-/* prevent ddr going in to self refresh in idle time */
+	/* Prevent ddr going in to self refresh in idle time */
 block_self_refresh:
-	ldr	r1, _emif0_base
-	ldr	r4, emif_pmcr_offset
-	add	r1, r1, r4
-	mov	r3, #0x0
-	str	r3, [r1]		@ write value to register
-	ldr	r1, _emif1_base
-	add	r1, r1, r4
-	str	r3, [r1]
+	mov	r8, #0
+	str	r8, [r0, #TI814X_PMCR]		@ EMIF0
+	str	r8, [r1, #TI814X_PMCR]		@ EMIF1
 
-/*
- *=====================================
- * Exit Point
- *=====================================
- */
+wait_for_cke_high:
+	ldr	r8, [r4, #EMIF_CLK_GATE_OFFSET]
+	and	r8, r8, #0xc
+	cmp	r8, #0xc
+	bne	wait_for_cke_high
 
-/* Restore registers from stack and return to ddr */
+	dsb
+
+	/* DDR ACCESS OK FROM THIS POINT */
+
+	/*
+	 *=====================================
+	 * Exit Point
+	 *=====================================
+	 */
+
 restore_regs_pc:
 	ldmfd	sp!, {r0-r12, pc}	@ restore regs and return
 
-/* Macros - Register addresses, constants */
-_emif0_base:
-	.word emif0_base
-_emif1_base:
-	.word emif1_base
-_dmm_base:
-	.word dmm_base
-emif_pmcr_offset:
-	.word TI814X_PMCR
-dmm_lisa_0:
-	.word TI814X_DMM_LISA_MAP_0
-dmm_lisa_1:
-	.word TI814X_DMM_LISA_MAP_1
-dmm_lisa_2:
-	.word TI814X_DMM_LISA_MAP_2
-dmm_lisa_3:
-	.word TI814X_DMM_LISA_MAP_3
-emif_clk_gate:
-	.word TI814X_PLL_CMGC_EMIF_CLK_GATE
-ddr_pll_control:
-	.word DDR_PLL_CONTROL
-ddr_pll_status:
-	.word DDR_PLL_STATUS
-_ddr_pll_dis_tinitz:
-	.word DDR_PLL_DIS_TINITZ
-_ddr_pll_en_tinitz:
-	.word DDR_PLL_EN_TINITZ
-_ddr_pll_clear_idle:
-	.word DDR_PLL_CLEAR_IDLE_BIT
-_wait_count:
-	.word CKE_WAIT_LOOP_COUNT
-_dll_wait_count:
-	.word DLL_LOCK_WAIT_COUNT
-enter_self_refresh:
-	.word ENTER_SELF_REFRESH
-emif_phy_clk_gate_val:
-	.word EMIF_DDR_PHY_CLK_GATE_VAL
+#if 0
+dmm_context:
+	.space  4 * 4			@ 4 registers
+#endif
+
+dcache_flush:
+	.word	v7_flush_dcache_all
+
 /* Suspend function size */
 ENTRY(ti814x_cpu_suspend_sz)
 	.word	. - ti814x_cpu_suspend

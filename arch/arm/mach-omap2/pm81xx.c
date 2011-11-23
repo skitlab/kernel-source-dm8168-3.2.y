@@ -35,6 +35,36 @@
 #include <plat/serial.h>
 #include <plat/sram.h>
 
+/**
+ * suspend_cfg_addr_list - Index for addresses of configuration registers
+ *
+ * This enum is used to index the array passed to suspend routine with various
+ * configuration register addresses.
+ *
+ * Since these are used to load into registers by suspend code, care must be
+ * taken not to add too many entries here and to always be in sync with the
+ * suspend code in arm/mach-omap2/sleep814x.S for any change made here and vice
+ * verse.
+ *
+ * XXX: Passing DEEPSLEEP_CTRL for now as we don't support DS by default and
+ * check for non-zero for this entry enables the suspend code to go ahead and
+ * enter DS. We set this address only if enter_deep_sleep = true, else pass 0.
+ *	=> This will be removed in later revisions when we support DeepSleep
+ *	=> Though we pass real addres shere, the assembler code in sleep81xx.S
+ *	is only interested in non zero value.
+ */
+enum suspend_cfg_addrs {
+	EMIF0_BASE = 0,
+	EMIF1_BASE,
+	DMM_BASE,
+	PLL_BASE,
+	CTRL_BASE,
+	DEEPSLEEP_CTRL,
+	SUSPEND_CFG_ADDRS_END /* Must be the last entry */
+};
+
+void __iomem *suspend_cfg_addr_list[SUSPEND_CFG_ADDRS_END];
+
 struct power_state {
 	struct powerdomain *pwrdm;
 	u32 next_state;
@@ -48,11 +78,7 @@ static bool enter_deep_sleep;
 static bool turnoff_idle_pwrdms;
 static LIST_HEAD(pwrst_list);
 
-void __iomem *emif0_base;
-void __iomem *emif1_base;
-void __iomem *dmm_base;
-
-static void (*_ti814x_ddr_self_refresh)(void);
+static void (*_ti814x_ddr_self_refresh)(void __iomem *);
 
 #ifdef CONFIG_SUSPEND
 static int ti81xx_pwrdms_set_suspend_state(struct powerdomain *pwrdm)
@@ -80,7 +106,7 @@ static int ti81xx_pwrdms_read_suspend_state(struct powerdomain *pwrdm)
 
 static int ti81xx_pm_enter_ddr_self_refresh(void)
 {
-	_ti814x_ddr_self_refresh();
+	_ti814x_ddr_self_refresh(&suspend_cfg_addr_list[0]);
 	return 0;
 }
 
@@ -228,10 +254,14 @@ static void __init prcm_setup_regs(void)
 
 void ti81xx_enable_deep_sleep(u32 deep_sleep_enabled)
 {
-	if (deep_sleep_enabled)
+	if (deep_sleep_enabled) {
 		enter_deep_sleep = true;
-	else
+		suspend_cfg_addr_list[DEEPSLEEP_CTRL] =
+			TI814X_PLL_CMGC_DEEPSLEEP_CTRL;
+	} else {
 		enter_deep_sleep = false;
+		suspend_cfg_addr_list[DEEPSLEEP_CTRL] = 0;
+	}
 }
 
 void ti81xx_powerdown_idle_pwrdms(u32 pwrdown_idle_pwrdms)
@@ -252,13 +282,17 @@ static void ti814x_ddr_dynamic_pwr_down(void)
 {
 	u32 v;
 
-	v = __raw_readl(emif0_base + TI814X_DDR_PHY_CTRL);
+	v = __raw_readl(suspend_cfg_addr_list[EMIF0_BASE] +
+			TI814X_DDR_PHY_CTRL);
 	v |= (TI814X_DDR_PHY_DYN_PWRDN_MASK);
-	__raw_writel(v, (emif0_base + TI814X_DDR_PHY_CTRL));
+	__raw_writel(v, (suspend_cfg_addr_list[EMIF0_BASE] +
+			TI814X_DDR_PHY_CTRL));
 
-	v = __raw_readl(emif1_base + TI814X_DDR_PHY_CTRL);
+	v = __raw_readl(suspend_cfg_addr_list[EMIF1_BASE] +
+			TI814X_DDR_PHY_CTRL);
 	v |= (TI814X_DDR_PHY_DYN_PWRDN_MASK);
-	__raw_writel(v, (emif1_base + TI814X_DDR_PHY_CTRL));
+	__raw_writel(v, (suspend_cfg_addr_list[EMIF1_BASE] +
+			TI814X_DDR_PHY_CTRL));
 
 }
 /**
@@ -279,14 +313,18 @@ static int __init ti81xx_pm_init(void)
 
 	prcm_setup_regs();
 
-	emif0_base = ioremap(TI814X_EMIF0_BASE, SZ_64);
-	WARN_ON(!emif0_base);
+	suspend_cfg_addr_list[EMIF0_BASE] = ioremap(TI814X_EMIF0_BASE, SZ_64);
+	WARN_ON(!suspend_cfg_addr_list[EMIF0_BASE]);
 
-	emif1_base = ioremap(TI814X_EMIF1_BASE, SZ_64);
-	WARN_ON(!emif1_base);
+	suspend_cfg_addr_list[EMIF1_BASE] = ioremap(TI814X_EMIF1_BASE, SZ_64);
+	WARN_ON(!suspend_cfg_addr_list[EMIF1_BASE]);
 
-	dmm_base = ioremap(TI814X_DMM_BASE, SZ_64);
-	WARN_ON(!dmm_base);
+	suspend_cfg_addr_list[DMM_BASE] = ioremap(TI814X_DMM_BASE, SZ_64);
+	WARN_ON(!suspend_cfg_addr_list[DMM_BASE]);
+
+	suspend_cfg_addr_list[PLL_BASE] = TI814X_PLL_REGADDR(0);
+	suspend_cfg_addr_list[CTRL_BASE] =
+				TI81XX_L4_SLOW_IO_ADDRESS(TI81XX_CTRL_BASE);
 
 	ti814x_ddr_dynamic_pwr_down();
 
