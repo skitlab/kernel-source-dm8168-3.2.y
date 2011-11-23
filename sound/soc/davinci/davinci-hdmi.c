@@ -25,17 +25,20 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/slab.h>
+#include <linux/clk.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
 
+#include <plat/cpu.h>
 #include <plat/dma.h>
 #include "davinci-pcm.h"
 #include "davinci-mcasp.h"
 #include <plat/hdmi_lib.h>
 
+#define HDMI_MCBSP_CLK_PARENT	"sysclk22_ck"
 #define DAVINCI_HDMI_RATES	(SNDRV_PCM_RATE_48000	\
 				| SNDRV_PCM_RATE_32000	\
 				| SNDRV_PCM_RATE_44100	\
@@ -139,6 +142,8 @@ static int davinci_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 	struct hdmi_audio_format audio_fmt;
 	struct hdmi_audio_dma audio_dma;
 	const struct audio_timings *timing;
+	struct davinci_audio_dev *dev = snd_soc_dai_get_drvdata(dai);
+	long mclk_rate = 0;
 
 	/* TODO Modify the N/CTS value selection based on the Video clkc */
 	tdms = hdmi_get_video_timing();
@@ -155,6 +160,25 @@ static int davinci_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 	audio_cfg.cts = timing->audio_cts;
 
 	DBG("FS: %d N: %d CTS: %d\n", rate, audio_cfg.n, audio_cfg.cts);
+
+	/*
+	 * Auto CTS mode support only in ti8168 PG2.0
+	 * Auto CTS mode requires MCLK must be present
+	 * and the rate is MCLK = 128 *Fs = TMDS * (N/CTS)
+	 * McBSP clock is used as MCLK in PG2.0
+	 */
+	if (cpu_is_ti816x() && TI8168_REV_ES2_0 == omap_rev()) {
+		/* MCLK = 128 * Fs */
+		mclk_rate = rate * 128;
+
+		/* set the new rate */
+		ret = clk_set_rate(dev->clk, mclk_rate);
+		if (ret < 0) {
+			printk(KERN_ERR "Audio MCLK set rate failed %ld\n",
+								mclk_rate);
+			return -EINVAL;
+		}
+	}
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -199,8 +223,15 @@ static int davinci_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 
 	/* TODO: Is this configuration correct? */
 	audio_cfg.aud_par_busclk = 0;
-	audio_cfg.cts_mode = CTS_MODE_SW;
-	DBG("CTS mode is sw\n");
+
+	/* Auto CTS mode support only in ti8168 PG2.0 */
+	if (cpu_is_ti816x() && TI8168_REV_ES2_0 == omap_rev()) {
+		audio_cfg.cts_mode = CTS_MODE_HW;
+		DBG("CTS mode is HW\n");
+	} else {
+		audio_cfg.cts_mode = CTS_MODE_SW;
+		DBG("CTS mode is SW\n");
+	}
 
 	hdmi_core_audio_config(av_name, &audio_cfg);
 	hdmi_core_audio_mode_enable(av_name);
@@ -234,12 +265,47 @@ static __devinit int davinci_hdmi_probe(struct platform_device *pdev)
 	struct davinci_pcm_dma_params *dma_data;
 	struct snd_hdmi_platform_data *pdata;
 	struct davinci_audio_dev *dev;
+	int ret = 0;
+	struct clk *parent;
 
 	dev = kzalloc(sizeof(struct davinci_audio_dev), GFP_KERNEL);
 	if (!dev)
 		return  -ENOMEM;
 
 	pdata = pdev->dev.platform_data;
+
+	/*
+	 * Auto CTS mode support only in ti8168 PG2.0
+	 */
+	if (cpu_is_ti816x() && TI8168_REV_ES2_0 == omap_rev()) {
+		dev->clk = clk_get(&pdev->dev, NULL);
+		if (IS_ERR(dev->clk)) {
+			printk(KERN_ERR "%s Clock get Error\n", pdev->name);
+			ret = -ENODEV;
+		}
+
+		/*
+		 * TI8168 PG2.0 support Auto CTS which needs MCLK .
+		 * McBSP clk is used as MCLK in PG2.0 which have 4 parent clks
+		 * sysclk20, sysclk21, sysclk21 and CLKS(external)
+		 * Currently we are using sysclk22 as the parent for McBSP clk
+		 * ToDo: sysfs entry must be provider to set it frm user level
+		 */
+		parent = clk_get(NULL, HDMI_MCBSP_CLK_PARENT);
+		if (IS_ERR(parent)) {
+			printk(KERN_ERR "Unable to get parent clk\n");
+			ret = -ENODEV;
+		}
+		ret = clk_set_parent(dev->clk, parent);
+		if (ret < 0) {
+			printk(KERN_ERR "Unable to set parent clk\n");
+			ret = -ENODEV;
+		}
+
+		/* Enable the clock */
+		clk_enable(dev->clk);
+		dev->clk_active = 1;
+	}
 	
 	if (NULL != pdata) {
 		dma_data = &dev->dma_params[SNDRV_PCM_STREAM_PLAYBACK];
@@ -253,11 +319,25 @@ static __devinit int davinci_hdmi_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, dev);
 	return snd_soc_register_dai(&pdev->dev, &davinci_hdmi_dai);
+
 }
 
 static int __devexit davinci_hdmi_remove(struct platform_device *pdev)
 {
+	struct davinci_audio_dev *dev = dev_get_drvdata(&pdev->dev);
+
 	snd_soc_unregister_dai(&pdev->dev);
+
+	/*
+	 * Auto CTS mode support only in ti8168 PG2.0
+	 */
+	if (cpu_is_ti816x() && TI8168_REV_ES2_0 == omap_rev()) {
+		clk_disable(dev->clk);
+		clk_put(dev->clk);
+		dev->clk = NULL;
+	}
+
+	kfree(dev);
 	return 0;
 }
 

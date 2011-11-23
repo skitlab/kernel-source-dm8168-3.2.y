@@ -647,19 +647,26 @@ int hdmi_core_audio_config(u32 name,
 	/* CTS_MODE */
 	WR_REG_32(name, HDMI_CORE_AV__ACR_CTRL,
 		/* MCLK_EN (0: Mclk is not used) */
-		(0x0 << 2) |
+		((!audio_cfg->cts_mode) << 2) |
 		/* CTS Request Enable (1:Packet Enable, 0:Disable) */
 		(0x1 << 1) |
 		/* CTS Source Select (1:SW, 0:HW) */
 		(audio_cfg->cts_mode << 0));
 
+	/* 128 * Fs */
 	REG_FLD_MOD(name, HDMI_CORE_AV__FREQ_SVAL, 0, 2, 0);
 	REG_FLD_MOD(name, HDMI_CORE_AV__N_SVAL1, audio_cfg->n, 7, 0);
 	REG_FLD_MOD(name, HDMI_CORE_AV__N_SVAL2, audio_cfg->n >> 8, 7, 0);
 	REG_FLD_MOD(name, HDMI_CORE_AV__N_SVAL3, audio_cfg->n >> 16, 7, 0);
-	REG_FLD_MOD(name, HDMI_CORE_AV__CTS_SVAL1, audio_cfg->cts, 7, 0);
-	REG_FLD_MOD(name, HDMI_CORE_AV__CTS_SVAL2, audio_cfg->cts >> 8, 7, 0);
-	REG_FLD_MOD(name, HDMI_CORE_AV__CTS_SVAL3, audio_cfg->cts >> 16, 7, 0);
+	/*program the CTS values only in SW mode 1:SW, 0:HW */
+	if (audio_cfg->cts_mode) {
+		REG_FLD_MOD(name, HDMI_CORE_AV__CTS_SVAL1,
+					 audio_cfg->cts, 7, 0);
+		REG_FLD_MOD(name, HDMI_CORE_AV__CTS_SVAL2,
+					 audio_cfg->cts >> 8, 7, 0);
+		REG_FLD_MOD(name, HDMI_CORE_AV__CTS_SVAL3,
+					 audio_cfg->cts >> 16, 7, 0);
+	}
 
 	/* number of channel */
 	REG_FLD_MOD(name, HDMI_CORE_AV__HDMI_CTRL, audio_cfg->layout, 2, 1);
