@@ -98,6 +98,7 @@ extern void omap24xx_cpu_suspend(u32 dll_ctrl, void __iomem *sdrc_dlla_ctrl,
 					void __iomem *sdrc_power);
 extern void omap34xx_cpu_suspend(u32 *addr, int save_state);
 extern void omap3517_cpu_suspend(u32 *addr, int save_state);
+extern void ti814x_cpu_suspend(u32 *addr, int save_state);
 extern void save_secure_ram_context(u32 *addr);
 extern void omap3517_save_secure_ram_context(u32 *addr);
 extern void omap3_save_scratchpad_contents(void);
@@ -108,6 +109,7 @@ extern unsigned int omap3517_save_secure_ram_context_sz;
 extern unsigned int omap24xx_cpu_suspend_sz;
 extern unsigned int omap34xx_cpu_suspend_sz;
 extern unsigned int omap3517_cpu_suspend_sz;
+extern unsigned int ti814x_cpu_suspend_sz;
 
 #define PM_RTA_ERRATUM_i608		(1 << 0)
 #define PM_SDRC_WAKEUP_ERRATUM_i583	(1 << 1)

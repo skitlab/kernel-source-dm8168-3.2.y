@@ -51,8 +51,10 @@
 #define OMAP4_SRAM_VA		0xfe400000
 #define OMAP4_SRAM_PUB_PA	(OMAP4_SRAM_PA + 0x4000)
 #define OMAP4_SRAM_PUB_VA	(OMAP4_SRAM_VA + 0x4000)
+#define TI814X_SRAM_VA		0xfe400000
 
-#if defined(CONFIG_ARCH_OMAP2PLUS)
+
+#if defined(CONFIG_ARCH_OMAP2PLUS) || defined(CONFIG_ARCH_TI814X)
 #define SRAM_BOOTLOADER_SZ	0x00
 #else
 #define SRAM_BOOTLOADER_SZ	0x80
@@ -116,6 +118,12 @@ static void __init omap_detect_sram(void)
 
 	if (cpu_class_is_omap2()) {
 		if (is_sram_locked()) {
+			if (cpu_is_ti814x()) {
+				pr_err("ti814x: pm: SRAM is locked\n");
+				omap_sram_base = TI814X_SRAM_VA;
+				omap_sram_start = TI814X_SRAM_PA;
+				omap_sram_size = 0x20000;/* 128K */
+			}
 			if (cpu_is_omap34xx()) {
 				omap_sram_base = OMAP3_SRAM_PUB_VA;
 				omap_sram_start = OMAP3_SRAM_PUB_PA;
@@ -135,7 +143,11 @@ static void __init omap_detect_sram(void)
 				omap_sram_size = 0x800; /* 2K */
 			}
 		} else {
-			if (cpu_is_omap34xx()) {
+			if (cpu_is_ti814x()) {
+				omap_sram_base = TI814X_SRAM_VA;
+				omap_sram_start = TI814X_SRAM_PA;
+				omap_sram_size = 0x20000;/* 128K */
+			} else if (cpu_is_omap34xx()) {
 				omap_sram_base = OMAP3_SRAM_VA;
 				omap_sram_start = OMAP3_SRAM_PA;
 				omap_sram_size = 0x10000; /* 64K */
@@ -419,6 +431,19 @@ static inline int omap44xx_sram_init(void)
 }
 #endif
 
+
+#ifdef CONFIG_ARCH_TI814X
+static int __init ti814x_sram_init(void)
+{
+	omap_push_sram_idle();
+	return 0;
+}
+#else
+static inline int ti814x_sram_init(void)
+{
+	return 0;
+}
+#endif
 int __init omap_sram_init(void)
 {
 	omap_detect_sram();
@@ -434,6 +459,8 @@ int __init omap_sram_init(void)
 		omap34xx_sram_init();
 	else if (cpu_is_omap44xx())
 		omap44xx_sram_init();
+	else if (cpu_is_ti814x())
+		ti814x_sram_init();
 
 	return 0;
 }

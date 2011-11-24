@@ -23,7 +23,7 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <asm/io.h>
-
+#include <asm/sizes.h>
 #include "pm.h"
 #include "powerdomain.h"
 #include "clockdomain.h"
@@ -32,6 +32,7 @@
 #include "prm2xxx_3xxx.h"
 #include <mach/omap4-common.h>
 #include <plat/serial.h>
+#include <plat/sram.h>
 
 struct power_state {
 	struct powerdomain *pwrdm;
@@ -45,6 +46,8 @@ struct power_state {
 static bool enter_deep_sleep;
 static bool turnoff_idle_pwrdms;
 static LIST_HEAD(pwrst_list);
+
+static void (*_ti814x_ddr_self_refresh)(void);
 
 #ifdef CONFIG_SUSPEND
 static int ti81xx_pwrdms_set_suspend_state(struct powerdomain *pwrdm)
@@ -72,20 +75,8 @@ static int ti81xx_pwrdms_read_suspend_state(struct powerdomain *pwrdm)
 
 static int ti81xx_pm_enter_ddr_self_refresh(void)
 {
+	_ti814x_ddr_self_refresh();
 	return 0;
-}
-
-static void ti81xx_enter_deep_sleep(void)
-{
-	u32 v;
-
-	v = __raw_readl(TI814X_PLL_CMGC_DEEPSLEEP_CTRL);
-	v |= (TI814X_DEEPSLEEP_CTRL_DSPOLARITY_MASK);
-	__raw_writel(v, TI814X_PLL_CMGC_DEEPSLEEP_CTRL);
-
-	v = __raw_readl(TI814X_PLL_CMGC_DEEPSLEEP_CTRL);
-	v |= (TI814X_DEEPSLEEP_CTRL_DSENABLE_MASK);
-	__raw_writel(v, TI814X_PLL_CMGC_DEEPSLEEP_CTRL);
 }
 
 static int ti81xx_pm_suspend(void)
@@ -101,8 +92,6 @@ static int ti81xx_pm_suspend(void)
 		omap2_pm_wakeup_on_timer(wakeup_timer_seconds,
 					wakeup_timer_milliseconds);
 
-	/* TBD: Keep DDR in self refresh mode here */
-	ti81xx_pm_enter_ddr_self_refresh();
 	if (turnoff_idle_pwrdms) {
 		/* Read current next_pwrsts */
 		list_for_each_entry(pwrst, &pwrst_list, node) {
@@ -123,16 +112,9 @@ static int ti81xx_pm_suspend(void)
 	arm_clk = clk_get(NULL, "arm_dpll_ck");
 	clk_set_rate(arm_clk, ARM_FREQ_OPP_50);
 #endif
-	if (enter_deep_sleep) {
-		pr_info("\n|       Entering DeepSleep       |\n");
-		ti81xx_enter_deep_sleep();
-	} else {
-		do_wfi();
-		/* Got interrupt */
-		goto resume;
-	}
-	return ret;
-resume:
+	/* TBD: Keep DDR in self refresh mode here */
+	ti81xx_pm_enter_ddr_self_refresh();
+
 #if defined(CONFIG_ARCH_TI814X)
 	clk_set_rate(arm_clk, ARM_FREQ_OPP_100);
 #endif
@@ -254,6 +236,13 @@ void ti81xx_powerdown_idle_pwrdms(u32 pwrdown_idle_pwrdms)
 	else
 		turnoff_idle_pwrdms = false;
 }
+
+void omap_push_sram_idle(void)
+{
+	_ti814x_ddr_self_refresh = omap_sram_push(ti814x_cpu_suspend,
+					ti814x_cpu_suspend_sz);
+}
+
 /**
  * ti81xx_pm_init - Init routine for TI81XX PM
  *
