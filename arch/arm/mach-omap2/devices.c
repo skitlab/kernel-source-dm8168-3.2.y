@@ -1606,13 +1606,17 @@ int map_xbar_event_to_channel(unsigned event, unsigned *channel,
 		*channel = event;
 	} else if (event < edma_info[ctrl]->num_events) {
 		*channel = xbar_event_mapping[xbar_evt_no].channel_no;
+		/* confirm the range */
+		if (*channel < EDMA_MAX_DMACH)
+			clear_bit(*channel, edma_info[ctrl]->edma_unused);
+		mask = (*channel)%4;
 		offset = (*channel)/4;
+		offset *= 4;
+		offset += mask;
 		val = (unsigned)__raw_readl(TI81XX_CTRL_REGADDR(
 					TI81XX_SCM_BASE_EDMA + offset));
-		mask = (*channel)%4;
-		val = val & (~((0xFF) << mask));
-		val = val | (xbar_event_mapping[xbar_evt_no].xbar_event_no
-								<< mask);
+		val = val & (~(0xFF));
+		val = val | (xbar_event_mapping[xbar_evt_no].xbar_event_no);
 		__raw_writel(val, TI81XX_CTRL_REGADDR(TI81XX_SCM_BASE_EDMA
 								+ offset));
 		return 0;

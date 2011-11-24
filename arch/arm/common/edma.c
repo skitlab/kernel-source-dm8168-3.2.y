@@ -521,8 +521,12 @@ static int prepare_unused_channel_list(struct device *dev, void *data)
 		if ((pdev->resource[i].flags & IORESOURCE_DMA) &&
 				(int)pdev->resource[i].start >= 0) {
 			ctlr = EDMA_CTLR(pdev->resource[i].start);
-			clear_bit(EDMA_CHAN_SLOT(pdev->resource[i].start),
-					edma_info[ctlr]->edma_unused);
+			/* confirm the range */
+			if (EDMA_CHAN_SLOT(pdev->resource[i].start <
+							EDMA_MAX_DMACH))
+				clear_bit(
+					EDMA_CHAN_SLOT(pdev->resource[i].start),
+						edma_info[ctlr]->edma_unused);
 		}
 	}
 
@@ -1418,7 +1422,10 @@ static int __init edma_probe(struct platform_device *pdev)
 			for (i = 0; rsv_chans[i][0] != -1; i++) {
 				off = rsv_chans[i][0];
 				ln = rsv_chans[i][1];
-				clear_bits(off, ln, edma_info[j]->edma_unused);
+				/* confirm the range */
+				if ((off+ln) < EDMA_MAX_DMACH)
+					clear_bits(off, ln,
+						edma_info[j]->edma_unused);
 			}
 		}
 
