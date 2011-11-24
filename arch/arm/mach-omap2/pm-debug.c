@@ -46,6 +46,7 @@ u32 wakeup_timer_milliseconds;
 #if defined(CONFIG_ARCH_TI814X)
 u32 enable_deep_sleep;
 u32 turnoff_idle_powerdomains;
+u32 osc_wake_polarity;
 #endif
 
 #define DUMP_PRM_MOD_REG(mod, reg)    \
@@ -597,11 +598,11 @@ static int option_set(void *data, u64 val)
 	}
 #if defined(CONFIG_ARCH_TI814X)
 	if (option == &enable_deep_sleep) {
-		if (val)
-			ti81xx_enable_deep_sleep(val);
+		ti81xx_enable_deep_sleep(val);
 	} else if (option == &turnoff_idle_powerdomains) {
-		if (val)
-			ti81xx_powerdown_idle_pwrdms(val);
+		ti81xx_powerdown_idle_pwrdms(val);
+	} else if (option == &osc_wake_polarity) {
+		ti81xx_config_deepsleep_wake_polarity(val);
 	}
 #endif
 	return 0;
@@ -674,6 +675,8 @@ static int __init pm_dbg_init(void)
 				   S_IRUGO | S_IWUGO, d,
 				   &turnoff_idle_powerdomains,
 				   &pm_dbg_option_fops);
+	(void) debugfs_create_file("deepsleep_polarity", S_IRUGO | S_IWUGO, d,
+				   &osc_wake_polarity, &pm_dbg_option_fops);
 #endif
 	pm_dbg_init_done = 1;
 

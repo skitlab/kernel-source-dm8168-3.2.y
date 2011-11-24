@@ -264,6 +264,24 @@ void ti81xx_enable_deep_sleep(u32 deep_sleep_enabled)
 	}
 }
 
+/* Set DEEPSLEEPZ pin polarity */
+void ti81xx_config_deepsleep_wake_polarity(u32 osc_wake_pol)
+{
+	u32 v;
+
+	v = __raw_readl(TI814X_PLL_CMGC_DEEPSLEEP_CTRL);
+	if (!osc_wake_pol) {
+		/* Set polarity to active low */
+		v &= ~(TI814X_DEEPSLEEP_CTRL_DSPOLARITY_MASK);
+		osc_wake_polarity = 0;
+	} else {
+		/* set polarity to active high */
+		v |= (TI814X_DEEPSLEEP_CTRL_DSPOLARITY_MASK);
+		osc_wake_polarity = 1;
+	}
+	__raw_writel(v, TI814X_PLL_CMGC_DEEPSLEEP_CTRL);
+}
+
 void ti81xx_powerdown_idle_pwrdms(u32 pwrdown_idle_pwrdms)
 {
 	if (pwrdown_idle_pwrdms)
@@ -295,6 +313,7 @@ static void ti814x_ddr_dynamic_pwr_down(void)
 			TI814X_DDR_PHY_CTRL));
 
 }
+
 /**
  * ti81xx_pm_init - Init routine for TI81XX PM
  *
@@ -327,6 +346,7 @@ static int __init ti81xx_pm_init(void)
 				TI81XX_L4_SLOW_IO_ADDRESS(TI81XX_CTRL_BASE);
 
 	ti814x_ddr_dynamic_pwr_down();
+	ti81xx_config_deepsleep_wake_polarity(1); /* 1- active high */
 
 	ret = pwrdm_for_each(pwrdms_setup, NULL);
 	if (ret) {
