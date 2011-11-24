@@ -113,9 +113,6 @@ static int ti81xx_pm_enter_ddr_self_refresh(void)
 static int ti81xx_pm_suspend(void)
 {
 	struct power_state *pwrst;
-#if defined(CONFIG_ARCH_TI814X)
-	struct clk *arm_clk;
-#endif
 	int ret = 0;
 
 	if ((wakeup_timer_seconds || wakeup_timer_milliseconds) &&
@@ -138,17 +135,9 @@ static int ti81xx_pm_suspend(void)
 			}
 		}
 	}
-#if defined(CONFIG_ARCH_TI814X)
-	/* Reduce ARM operating frequency to that of OPP 50(lowest) */
-	arm_clk = clk_get(NULL, "arm_dpll_ck");
-	clk_set_rate(arm_clk, ARM_FREQ_OPP_50);
-#endif
-	/* TBD: Keep DDR in self refresh mode here */
+
 	ti81xx_pm_enter_ddr_self_refresh();
 
-#if defined(CONFIG_ARCH_TI814X)
-	clk_set_rate(arm_clk, ARM_FREQ_OPP_100);
-#endif
 	if (turnoff_idle_pwrdms) {
 		/* Check if pwrdms successfully transitioned to off state */
 		list_for_each_entry(pwrst, &pwrst_list, node)
