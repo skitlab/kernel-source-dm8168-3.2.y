@@ -327,7 +327,7 @@ static int __init ti81xx_pm_init(void)
 
 	pr_info("Power Management for TI81XX.\n");
 
-	if (!cpu_is_ti814x())
+	if (!cpu_is_ti814x() || !(omap_rev() > TI8148_REV_ES1_0))
 		return -ENODEV;
 
 	prcm_setup_regs();

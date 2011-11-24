@@ -57,7 +57,7 @@ static int __init ti814x_opp_init(void)
 {
 	int r = -ENODEV;
 
-	if (!cpu_is_ti814x())
+	if (!cpu_is_ti814x() || !(omap_rev() > TI8148_REV_ES1_0))
 		return r;
 
 	r = omap_init_opp_table(ti814x_opp_def_list,
