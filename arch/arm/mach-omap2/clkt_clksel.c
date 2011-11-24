@@ -529,29 +529,26 @@ int ti816x_clksel_set_rate(struct clk *clk, unsigned long rate)
 	struct clk *pclk;
 	struct clk *fclk;
 	struct fapll_data *fd;
-	const struct clksel *clks;
 	int ret, fapll_sr = 0;
 
-	if (clk->usecount != 0)
+	if (clk->usecount == 0) {
+		pr_err("clock: Enable the clock '%s' before setting rate\n",
+			clk->name);
 		return -EINVAL;
+	}
+	if (clk->usecount > 1) {
+		pr_err("clock: '%s' clock is in use can't change the rate "
+			"usecount = '%d'", clk->name, clk->usecount);
+		return -EBUSY;
+	}
 
 	pclk = clk->parent;
-	if (!clk->clksel || !clk->clksel_mask)
-		goto set_parent_rate;
-
-	/* Change the parent */
-	clks = _get_clksel_by_parent(clk, pclk);
-
-	for (clks = clk->clksel; clks->parent; clks++) {
-		pclk = clks->parent;
-		if (pclk->usecount == 0)
-			break;
+	if (pclk->usecount > 1) {
+		pr_err("clock: '%s' clock's parent '%s' is in use can't"
+			" change the rate usecount = %d", clk->name,
+			pclk->name, pclk->usecount);
+		return -EBUSY;
 	}
-	omap2_clksel_set_parent(clk, pclk);
-
-set_parent_rate:
-	if (pclk->usecount != 0)
-		return -EINVAL;
 
 	fclk = pclk->parent;
 	/* check the dividers in parent clock */
@@ -573,7 +570,7 @@ set_parent_rate:
 	}
 
 	if (fapll_sr) {
-		if (fclk->usecount != 0) {
+		if (fclk->usecount > 1) {
 			pr_err("clock: %s, parent %s is already in use, change"
 				" parent\n", pclk->name, pclk->parent->name);
 			return -EINVAL;
