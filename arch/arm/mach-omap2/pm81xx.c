@@ -253,6 +253,7 @@ void ti81xx_enable_deep_sleep(u32 deep_sleep_enabled)
 	}
 }
 
+#if defined(CONFIG_ARCH_TI814X)
 /* Set DEEPSLEEPZ pin polarity */
 void ti81xx_config_deepsleep_wake_polarity(u32 osc_wake_pol)
 {
@@ -270,6 +271,11 @@ void ti81xx_config_deepsleep_wake_polarity(u32 osc_wake_pol)
 	}
 	__raw_writel(v, TI814X_PLL_CMGC_DEEPSLEEP_CTRL);
 }
+#else
+void ti81xx_config_deepsleep_wake_polarity(u32 osc_wake_pol)
+{
+}
+#endif
 
 void ti81xx_powerdown_idle_pwrdms(u32 pwrdown_idle_pwrdms)
 {

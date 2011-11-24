@@ -2091,12 +2091,6 @@ static int __init ti814x_vdd_data_configure(struct omap_vdd_info *vdd)
 	return ret;
 }
 #else
-static int ti814x_vdd_volt_scale(struct omap_vdd_info *vdd,
-				unsigned long target_volt)
-{
-	return 0;
-}
-
 static int __init ti814x_vdd_data_configure(struct omap_vdd_info *vdd)
 {
 	return 0;
