@@ -238,6 +238,15 @@
 #define TI81XX_RM_RSTCTRL				0x0010
 #define TI81XX_RM_RSTST					0x0014
 
+/* DDR power management control register */
+#define TI814X_PMCR					0x0038
+#define TI814X_DMM_LISA_MAP_0				0x0040
+#define TI814X_DMM_LISA_MAP_1				0x0044
+#define TI814X_DMM_LISA_MAP_2				0x0048
+#define TI814X_DMM_LISA_MAP_3				0x004C
+#define TI814X_DDR_PHY_CTRL				0x00EC
+#define TI814X_EMIF_CLK_GATE				0x030C
+
 /*
  * TI81XX common PRM module offsets
  */

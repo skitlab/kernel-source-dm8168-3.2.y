@@ -29,6 +29,7 @@
 #include "clockdomain.h"
 #include "cm81xx.h"
 #include "cm-regbits-81xx.h"
+#include "prm-regbits-81xx.h"
 #include "prm2xxx_3xxx.h"
 #include <mach/omap4-common.h>
 #include <plat/serial.h>
@@ -46,6 +47,10 @@ struct power_state {
 static bool enter_deep_sleep;
 static bool turnoff_idle_pwrdms;
 static LIST_HEAD(pwrst_list);
+
+void __iomem *emif0_base;
+void __iomem *emif1_base;
+void __iomem *dmm_base;
 
 static void (*_ti814x_ddr_self_refresh)(void);
 
@@ -243,6 +248,19 @@ void omap_push_sram_idle(void)
 					ti814x_cpu_suspend_sz);
 }
 
+static void ti814x_ddr_dynamic_pwr_down(void)
+{
+	u32 v;
+
+	v = __raw_readl(emif0_base + TI814X_DDR_PHY_CTRL);
+	v |= (TI814X_DDR_PHY_DYN_PWRDN_MASK);
+	__raw_writel(v, (emif0_base + TI814X_DDR_PHY_CTRL));
+
+	v = __raw_readl(emif1_base + TI814X_DDR_PHY_CTRL);
+	v |= (TI814X_DDR_PHY_DYN_PWRDN_MASK);
+	__raw_writel(v, (emif1_base + TI814X_DDR_PHY_CTRL));
+
+}
 /**
  * ti81xx_pm_init - Init routine for TI81XX PM
  *
@@ -260,6 +278,18 @@ static int __init ti81xx_pm_init(void)
 		return -ENODEV;
 
 	prcm_setup_regs();
+
+	emif0_base = ioremap(TI814X_EMIF0_BASE, SZ_64);
+	WARN_ON(!emif0_base);
+
+	emif1_base = ioremap(TI814X_EMIF1_BASE, SZ_64);
+	WARN_ON(!emif1_base);
+
+	dmm_base = ioremap(TI814X_DMM_BASE, SZ_64);
+	WARN_ON(!dmm_base);
+
+	ti814x_ddr_dynamic_pwr_down();
+
 	ret = pwrdm_for_each(pwrdms_setup, NULL);
 	if (ret) {
 		pr_err("Failed to setup powerdomains\n");

@@ -36,4 +36,6 @@
 #define TI81XX_PCI_LRST_SHIFT				7
 #define TI81XX_PCI_LRST_MASK				(1 << 7)
 
+#define TI814X_DDR_PHY_DYN_PWRDN_SHIFT			20
+#define TI814X_DDR_PHY_DYN_PWRDN_MASK			(1 << 20)
 #endif
