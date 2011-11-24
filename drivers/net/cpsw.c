@@ -604,6 +604,13 @@ void cpsw_rx_handler(void *token, int len, int status)
 	u32			evt_high = 0;
 #endif
 
+	/* If length is zero, then it is chan free callback. So just
+	free skb and return */
+	if (len == 0) {
+		dev_kfree_skb_any(skb);
+		return;
+	}
+
 	if (likely(status >= 0)) {
 		skb_put(skb, len);
 
