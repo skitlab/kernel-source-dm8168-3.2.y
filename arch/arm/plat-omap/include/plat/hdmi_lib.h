@@ -115,6 +115,7 @@ struct hdmi_core_video_config_t {
 	enum hdmi_core_hdmi_dvi		CoreHdmiDvi;
 	enum hdmi_core_tclkselclkmult	CoreTclkSelClkMult;
 	u16  enable_downsampler;
+	u16  CoreSyncFormat;
 };
 
 enum hdmi_core_fs {
@@ -322,6 +323,11 @@ enum hdmi_data_format {
 	HDMI_DF_RGB = 2
 };
 
+enum hdmi_sync_format {
+	HDMI_DISCRETE_SYNC = 0,
+	HDMI_EMBEDDED_SYNC = 1
+};
+
 struct hdmi_audio_dma {
 	u8				dma_transfer;
 	u8				block_size;
@@ -405,6 +411,7 @@ struct hdmi_config {
 	u16 deep_color;
 	enum hdmi_data_format input_df;
 	enum hdmi_data_format output_df;
+	u16  sync;
 };
 
 enum hdmi_core_if_fs {

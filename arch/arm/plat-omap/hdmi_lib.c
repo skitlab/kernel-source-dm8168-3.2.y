@@ -25,7 +25,7 @@
  *				partition and handle checksum with and without
  *				extension
  *				May 2010 Added support for Hot Plug Detect.
- * Varada Bellary <varadab@ti.com>	
+ * Varada Bellary <varadab@ti.com>
  *				Retrofit the OMAP driver for DM81xx SOCs
  *
  */
@@ -250,7 +250,7 @@ static inline u32 hdmi_read_reg(u32 base, u16 idx)
 	default:
 		BUG();
 	}
-	
+
 	l = __raw_readl(b + idx);
 
 	/* DBG("addr = 0x%p rd = 0x%x idx = 0x%x\r\n", (b+idx), l, idx); */
@@ -355,7 +355,7 @@ int hdmi_core_ddc_edid(u8 *pEDID, int ext)
 
 		/* Clear FIFO */
 		REG_FLD_MOD(ins, HDMI_CORE_DDC_CMD, 0x9, 3, 0);
-		
+
 		/* HDMI_CORE_DDC_STATUS__IN_PROG */
 		while (FLD_GET(hdmi_read_reg(ins, sts), 4, 4) == 1)
 			;
@@ -411,7 +411,7 @@ int hdmi_core_ddc_edid(u8 *pEDID, int ext)
 	i = ext * 128;
 	j = 0;
 	while (((FLD_GET(hdmi_read_reg(ins, sts), 4, 4) == 1) ||
-		(FLD_GET(hdmi_read_reg(ins, sts), 2, 2) == 0)) && j < 128) {		
+		(FLD_GET(hdmi_read_reg(ins, sts), 2, 2) == 0)) && j < 128) {
 		if (FLD_GET(hdmi_read_reg(ins, sts), 2, 2) == 0) {
 			/* FIFO not empty */
 			pEDID[i++] = FLD_GET(
@@ -496,7 +496,9 @@ static void hdmi_core_init(enum hdmi_deep_mode deep_color,
 		v_cfg->CoreInputBusWide = HDMI_INPUT_8BIT;
 		v_cfg->CoreOutputDitherTruncation = HDMI_OUTPUTTRUNCATION_8BIT;
 		v_cfg->CoreDeepColorPacketED = HDMI_DEEPCOLORPACKECTDISABLE;
-		v_cfg->CorePacketMode = HDMI_PACKETMODE24BITPERPIXEL; // Originally : HDMI_PACKETMODERESERVEDVALUE; // ToDo Varada : is this OMAP bug ? 
+		/* Originally : HDMI_PACKETMODERESERVEDVALUE;*/
+		v_cfg->CorePacketMode = HDMI_PACKETMODE24BITPERPIXEL;
+		/* ToDo Varada : is this OMAP bug ?*/
 		break;
 	}
 
@@ -606,14 +608,16 @@ static int hdmi_core_video_config(struct hdmi_core_video_config_t *cfg)
 		r = FLD_MOD(r, cfg->CoreOutputDitherTruncation, 7, 6);
 		r = FLD_MOD(r, 0, 5, 5);
 	}
-	/* For TI816x and TI814x, HDMI gets data in embedded sync format.
-	   So below is required to set HDMI to extract sync from data
+	/* For TI816x and TI814x, set the SYNC based on embedded or discrete
 	 */
 	if (cpu_is_ti814x() || cpu_is_ti816x()) {
-		r = FLD_MOD(r, 1, 0, 0);
-		hdmi_write_reg(name, HDMI_CORE_SYS__VID_MODE, r);
-	}
+		if (cfg->CoreSyncFormat == HDMI_EMBEDDED_SYNC)
+			r = FLD_MOD(r, 1, 0, 0);
+		else
+			r = FLD_MOD(r, 0, 0, 0);
 
+	}
+	hdmi_write_reg(name, HDMI_CORE_SYS__VID_MODE, r);
 	/* HDMI_CTRL */
 	r = hdmi_read_reg(av_name, HDMI_CORE_AV_HDMI_CTRL);
 	r = FLD_MOD(r, cfg->CoreDeepColorPacketED, 6, 6);
@@ -1030,7 +1034,7 @@ static void hdmi_w1_init(struct hdmi_video_timing *t_p,
 	i_p->vSyncPolarity = 0;
 	i_p->hSyncPolarity = 0;
 
-	i_p->interlacing = 0; 
+	i_p->interlacing = 0;
 	i_p->timingMode = 0; /* HDMI_TIMING_SLAVE */
 
 	pIrqVectorEnable->pllRecal = 0;
@@ -1411,11 +1415,14 @@ int hdmi_lib_enable(struct hdmi_config *cfg)
 	if ( cpu_is_omap44xx())
 		hdmi_w1_video_config_timing(&VideoTimingParam);
 
-	/* TI816x and TI814x works in embedded sync mode. So this is to extract
-	   sync from data
+	/* TI816x and TI814x works in both discrete and embedded sync mode.
+	   So set the timing based on the sync format
 	 */
 	if (cpu_is_ti814x() || cpu_is_ti816x())
-		hdmi_core_extract_sync_config(&VideoFormatParam, &VideoTimingParam);
+		if (cfg->sync == HDMI_EMBEDDED_SYNC)
+			hdmi_core_extract_sync_config(&VideoFormatParam,
+						&VideoTimingParam);
+
 	/* video config */
 	switch (cfg->deep_color) {
 	case 0:
@@ -1468,7 +1475,8 @@ int hdmi_lib_enable(struct hdmi_config *cfg)
 	hdmi_core_powerdown_disable();
 
 	v_core_cfg.CoreHdmiDvi = cfg->hdmi_dvi;
-
+	/*store the sync format*/
+	v_core_cfg.CoreSyncFormat = cfg->sync;
 	r = hdmi_core_video_config(&v_core_cfg);
 	/* release software reset in the core */
 	hdmi_core_swreset_release();
@@ -1536,7 +1544,7 @@ int hdmi_lib_enable(struct hdmi_config *cfg)
 int hdmi_lib_init(void){
 	u32 rev;
 
-	hdmi.base_wp = ioremap(HDMI_WP, (HDMI_HDCP - HDMI_WP)); 
+	hdmi.base_wp = ioremap(HDMI_WP, (HDMI_HDCP - HDMI_WP));
 
 	if(cpu_is_ti816x()){
 		hdmi.base_wp =  ioremap(TI81xx_HDMI_WP, 512);// OMAP first, then overwrite it

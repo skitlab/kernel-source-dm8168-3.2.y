@@ -614,16 +614,16 @@ static inline void print_omap_video_timings(struct video_timings *timings)
 {
 
 
-		printk(KERN_INFO "Timing Info:\n");
-		printk(KERN_INFO "  pixel_clk = %d\n", timings->pixel_clock);
-		printk(KERN_INFO "  x_res	 = %d\n", timings->x_res);
-		printk(KERN_INFO "  y_res	 = %d\n", timings->y_res);
-		printk(KERN_INFO "  hfp	   = %d\n", timings->hfp);
-		printk(KERN_INFO "  hsw	   = %d\n", timings->hsw);
-		printk(KERN_INFO "  hbp	   = %d\n", timings->hbp);
-		printk(KERN_INFO "  vfp	   = %d\n", timings->vfp);
-		printk(KERN_INFO "  vsw	   = %d\n", timings->vsw);
-		printk(KERN_INFO "  vbp	   = %d\n", timings->vbp);
+		THDMIDBG("Timing Info:\n");
+		THDMIDBG("  pixel_clk = %d\n", timings->pixel_clock);
+		THDMIDBG("  x_res	 = %d\n", timings->x_res);
+		THDMIDBG("  y_res	 = %d\n", timings->y_res);
+		THDMIDBG("  hfp	   = %d\n", timings->hfp);
+		THDMIDBG("  hsw	   = %d\n", timings->hsw);
+		THDMIDBG("  hbp	   = %d\n", timings->hbp);
+		THDMIDBG("  vfp	   = %d\n", timings->vfp);
+		THDMIDBG("  vsw	   = %d\n", timings->vsw);
+		THDMIDBG("  vbp	   = %d\n", timings->vbp);
 
 }
 
@@ -1294,18 +1294,44 @@ static int hdmi_set_output(enum TI81xx_outputs outputs,
 	if (outinfo->dataformat == FVID2_DF_RGB24_888) {
 		hdmi.cfg.input_df = HDMI_DF_RGB;
 		hdmi.cfg.output_df = HDMI_DF_RGB;
+		if (outinfo->dvofmt  == (u32)VPS_DC_DVOFMT_TRIPLECHAN_EMBSYNC)
+			hdmi.cfg.sync = HDMI_EMBEDDED_SYNC;
+		else if (outinfo->dvofmt  ==
+		    (u32)VPS_DC_DVOFMT_TRIPLECHAN_DISCSYNC)
+			hdmi.cfg.sync = HDMI_DISCRETE_SYNC;
+		else
+			return -EINVAL;
 	} else if (outinfo->dataformat == FVID2_DF_YUV422SP_UV &&
 			outinfo->dvofmt == VPS_DC_DVOFMT_TRIPLECHAN_EMBSYNC) {
 		hdmi.cfg.input_df = HDMI_DF_YUV444;
 		hdmi.cfg.output_df = HDMI_DF_YUV422;
+		hdmi.cfg.sync = HDMI_EMBEDDED_SYNC;
+	} else if (outinfo->dataformat == FVID2_DF_YUV422SP_UV &&
+			outinfo->dvofmt == VPS_DC_DVOFMT_TRIPLECHAN_DISCSYNC) {
+		hdmi.cfg.input_df = HDMI_DF_YUV444;
+		hdmi.cfg.output_df = HDMI_DF_YUV422;
+		hdmi.cfg.sync = HDMI_DISCRETE_SYNC;
 	} else if (outinfo->dataformat == FVID2_DF_YUV422SP_UV &&
 			outinfo->dvofmt == VPS_DC_DVOFMT_DOUBLECHAN) {
 		hdmi.cfg.input_df = HDMI_DF_YUV422;
 		hdmi.cfg.output_df = HDMI_DF_YUV422;
-	} else if (outinfo->dataformat == FVID2_DF_YUV444P &&
-			outinfo->dvofmt == VPS_DC_DVOFMT_TRIPLECHAN_EMBSYNC) {
+		hdmi.cfg.sync = HDMI_EMBEDDED_SYNC;
+	} else if (outinfo->dataformat == FVID2_DF_YUV422SP_UV &&
+			outinfo->dvofmt == VPS_DC_DVOFMT_DOUBLECHAN_DISCSYNC) {
+		hdmi.cfg.input_df = HDMI_DF_YUV422;
+		hdmi.cfg.output_df = HDMI_DF_YUV422;
+		hdmi.cfg.sync = HDMI_DISCRETE_SYNC;
+	} else if (outinfo->dataformat == FVID2_DF_YUV444P) {
 		hdmi.cfg.input_df = HDMI_DF_YUV444;
 		hdmi.cfg.output_df = HDMI_DF_YUV444;
+		if (outinfo->dvofmt == (u32)VPS_DC_DVOFMT_TRIPLECHAN_EMBSYNC)
+			hdmi.cfg.sync = HDMI_EMBEDDED_SYNC;
+		else if (outinfo->dvofmt ==
+		    (u32)VPS_DC_DVOFMT_TRIPLECHAN_DISCSYNC)
+			hdmi.cfg.sync = HDMI_DISCRETE_SYNC;
+		else
+			return -EINVAL;
+
 	} else {
 		hdmi.cfg.input_df = HDMI_DF_RGB;
 		hdmi.cfg.output_df = HDMI_DF_RGB;
