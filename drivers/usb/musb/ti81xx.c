@@ -964,10 +964,16 @@ static irqreturn_t ti81xx_interrupt(int irq, void *hci)
 					 pend1, pend2);
 	}
 
-	if (is_babble && musb->enable_babble_work) {
-		ERR("Babble: devtcl(%x)Restarting musb....\n",
-			 musb_readb(musb->mregs, MUSB_DEVCTL));
-		schedule_work(&musb->work);
+	if (is_babble) {
+		if (!musb->enable_babble_work) {
+			musb_writeb(musb->mregs, MUSB_DEVCTL,
+				musb_readb(musb->mregs, MUSB_DEVCTL) |
+				MUSB_DEVCTL_SESSION);
+		} else {
+			ERR("Babble: devtcl(%x)Restarting musb....\n",
+				 musb_readb(musb->mregs, MUSB_DEVCTL));
+			schedule_work(&musb->work);
+		}
 	}
 	return ret;
 }
@@ -1103,6 +1109,10 @@ int ti81xx_musb_init(struct musb *musb)
 	/* enable babble workaround */
 	INIT_WORK(&musb->work, evm_deferred_musb_restart);
 	musb->enable_babble_work = 1;
+	if (cpu_is_ti81xx() && ((omap_rev() == TI8168_REV_ES2_0) ||
+		(omap_rev() == TI8148_REV_ES2_0))) {
+		musb->enable_babble_work = 0;
+	}
 
 	musb_writel(reg_base, USB_IRQ_EOI, 0);
 
