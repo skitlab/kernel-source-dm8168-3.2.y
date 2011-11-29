@@ -39,6 +39,7 @@ struct emac_platform_data {
 	bool no_bd_ram;
 	void (*interrupt_enable) (void);
 	void (*interrupt_disable) (void);
+	u32 gigabit_en; /* Is gigabit capable AND enabled */
 };
 
 enum {

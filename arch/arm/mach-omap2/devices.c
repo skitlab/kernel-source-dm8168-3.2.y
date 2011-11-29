@@ -1128,11 +1128,13 @@ static struct platform_device ti816x_mdio_device = {
 static struct emac_platform_data ti816x_emac1_pdata = {
 	.rmii_en	=	0,
 	.phy_id		=	"0:01",
+	.gigabit_en	=	1,
 };
 
 static struct emac_platform_data ti816x_emac2_pdata = {
 	.rmii_en	=	0,
 	.phy_id		=	"0:02",
+	.gigabit_en	=	1,
 };
 
 static struct resource ti816x_emac1_resources[] = {

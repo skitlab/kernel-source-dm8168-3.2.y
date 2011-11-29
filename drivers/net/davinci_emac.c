@@ -349,6 +349,7 @@ struct emac_priv {
 	/*snapshot of IRQs */
 	u32 irqs_table[MAX_MODULE_IRQS];
 	u32 num_irqs;
+	u32 gigabit_en; /* Is gigabit capable AND enabled */
 };
 
 /* clock frequency for EMAC */
@@ -1519,6 +1520,64 @@ static int match_first_device(struct device *dev, void *data)
 	return 1;
 }
 
+#define PHY_CONFIG_REG	22
+static void emac_set_phy_config(struct emac_priv *priv, struct phy_device *phy)
+{
+	struct emac_platform_data *pdata = priv->pdev->dev.platform_data;
+	struct mii_bus *miibus;
+	int phy_addr = 0;
+	u16 val = 0;
+	u16 tmp = 0;
+
+	if (!pdata->gigabit_en)
+		return;
+
+	if (!phy)
+		return;
+
+	miibus = phy->bus;
+
+	if (!miibus)
+		return;
+
+	phy_addr = phy->addr;
+
+	/* Following lines enable gigbit advertisement capability even in case
+	 * the advertisement is not enabled by default
+	 */
+	val = miibus->read(miibus, phy_addr, MII_BMCR);
+	val |= (BMCR_SPEED100 | BMCR_ANENABLE | BMCR_FULLDPLX);
+	miibus->write(miibus, phy_addr, MII_BMCR, val);
+	tmp = miibus->read(miibus, phy_addr, MII_BMCR);
+
+	tmp = miibus->read(miibus, phy_addr, MII_BMSR);
+	if (tmp & 0x1) {
+		val = miibus->read(miibus, phy_addr, MII_CTRL1000);
+		val |= BIT(9);
+		miibus->write(miibus, phy_addr, MII_CTRL1000, val);
+		tmp = miibus->read(miibus, phy_addr, MII_CTRL1000);
+	}
+
+	val = miibus->read(miibus, phy_addr, MII_ADVERTISE);
+	val |= (ADVERTISE_10HALF | ADVERTISE_10FULL | \
+		ADVERTISE_100HALF | ADVERTISE_100FULL);
+	miibus->write(miibus, phy_addr, MII_ADVERTISE, val);
+	tmp = miibus->read(miibus, phy_addr, MII_ADVERTISE);
+
+	/* TODO : This check is required. This should be
+	 * moved to a board init section as its specific
+	 * to a phy.*/
+	if ((phy->phy_id == 0x0282F013) || (phy->phy_id == 0x0282F014)) {
+		/* This enables TX_CLK-ing in case of 10/100MBps operation */
+		val = miibus->read(miibus, phy_addr, PHY_CONFIG_REG);
+		val |= BIT(5);
+		miibus->write(miibus, phy_addr, PHY_CONFIG_REG, val);
+		tmp = miibus->read(miibus, phy_addr, PHY_CONFIG_REG);
+	}
+
+	return;
+}
+
 /**
  * emac_dev_open: EMAC device open
  * @ndev: The DaVinci EMAC network adapter
@@ -1612,6 +1671,8 @@ static int emac_dev_open(struct net_device *ndev)
 			priv->phydev = NULL;
 			return PTR_ERR(priv->phydev);
 		}
+
+		emac_set_phy_config(priv, priv->phydev);
 
 		priv->link = 0;
 		priv->speed = 0;
