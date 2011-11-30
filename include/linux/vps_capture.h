@@ -502,18 +502,6 @@ struct Vps_CaptScParams {
 
 	void *scCoeffConfig;
 	/**< Scaler co-eff config, set NULL to setup default co-effs */
-	u32  enableCoeffLoad;
-	/**< Enable scaler coefficient load during IOCTL_VPS_CAPT_SET_SC_PARAMS
-	 If this is set to TRUE, it may result in the VIP instance getting
-	 stopped, reset, and restarted to load new coefficients as per the
-	 provided new scaling factor. This may result in some frame loss.
-	 The scaler coefficients are loaded only if there is a change in either
-	 the horizontal or vertical scaling set. The best scaler coefficients to
-	 be used are determined internally when scCoeffConfig in this structure
-	 is set to NULL.
-	 If the user has provided scaler coefficients or coefficient sets to be
-	 used, these are used instead of internally calculating the best scaler
-	 coefficients. */
 
 
 };

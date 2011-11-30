@@ -170,7 +170,6 @@ static int ti81xxvin_vps_config_scalar(struct v4l2_rect *crop,
 	sc_params->inScanFormat = FVID2_SF_PROGRESSIVE;
 	sc_params->scConfig = NULL;
 	sc_params->scCoeffConfig = NULL;
-	sc_params->enableCoeffLoad = 0;
 	in_cropcfg->cropstartx = crop->left;
 	in_cropcfg->cropstarty = crop->top;
 	in_cropcfg->cropwidth = crop->width;
