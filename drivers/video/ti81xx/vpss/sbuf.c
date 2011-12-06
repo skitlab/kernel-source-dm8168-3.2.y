@@ -254,7 +254,7 @@ int __exit vps_sbuf_deinit(void)
 	struct sbuf_alloc *sba, *next;
 	VPSSDBG("sbuf deinit\n");
 	/*free any remaining buffer*/
-	if (!list_empty(&sbinfo->alloc_list)) {
+	while (!list_empty(&sbinfo->alloc_list)) {
 		list_for_each_entry_safe(sba,
 					 next,
 					 &sbinfo->alloc_list,
