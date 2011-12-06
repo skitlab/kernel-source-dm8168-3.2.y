@@ -30,6 +30,11 @@ static DEFINE_SPINLOCK(clockfw_lock);
 
 static struct clk_functions *arch_clock;
 
+#if defined(CONFIG_PM_DEBUG) && defined(CONFIG_DEBUG_FS)
+static u32 clk_dbgfs_inited;
+static int clk_debugfs_register(struct clk *c);
+static int debugfs_register_recursive(struct clk *c);
+#endif
 /*
  * Standard clock functions defined in include/linux/clk.h
  */
@@ -149,6 +154,19 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 			if (clk->recalc)
 				clk->rate = clk->recalc(clk);
 			propagate_rate(clk);
+
+#if defined(CONFIG_PM_DEBUG) && defined(CONFIG_DEBUG_FS)
+			/* If debugfs entries are not populated then there is
+			 * no need to update the entries
+			 */
+			if (clk_dbgfs_inited) {
+				if (clk->dent) {
+					debugfs_remove_recursive(clk->dent);
+					clk->dent = NULL;
+					ret = debugfs_register_recursive(clk);
+				}
+			}
+#endif
 		}
 	} else
 		ret = -EBUSY;
@@ -211,9 +229,6 @@ void clk_reparent(struct clk *child, struct clk *parent)
 	if (parent)
 		list_add(&child->sibling, &parent->children);
 	child->parent = parent;
-
-	/* now do the debugfs renaming to reattach the child
-	   to the proper parent */
 }
 
 /* Propagate rate to children */
@@ -434,6 +449,24 @@ int __init clk_init(struct clk_functions * custom_clocks)
  */
 static struct dentry *clk_debugfs_root;
 
+static int debugfs_register_recursive(struct clk *c)
+{
+	struct clk *clkp;
+	int err = -EINVAL;
+
+	if (c->dent)
+		c->dent = NULL;
+	err = clk_debugfs_register(c);
+	if (err) {
+		pr_err("%s:Updating debugfs entry failed\n", __func__);
+		return -ENOMEM;
+	} else {
+		list_for_each_entry(clkp, &c->children, sibling)
+			debugfs_register_recursive(clkp);
+	}
+	return 0;
+}
+
 static int clk_debugfs_register_one(struct clk *c)
 {
 	int err;
@@ -508,6 +541,7 @@ static int __init clk_debugfs_init(void)
 		if (err)
 			goto err_out;
 	}
+	clk_dbgfs_inited = 1;
 	return 0;
 err_out:
 	debugfs_remove_recursive(clk_debugfs_root);
