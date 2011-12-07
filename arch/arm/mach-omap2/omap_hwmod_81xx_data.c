@@ -74,7 +74,7 @@ static struct omap_hwmod ti816x_l3_slow_hwmod = {
 	.masters_cnt	= ARRAY_SIZE(ti816x_l3_slow_masters),
 	.slaves		= ti816x_l3_slow_slaves,
 	.slaves_cnt	= ARRAY_SIZE(ti816x_l3_slow_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI81XX),
 	.flags		= HWMOD_NO_IDLEST,
 };
 
@@ -411,7 +411,7 @@ static struct omap_hwmod ti816x_l4_slow_hwmod = {
 	.masters_cnt	= ARRAY_SIZE(ti816x_l4_slow_masters),
 	.slaves		= ti816x_l4_slow_slaves,
 	.slaves_cnt	= ARRAY_SIZE(ti816x_l4_slow_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI81XX),
 	.flags		= HWMOD_NO_IDLEST,
 };
 
@@ -428,7 +428,7 @@ static struct omap_hwmod ti816x_mpu_hwmod = {
 	.vdd_name	= "mpu",
 	.masters	= ti816x_mpu_masters,
 	.masters_cnt	= ARRAY_SIZE(ti816x_mpu_masters),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI81XX),
 };
 
 /* UART common */
@@ -552,7 +552,7 @@ static struct omap_hwmod ti816x_uart1_hwmod = {
 	.slaves		= ti816x_uart1_slaves,
 	.slaves_cnt	= ARRAY_SIZE(ti816x_uart1_slaves),
 	.class		= &uart_class,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI81XX),
 };
 
 /* UART2 */
@@ -585,7 +585,7 @@ static struct omap_hwmod ti816x_uart2_hwmod = {
 	.slaves		= ti816x_uart2_slaves,
 	.slaves_cnt	= ARRAY_SIZE(ti816x_uart2_slaves),
 	.class		= &uart_class,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI81XX),
 };
 
 /* UART3 */
@@ -618,7 +618,7 @@ static struct omap_hwmod ti816x_uart3_hwmod = {
 	.slaves		= ti816x_uart3_slaves,
 	.slaves_cnt	= ARRAY_SIZE(ti816x_uart3_slaves),
 	.class		= &uart_class,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI81XX),
 };
 
 /* UART4 */
@@ -750,14 +750,14 @@ static struct omap_hwmod ti814x_wd_timer1_hwmod = {
 	.name		= "wd_timer1",
 	.main_clk	= "wdt1_fck",
 	.prcm		= {
-	.omap4		= {
+		.omap4		= {
 			.clkctrl_reg = TI81XX_CM_ALWON_WDTIMER_CLKCTRL,
 		},
 	},
 	.slaves		= ti814x_wd_timer1_slaves,
 	.slaves_cnt	= ARRAY_SIZE(ti814x_wd_timer1_slaves),
 	.class		= &wd_timer_class,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X | CHIP_IS_DM385),
 	.flags	  = HWMOD_INIT_NO_RESET,
 };
 
@@ -791,7 +791,7 @@ static struct omap_hwmod ti81xx_i2c1_hwmod = {
 	.slaves		= ti816x_i2c1_slaves,
 	.slaves_cnt	= ARRAY_SIZE(ti816x_i2c1_slaves),
 	.class		= &i2c_class,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI81XX),
 };
 
 /* I2C2 */
@@ -855,7 +855,7 @@ static struct omap_hwmod ti814x_i2c3_hwmod = {
 	.slaves         = ti814x_i2c3_slaves,
 	.slaves_cnt     = ARRAY_SIZE(ti814x_i2c3_slaves),
 	.class          = &i2c_class,
-	.omap_chip      = OMAP_CHIP_INIT(CHIP_IS_TI814X),
+	.omap_chip      = OMAP_CHIP_INIT(CHIP_IS_TI814X | CHIP_IS_DM385),
 };
 
 /* I2C4 */
@@ -888,7 +888,7 @@ static struct omap_hwmod ti814x_i2c4_hwmod = {
 	.slaves		= ti814x_i2c4_slaves,
 	.slaves_cnt	= ARRAY_SIZE(ti814x_i2c4_slaves),
 	.class		= &i2c_class,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X | CHIP_IS_DM385),
 };
 
 
@@ -926,7 +926,7 @@ static struct omap_hwmod ti81xx_gpio1_hwmod = {
 	.dev_attr	= &gpio_dev_attr,
 	.slaves		= ti81xx_gpio1_slaves,
 	.slaves_cnt	= ARRAY_SIZE(ti81xx_gpio1_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI81XX),
 };
 
 /* GPIO2 TI81XX*/
@@ -961,7 +961,7 @@ static struct omap_hwmod ti81xx_gpio2_hwmod = {
 	.dev_attr	= &gpio_dev_attr,
 	.slaves		= ti81xx_gpio2_slaves,
 	.slaves_cnt	= ARRAY_SIZE(ti81xx_gpio2_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI81XX),
 };
 
 /* GPIO3 TI814X */
@@ -996,7 +996,7 @@ static struct omap_hwmod ti814x_gpio3_hwmod = {
 	.dev_attr	= &gpio_dev_attr,
 	.slaves		= ti814x_gpio3_slaves,
 	.slaves_cnt	= ARRAY_SIZE(ti814x_gpio3_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X | CHIP_IS_DM385),
 };
 
 /* GPIO4 TI814X*/
@@ -1031,7 +1031,7 @@ static struct omap_hwmod ti814x_gpio4_hwmod = {
 	.dev_attr	= &gpio_dev_attr,
 	.slaves		= ti814x_gpio4_slaves,
 	.slaves_cnt	= ARRAY_SIZE(ti814x_gpio4_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X | CHIP_IS_DM385),
 };
 
 /* L3 SLOW -> USBSS interface */
@@ -1098,7 +1098,7 @@ static struct omap_hwmod ti81xx_usbss_hwmod = {
 	.slaves		= ti81xx_usbss_slaves,
 	.slaves_cnt	= ARRAY_SIZE(ti81xx_usbss_slaves),
 	.class		= &ti81xx_usbotg_class,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X)
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI81XX)
 };
 
 static __initdata struct omap_hwmod *ti81xx_hwmods[] = {
