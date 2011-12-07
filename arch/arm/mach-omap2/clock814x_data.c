@@ -1573,6 +1573,14 @@ static struct clk elm_ick = {
 	.recalc		= &followparent_recalc,
 };
 
+static struct clk elm_fck = {
+	.name		= "elm_fck",
+	.parent		= &sysclk6_ck,
+	.ops		= &clkops_null,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
 /* MMCHS0 Clock(final) */
 static struct clk mmchs1_ick = {
 	.name		= "mmchs1_ick",
@@ -4136,13 +4144,13 @@ static struct omap_clk ti814x_clks[] = {
 	CLK(NULL,		"mmu_cfg_ick",			&mmu_cfg_ick,			CK_TI814X | CK_DM385),
 	CLK(NULL,		"p1500_ick",			&p1500_ick,			CK_TI814X | CK_DM385),
 	CLK(NULL,		"elm_ick",			&elm_ick,			CK_TI814X | CK_DM385),
+	CLK(NULL,		"elm_fck",			&elm_fck,			CK_TI814X | CK_DM385),
 	CLK("mmci-omap-hs.0",	"ick",				&mmchs1_ick,			CK_TI814X | CK_DM385),
 	CLK("mmci-omap-hs.1",	"ick",				&mmchs2_ick,			CK_TI814X | CK_DM385),
 	CLK(NULL,		"atl_ick",			&atl_ick,			CK_TI814X | CK_DM385),
 	CLK(NULL,		"fdif_enb_ck",			&fdif_enb_ck,			CK_TI814X | CK_DM385),
 	CLK(NULL,		"rtc_c32k_ick",			&rtc_c32k_ick,			CK_TI814X | CK_DM385),
 	CLK(NULL,		"dcan1_ick",			&dcan1_ick,			CK_TI814X | CK_DM385),
-	CLK(NULL,		"dcan1_ick",			&dcan1_ick,			CK_TI814X),
 	CLK(NULL,		"iss_dpll_ck",			&iss_dpll_ck,			CK_TI814X | CK_DM385),
 	CLK(NULL,		"iss_ick",			&iss_ick,			CK_TI814X | CK_DM385),
 	CLK(NULL,		"tppss_tso_ick",		&tppss_tso_ick,			CK_TI814X),

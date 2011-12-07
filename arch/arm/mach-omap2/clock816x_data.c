@@ -727,6 +727,23 @@ static struct clk i2c2_ick = {
 	.recalc		= &followparent_recalc,
 };
 
+/* ELM Clock(final) */
+static struct clk elm_ick = {
+	.name       = "elm_ick",
+	.parent     = &sysclk6_ck,
+	.ops        = &clkops_null,
+	.clkdm_name = "alwon_l3_slow_clkdm",
+	.recalc     = &followparent_recalc,
+};
+
+static struct clk elm_fck = {
+    .name       = "elm_fck",
+    .parent     = &sysclk6_ck,
+    .ops        = &clkops_null,
+    .clkdm_name = "alwon_l3_slow_clkdm",
+    .recalc     = &followparent_recalc,
+};
+
 static struct clk mmchs1_ick = {
 	.name		= "mmchs1_ick",
 	.parent		= &sysclk6_ck,
@@ -1660,6 +1677,8 @@ static struct omap_clk ti816x_clks[] = {
 	CLK(NULL,		"gpio2_ick",		&gpio2_ick,		CK_TI816X),
 	CLK("omap_i2c.1",	"ick",			&i2c1_ick,		CK_TI816X),
 	CLK("omap_i2c.2",	"ick",			&i2c2_ick,		CK_TI816X),
+	CLK(NULL,		"elm_ick",		&elm_ick,		CK_TI816X),
+	CLK(NULL,		"elm_fck",		&elm_fck,		CK_TI816X),
 	CLK("mmci-omap-hs.0",	"ick",			&mmchs1_ick,		CK_TI816X),
 	CLK(NULL,		"sr_hvt_fck",		&sr_hvt_fck,		CK_TI816X),
 	CLK(NULL,		"sr_svt_fck",		&sr_svt_fck,		CK_TI816X),

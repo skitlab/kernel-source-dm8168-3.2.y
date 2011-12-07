@@ -95,6 +95,8 @@ static struct omap_hwmod ti81xx_gpio2_hwmod;
 static struct omap_hwmod ti814x_gpio3_hwmod;
 static struct omap_hwmod ti814x_gpio4_hwmod;
 static struct omap_hwmod ti81xx_usbss_hwmod;
+static struct omap_hwmod ti81xx_elm_hwmod;
+struct omap_hwmod_ocp_if ti81xx_l4_slow__elm;
 
 /* L4 SLOW -> UART1 interface */
 static struct omap_hwmod_addr_space ti816x_uart1_addr_space[] = {
@@ -401,6 +403,7 @@ static struct omap_hwmod_ocp_if *ti816x_l4_slow_masters[] = {
 	&ti81xx_l4_slow__gpio2,
 	&ti814x_l4_slow__gpio3,
 	&ti814x_l4_slow__gpio4,
+	&ti81xx_l4_slow__elm,
 };
 
 /* L4 SLOW */
@@ -891,8 +894,59 @@ static struct omap_hwmod ti814x_i2c4_hwmod = {
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X | CHIP_IS_DM385),
 };
 
+/* ELM */
+static struct omap_hwmod_class_sysconfig ti81xx_elm_sysc = {
+	.rev_offs	= 0x0000,
+	.sysc_offs	= 0x0010,
+	.syss_offs	= 0x0014,
+	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_SIDLEMODE |
+				SYSC_HAS_SOFTRESET |
+				SYSS_HAS_RESET_STATUS),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+/* 'elm' class */
+static struct omap_hwmod_class ti81xx_elm_hwmod_class = {
+	.name = "elm",
+	.sysc = &ti81xx_elm_sysc,
+};
 
+static struct omap_hwmod_irq_info ti81xx_elm_irqs[] = {
+	{ .irq = TI81XX_IRQ_ELM },
+	{ .irq = -1 }
+};
 
+struct omap_hwmod_addr_space ti81xx_elm_addr_space[] = {
+	{
+		.pa_start	= TI81XX_ELM_BASE,
+		.pa_end		= TI81XX_ELM_BASE + SZ_8K - 1,
+		.flags		= ADDR_MAP_ON_INIT | ADDR_TYPE_RT,
+	}
+};
+
+struct omap_hwmod_ocp_if ti81xx_l4_slow__elm = {
+	.master		= &ti816x_l4_slow_hwmod,
+	.slave		= &ti81xx_elm_hwmod,
+	.addr		= ti81xx_elm_addr_space,
+	.addr_cnt	= ARRAY_SIZE(ti81xx_elm_addr_space),
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_ocp_if *ti81xx_elm_slaves[] = {
+	&ti81xx_l4_slow__elm,
+};
+
+/* elm */
+static struct omap_hwmod ti81xx_elm_hwmod = {
+	.name           = "elm",
+	.class          = &ti81xx_elm_hwmod_class,
+	.main_clk       = "elm_fck",
+	.mpu_irqs		= ti81xx_elm_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(ti81xx_elm_irqs),
+	.slaves			= ti81xx_elm_slaves,
+	.slaves_cnt		= ARRAY_SIZE(ti81xx_elm_slaves),
+	.omap_chip		= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
+};
 
 /* GPIO1 TI81XX */
 
@@ -1122,6 +1176,7 @@ static __initdata struct omap_hwmod *ti81xx_hwmods[] = {
 	&ti814x_gpio3_hwmod,
 	&ti814x_gpio4_hwmod,
 	&ti81xx_usbss_hwmod,
+	&ti81xx_elm_hwmod,
 	NULL,
 };
 
