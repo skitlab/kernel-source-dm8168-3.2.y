@@ -575,13 +575,11 @@ static struct mtd_partition ti814x_nand_partitions[] = {
 		.name           = "U-Boot-min",
 		.offset         = 0,    /* Offset = 0x0 */
 		.size           = SZ_128K,
-		.mask_flags     = MTD_WRITEABLE,        /* force read-only */
 	},
 	{
 		.name           = "U-Boot",
 		.offset         = MTDPART_OFS_APPEND,/* Offset = 0x0 + 128K */
 		.size           = 18 * SZ_128K,
-		.mask_flags     = MTD_WRITEABLE,        /* force read-only */
 	},
 	{
 		.name           = "U-Boot Env",

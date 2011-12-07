@@ -152,7 +152,6 @@ static struct mtd_partition ti816x_nand_partitions[] = {
 		.name           = "U-Boot",
 		.offset         = 0,    /* Offset = 0x0 */
 		.size           = 19 * NAND_BLOCK_SIZE,
-		.mask_flags     = MTD_WRITEABLE,        /* force read-only */
 	},
 	{
 		.name           = "U-Boot Env",
