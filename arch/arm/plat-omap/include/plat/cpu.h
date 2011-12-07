@@ -88,7 +88,7 @@ unsigned int omap_rev(void);
  * cpu_is_omap243x():	True for OMAP2430
  * cpu_is_omap343x():	True for OMAP3430
  * cpu_is_omap443x():	True for OMAP4430
- * cpu_is_ti814x():	True for TI8148
+ * cpu_is_ti814x():	True for TI8148, DM385
  * cpu_is_ti816x():	True for TI8168
  */
 #define GET_OMAP_CLASS	(omap_rev() & 0xff)
@@ -149,6 +149,7 @@ IS_TI_SUBCLASS(816x, 0x816)
 #define cpu_is_omap443x()		0
 #define cpu_is_ti81xx()			0
 #define cpu_is_ti814x()			0
+#define cpu_is_dm385()			0
 #define cpu_is_ti816x()			0
 
 #if defined(MULTI_OMAP1)
@@ -379,9 +380,11 @@ IS_OMAP_TYPE(3517, 0x3517)
 # if defined(CONFIG_ARCH_TI81XX)
 # undef cpu_is_ti81xx
 # undef cpu_is_ti814x
+# undef cpu_is_dm385
 # undef cpu_is_ti816x
 # define cpu_is_ti81xx()		is_ti81xx()
 # define cpu_is_ti814x()		is_ti814x()
+# define cpu_is_dm385()			(cpu_is_ti814x() && !omap3_has_dsp())
 # define cpu_is_ti816x()		is_ti816x()
 # endif
 
@@ -461,6 +464,7 @@ IS_OMAP_TYPE(3517, 0x3517)
 #define CHIP_IS_OMAP4430ES2		(1 << 11)
 #define CHIP_IS_TI816X			(1 << 12)
 #define CHIP_IS_TI814X			(1 << 13)
+#define CHIP_IS_DM385			(1 << 14)
 
 #define CHIP_IS_OMAP24XX		(CHIP_IS_OMAP2420 | CHIP_IS_OMAP2430)
 
@@ -498,6 +502,7 @@ extern u32 omap3_features;
 #define OMAP3_HAS_192MHZ_CLK		BIT(5)
 #define OMAP3_HAS_IO_WAKEUP		BIT(6)
 #define OMAP3_HAS_720MHZ		BIT(7)
+#define OMAP3_HAS_DSP			BIT(8)
 
 #define OMAP3_HAS_FEATURE(feat,flag)			\
 static inline unsigned int omap3_has_ ##feat(void)	\
@@ -513,5 +518,6 @@ OMAP3_HAS_FEATURE(isp, ISP)
 OMAP3_HAS_FEATURE(192mhz_clk, 192MHZ_CLK)
 OMAP3_HAS_FEATURE(io_wakeup, IO_WAKEUP)
 OMAP3_HAS_FEATURE(720mhz, 720MHZ)
+OMAP3_HAS_FEATURE(dsp, DSP)
 
 #endif
