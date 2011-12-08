@@ -393,7 +393,7 @@ void __init ti81xx_check_revision(void)
 		omap3_features |= OMAP3_HAS_DSP;
 		pr_info("OMAP chip is TI8168 %s\n", cpu_rev);
 		return;
-	} else if ((partnum == 0xb8f)) {
+	} else if ((partnum == 0xb8f2)) {
 		omap_chip.oc |= CHIP_IS_TI814X;
 
 		switch (rev) {
@@ -411,7 +411,7 @@ void __init ti81xx_check_revision(void)
 		omap3_features |= OMAP3_HAS_DSP;
 		pr_info("OMAP chip is TI8148 %s\n", cpu_rev);
 		return;
-	} else if ((partnum == 0xb8f2)) {
+	} else if ((partnum == 0xb96b)) {
 		omap_chip.oc |= CHIP_IS_DM385;
 
 		switch (rev) {
