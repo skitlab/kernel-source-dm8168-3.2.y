@@ -604,9 +604,8 @@ void cpsw_rx_handler(void *token, int len, int status)
 	u32			evt_high = 0;
 #endif
 
-	/* If length is zero, then it is chan free callback. So just
-	free skb and return */
-	if (len == 0) {
+	/* free and bail if we are shutting down */
+	if (unlikely(!netif_running(ndev))) {
 		dev_kfree_skb_any(skb);
 		return;
 	}
@@ -1086,12 +1085,12 @@ static int cpsw_ndo_stop(struct net_device *ndev)
 	struct cpsw_priv *priv = netdev_priv(ndev);
 
 	msg(info, ifdown, "shutting down cpsw device\n");
-	cpsw_intr_disable(priv);
-	cpdma_ctlr_int_ctrl(priv->dma, false);
-	cpdma_ctlr_stop(priv->dma);
 	netif_stop_queue(priv->ndev);
 	napi_disable(&priv->napi);
 	netif_carrier_off(priv->ndev);
+	cpsw_intr_disable(priv);
+	cpdma_ctlr_int_ctrl(priv->dma, false);
+	cpdma_ctlr_stop(priv->dma);
 	cpsw_ale_stop(priv->ale);
 	device_remove_file(&ndev->dev, &dev_attr_hw_stats);
 	for_each_slave(priv, cpsw_slave_stop, priv);
