@@ -321,8 +321,8 @@ static u8 dm385_iis_serializer_direction[] = {
 };
 
 static struct snd_platform_data dm385_evm_snd_data = {
-	.tx_dma_offset	= 0x46800000,
-	.rx_dma_offset	= 0x46800000,
+	.tx_dma_offset	= 0x46400000,
+	.rx_dma_offset	= 0x46400000,
 	.op_mode	= DAVINCI_MCASP_IIS_MODE,
 	.num_serializer = ARRAY_SIZE(dm385_iis_serializer_direction),
 	.tdm_slots	= 2,

@@ -2463,6 +2463,28 @@ static inline void omap_init_ahci(void) {}
 
 #if defined(CONFIG_ARCH_TI81XX)
 
+#if defined(CONFIG_MACH_DM385EVM)
+static struct resource ti81xx_mcasp_resource[] = {
+	{
+		.name = "mcasp",
+		.start = TI81XX_ASP1_BASE,
+		.end = TI81XX_ASP1_BASE + (SZ_1K * 12) - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	/* TX event */
+	{
+		.start = TI81XX_DMA_MCASP1_AXEVT,
+		.end = TI81XX_DMA_MCASP1_AXEVT,
+		.flags = IORESOURCE_DMA,
+	},
+	/* RX event */
+	{
+		.start = TI81XX_DMA_MCASP1_AREVT,
+		.end = TI81XX_DMA_MCASP1_AREVT,
+		.flags = IORESOURCE_DMA,
+	},
+};
+#else
 static struct resource ti81xx_mcasp_resource[] = {
 	{
 		.name = "mcasp",
@@ -2483,10 +2505,15 @@ static struct resource ti81xx_mcasp_resource[] = {
 		.flags = IORESOURCE_DMA,
 	},
 };
+#endif
 
 static struct platform_device ti81xx_mcasp_device = {
 	.name = "davinci-mcasp",
+#if defined(CONFIG_MACH_DM385EVM)
+	.id = 1,
+#else
 	.id = 2,
+#endif
 	.num_resources = ARRAY_SIZE(ti81xx_mcasp_resource),
 	.resource = ti81xx_mcasp_resource,
 };
