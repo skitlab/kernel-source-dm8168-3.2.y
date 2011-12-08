@@ -255,6 +255,9 @@ obj-$(CONFIG_MACH_SBC3530)		+= board-omap3stalker.o \
 obj-$(CONFIG_MACH_TI8148EVM)		+= board-ti8148evm.o \
 					   hsmmc.o \
 					   board-flash.o
+obj-$(CONFIG_MACH_DM385EVM)		+= board-dm385evm.o \
+					   hsmmc.o \
+					   board-flash.o
 obj-$(CONFIG_MACH_TI8168EVM)		+= board-ti8168evm.o \
 					   hsmmc.o \
 					   board-flash.o
