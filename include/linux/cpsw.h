@@ -8,7 +8,8 @@ struct cpsw_slave_data {
 	u32		sliver_reg_ofs;
 	const char	*phy_id;
 	int		phy_if;
-	u8	mac_addr[ETH_ALEN];
+	u8		mac_addr[ETH_ALEN];
+	u32		dual_emac_reserved_vlan;
 };
 
 struct cpsw_platform_data {

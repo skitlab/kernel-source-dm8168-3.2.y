@@ -2097,6 +2097,12 @@ config TI_CPSW
 	  To compile this driver as a module, choose M here: the module
 	  will be called cpsw.
 
+config TI_CPSW_DUAL_EMAC
+	bool "TI CPSW Switch as Dual EMAC"
+	depends on ARM && (ARCH_DAVINCI || ARCH_TI814X) && TI_CPSW
+	help
+	  This driver makes TI's CPSW Ethernet Switch as Dual EMAC.
+
 
 config E1000
 	tristate "Intel(R) PRO/1000 Gigabit Ethernet support"

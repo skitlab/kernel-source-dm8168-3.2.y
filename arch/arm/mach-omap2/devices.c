@@ -2122,6 +2122,9 @@ static void ti814x_nor_init(void)
 #define TI814X_CPSW_MDIO_BASE		(0x4A100800)
 #define	TI814X_CPSW_SS_BASE		(0x4A100900)
 #define TI814X_EMAC_MDIO_FREQ		(1000000)
+/* Port Vlan IDs for Dual Mac Mode */
+#define CPSW_PORT_VLAN_SLAVE_0		2
+#define CPSW_PORT_VLAN_SLAVE_1		3
 
 static u64 cpsw_dma_mask = DMA_BIT_MASK(32);
 /* TODO : Verify the offsets */
@@ -2130,11 +2133,13 @@ struct cpsw_slave_data cpsw_slaves[] = {
 		.slave_reg_ofs  = 0x50,
 		.sliver_reg_ofs = 0x700,
 		.phy_id		= "0:00",
+		.dual_emac_reserved_vlan = CPSW_PORT_VLAN_SLAVE_0,
 	},
 	{
 		.slave_reg_ofs  = 0x90,
 		.sliver_reg_ofs = 0x740,
 		.phy_id		= "0:01",
+		.dual_emac_reserved_vlan = CPSW_PORT_VLAN_SLAVE_1,
 	},
 };
 

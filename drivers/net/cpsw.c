@@ -33,7 +33,6 @@
 #include "cpsw_ale.h"
 #include "davinci_cpdma.h"
 
-
 #define CPSW_DEBUG	(NETIF_MSG_HW		| NETIF_MSG_WOL		| \
 			 NETIF_MSG_DRV		| NETIF_MSG_LINK	| \
 			 NETIF_MSG_IFUP		| NETIF_MSG_INTR	| \
@@ -245,6 +244,11 @@ struct cpsw_slave {
 	u32				mac_control;
 	struct cpsw_slave_data		*data;
 	struct phy_device		*phy;
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+	u32				port_vlan;
+	struct net_device		*ndev;
+	u32				open_stat;
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
 };
 
 /*
@@ -339,6 +343,9 @@ struct cpsw_priv {
 #ifdef VLAN_SUPPORT
 	struct vlan_group *vlgrp;
 #endif /* VLAN_SUPPORT */
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+	u32				emac_port;
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
 };
 
 static int cpsw_set_coalesce(struct net_device *ndev,
@@ -610,6 +617,23 @@ void cpsw_rx_handler(void *token, int len, int status)
 		return;
 	}
 
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+	if (CPDMA_RX_SOURCE_PORT(status) == 1) {
+		ndev = priv->slaves[0].ndev;
+		priv = netdev_priv(ndev);
+		skb->dev = ndev;
+	} else if (CPDMA_RX_SOURCE_PORT(status) == 2) {
+		ndev = priv->slaves[1].ndev;
+		priv = netdev_priv(ndev);
+		skb->dev = ndev;
+	} else {
+		printk(KERN_ERR "Invalid EMAC Port No received stat = %x\n",
+				status);
+		WARN_ON(status);
+		return;
+	}
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
+
 	if (likely(status >= 0)) {
 		skb_put(skb, len);
 
@@ -664,6 +688,14 @@ static irqreturn_t cpsw_interrupt(int irq, void *dev_id)
 		napi_schedule(&priv->napi);
 	}
 
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+	else if (likely(netif_running(priv->slaves[1].ndev))) {
+		struct cpsw_priv *priv_sl2 = netdev_priv(priv->slaves[1].ndev);
+		cpsw_intr_disable(priv_sl2);
+		cpsw_disable_irq(priv_sl2);
+		napi_schedule(&priv_sl2->napi);
+	}
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
 
 	return IRQ_HANDLED;
 }
@@ -673,13 +705,11 @@ static int cpsw_poll(struct napi_struct *napi, int budget)
 	struct cpsw_priv	*priv = napi_to_priv(napi);
 	int			num_tx, num_rx;
 
-
 	num_tx = cpdma_chan_process(priv->txch, 128);
 	num_rx = cpdma_chan_process(priv->rxch, budget);
 
 	if (num_rx || num_tx)
 		msg(dbg, intr, "poll %d rx, %d tx pkts\n", num_rx, num_tx);
-
 
 	if (num_rx < budget) {
 		napi_complete(napi);
@@ -769,7 +799,11 @@ static void cpsw_adjust_link(struct net_device *ndev)
 	struct cpsw_priv	*priv = netdev_priv(ndev);
 	bool			link = false;
 
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+	_cpsw_adjust_link(&priv->slaves[priv->emac_port], priv, &link);
+#else /* CONFIG_TI_CPSW_DUAL_EMAC */
 	for_each_slave(priv, _cpsw_adjust_link, priv, &link);
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
 
 	if (link) {
 		netif_carrier_on(ndev);
@@ -910,6 +944,20 @@ static void cpsw_set_phy_config(struct cpsw_priv *priv, struct phy_device *phy)
 	return;
 }
 
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+static int cpsw_common_res_usage_stat(struct cpsw_priv *priv)
+{
+	u32 i;
+	u32 usage_count = 0;
+
+	for (i = 0; i < priv->data.slaves; i++)
+		if (priv->slaves[i].open_stat)
+			usage_count++;
+
+	return usage_count;
+}
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
+
 static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 {
 	char name[32];
@@ -930,8 +978,24 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 	slave->mac_control = 0;	/* no link yet */
 
 	slave_port = cpsw_get_slave_port(priv, slave->slave_num);
+
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+	__raw_writel(slave->port_vlan, &slave->regs->port_vlan);
+	cpsw_ale_add_vlan(priv->ale, slave->port_vlan,
+			1 << slave_port | 1 << priv->host_port, 1, 1, 0);
+	cpsw_ale_vlan_add_mcast(priv->ale, priv->ndev->broadcast,
+			1 << slave_port | 1 << priv->host_port,
+			slave->port_vlan, 0, 0);
+	cpsw_ale_vlan_add_ucast(priv->ale, priv->mac_addr, priv->host_port,
+			0, slave->port_vlan);
+	/* Add VLAN id 0 with untagging to remove VLAN ID 0 on egress */
+	cpsw_ale_add_vlan(priv->ale, 0,
+			ALE_ALL_PORTS << priv->host_port, 1, 1, 0);
+#else /* !CONFIG_TI_CPSW_DUAL_EMAC */
 	cpsw_ale_add_mcast(priv->ale, priv->ndev->broadcast,
 			   1 << slave_port, 0, 0);
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
+
 	priv->port_state[slave_port] = ALE_PORT_STATE_FORWARD;
 
 	slave->phy = phy_connect(priv->ndev, slave->data->phy_id,
@@ -941,7 +1005,7 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 		    slave->data->phy_id, slave->slave_num);
 		slave->phy = NULL;
 	} else {
-		printk(KERN_ERR"\nCPSW phy found : id is : 0x%x\n",
+		printk(KERN_ERR "\nCPSW phy found : id is : 0x%x\n",
 			slave->phy->phy_id);
 		cpsw_set_phy_config(priv, slave->phy);
 		phy_start(slave->phy);
@@ -954,14 +1018,14 @@ static void cpsw_init_host_port(struct cpsw_priv *priv)
 	soft_reset("cpsw", &priv->regs->soft_reset);
 	cpsw_ale_start(priv->ale);
 
-#ifdef VLAN_SUPPORT
+#if defined(VLAN_SUPPORT) || defined(CONFIG_TI_CPSW_DUAL_EMAC)
 	/* switch to vlan aware mode */
 	cpsw_ale_control_set(priv->ale, priv->host_port, ALE_VLAN_AWARE, 1);
 	__raw_writel(CPSW_VLAN_AWARE, &priv->regs->control);
-#else /* !VLAN_SUPPORT */
+#else /* !VLAN_SUPPORT and !CONFIG_TI_CPSW_DUAL_EMAC */
 	/* switch to vlan unaware mode */
 	cpsw_ale_control_set(priv->ale, priv->host_port, ALE_VLAN_AWARE, 0);
-#endif /* VLAN_SUPPORT */
+#endif /* defined(VLAN_SUPPORT) || defined(CONFIG_TI_CPSW_DUAL_EMAC) */
 
 	/* setup host port priority mapping */
 	__raw_writel(0x76543210, &priv->host_port_regs->cpdma_tx_pri_map);
@@ -970,11 +1034,12 @@ static void cpsw_init_host_port(struct cpsw_priv *priv)
 	cpsw_ale_control_set(priv->ale, priv->host_port,
 			     ALE_PORT_STATE, ALE_PORT_STATE_FORWARD);
 
-	cpsw_ale_add_ucast(priv->ale, priv->mac_addr, priv->host_port,
-			  0);
-			   /*ALE_SECURE);*/
+#ifndef CONFIG_TI_CPSW_DUAL_EMAC
+	cpsw_ale_add_ucast(priv->ale, priv->mac_addr, priv->host_port, 0);
+	/*ALE_SECURE);*/
 	cpsw_ale_add_mcast(priv->ale, priv->ndev->broadcast,
 			   1 << priv->host_port, 0, 0);
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
 }
 
 static int cpsw_ndo_open(struct net_device *ndev)
@@ -983,7 +1048,13 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	int i, ret;
 	u32 reg;
 
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+	if (!cpsw_common_res_usage_stat(priv))
+		cpsw_intr_disable(priv);
+#else /* !CONFIG_TI_CPSW_DUAL_EMAC */
 	cpsw_intr_disable(priv);
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
+
 	netif_carrier_off(ndev);
 
 	ret = clk_enable(priv->clk);
@@ -1007,38 +1078,53 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	    (reg >> 8 & 0x7), reg & 0xff, (reg >> 11) & 0x1f);
 
 	/* initialize host and slave ports */
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+	if (!cpsw_common_res_usage_stat(priv))
+		cpsw_init_host_port(priv);
+	cpsw_slave_open(&priv->slaves[priv->emac_port], priv);
+#else /* !CONFIG_TI_CPSW_DUAL_EMAC */
 	cpsw_init_host_port(priv);
 	for_each_slave(priv, cpsw_slave_open, priv);
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
 
-	/* setup tx dma to fixed prio and zero offset */
-	cpdma_control_set(priv->dma, CPDMA_TX_PRIO_FIXED, 1);
-	cpdma_control_set(priv->dma, CPDMA_RX_BUFFER_OFFSET, 0);
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+	if (!cpsw_common_res_usage_stat(priv)) {
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
+		/* setup tx dma to fixed prio and zero offset */
+		cpdma_control_set(priv->dma, CPDMA_TX_PRIO_FIXED, 1);
+		cpdma_control_set(priv->dma, CPDMA_RX_BUFFER_OFFSET, 0);
 
-	/* disable priority elevation and enable statistics on all ports */
-	__raw_writel(0, &priv->regs->ptype);
+		/* disable priority elevation and enable statistics
+		on all ports */
+		__raw_writel(0, &priv->regs->ptype);
 
-	/* enable statistics collection only on the host port */
-	/*__raw_writel(BIT(priv->host_port), &priv->regs->stat_port_en);*/
-	__raw_writel(0x7, &priv->regs->stat_port_en);
+		/* enable statistics collection only on the host port */
+		/*__raw_writel(BIT(priv->host_port),
+				&priv->regs->stat_port_en);*/
+		__raw_writel(0x7, &priv->regs->stat_port_en);
 
-	if (WARN_ON(!priv->data.rx_descs))
-		priv->data.rx_descs = 128;
+		if (WARN_ON(!priv->data.rx_descs))
+			priv->data.rx_descs = 128;
 
-	for (i = 0; i < priv->data.rx_descs; i++) {
-		struct sk_buff *skb;
+		for (i = 0; i < priv->data.rx_descs; i++) {
+			struct sk_buff *skb;
 
-		ret = -ENOMEM;
-		skb = netdev_alloc_skb_ip_align(priv->ndev,
-						priv->rx_packet_max);
-		if (!skb)
-			break;
-		ret = cpdma_chan_submit(priv->rxch, skb, skb->data,
+			ret = -ENOMEM;
+			skb = netdev_alloc_skb_ip_align(priv->ndev,
+							priv->rx_packet_max);
+			if (!skb)
+				break;
+			ret = cpdma_chan_submit(priv->rxch, skb, skb->data,
 					skb_tailroom(skb), 0, GFP_KERNEL);
-		if (WARN_ON(ret < 0))
-			break;
+			if (WARN_ON(ret < 0))
+				break;
+		}
+		/* continue even if we didn't manage to submit
+		all receive descs */
+		msg(info, ifup, "submitted %d rx descriptors\n", i);
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
 	}
-	/* continue even if we didn't manage to submit all receive descs */
-	msg(info, ifup, "submitted %d rx descriptors\n", i);
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
 
 	/* Enable Interrupt pacing if configured */
 	if (priv->coal_intvl != 0) {
@@ -1052,11 +1138,11 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	cpsw_intr_enable(priv);
 	napi_enable(&priv->napi);
 	cpdma_ctlr_eoi(priv->dma);
-	reg = __raw_readl(&priv->cpts_reg->id_ver);
 
 #ifdef CONFIG_PTP_1588_CLOCK_CPTS
+	reg = __raw_readl(&priv->cpts_reg->id_ver);
 	if (reg == CPTS_VERSION) {
-		printk(KERN_ERR"Found CPTS and initializing...\n");
+		printk(KERN_ERR "Found CPTS and initializing...\n");
 		/* Enable CPTS */
 		__raw_writel(0x01, &priv->cpts_reg->control);
 		/* Enable CPTS Interrupt */
@@ -1064,9 +1150,13 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		/* Enable CPSW_SS Misc Interrupt */
 		__raw_writel(0x10, &priv->ss_regs->misc_stat);
 	} else {
-		printk(KERN_ERR"Cannot find CPTS\n");
+		printk(KERN_ERR "Cannot find CPTS\n");
 	}
 #endif
+
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+	priv->slaves[priv->emac_port].open_stat = true;
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
 
 	return 0;
 }
@@ -1088,15 +1178,34 @@ static int cpsw_ndo_stop(struct net_device *ndev)
 	netif_stop_queue(priv->ndev);
 	napi_disable(&priv->napi);
 	netif_carrier_off(priv->ndev);
-	cpsw_intr_disable(priv);
-	cpdma_ctlr_int_ctrl(priv->dma, false);
-	cpdma_ctlr_stop(priv->dma);
-	cpsw_ale_stop(priv->ale);
+
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+	if (cpsw_common_res_usage_stat(priv) <= 1) {
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
+		cpsw_intr_disable(priv);
+		cpdma_ctlr_int_ctrl(priv->dma, false);
+		cpdma_ctlr_stop(priv->dma);
+		cpsw_ale_stop(priv->ale);
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+	}
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
+
 	device_remove_file(&ndev->dev, &dev_attr_hw_stats);
+
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+	cpsw_slave_stop(&priv->slaves[priv->emac_port], priv);
+#else /* CONFIG_TI_CPSW_DUAL_EMAC */
 	for_each_slave(priv, cpsw_slave_stop, priv);
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
+
 	if (priv->data.phy_control)
 		(*priv->data.phy_control)(false);
 	clk_disable(priv->clk);
+
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+	priv->slaves[priv->emac_port].open_stat = false;
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
+
 	return 0;
 }
 
@@ -1114,8 +1223,19 @@ static netdev_tx_t cpsw_ndo_start_xmit(struct sk_buff *skb,
 		goto fail;
 	}
 
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+	if (ndev == priv->slaves[0].ndev) {
+		ret = cpdma_chan_submit(priv->txch, skb, skb->data,
+				skb->len, 1, GFP_KERNEL);
+	} else {
+		ret = cpdma_chan_submit(priv->txch, skb, skb->data,
+				skb->len, 2, GFP_KERNEL);
+	}
+#else
 	ret = cpdma_chan_submit(priv->txch, skb, skb->data,
 				skb->len, 0, GFP_KERNEL);
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
+
 	if (unlikely(ret != 0)) {
 		msg(err, tx_err, "desc submit failed");
 		goto fail;
@@ -1136,12 +1256,24 @@ static void __cpsw_ndo_vlan_rx_add_vid(struct net_device *ndev,
 	struct cpsw_priv *priv = netdev_priv(ndev);
 
 	if (vid) {
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+		cpsw_ale_add_vlan(priv->ale, vid,
+				1 << priv->host_port |
+				1 << (priv->emac_port + 1), 0, 1, 0);
+		cpsw_ale_vlan_add_ucast(priv->ale, priv->mac_addr,
+				priv->host_port, 0, vid);
+		cpsw_ale_vlan_add_mcast(priv->ale, priv->ndev->broadcast,
+				1 << priv->host_port |
+				1 << (priv->emac_port + 1), vid, 0, 0);
+
+#else /* !CONFIG_TI_CPSW_DUAL_EMAC */
 		cpsw_ale_add_vlan(priv->ale, vid,
 				ALE_ALL_PORTS << priv->host_port, 0, 1, 0);
 		cpsw_ale_vlan_add_ucast(priv->ale, priv->mac_addr,
 				priv->host_port, 0, vid);
 		cpsw_ale_vlan_add_mcast(priv->ale, priv->ndev->broadcast,
 				ALE_ALL_PORTS << priv->host_port, vid, 0, 0);
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
 	} else
 		cpsw_ale_add_vlan(priv->ale, vid,
 				ALE_ALL_PORTS << priv->host_port, 1, 1, 0);
@@ -1188,8 +1320,7 @@ static void cpsw_ndo_vlan_rx_kill_vid(struct net_device *ndev,
 	cpsw_ale_del_vlan(priv->ale, vid, ALE_ALL_PORTS << priv->host_port);
 	cpsw_ale_vlan_del_ucast(priv->ale, priv->mac_addr,
 				priv->host_port, vid);
-	cpsw_ale_vlan_del_mcast(priv->ale, priv->ndev->broadcast,
-				ALE_ALL_PORTS << priv->host_port, vid);
+	cpsw_ale_vlan_del_mcast(priv->ale, priv->ndev->broadcast, 0, vid);
 	spin_unlock(&priv->lock);
 }
 #endif /* VLAN_SUPPORT */
@@ -1294,6 +1425,7 @@ static int cpsw_hwtstamp_ioctl(struct net_device *ndev,
 }
 #endif
 
+#ifndef CONFIG_TI_CPSW_DUAL_EMAC
 /**
  *  cpsw_set_priority_mapping
  *    This function configures the packet priority handling on each port.
@@ -2223,6 +2355,7 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 
 	return ret;
 }
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
 
 static int cpsw_ndo_do_ioctl(struct net_device *ndev, struct ifreq *ifrq,
 		int cmd)
@@ -2237,8 +2370,14 @@ static int cpsw_ndo_do_ioctl(struct net_device *ndev, struct ifreq *ifrq,
 #else
 		return -EOPNOTSUPP;
 #endif
+
 	case SIOCDEVPRIVATE:
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+		return -EOPNOTSUPP;
+#else
 		return cpsw_switch_config_ioctl(ndev, ifrq, cmd);
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
+
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -2498,7 +2637,7 @@ static int cpsw_set_coalesce(struct net_device *ndev,
 	__raw_writel(num_interrupts, &priv->ss_regs->rx_imax);
 	__raw_writel(num_interrupts, &priv->ss_regs->tx_imax);
 
-	printk(KERN_INFO"Set coalesce to %d usecs.\n", coal_intvl);
+	printk(KERN_INFO "Set coalesce to %d usecs.\n", coal_intvl);
 	priv->coal_intvl = coal_intvl;
 
 	return 0;
@@ -2524,6 +2663,9 @@ static void cpsw_slave_init(struct cpsw_slave *slave, struct cpsw_priv *priv)
 	slave->data	= data;
 	slave->regs	= regs + data->slave_reg_ofs;
 	slave->sliver	= regs + data->sliver_reg_ofs;
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+	slave->port_vlan = data->dual_emac_reserved_vlan;
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
 }
 
 static int __devinit cpsw_probe(struct platform_device *pdev)
@@ -2536,6 +2678,10 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 	void __iomem			*regs;
 	struct resource			*res;
 	int ret = 0, i, k = 0;
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+	/* Priv for second Interface */
+	struct cpsw_priv		*priv_sl2;
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
 
 	if (!data) {
 		pr_err("cpsw: platform data missing\n");
@@ -2567,13 +2713,13 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 
 	if (is_valid_ether_addr(data->mac_addr)) {
 		memcpy(priv->mac_addr, data->mac_addr, ETH_ALEN);
-		printk(KERN_INFO"Detected MACID=%x:%x:%x:%x:%x:%x\n",
+		printk(KERN_INFO "Detected MACID=%x:%x:%x:%x:%x:%x\n",
 			priv->mac_addr[0], priv->mac_addr[1],
 			priv->mac_addr[2], priv->mac_addr[3],
 			priv->mac_addr[4], priv->mac_addr[5]);
 	} else {
 		random_ether_addr(priv->mac_addr);
-		printk(KERN_INFO"Random MACID=%x:%x:%x:%x:%x:%x\n",
+		printk(KERN_INFO "Random MACID=%x:%x:%x:%x:%x:%x\n",
 			priv->mac_addr[0], priv->mac_addr[1],
 			priv->mac_addr[2], priv->mac_addr[3],
 			priv->mac_addr[4], priv->mac_addr[5]);
@@ -2755,6 +2901,102 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 	msg(notice, probe, "initialized device (regs %x, irq %d)\n",
 	    priv->cpsw_res->start, ndev->irq);
 
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+	priv->slaves[0].ndev = ndev;
+	priv->emac_port = 0;
+
+	ndev = alloc_etherdev(sizeof(struct cpsw_priv));
+	if (!ndev) {
+		pr_err("cpsw: error allocating net_device\n");
+		return -ENOMEM;
+	}
+
+	platform_set_drvdata(pdev, ndev);
+	priv_sl2 = netdev_priv(ndev);
+	spin_lock_init(&priv_sl2->lock);
+	priv_sl2->data = *data;
+	priv_sl2->pdev = pdev;
+	priv_sl2->ndev = ndev;
+	priv_sl2->dev  = &ndev->dev;
+	priv_sl2->msg_enable = netif_msg_init(debug_level, CPSW_DEBUG);
+	priv_sl2->rx_packet_max = max(rx_packet_max, 128);
+
+	priv_sl2->cpts_time.rx_fifo.head = 0;
+	priv_sl2->cpts_time.tx_fifo.head = 0;
+	priv_sl2->cpts_time.rx_fifo.tail = 0;
+	priv_sl2->cpts_time.tx_fifo.tail = 0;
+	priv_sl2->cpts_time.enable_timestamping = false;
+
+	/* Temprovary work around as both mac address are same in e-fuse */
+	if (!memcmp(data->slave_data[0].mac_addr,
+			data->slave_data[1].mac_addr, ETH_ALEN)) {
+		printk(KERN_INFO "Both MAC IDs are same in e-fuse\n");
+		random_ether_addr(data->slave_data[1].mac_addr);
+	}
+
+	if (is_valid_ether_addr(data->slave_data[1].mac_addr)) {
+		memcpy(priv_sl2->mac_addr, data->slave_data[1].mac_addr,
+					ETH_ALEN);
+		printk(KERN_INFO "Detected MACID=%x:%x:%x:%x:%x:%x\n",
+			priv_sl2->mac_addr[0], priv_sl2->mac_addr[1],
+			priv_sl2->mac_addr[2], priv_sl2->mac_addr[3],
+			priv_sl2->mac_addr[4], priv_sl2->mac_addr[5]);
+	} else {
+		random_ether_addr(priv_sl2->mac_addr);
+		printk(KERN_INFO "Random MACID=%x:%x:%x:%x:%x:%x\n",
+			priv_sl2->mac_addr[0], priv_sl2->mac_addr[1],
+			priv_sl2->mac_addr[2], priv_sl2->mac_addr[3],
+			priv_sl2->mac_addr[4], priv_sl2->mac_addr[5]);
+	}
+	memcpy(ndev->dev_addr, priv_sl2->mac_addr, ETH_ALEN);
+
+	priv_sl2->slaves = priv->slaves;
+	priv_sl2->clk = priv->clk;
+
+	priv_sl2->coal_intvl = 0;
+	priv_sl2->bus_freq_mhz = clk_get_rate(priv_sl2->clk) / 1000000;
+
+	priv_sl2->cpsw_res = priv->cpsw_res;
+	priv_sl2->regs = priv->regs;
+	priv_sl2->host_port = priv->host_port;
+	priv_sl2->host_port_regs = priv->host_port_regs;
+	priv_sl2->hw_stats = priv->hw_stats;
+	priv_sl2->cpsw_ss_res = priv->cpsw_ss_res;
+	priv_sl2->ss_regs = priv->ss_regs;
+	priv_sl2->dma = priv->dma;
+	priv_sl2->txch = priv->txch;
+	priv_sl2->rxch = priv->rxch;
+	priv_sl2->ale = priv->ale;
+	priv_sl2->cpts_reg = priv->cpts_reg;
+	for (i = 0; i < priv->num_irqs; i++) {
+		#ifdef CPSW_IRQ_QUIRK
+		priv_sl2->irqs_table[i] = priv->irqs_table[i];
+		priv_sl2->num_irqs = priv->num_irqs;
+		#endif
+	}
+
+#ifdef VLAN_SUPPORT
+	ndev->features |= NETIF_F_HW_VLAN_FILTER;
+#endif /* VLAN_SUPPORT */
+	ndev->flags |= IFF_ALLMULTI;	/* see cpsw_ndo_change_rx_flags() */
+
+	ndev->netdev_ops = &cpsw_netdev_ops;
+	SET_ETHTOOL_OPS(ndev, &cpsw_ethtool_ops);
+	netif_napi_add(ndev, &priv_sl2->napi, cpsw_poll, CPSW_POLL_WEIGHT);
+
+	/* register the network device */
+	SET_NETDEV_DEV(ndev, &pdev->dev);
+	ret = register_netdev(ndev);
+	if (ret) {
+		dev_err(priv->dev, "error registering net device\n");
+		ret = -ENODEV;
+		goto clean_irq_ret;
+	}
+
+	priv_sl2->emac_port = 1;
+	priv->slaves[1].ndev = ndev;
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
+
 	return 0;
 
 clean_irq_ret:
@@ -2811,8 +3053,20 @@ static int cpsw_suspend(struct device *dev)
 	struct platform_device	*pdev = to_platform_device(dev);
 	struct net_device	*ndev = platform_get_drvdata(pdev);
 
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	u32 i = 0;
+
+	if (netif_running(ndev))
+		while (i < priv->data.slaves) {
+			cpsw_ndo_stop(priv->slaves[i].ndev);
+			i++;
+		}
+#else /* CONFIG_TI_CPSW_DUAL_EMAC */
 	if (netif_running(ndev))
 		cpsw_ndo_stop(ndev);
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
+
 	return 0;
 }
 
