@@ -358,6 +358,15 @@ void __init ti81xx_check_revision(void)
 	u8 rev;
 	char cpu_rev[16];
 
+	/*
+	 * TI81XX devices may not have features registers, so we need to set
+	 * those (or at least the ones required to distinguish variants) here
+	 * only as we may not be able to do so later (e.g., TI814X variant DM385
+	 * shares same rev bits and only distinguished on the basis of DSP
+	 * availability.
+	 */
+	omap3_features = 0;
+
 	idcode = read_tap_reg(TI81XX_CONTROL_DEVICE_ID);
 	partnum = (idcode >> 12) & 0xffff;
 	rev = (idcode >> 28) & 0xf;
@@ -381,6 +390,7 @@ void __init ti81xx_check_revision(void)
 			strcpy(cpu_rev, "2.0");
 		}
 
+		omap3_features |= OMAP3_HAS_DSP;
 		pr_info("OMAP chip is TI8168 %s\n", cpu_rev);
 		return;
 	} else if ((partnum == 0xb8f2)) {
@@ -398,7 +408,21 @@ void __init ti81xx_check_revision(void)
 			strcpy(cpu_rev, "2.0");
 		}
 
+		omap3_features |= OMAP3_HAS_DSP;
 		pr_info("OMAP chip is TI8148 %s\n", cpu_rev);
+		return;
+	} else if ((partnum == 0xb96b)) {
+		omap_chip.oc |= CHIP_IS_DM385;
+
+		switch (rev) {
+		case 0:
+			/* FALLTHROUGH */
+		default:
+			omap_revision = TI8148_REV_ES1_0;
+			strcpy(cpu_rev, "1.0");
+		}
+
+		pr_info("OMAP chip is DM385 %s\n", cpu_rev);
 		return;
 	}
 
