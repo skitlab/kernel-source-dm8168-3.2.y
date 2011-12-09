@@ -103,7 +103,7 @@ static struct clk osc0_clkin_ck = {
 	.flags		= RATE_IN_TI814X | RATE_IN_DM385,
 };
 
-#if defined(CONFIG_MACH_DM385EVM)
+#if !defined(CONFIG_MACH_DM385EVM)
 static struct clk osc1_clkin_ck = {
 	.name		= "osc1_clkin_ck",
 	.ops		= &clkops_null,
@@ -2693,6 +2693,36 @@ static struct clk hd_venc_d_ck = {
 	.recalc		= &followparent_recalc,
 };
 
+/* HDVENC A MUX clock sel */
+static const struct clksel hd_venc_a_mux_sel[] = {
+	{ .parent = &hdmi_dpll_muxout_ck, .rates = div_1_0_rates },
+	{ .parent = &video1_dpll_ck, .rates = div_1_1_rates },
+	{ .parent = &video0_dpll_ck, .rates = div_1_2_rates },
+	{ .parent = NULL}
+};
+
+/* hd_venc_a clock */
+static struct clk hd_venc_a_ck = {
+	.name		= "hd_venc_a_ck",
+	.init		= &omap2_init_clksel_parent,
+	.ops		= &clkops_null,
+	.clksel		= hd_venc_a_mux_sel,
+	.clksel_reg	= TI814X_PLL_CMGC_HDVENC_A_CLKSRC,
+	.clksel_mask	= TI814X_VIDEO_PLL_HD_VENC_A_MASK,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &omap2_clksel_recalc,
+	.set_rate	= &ti814x_clksel_set_rate,
+};
+
+/* hd dac clk */
+static struct clk hd_dac_ck = {
+	.name		= "hd_dac_ck",
+	.parent		= &hd_venc_a_ck,
+	.ops		= &clkops_null,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
 /* HDMI_PHY_GCLK */
 static struct clk hdmi_phy_gclk_ck = {
 	.name		= "hdmi_phy_gclk_ck",
@@ -3528,6 +3558,26 @@ static struct clk cpts_rft_clk_ck = {
 	.set_rate       = &ti814x_clksel_set_rate,
 };
 
+/* Cpts rft div5 Clock (final) */
+static struct clk cpts_rft_div5_ck = {
+	.name		= "cpts_rft_div5_ck",
+	.parent		= &cpts_rft_clk_ck,
+	.ops		= &clkops_null,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.fixed_div	= 5,
+	.recalc		= &omap_fixed_divisor_recalc,
+};
+
+/* Cpts rft div2 Clock (final) */
+static struct clk cpts_rft_div2_ck = {
+	.name		= "cpts_rft_div2_ck",
+	.parent		= &cpts_rft_clk_ck,
+	.ops		= &clkops_null,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.fixed_div	= 2,
+	.recalc		= &omap_fixed_divisor_recalc,
+};
+
 /* LJCB input1 clk serdes_xrefclkip_ck */
 static struct clk ljcb_serdesp_ck = {
 	.name		= "ljcb_serdesp_ck",
@@ -3621,13 +3671,59 @@ static struct clk satass_125m_ck = {
 	.name		= "satass_125m_ck",
 	.ops		= &clkops_null,
 	.rate		= 125000000,
-	.flags		= RATE_IN_TI814X,
+	.flags		= RATE_IN_TI814X | RATE_IN_DM385,
 };
 
+
+/* 100MHz diff ref clk out from SATA0  */
+static struct clk sata1ssp_ck = {
+	.name		= "sata1ssp_ck",
+	.ops		= &clkops_null,
+	.rate		= 100000000,
+	.flags		= RATE_IN_DM385,
+};
+
+/* 100MHz diff ref clk out from SATA0 */
+static struct clk sata1ssn_ck = {
+	.name		= "sata1ssn_ck",
+	.ops		= &clkops_null,
+	.rate		= 100000000,
+	.flags		= RATE_IN_DM385,
+};
+
+/* satass_20_refin_ck from SATA0 */
+static struct clk sata1ss_20m_ck = {
+	.name		= "sata1ss_20m_ck",
+	.ops		= &clkops_null,
+	.rate		= 20000000,
+	.flags		= RATE_IN_DM385,
+};
+
+/* 50MHz SATA1 SS out */
+static struct clk sata1ss_50m_ck = {
+	.name		= "sata1ss_50m_ck",
+	.ops		= &clkops_null,
+	.rate		= 50000000,
+	.flags		= RATE_IN_DM385,
+};
+
+/* 125MHz SATA1 SS out */
+static struct clk sata1ss_125m_ck = {
+	.name		= "sata1ss_125m_ck",
+	.ops		= &clkops_null,
+	.rate		= 125000000,
+	.flags		= RATE_IN_DM385,
+};
+
+#if !defined(CONFIG_MACH_DM385EVM)
 static const struct clksel gmac0to1_mux_sel[] = {
 	{ .parent = &satass_50m_ck, .rates = div_1_0_rates },
 	{ .parent = &external_ck, .rates = div_1_1_rates },
 	{ .parent = NULL}
+};
+
+static struct clk gmac_0to1_mux_out_ck = {
+	.name		= "gmac_0to1_mux_out_ck",
 };
 
 /* RMII ref clk */
@@ -3650,6 +3746,113 @@ static struct clk emac_gmii_fck = {
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &followparent_recalc,
 };
+
+/*  sata0/1 50m mux out clock */
+static struct clk sata01_50m_mux_out_ck = {
+	.name		= "sata01_50m_mux_out_ck",
+};
+
+/*  sata0/1 125m mux out clock */
+static struct clk sata01_125m_mux_out_ck = {
+	.name		= "sata01_125m_mux_out_ck",
+};
+
+#else
+
+/* sata 01 50m source selection  */
+static const struct clksel sata01_50m_mux_sel[] = {
+	{ .parent = &satass_50m_ck, .rates = div_1_0_rates },
+	{ .parent = &sata1ss_50m_ck, .rates = div_1_1_rates },
+	{ .parent = NULL}
+};
+
+/*  sata0/1 50m mux out clock */
+static struct clk sata01_50m_mux_out_ck = {
+	.name		= "sata01_50m_mux_out_ck",
+	.init		= &omap2_init_clksel_parent,
+	.ops		= &clkops_null,
+	.clksel		= sata01_50m_mux_sel,
+	.clksel_reg	= TI814X_PLL_CMGC_GMAC_ECO_CLKSRC,
+	.clksel_mask	= TI814X_SATA_01_MUX_MASK,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &omap2_clksel_recalc,
+};
+
+/* One iput comes from mux */
+static const struct clksel gmac0to1_mux_sel[] = {
+	{ .parent = &sata01_50m_mux_out_ck, .rates = div_1_0_rates },
+	{ .parent = &external_ck, .rates = div_1_1_rates },
+	{ .parent = NULL}
+};
+
+/*  gmac 0t01 mux out clock */
+static struct clk gmac_0to1_mux_out_ck = {
+	.name		= "gmac_0to1_mux_out_ck",
+	.init		= &omap2_init_clksel_parent,
+	.ops		= &clkops_null,
+	.clksel		= gmac0to1_mux_sel,
+	.clksel_reg	= TI814X_PLL_CMGC_RMII_REF_CLKSRC,
+	.clksel_mask	= TI814X_RMII_REFCLK_MASK,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &omap2_clksel_recalc,
+};
+
+static const struct clksel rmii_mux_sel[] = {
+	{ .parent = &gmac_0to1_mux_out_ck, .rates = div_1_0_rates },
+	{ .parent = &cpts_rft_div5_ck, .rates = div_1_1_rates },
+	{ .parent = NULL}
+};
+
+/* One iput comes from sata1 instead of sata0 */
+static const struct clksel sata01_125m_mux_sel[] = {
+	{ .parent = &satass_125m_ck, .rates = div_1_0_rates },
+	{ .parent = &sata1ss_125m_ck, .rates = div_1_1_rates },
+	{ .parent = NULL}
+};
+
+/*  sata0/1 125m mux out clock */
+static struct clk sata01_125m_mux_out_ck = {
+	.name		= "sata01_125m_mux_out_ck",
+	.init		= &omap2_init_clksel_parent,
+	.ops		= &clkops_null,
+	.clksel		= sata01_125m_mux_sel,
+	.clksel_reg	= TI814X_PLL_CMGC_GMAC_ECO_CLKSRC,
+	.clksel_mask	= TI814X_SATA_01_MUX_MASK,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &omap2_clksel_recalc,
+};
+
+static const struct clksel gmii_mux_sel[] = {
+	{ .parent = &sata01_125m_mux_out_ck, .rates = div_1_0_rates },
+	{ .parent = &cpts_rft_div2_ck, .rates = div_1_1_rates },
+	{ .parent = NULL}
+};
+
+/* RMII ref clk */
+static struct clk emac_rmii_fck = {
+	.name		= "emac_rmii_fck",
+	.init		= &omap2_init_clksel_parent,
+	.ops		= &clkops_null,
+	.clksel		= rmii_mux_sel,
+	.clksel_reg	= TI814X_PLL_CMGC_GMAC_ECO_CLKSRC,
+	.clksel_mask	= TI814X_GMAC_RMII_MUX_MASK,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &omap2_clksel_recalc,
+};
+
+/* GMII ref clk */
+static struct clk emac_gmii_fck = {
+	.name		= "emac_gmii_fck",
+	.init		= &omap2_init_clksel_parent,
+	.ops		= &clkops_null,
+	.clksel		= gmii_mux_sel,
+	.clksel_reg	= TI814X_PLL_CMGC_GMAC_ECO_CLKSRC,
+	.clksel_mask	= TI814X_GMAC_GMII_MUX_MASK,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &omap2_clksel_recalc,
+};
+
+#endif
 
 /************ Watchdog, Secure timer and Sync timer Functional clocking *******/
 
@@ -3743,7 +3946,7 @@ static struct clk clkout_prcm_ck = {
 	.recalc		= &omap2_clksel_recalc,
 };
 
-#if !defined(CONFIG_ARCH_DM385)
+#if !defined(CONFIG_MACH_DM385EVM)
 static const struct clksel clkout0to10_mux_sel[] = {
 	{ .parent = &clkout_prcm_ck, .rates = div_1_0_rates },
 	{ .parent = &satass_125m_ck, .rates = div_1_1_rates },
@@ -4012,6 +4215,8 @@ static struct omap_clk ti814x_clks[] = {
 	CLK(NULL,		"tppss_stc1_fck",		&tppss_stc1_fck,		CK_TI814X),
 	CLK(NULL,		"hd_venc_g_ck",			&hd_venc_g_ck,			CK_TI814X | CK_DM385),
 	CLK(NULL,		"hd_venc_d_ck",			&hd_venc_d_ck,			CK_TI814X | CK_DM385),
+	CLK(NULL,		"hd_venc_a_ck",			&hd_venc_a_ck,			CK_DM385),
+	CLK(NULL,		"hd_dac_ck",			&hd_dac_ck,			CK_DM385),
 	CLK(NULL,		"hdmi_phy_gclk_ck",		&hdmi_phy_gclk_ck,		CK_TI814X | CK_DM385),
 	CLK(NULL,		"sd_venc_ck",			&sd_venc_ck,			CK_TI814X | CK_DM385),
 	CLK(NULL,		"sysclk14_ck",			&sysclk14_ck,			CK_TI814X),
@@ -4069,6 +4274,8 @@ static struct omap_clk ti814x_clks[] = {
 	CLK(NULL,		"mcasp5_ahx_ck",		&mcasp5_ahx_ck,			CK_TI814X),
 	CLK(NULL,		"mcasp6_ahx_ck",		&mcasp6_ahx_ck,			CK_TI814X),
 	CLK(NULL,		"cpts_rft_clk_ck",		&cpts_rft_clk_ck,		CK_TI814X | CK_DM385),
+	CLK(NULL,		"cpts_rft_div5_ck",		&cpts_rft_div5_ck,		CK_DM385),
+	CLK(NULL,		"cpts_rft_div2_ck",		&cpts_rft_div2_ck,		CK_DM385),
 	CLK(NULL,		"ljcb_serdesp_ck",		&ljcb_serdesp_ck,		CK_TI814X | CK_DM385),
 	CLK(NULL,		"ljcb_serdesn_ck",		&ljcb_serdesn_ck,		CK_TI814X | CK_DM385),
 	CLK(NULL,		"pciessp_ck",			&pciessp_ck,			CK_TI814X | CK_DM385),
@@ -4081,6 +4288,14 @@ static struct omap_clk ti814x_clks[] = {
 	CLK(NULL,		"satass_20m_ck",		&satass_20m_ck,			CK_TI814X | CK_DM385),
 	CLK(NULL,		"satass_50m_ck",		&satass_50m_ck,			CK_TI814X | CK_DM385),
 	CLK(NULL,		"satass_125m_ck",		&satass_125m_ck,		CK_TI814X | CK_DM385),
+	CLK(NULL,		"sata1ssp_ck",			&sata1ssp_ck,			CK_TI814X | CK_DM385),
+	CLK(NULL,		"sata1ssn_ck",			&sata1ssn_ck,			CK_DM385),
+	CLK(NULL,		"sata1ss_20m_ck",		&sata1ss_20m_ck,		CK_DM385),
+	CLK(NULL,		"sata1ss_50m_ck",		&sata1ss_50m_ck,		CK_DM385),
+	CLK(NULL,		"sata1ss_125m_ck",		&sata1ss_125m_ck,		CK_DM385),
+	CLK(NULL,		"sata01_50m_mux_out_ck",	&sata01_50m_mux_out_ck,		CK_DM385),
+	CLK(NULL,		"sata01_125m_mux_out_ck",	&sata01_125m_mux_out_ck,	CK_DM385),
+	CLK(NULL,		"gmac_0to1_mux_out_ck",		&gmac_0to1_mux_out_ck,		CK_DM385),
 	CLK(NULL,		"emac_rmii_fck",		&emac_rmii_fck,			CK_TI814X | CK_DM385),
 	CLK(NULL,		"emac_gmii_fck",		&emac_gmii_fck,			CK_TI814X | CK_DM385),
 	CLK("omap_wdt",		"wdt1_fck",			&wdt1_fck,			CK_TI814X | CK_DM385),
