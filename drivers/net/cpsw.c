@@ -611,12 +611,6 @@ void cpsw_rx_handler(void *token, int len, int status)
 	u32			evt_high = 0;
 #endif
 
-	/* free and bail if we are shutting down */
-	if (unlikely(!netif_running(ndev))) {
-		dev_kfree_skb_any(skb);
-		return;
-	}
-
 #ifdef CONFIG_TI_CPSW_DUAL_EMAC
 	if (CPDMA_RX_SOURCE_PORT(status) == 1) {
 		ndev = priv->slaves[0].ndev;
@@ -633,6 +627,12 @@ void cpsw_rx_handler(void *token, int len, int status)
 		return;
 	}
 #endif /* CONFIG_TI_CPSW_DUAL_EMAC */
+
+	/* free and bail if we are shutting down */
+	if (unlikely(!netif_running(ndev))) {
+		dev_kfree_skb_any(skb);
+		return;
+	}
 
 	if (likely(status >= 0)) {
 		skb_put(skb, len);
