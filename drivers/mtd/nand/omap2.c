@@ -1300,9 +1300,11 @@ static int __devinit omap_nand_probe(struct platform_device *pdev)
 			3)Ecc layout must match with u-boot's ECC layout.
 			*/
 			offset = info->mtd.oobsize - MAX_HWECC_BYTES_OOB_64;
-			for (i = 0; i < omap_oobinfo.eccbytes; i++)
-				omap_oobinfo.eccpos[i] = i + offset;
 		}
+
+		for (i = 0; i < omap_oobinfo.eccbytes; i++)
+			omap_oobinfo.eccpos[i] = i + offset;
+
 		info->nand.ecc.layout = &omap_oobinfo;
 
 	}
