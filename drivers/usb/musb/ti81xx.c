@@ -1100,11 +1100,11 @@ int ti81xx_musb_init(struct musb *musb)
 		 */
 		musb->txfifo_intr_enable = 0;
 
-		if (musb->txfifo_intr_enable)
-			printk(KERN_DEBUG "TxFifo Empty intr disabled\n");
-		else
-			printk(KERN_DEBUG "TxFifo Empty intr enabled\n");
 	}
+	if (musb->txfifo_intr_enable)
+		printk(KERN_DEBUG "TxFifo Empty intr enabled\n");
+	else
+		printk(KERN_DEBUG "TxFifo Empty intr disabled\n");
 #endif
 	/* enable babble workaround */
 	INIT_WORK(&musb->work, evm_deferred_musb_restart);
