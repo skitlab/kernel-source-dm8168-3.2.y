@@ -30,6 +30,7 @@
 #include <plat/irqs.h>
 #include <plat/board.h>
 #include <plat/mmc.h>
+#include <plat/usb.h>
 #include "common.h"
 #include "mux.h"
 #include "hsmmc.h"
@@ -74,6 +75,13 @@ static struct omap2_hsmmc_info mmc[] = {
 		.ocr_mask	= MMC_VDD_33_34,
 	},
 	{}	/* Terminator */
+};
+
+static struct omap_musb_board_data musb_board_data = {
+	.interface_type	= MUSB_INTERFACE_ULPI,
+	.mode           = MUSB_HOST,
+	.power		= 500,
+	.instances	= 1,
 };
 
 #ifdef CONFIG_REGULATOR_GPIO
@@ -167,6 +175,7 @@ static void __init ti81xx_evm_init(void)
 	omap_board_config = ti81xx_evm_config;
 	omap_board_config_size = ARRAY_SIZE(ti81xx_evm_config);
 	omap2_hsmmc_init(mmc);
+	usb_musb_init(&musb_board_data);
 #ifdef CONFIG_REGULATOR_GPIO
 	if (cpu_is_ti816x()) {
 		ti816x_gpio_vr_init();
