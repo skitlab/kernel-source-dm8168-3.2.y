@@ -1130,7 +1130,6 @@ static int __devinit omap_nand_probe(struct platform_device *pdev)
 	info->mtd.priv		= &info->nand;
 	info->mtd.name		= dev_name(&pdev->dev);
 	info->mtd.owner		= THIS_MODULE;
-	pdata->ecc_opt		= OMAP_ECC_HAMMING_CODE_HW;
 	info->ecc_opt		= pdata->ecc_opt;
 
 	info->nand.options	= pdata->devsize;
