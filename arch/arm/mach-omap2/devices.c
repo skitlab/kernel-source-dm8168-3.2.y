@@ -630,7 +630,7 @@ static inline void omap_init_mcspi(void) {}
 #ifdef CONFIG_ARCH_TI81XX
 static int omap_elm_init(struct omap_hwmod *oh, void *unused)
 {
-	struct platform_device *pdev;
+	struct omap_device *pdev;
 	char *name = "omap2_elm";
 	static int elm_num;
 
