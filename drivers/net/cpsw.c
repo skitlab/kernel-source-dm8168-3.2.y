@@ -2015,8 +2015,7 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 		break;
 
 	case CONFIG_SWITCH_ADD_VLAN:
-		if ((switchcmd(switch_config).vid > 0) &&
-				(switchcmd(switch_config).vid <= 4095) &&
+		if ((switchcmd(switch_config).vid <= 4095) &&
 				(switchcmd(switch_config).mem_port > 0) &&
 				(switchcmd(switch_config).mem_port <= 7)) {
 			ret = cpsw_ale_add_vlan(priv->ale,
@@ -2033,8 +2032,7 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 		break;
 
 	case CONFIG_SWITCH_FIND_VLAN:
-		if ((switchcmd(switch_config).vid > 0) &&
-				(switchcmd(switch_config).vid <= 4095)) {
+		if (switchcmd(switch_config).vid <= 4095) {
 			switch_config.ret_type = cpsw_ale_match_vlan(priv->ale,
 				switchcmd(switch_config).vid);
 			ret = copy_to_user(ifrq->ifr_data, &switch_config,
@@ -2046,8 +2044,7 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 		break;
 
 	case CONFIG_SWITCH_DEL_VLAN:
-		if ((switchcmd(switch_config).vid > 0) &&
-				(switchcmd(switch_config).vid <= 4095) &&
+		if ((switchcmd(switch_config).vid <= 4095) &&
 				(switchcmd(switch_config).mem_port <= 7)) {
 			ret = cpsw_ale_del_vlan(priv->ale,
 				switchcmd(switch_config).vid,
