@@ -989,6 +989,7 @@ unlock_ret:
 	spin_unlock_irqrestore(&ctlr->lock, flags);
 	return ret;
 }
+EXPORT_SYMBOL(cpdma_control_get);
 
 int cpdma_control_set(struct cpdma_ctlr *ctlr, int control, int value)
 {
@@ -1025,3 +1026,4 @@ unlock_ret:
 	spin_unlock_irqrestore(&ctlr->lock, flags);
 	return ret;
 }
+EXPORT_SYMBOL(cpdma_control_set);
