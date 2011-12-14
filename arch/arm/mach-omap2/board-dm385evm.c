@@ -579,7 +579,7 @@ static void __init dm385_evm_map_io(void)
 	ti81xx_map_common_io();
 }
 
-MACHINE_START(TI8148EVM, "dm385evm")
+MACHINE_START(DM385EVM, "dm385evm")
 	/* Maintainer: Texas Instruments */
 	.boot_params	= 0x80000100,
 	.map_io		= dm385_evm_map_io,
