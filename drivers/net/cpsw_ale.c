@@ -710,7 +710,8 @@ struct ale_control_info {
 };
 
 #define CTRL_GLOBAL(name, bit)		{#name, ALE_CONTROL, 0, bit, 0, 1}
-#define CTRL_UNK(name, bit)		{#name, ALE_UNKNOWNVLAN, 0, bit, 1, 1}
+#define CTRL_UNK(name, shift, bits)	{#name, ALE_UNKNOWNVLAN, 0, shift, \
+						0, bits}
 #define CTRL_PORTCTL(name, start, bits)	{#name, ALE_PORTCTL, 4, start, 0, bits}
 
 static struct ale_control_info ale_controls[] = {
@@ -733,10 +734,14 @@ static struct ale_control_info ale_controls[] = {
 	[ALE_PORT_MCAST_LIMIT]	     = CTRL_PORTCTL(mcast_limit, 16, 8),
 	[ALE_PORT_BCAST_LIMIT]	     = CTRL_PORTCTL(bcast_limit, 24, 8),
 
-	[ALE_PORT_UNKNOWN_VLAN_MEMBER]	   = CTRL_UNK(unknown_vlan_member, 0),
-	[ALE_PORT_UNKNOWN_MCAST_FLOOD]	   = CTRL_UNK(unknown_mcast_flood, 8),
-	[ALE_PORT_UNKNOWN_REG_MCAST_FLOOD] = CTRL_UNK(unknown_reg_flood, 16),
-	[ALE_PORT_UNTAGGED_EGRESS]	   = CTRL_UNK(untagged_egress, 24),
+	[ALE_PORT_UNKNOWN_VLAN_MEMBER]	   =
+			CTRL_UNK(unknown_vlan_member, 0, 6),
+	[ALE_PORT_UNKNOWN_MCAST_FLOOD]	   =
+			CTRL_UNK(unknown_mcast_flood, 8, 6),
+	[ALE_PORT_UNKNOWN_REG_MCAST_FLOOD] =
+			CTRL_UNK(unknown_reg_flood, 16, 6),
+	[ALE_PORT_UNTAGGED_EGRESS]	   =
+			CTRL_UNK(untagged_egress, 24, 6),
 };
 
 int cpsw_ale_control_set(struct cpsw_ale *ale, int port, int control,
