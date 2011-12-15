@@ -3683,6 +3683,9 @@ int ata_std_prereset(struct ata_link *link, unsigned long deadline)
 	return 0;
 }
 
+#define TOTAL_RETRIES  90
+#define SPEED_LIMIT_RETRIES 60
+
 /**
  *	sata_link_hardreset - reset link via SATA phy reset
  *	@link: link to reset
@@ -3713,9 +3716,11 @@ int sata_link_hardreset(struct ata_link *link, const unsigned long *timing,
 {
 	u32 scontrol;
 	int rc;
+	u32 sstatus = 0, retries = TOTAL_RETRIES;
 
 	DPRINTK("ENTER\n");
 
+retry:
 	if (online)
 		*online = false;
 
@@ -3725,7 +3730,8 @@ int sata_link_hardreset(struct ata_link *link, const unsigned long *timing,
 		 * reconfiguration.  This works for at least ICH7 AHCI
 		 * and Sil3124.
 		 */
-		if ((rc = sata_scr_read(link, SCR_CONTROL, &scontrol)))
+		rc = sata_scr_read(link, SCR_CONTROL, &scontrol);
+		if (rc)
 			goto out;
 
 		scontrol = (scontrol & 0x0f0) | 0x304;
@@ -3748,15 +3754,34 @@ int sata_link_hardreset(struct ata_link *link, const unsigned long *timing,
 	/* Couldn't find anything in SATA I/II specs, but AHCI-1.1
 	 * 10.4.2 says at least 1 ms.
 	 */
-	ata_msleep(link->ap, 1);
+	ata_msleep(link->ap, 10);
 
 	/* bring link back */
 	rc = sata_link_resume(link, timing, deadline);
 	if (rc)
 		goto out;
 	/* if link is offline nothing more to do */
-	if (ata_phys_link_offline(link))
+	if (ata_phys_link_offline(link)) {
+		rc = sata_scr_read(link, SCR_STATUS, &sstatus);
+		if (rc)
+			goto out;
+		if ((sstatus & 0x0f) == 0x01) {
+			retries--;
+			if (SPEED_LIMIT_RETRIES == retries) {
+				printk(KERN_CRIT"Link not established, limiting speed\n");
+				sata_down_spd_limit(link, 0);
+			}
+			if (retries > 0)
+				goto retry;
+		}
+
 		goto out;
+
+	} else {
+		if (retries != TOTAL_RETRIES)
+			printk(KERN_CRIT"Link established after %d retries\n",
+				TOTAL_RETRIES - retries);
+	}
 
 	/* Link is online.  From this point, -ENODEV too is an error. */
 	if (online)
