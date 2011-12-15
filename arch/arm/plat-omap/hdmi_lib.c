@@ -618,6 +618,18 @@ static int hdmi_core_video_config(struct hdmi_core_video_config_t *cfg)
 
 	}
 	hdmi_write_reg(name, HDMI_CORE_SYS__VID_MODE, r);
+
+	/* Configure the polarity of output syncs in case HDMI is
+	   receiving Embedded Syncs.
+	 */
+	if (cpu_is_ti814x() || cpu_is_ti816x()) {
+		if (cfg->CoreSyncFormat == HDMI_EMBEDDED_SYNC) {
+			r = hdmi_read_reg(name, HDMI_CORE_SYS__DE_CTRL);
+			r = FLD_MOD(r, cfg->vsync_polarity, 5, 5);
+			r = FLD_MOD(r, cfg->hsync_polarity, 4, 4);
+			hdmi_write_reg(name, HDMI_CORE_SYS__DE_CTRL, r);
+		}
+	}
 	/* HDMI_CTRL */
 	r = hdmi_read_reg(av_name, HDMI_CORE_AV_HDMI_CTRL);
 	r = FLD_MOD(r, cfg->CoreDeepColorPacketED, 6, 6);
@@ -1477,6 +1489,23 @@ int hdmi_lib_enable(struct hdmi_config *cfg)
 	v_core_cfg.CoreHdmiDvi = cfg->hdmi_dvi;
 	/*store the sync format*/
 	v_core_cfg.CoreSyncFormat = cfg->sync;
+	v_core_cfg.vsync_polarity = 0;
+	v_core_cfg.hsync_polarity = 0;
+	if (HDMI_EMBEDDED_SYNC == v_core_cfg.CoreSyncFormat) {
+		switch (cfg->video_format) {
+		/* According to HDMI spec. polarity for 480p and 576 should be
+		   reversed
+		 */
+		case 2:
+		case 17:
+			v_core_cfg.vsync_polarity = 1;
+			v_core_cfg.hsync_polarity = 1;
+			break;
+		default:
+			v_core_cfg.vsync_polarity = 0;
+			v_core_cfg.hsync_polarity = 0;
+		}
+	}
 	r = hdmi_core_video_config(&v_core_cfg);
 	/* release software reset in the core */
 	hdmi_core_swreset_release();
