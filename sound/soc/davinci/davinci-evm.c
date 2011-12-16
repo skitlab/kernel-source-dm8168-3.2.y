@@ -336,7 +336,8 @@ static int __init evm_init(void)
 	} else if (machine_is_davinci_da850_evm()) {
 		evm_snd_dev_data = &da850_snd_soc_card;
 		index = 0;
-	} else if (machine_is_ti8168evm() || machine_is_ti8148evm()) {
+	} else if (machine_is_ti8168evm() || machine_is_ti8148evm()
+					|| machine_is_dm385evm()) {
 		evm_snd_dev_data = &ti81xx_snd_soc_card;
 		index = 0;
 	} else
