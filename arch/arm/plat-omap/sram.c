@@ -146,7 +146,11 @@ static void __init omap_detect_sram(void)
 			if (cpu_is_ti814x()) {
 				omap_sram_base = TI814X_SRAM_VA;
 				omap_sram_start = TI814X_SRAM_PA;
-				omap_sram_size = 0x20000;/* 128K */
+				/* Total Internal sram size is 64KB and 1KB of
+				 * this is reserved, for alignment purpose we
+				 * lose 3KB more hence only 60KB is available
+				 */
+				omap_sram_size = 0xF000;/* 64K - 4K */
 			} else if (cpu_is_omap34xx()) {
 				omap_sram_base = OMAP3_SRAM_VA;
 				omap_sram_start = OMAP3_SRAM_PA;
