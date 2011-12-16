@@ -620,16 +620,19 @@ void cpsw_rx_handler(void *token, int len, int status)
 		ndev = priv->slaves[1].ndev;
 		priv = netdev_priv(ndev);
 		skb->dev = ndev;
-	} else {
-		printk(KERN_ERR "Invalid EMAC Port No received stat = %x\n",
-				status);
-		WARN_ON(status);
+	}
+	#if 0
+	else {
+		/* we are shutting down */
+		dev_kfree_skb_any(skb);
 		return;
 	}
+	#endif
 #endif /* CONFIG_TI_CPSW_DUAL_EMAC */
 
 	/* free and bail if we are shutting down */
-	if (unlikely(!netif_running(ndev))) {
+	if (unlikely(!netif_running(ndev)) ||
+			unlikely(!netif_carrier_ok(ndev))) {
 		dev_kfree_skb_any(skb);
 		return;
 	}
@@ -3054,11 +3057,11 @@ static int cpsw_suspend(struct device *dev)
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	u32 i = 0;
 
-	if (netif_running(ndev))
-		while (i < priv->data.slaves) {
+	while (i < priv->data.slaves) {
+		if (netif_running(priv->slaves[i].ndev))
 			cpsw_ndo_stop(priv->slaves[i].ndev);
-			i++;
-		}
+		i++;
+	}
 #else /* CONFIG_TI_CPSW_DUAL_EMAC */
 	if (netif_running(ndev))
 		cpsw_ndo_stop(ndev);
@@ -3072,8 +3075,20 @@ static int cpsw_resume(struct device *dev)
 	struct platform_device	*pdev = to_platform_device(dev);
 	struct net_device	*ndev = platform_get_drvdata(pdev);
 
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	u32 i = 0;
+
+	while (i < priv->data.slaves) {
+		if (netif_running(priv->slaves[i].ndev))
+			cpsw_ndo_open(priv->slaves[i].ndev);
+		i++;
+	}
+#else /* CONFIG_TI_CPSW_DUAL_EMAC */
 	if (netif_running(ndev))
 		cpsw_ndo_open(ndev);
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
+
 	return 0;
 }
 
