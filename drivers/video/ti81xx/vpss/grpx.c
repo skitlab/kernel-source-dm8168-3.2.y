@@ -372,7 +372,7 @@ static int vps_grpx_set_format(struct vps_grpx_ctrl *gctrl,
 				gctrl->grpx_num, df);
 			return -1;
 		}
-	} else {
+	} else if (!cpu_is_dm385()) {
 		if (vps_isnewdata(df) && (omap_rev() < TI8148_REV_ES2_0)) {
 			VPSSERR("(%d) - unsupport format %d\n",
 				gctrl->grpx_num, df);
@@ -1445,7 +1445,7 @@ int __init vps_grpx_init(struct platform_device *pdev)
 			break;
 		case 1:
 			gctrl->snode = VPS_DC_GRPX1_INPUT_PATH;
-			if (cpu_is_ti816x())
+			if (cpu_is_ti816x() || cpu_is_dm385())
 				gctrl->enodes[0] = VPS_DC_HDCOMP_BLEND;
 			else
 				gctrl->enodes[0] = VPS_DC_DVO2_BLEND;

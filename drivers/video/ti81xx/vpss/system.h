@@ -100,6 +100,8 @@ enum vps_platformid {
 	/**< TI814x EVMs. */
 	VPS_PLATFORM_ID_SIM_TI814x,
 	/**< TI814x Simulator. */
+	VPS_PLATFORM_ID_EVM_TI8107,
+	/** < TI8107 EVMs */
 	VPS_PLATFORM_ID_MAX
 	/**< Max Platform ID. */
 };

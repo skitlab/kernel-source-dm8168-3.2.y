@@ -192,7 +192,7 @@ static inline int vps_get_bitspp(enum fvid2_bitsperpixel fbpp)
 
 static inline u8 vps_get_numvencs(void)
 {
-	if (cpu_is_ti816x())
+	if (cpu_is_ti816x() || cpu_is_dm385())
 		return VPS_DC_MAX_VENC;
 	else
 		return VPS_DC_MAX_VENC - 1;

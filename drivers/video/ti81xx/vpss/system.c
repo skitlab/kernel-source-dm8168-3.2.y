@@ -119,7 +119,7 @@ static inline bool isvalidpllclk(struct vps_systemvpllclk *pllclk)
 		if (cpu_is_ti816x()) {
 			if (pllclk->outputclk != 216000)
 				return false;
-		} else {
+		} else if (!(cpu_is_dm385())) {
 			if (pllclk->outputclk != 54000)
 				return false;
 		}
@@ -680,14 +680,20 @@ int __init vps_system_init(struct platform_device *pdev)
 	if (cpu_is_ti816x()) {
 		if (!((pid == VPS_PLATFORM_ID_EVM_TI816x) ||
 			(pid == VPS_PLATFORM_ID_SIM_TI816x))) {
-			VPSSERR("TI816X EVM with TI814X M3 firmware,"
+			VPSSERR("Wrong M3 firmware,"
 				"please use TI816x M3 firmware\n");
+			goto exit;
+		}
+	} else if (cpu_is_dm385()) {
+		if (!(pid == VPS_PLATFORM_ID_EVM_TI8107)) {
+			VPSSERR("Wrong M3 firmware,"
+				" please use TI8107 M3 firmware\n");
 			goto exit;
 		}
 	} else {
 		if (!((pid == VPS_PLATFORM_ID_EVM_TI814x) ||
 			(pid == VPS_PLATFORM_ID_SIM_TI814x))) {
-			VPSSERR("TI814X EVM with TI816X M3 firmware,"
+			VPSSERR("Wrong firmware,"
 				" please use TI814x M3 firmware\n");
 			goto exit;
 		}

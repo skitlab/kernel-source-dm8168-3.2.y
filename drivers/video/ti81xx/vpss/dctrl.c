@@ -124,11 +124,21 @@ static inline int ishdmipll(int bidx)
 	return 0;
 
 }
+static inline u32 hdcomppll(int bidx)
+{
+	if (cpu_is_dm385() && (bidx == HDCOMP)) {
+		u32 temp;
+		temp = omap_readl(TI814X_PLL_BASE + DM385_PLL_HD_CLOCK_SOURCE);
+		temp &= 3;
+		return temp;
+	}
+	return -1;
+}
 static inline bool isvalidmode(int vid, int mid)
 {
 	switch (vid) {
 	case VPS_DC_VENC_HDMI:
-if (cpu_is_ti816x())
+if (cpu_is_ti816x() || cpu_is_dm385())
 	case VPS_DC_VENC_HDCOMP:
 	case VPS_DC_VENC_DVO2:
 		if ((mid == FVID2_STD_NTSC) || (mid == FVID2_STD_PAL))
@@ -158,6 +168,19 @@ static inline u32 get_plloutputvenc(int bidx)
 
 		if (bidx == DVO2)
 			return VPS_SYSTEM_VPLL_OUTPUT_VENC_D;
+		/*DM385 HDCOMP VENC can be from either RF, D or HDMI/A clock
+		it is up to how the MUX is set*/
+		if ((cpu_is_dm385()) && (bidx == HDCOMP)) {
+			switch (hdcomppll(bidx)) {
+			case 2:
+				return VPS_SYSTEM_VPLL_OUTPUT_VENC_RF;
+			case 0:
+				bidx = HDMI;
+				break;
+			default:
+				return VPS_SYSTEM_VPLL_OUTPUT_VENC_D;
+			}
+		}
 
 		if (HDMI == bidx) {
 			struct ti81xx_external_encoder *extenc;
@@ -172,6 +195,7 @@ static inline u32 get_plloutputvenc(int bidx)
 			}
 			return VPS_SYSTEM_VPLL_OUTPUT_VENC_A;
 		}
+
 	}
 	if (isdigitalclk(clksrc.clksrc))
 		return VPS_SYSTEM_VPLL_OUTPUT_VENC_D;
@@ -1624,10 +1648,26 @@ static ssize_t blender_clksrc_store(struct dc_blender_info *binfo,
 			omap_writel(temp,
 				TI814X_PLL_BASE + DM814X_PLL_CLOCK_SOURCE);
 			r = size;
+		} else if ((cpu_is_dm385()) && (binfo->idx == HDCOMP)) {
+			/*FIXME add DM385 support here */
+			u32 temp;
+			temp = omap_readl(
+				TI814X_PLL_BASE + DM385_PLL_HD_CLOCK_SOURCE);
+			temp &= ~3;
+			if (sysfs_streq(buf, "sd"))
+				temp |= 0x2;
+			else if (sysfs_streq(buf, "dvo2"))
+				temp |= 0x1;
+
+			omap_writel(temp,
+				TI814X_PLL_BASE + DM385_PLL_HD_CLOCK_SOURCE);
+			r = size;
+
 		} else {
 			r = -EINVAL;
 			VPSSERR("invalid clock source input\n");
 		}
+
 	}
 
 exit:
@@ -2491,7 +2531,7 @@ int __init vps_dc_init(struct platform_device *pdev,
 	disp_ctrl->numvencs = vps_get_numvencs();
 	venc_info.numvencs = disp_ctrl->numvencs;
 	disp_ctrl->vencmask = (1 << VPS_DC_MAX_VENC) - 1;
-	if (cpu_is_ti814x())
+	if (cpu_is_ti814x() && (!(cpu_is_dm385())))
 		disp_ctrl->vencmask -= VPS_DC_VENC_HDCOMP;
 
 	assign_payload_addr(disp_ctrl, dc_payload_info, &offset);
