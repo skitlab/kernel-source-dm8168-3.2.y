@@ -50,6 +50,7 @@ static struct platform_device *pcie_pdev;
 static int msi_irq_base;
 static int msi_irq_num;
 static int force_x1;
+static int msi_inv;
 
 /* Details for inbound access to RAM, passed from platform data */
 static u32 ram_base, ram_end;
@@ -428,6 +429,16 @@ static void ti81xx_msi_handler(unsigned int irq, struct irq_desc *desc)
 static void ack_msi(unsigned int irq)
 {
 	unsigned int msi_num = irq - msi_irq_base;
+	__raw_writel((1 << (msi_num & 0x1f)), reg_virt + MSI0_IRQ_STATUS);
+}
+
+/*
+ * Some TI81XX family devices (e.g., TI816X) PCIe h/w require invert ("write 0
+ * to clear") operation to ack the MSI.
+ */
+static void ack_msi_inv(unsigned int irq)
+{
+	unsigned int msi_num = irq - msi_irq_base;
 	__raw_writel(~(1 << (msi_num & 0x1f)), reg_virt + MSI0_IRQ_STATUS);
 }
 
@@ -786,6 +797,9 @@ static int ti81xx_pcie_setup(int nr, struct pci_sys_data *sys)
 				msi_irq_num);
 		}
 
+		if (msi_inv)
+			ti81xx_msi_chip.ack = ack_msi_inv;
+
 		set_irq_chained_handler(msi_irq, ti81xx_msi_handler);
 	} else {
 		pr_warning(DRIVER_NAME ": MSI info not available, disabled\n");
@@ -1116,6 +1130,7 @@ static int ti81xx_pcie_probe(struct platform_device *pdev)
 	msi_irq_base = pdata->msi_irq_base;
 	msi_irq_num = pdata->msi_irq_num;
 	force_x1 = pdata->force_x1;
+	msi_inv = pdata->msi_inv;
 
 	pr_info(DRIVER_NAME ": Invoking PCI BIOS...\n");
 	pci_common_init(&ti81xx_pci);

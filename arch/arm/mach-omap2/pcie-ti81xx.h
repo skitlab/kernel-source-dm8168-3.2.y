@@ -20,6 +20,7 @@ struct ti81xx_pcie_data {
 	int msi_irq_base;
 	int msi_irq_num;
 	int force_x1;
+	int msi_inv;		/* MSI ack requires "write 0 to clear" */
 };
 
 #endif

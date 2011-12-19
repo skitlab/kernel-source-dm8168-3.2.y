@@ -2615,11 +2615,14 @@ static inline void ti81xx_init_pcie(void)
 	if (!cpu_is_ti81xx())
 		return;
 
-	if (cpu_is_ti816x())
+	if (cpu_is_ti816x()) {
 		omap_ctrl_writel(TI816X_PCIE_PLLMUX_25X |
 				TI81XX_PCIE_DEVTYPE_RC,
 				TI816X_CONTROL_PCIE_CFG);
-	else if (cpu_is_ti814x()) {
+
+		/* MSI clearing is "write 0 to clear" */
+		ti81xx_pcie_data.msi_inv = 1;
+	} else if (cpu_is_ti814x()) {
 
 		/* TODO: Add bitfield macros for following */
 
