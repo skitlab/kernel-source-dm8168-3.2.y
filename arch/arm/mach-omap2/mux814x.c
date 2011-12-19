@@ -1,5 +1,6 @@
 /*
  * TI814X Mux data.
+ *	- Note that the mux data is same for DM385 unless mentioned in comment.
  *
  * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
  *
@@ -52,6 +53,8 @@ static struct omap_mux __initdata ti814x_muxmodes[] = {
 	_TI814X_MUXENTRY(OSC_WAKE, 0,
 			"osc_wake", "spi1_cs1", NULL, NULL,
 			NULL, NULL, "timer5_mux1", "gpio1_07_mux0"),
+
+	/* sc1_xxx mux options below are not on DM385 */
 	_TI814X_MUXENTRY(MMC0_CLK, 0,
 			"mmc0_clk", NULL, NULL, "sc1_c4",
 			NULL, NULL, NULL, "gpio0_1"),
@@ -70,6 +73,8 @@ static struct omap_mux __initdata ti814x_muxmodes[] = {
 	_TI814X_MUXENTRY(MMC0_DAT3, 0,
 			"mmc0_dat3", "mmc1_dat7", NULL, "sc1_vccen",
 			NULL, NULL, NULL, "gpio0_6"),
+
+	/* mcasp3/4/5_xxx mux options below are not on DM385 */
 	_TI814X_MUXENTRY(XREF_CLK0, 0,
 			"xref_clk0", "mcasp0_axr_7_mux1", "mcasp0_ahclkx",
 			"mcasp3_ahclkx", "atlclkout1", "atlclkout0", "vic0",
@@ -81,7 +86,11 @@ static struct omap_mux __initdata ti814x_muxmodes[] = {
 	_TI814X_MUXENTRY(XREF_CLK2, 0,
 			"xref_clk2", "mcasp0_axr_9_mux1", "mcasp2_ahclkx",
 			"mcasp5_ahclkx", "atlclkout3", "xdma_evt_2_mux1",
-			"timer3_mux1", "gpio0_9"),
+			"timer3_mux1", "gpio0_9"),	/* Not for DM385 */
+	_TI814X_MUXENTRY(XREF_CLK2, 0,
+			"xref_clk2", "mcasp0_axr_9_mux1", "mcasp2_ahclkx",
+			"sata_act1_led_mux0", "atlclkout3", "xdma_evt_2_mux1",
+			"timer3_mux1", "gpio0_9"),	/* DM385 only */
 	_TI814X_MUXENTRY(MCASP0_ACLKX, 0,
 			"mcasp0_aclkx", NULL, NULL, NULL,
 			NULL, NULL, NULL, NULL),
@@ -94,9 +103,11 @@ static struct omap_mux __initdata ti814x_muxmodes[] = {
 	_TI814X_MUXENTRY(MCASP0_FSR, 0,
 			"mcasp0_fsr", "mcasp5_axr3", NULL, NULL,
 			NULL, NULL, NULL, NULL),
+
 	_TI814X_MUXENTRY(MCASP0_AXR0, 0,
 			"mcasp0_axr0", NULL, NULL, NULL,
-			NULL, "vic1", NULL, NULL),
+			NULL, "vic1", NULL, NULL),	/* vic1 not for DM385 */
+
 	_TI814X_MUXENTRY(MCASP0_AXR1, 0,
 			"mcasp0_axr1", NULL, NULL, NULL,
 			NULL, "i2c3_scl_mux0", NULL, NULL),
@@ -105,13 +116,16 @@ static struct omap_mux __initdata ti814x_muxmodes[] = {
 			NULL, "i2c3_sda_mux0", NULL, NULL),
 	_TI814X_MUXENTRY(MCASP0_AXR3, 0,
 			"mcasp0_axr3", NULL, NULL, "sc1_vppen",
-			NULL, NULL, NULL, NULL),
+			NULL, NULL, NULL, NULL),	/* sci not on DM385 */
+
 	_TI814X_MUXENTRY(MCASP0_AXR4, 0,
 			"mcasp0_axr4", "mcasp1_axr_8_mux0", NULL, NULL,
 			NULL, NULL, NULL, NULL),
 	_TI814X_MUXENTRY(MCASP0_AXR5, 0,
 			"mcasp0_axr5", "mcasp1_axr_9_mux0", NULL, NULL,
 			NULL, NULL, NULL, NULL),
+
+	/* Following 4 groups not on DM385 */
 	_TI814X_MUXENTRY(MCASP0_AXR6, 0,
 			"mcasp0_axr6", "mcbsp_dr", NULL, NULL,
 			NULL, NULL, NULL, NULL),
@@ -124,6 +138,7 @@ static struct omap_mux __initdata ti814x_muxmodes[] = {
 	_TI814X_MUXENTRY(MCASP0_AXR9, 0,
 			"mcasp0_axr_9_mux0", "mcbsp_clkx", "mcbsp_clkr_mux1",
 			NULL, NULL, NULL, NULL, NULL),
+
 	_TI814X_MUXENTRY(MCASP1_ACLKX, 0,
 			"mcasp1_aclkx", NULL, NULL, NULL,
 			NULL, NULL, NULL, NULL),
@@ -136,12 +151,16 @@ static struct omap_mux __initdata ti814x_muxmodes[] = {
 	_TI814X_MUXENTRY(MCASP1_FSR, 0,
 			"mcasp1_fsr", "mcasp1_axr5", NULL, NULL,
 			NULL, NULL, NULL, NULL),
+
+	/* sc0_xxx not on DM385 */
 	_TI814X_MUXENTRY(MCASP1_AXR0, 0,
 			"mcasp1_axr0", "mmc0_dat4", NULL, "sc0_rst",
 			NULL, NULL, NULL, NULL),
 	_TI814X_MUXENTRY(MCASP1_AXR1, 0,
 			"mcasp1_axr1", "mmc0_dat5", NULL, "sc0_det",
 			NULL, NULL, NULL, NULL),
+
+	/* Following 4 groups not on DM385 */
 	_TI814X_MUXENTRY(MCASP1_AXR2, 0,
 			"mcasp1_axr2", "mcbsp_fsr_mux0", NULL, NULL,
 			NULL, NULL, NULL, NULL),
@@ -154,12 +173,22 @@ static struct omap_mux __initdata ti814x_muxmodes[] = {
 	_TI814X_MUXENTRY(MCASP2_FSX, 0,
 			"mcasp2_fsx", NULL, NULL, "sc0_data",
 			NULL, NULL, NULL, "gpio0_11_mux1"),
+
+	/*
+	 * XXX: On DM385, mode0 does not exist, still we keep it to allow
+	 * referring to intermediate mode(s).
+	 *
+	 * Also, following are removed for DM385:
+	 *	sc0_xxx, uart5_xxx
+	 */
 	_TI814X_MUXENTRY(MCASP2_AXR0, 0,
 			"mcasp2_axr0", "mmc0_dat6", NULL, "sc0_clk", NULL,
 			"uart5_rxd_mux3", NULL, "gpio0_12_mux1"),
 	_TI814X_MUXENTRY(MCASP2_AXR1, 0,
 			"mcasp2_axr1", "mmc0_dat7", NULL, "sc0_vccen", NULL,
 			"uart5_txd_mux3", NULL, "gpio0_13_mux1"),
+
+	/* Following group is removed for DM385 */
 	_TI814X_MUXENTRY(MCASP2_AXR2, 0,
 			"mcasp2_axr2", "mcasp1_axr6", NULL, "sc0_vppen", NULL,
 			NULL, "timer2_mux0", "gpio0_14_mux1"),
@@ -233,6 +262,7 @@ static struct omap_mux __initdata ti814x_muxmodes[] = {
 			"mlbp_clk_p", NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 	_TI814X_MUXENTRY(MLBP_CLK_N, 0,
 			"mlbp_clk_n", NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+
 	_TI814X_MUXENTRY(DCAN0_TX, 0,
 			"dcan0_tx", "uart2_txd_mux2", NULL, NULL, NULL,
 			"i2c3_sda_mux1", NULL, "gpio1_0"),
@@ -243,12 +273,17 @@ static struct omap_mux __initdata ti814x_muxmodes[] = {
 			"uart0_rxd", NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 	_TI814X_MUXENTRY(UART0_TXD, 0,
 			"uart0_txd", NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+
+	/* uart3/uart4_xxx not there for DM385 */
 	_TI814X_MUXENTRY(UART0_CTSN, 0,
 			"uart0_ctsn", "uart4_rxd_mux3", NULL, "dcan1_tx",
 			"spi1_cs3", NULL, "mmc0_sdcd", NULL),
 	_TI814X_MUXENTRY(UART0_RTSN, 0,
 			"uart0_rtsn", "uart4_txd_mux3", NULL, "dcan1_rx",
-			"spi1_cs2", NULL, "mmc2_sdcd", NULL),
+			"spi1_cs2", NULL, "mmc2_sdcd", NULL),	/* non DM385 */
+	_TI814X_MUXENTRY(UART0_RTSN, 0,
+			"uart0_rtsn", "sata_act1_led_mux", NULL, "dcan1_rx",
+			"spi1_cs2", NULL, "mmc2_sdcd", NULL),	/* DM385 only */
 	_TI814X_MUXENTRY(UART0_DCDN, 0,
 			"uart0_dcdn", "uart3_rxd_mux0", NULL, NULL, "spi0_cs3",
 			"i2c2_scl_mux0", "mmc1_pow", "gpio1_2"),
@@ -261,6 +296,7 @@ static struct omap_mux __initdata ti814x_muxmodes[] = {
 	_TI814X_MUXENTRY(UART0_RIN, 0,
 			"uart0_rin", "uart3_rtsn_mux0", "uart1_rxd_mux0", NULL,
 			NULL, NULL, NULL, "gpio1_5"),
+
 	_TI814X_MUXENTRY(I2C1_SCL, 0,
 			"i2c1_scl", "hdmi_ddc_scl_mux0", NULL, NULL, NULL, NULL,
 			NULL, NULL),
@@ -428,6 +464,8 @@ static struct omap_mux __initdata ti814x_muxmodes[] = {
 	_TI814X_MUXENTRY(VIN0_CLK1, 0,
 			"vin0_clk1", NULL, NULL, NULL, NULL, "cam_xclka", NULL,
 			"gpio1_09_mux0"),
+
+	/* uart5 pins modes  are not for DM385 */
 	_TI814X_MUXENTRY(VIN0_DE0_MUX0, 0,
 			"vin0_de0_mux0", NULL, NULL, NULL, "vin0_hsync1",
 			"uart5_txd_mux1", "i2c2_sda_mux1", "gpio2_0"),
@@ -443,6 +481,7 @@ static struct omap_mux __initdata ti814x_muxmodes[] = {
 	_TI814X_MUXENTRY(VIN0_VSYNC0, 0,
 			"vin0_vsync0", NULL, NULL, NULL, NULL,
 			"uart5_ctsn_mux1", NULL, "gpio2_4"),
+
 	_TI814X_MUXENTRY(VIN0_D0, 0,
 			"vin0_d0", NULL, NULL, NULL, NULL, NULL, NULL,
 			"gpio1_11_mux1"),
@@ -515,6 +554,8 @@ static struct omap_mux __initdata ti814x_muxmodes[] = {
 	_TI814X_MUXENTRY(VIN0_D23, 0,
 			"vin0_d23", "cam_d15", NULL, "rmii1_txen_mux1", NULL,
 			"spi3_d_0_mux0", NULL, "gpio0_17_mux0"),
+
+	/* No pata modes for DM385, rest all modes valid */
 	_TI814X_MUXENTRY(VIN0_DE0_MUX1, 0,
 			"vin0_de0_mux1", "cam_d7", NULL, "pata_diorn", NULL,
 			NULL, NULL, "gpio0_18_mux0"),
@@ -557,6 +598,7 @@ static struct omap_mux __initdata ti814x_muxmodes[] = {
 	_TI814X_MUXENTRY(VOUT0_FID, 0,
 			"vout0_fid_mux1", "cam_pclk", NULL, "pata_resetn",
 			"gpmc_a_12_mux1", "uart2_rtsn", NULL, "gpio2_02_mux0"),
+
 	_TI814X_MUXENTRY(VOUT0_CLK, 0,
 			"vout0_clk", NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 	_TI814X_MUXENTRY(VOUT0_HSYNC, 0,
@@ -640,6 +682,8 @@ static struct omap_mux __initdata ti814x_muxmodes[] = {
 	_TI814X_MUXENTRY(VOUT0_R_CR9, 0,
 			"vout0_r_cr9", NULL, NULL, NULL, NULL, NULL, NULL,
 			NULL),
+
+	/* pata and uart4/5 modes are not present on DM385, rest available */
 	_TI814X_MUXENTRY(VOUT1_CLK, 0,
 			"vout1_clk", "gmii1_txclk", "vin1_hsync0",
 			"pata_hddir_mux0", NULL, NULL, NULL, "gpio2_28"),
