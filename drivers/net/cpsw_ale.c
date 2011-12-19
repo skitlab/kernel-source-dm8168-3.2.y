@@ -530,7 +530,7 @@ int cpsw_ale_add_vlan(struct cpsw_ale *ale, u16 vid, int port, int untag,
 		      int reg_mcast, int unreg_mcast)
 {
 	u32 ale_entry[ALE_ENTRY_WORDS] = {0, 0, 0};
-	int idx, mask;
+	int idx;
 
 	idx = cpsw_ale_match_vlan(ale, vid);
 	if (idx >= 0)
@@ -539,30 +539,10 @@ int cpsw_ale_add_vlan(struct cpsw_ale *ale, u16 vid, int port, int untag,
 	cpsw_ale_set_entry_type(ale_entry, ALE_TYPE_VLAN);
 	cpsw_ale_set_vlan_id(ale_entry, vid);
 
-	mask  = cpsw_ale_get_vlan_untag_force(ale_entry);
-	if (untag)
-		mask |= port;
-	else
-		mask &= ~port;
-	cpsw_ale_set_vlan_untag_force(ale_entry, mask);
-
-	mask  = cpsw_ale_get_vlan_reg_mcast(ale_entry);
-	if (reg_mcast)
-		mask |= port;
-	else
-		mask &= ~port;
-	cpsw_ale_set_vlan_reg_mcast(ale_entry, mask);
-
-	mask  = cpsw_ale_get_vlan_unreg_mcast(ale_entry);
-	if (unreg_mcast)
-		mask |= port;
-	else
-		mask &= ~port;
-	cpsw_ale_set_vlan_unreg_mcast(ale_entry, mask);
-
-	mask  = cpsw_ale_get_vlan_member_list(ale_entry);
-	mask |= port;
-	cpsw_ale_set_vlan_member_list(ale_entry, mask);
+	cpsw_ale_set_vlan_untag_force(ale_entry, untag);
+	cpsw_ale_set_vlan_reg_mcast(ale_entry, reg_mcast);
+	cpsw_ale_set_vlan_unreg_mcast(ale_entry, unreg_mcast);
+	cpsw_ale_set_vlan_member_list(ale_entry, port);
 
 	if (idx < 0)
 		idx = cpsw_ale_match_free(ale);
