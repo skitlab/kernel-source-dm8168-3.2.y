@@ -724,6 +724,9 @@ int __exit vps_system_deinit(struct platform_device *pdev)
 	int r = 0;
 
 	VPSSDBG("enter system deinit\n");
+	if (cpu_is_ti814x() && sys_ctrl->pbase)
+		iounmap(sys_ctrl->pbase);
+
 	if (sys_ctrl) {
 		system_delete(sys_ctrl);
 		kfree(sys_ctrl);
