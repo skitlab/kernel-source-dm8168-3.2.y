@@ -366,13 +366,13 @@ static int vps_grpx_set_format(struct vps_grpx_ctrl *gctrl,
 	int r = 0;
 
 	/*format check*/
-	if (cpu_is_ti816x()) {
+	if (v_pdata->cpu == CPU_DM816X) {
 		if (vps_isnewdata(df) && (omap_rev() < TI8168_REV_ES2_0)) {
 			VPSSERR("(%d) - unsupport format %d\n",
 				gctrl->grpx_num, df);
 			return -1;
 		}
-	} else if (!cpu_is_dm385()) {
+	} else if (v_pdata->cpu == CPU_DM814X) {
 		if (vps_isnewdata(df) && (omap_rev() < TI8148_REV_ES2_0)) {
 			VPSSERR("(%d) - unsupport format %d\n",
 				gctrl->grpx_num, df);
@@ -940,7 +940,7 @@ static ssize_t graphics_nodes_store(struct vps_grpx_ctrl *gctrl,
 	this_opt = strsep(&input, ":");
 	total = simple_strtoul(this_opt, &this_opt, 10);
 
-	if ((total == 0) || (total > vps_get_numvencs())) {
+	if ((total == 0) || (total > v_pdata->numvencs)) {
 		VPSSERR("(%d)- no node to set\n", gctrl->grpx_num);
 		r = -EINVAL;
 		goto exit;
@@ -1445,7 +1445,7 @@ int __init vps_grpx_init(struct platform_device *pdev)
 			break;
 		case 1:
 			gctrl->snode = VPS_DC_GRPX1_INPUT_PATH;
-			if (cpu_is_ti816x() || cpu_is_dm385())
+			if (v_pdata->cpu != CPU_DM814X)
 				gctrl->enodes[0] = VPS_DC_HDCOMP_BLEND;
 			else
 				gctrl->enodes[0] = VPS_DC_DVO2_BLEND;

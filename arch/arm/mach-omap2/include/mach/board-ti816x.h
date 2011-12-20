@@ -17,7 +17,7 @@
 
 #ifndef _BOARD_TI816X_H
 #define _BOARD_TI816X_H
-#include <linux/fvid2.h>
+#include <plat/ti81xx-vpss.h>
 
 #define VPS_SEL_TVP7002_DECODER	0
 #define VPS_SEL_SIL9135_DECODER	1

@@ -773,32 +773,6 @@ static struct omap_board_mux board_mux[] __initdata = {
 #endif
 
 int __init ti_ahci_register(u8 num_inst);
-static struct platform_device vpss_device = {
-	.name = "vpss",
-	.id = -1,
-	.dev = {
-		.platform_data = NULL,
-	},
-};
-
-static void __init ti816x_vpss_init(void)
-{
-	if (platform_device_register(&vpss_device))
-		printk(KERN_ERR "failed to register ti816x_vpss device\n");
-	else
-		printk(KERN_INFO "registered ti816x_vpss device\n");
-	/*FIXME add platform data here*/
-}
-
-static struct platform_device ti816x_hdmi_plat_device = {
-	.name = "TI81XX_HDMI",
-	.id = -1,
-	.num_resources = 0,
-	.dev = {
-		/*.release = ti81xx_hdmi_platform_release,*/
-		.platform_data = NULL,
-	}
-};
 
 #ifdef CONFIG_SND_SOC_TI81XX_HDMI
 static struct snd_hdmi_platform_data ti8168_snd_hdmi_pdata = {
@@ -827,16 +801,6 @@ static struct platform_device *ti8168_devices[] __initdata = {
 	&ti8168_hdmi_codec_device,
 };
 #endif
-
-static void __init ti816x_hdmi_init(void)
-{
-
-	if (platform_device_register(&ti816x_hdmi_plat_device))
-		printk(KERN_ERR "Could not register TI816x onchip-HDMI device\n");
-	else
-		printk(KERN_INFO "registered TI816x on-chip HDMI device\n");
-	/*FIXME add platform data here*/
-}
 
 
 static void __init ti8168_evm_init(void)
@@ -869,9 +833,7 @@ static void __init ti8168_evm_init(void)
 	omap2_hsmmc_init(mmc);
 	board_nor_init(ti816x_evm_norflash_partitions,
 		ARRAY_SIZE(ti816x_evm_norflash_partitions), 0);
-	ti816x_vpss_init();
 	ti816x_gpio_vr_init();
-	ti816x_hdmi_init();
 #ifdef CONFIG_SND_SOC_TI81XX_HDMI
 	platform_add_devices(ti8168_devices, ARRAY_SIZE(ti8168_devices));
 #endif

@@ -38,9 +38,78 @@
 #include <asm/mach/map.h>
 
 
-#if (defined(CONFIG_FB_TI81XX) || defined(CONFIG_FB_TI81XX_MODULE) || \
-	defined(CONFIG_ARCH_TI81XX))
+#if defined(CONFIG_TI81XX_VPSS) || defined(CONFIG_TI81XX_VPSS_MODULE)
 
+static u64 ti81xx_dma_mask = ~(u32)0;
+static struct platform_device vpss_device = {
+	.name = "vpss",
+	.id = -1,
+	.dev = {
+		.platform_data = NULL,
+	},
+};
+static struct vps_platform_data vps_pdata;
+
+
+static int __init ti81xx_vpss_init(void)
+{
+	/*FIXME add platform data here*/
+	int r;
+	if (cpu_is_ti816x() || cpu_is_dm385()) {
+		if (cpu_is_dm385())
+			vps_pdata.cpu = CPU_DM385;
+		else
+			vps_pdata.cpu = CPU_DM816X;
+		vps_pdata.numvencs = 4;
+		vps_pdata.vencmask = (1 << VPS_DC_MAX_VENC) - 1;
+	} else if (cpu_is_ti814x()) {
+		vps_pdata.cpu = CPU_DM814X;
+		vps_pdata.numvencs = 3;
+		vps_pdata.vencmask = (1 << VPS_DC_MAX_VENC) - 1 \
+					- VPS_DC_VENC_HDCOMP;
+	}
+
+	vpss_device.dev.platform_data = &vps_pdata;
+	r = platform_device_register(&vpss_device);
+	if (r)
+		printk(KERN_ERR "unable to register ti81xx_vpss device\n");
+	else
+		printk(KERN_INFO "registered ti81xx_vpss device\n");
+	return r;
+}
+
+#if defined(CONFIG_TI81XX_HDMI_MODULE) || defined(CONFIG_TI81XX_HDMI)
+
+static struct platform_device ti81xx_hdmi_plat_device = {
+	.name = "TI81XX_HDMI",
+	.id = -1,
+	.num_resources = 0,
+	.dev = {
+		/*.release = ti81xx_hdmi_platform_release,*/
+		.platform_data = NULL,
+	}
+};
+
+static int __init ti81xx_hdmi_init(void)
+{
+	int r;
+	/*FIXME add platform data here*/
+	r = platform_device_register(&ti81xx_hdmi_plat_device);
+	if (r)
+		printk(KERN_ERR "Unable to register ti81xx onchip-HDMI device\n");
+	else
+		printk(KERN_INFO "registered ti81xx on-chip HDMI device\n");
+	return r;
+}
+#else
+static int __init ti81xx_hdmi_init(void)
+{
+	return 0;
+}
+#endif
+
+#if defined(CONFIG_VIDEO_TI81XX_VIDIN_MODULE) || \
+		defined(CONFIG_VIDEO_TI81XX_VIDIN)
 
 #define HDVPSS_CAPTURE_INST0_BASE	0x48105500
 #define HDVPSS_CAPTURE_INST0_SIZE	1024u
@@ -88,7 +157,7 @@ static struct ti81xxvin_subdev_info hdvpss_capture_sdev_info[] = {
 			}
 		},
 		.video_capture_mode =
-			VPS_CAPT_VIDEO_CAPTURE_MODE_SINGLE_CH_NON_MUX_EMBEDDED_SYNC,
+		   VPS_CAPT_VIDEO_CAPTURE_MODE_SINGLE_CH_NON_MUX_EMBEDDED_SYNC,
 		.video_if_mode = VPS_CAPT_VIDEO_IF_MODE_16BIT,
 		.input_data_format = FVID2_DF_YUV422P,
 	},
@@ -121,7 +190,7 @@ static struct ti81xxvin_subdev_info hdvpss_capture_sdev_info[] = {
 			}
 		},
 		.video_capture_mode =
-			VPS_CAPT_VIDEO_CAPTURE_MODE_SINGLE_CH_NON_MUX_EMBEDDED_SYNC,
+		   VPS_CAPT_VIDEO_CAPTURE_MODE_SINGLE_CH_NON_MUX_EMBEDDED_SYNC,
 		.video_if_mode = VPS_CAPT_VIDEO_IF_MODE_16BIT,
 		.input_data_format = FVID2_DF_YUV422P,
 	},
@@ -215,10 +284,7 @@ static struct ti81xxvin_config ti81xx_hsvpss_capture_cfg = {
 
 };
 
-static u64 ti81xx_fb_dma_mask = ~(u32)0;
-static struct ti81xxfb_platform_data ti81xxfb_config;
-
-static struct resource ti81xx_hdvpss_resource[] = {
+static struct resource ti81xx_hdvpss_capture_resource[] = {
 	[0] = {
 		.start = HDVPSS_CAPTURE_INST0_BASE,
 		.end   = (HDVPSS_CAPTURE_INST0_BASE +
@@ -233,36 +299,20 @@ static struct resource ti81xx_hdvpss_resource[] = {
 	},
 };
 
-static struct platform_device ti81xx_fb_device = {
-	.name		= "ti81xxfb",
-	.id		= -1,
-	.dev = {
-		.dma_mask		= &ti81xx_fb_dma_mask,
-		.coherent_dma_mask	= ~(u32)0,
-		.platform_data		= &ti81xxfb_config,
-	},
-	.num_resources = 0,
-};
 static struct platform_device hdvpss_capture_dev = {
 	.name		= "ti81xxvin",
 	.id		= -1,
 	.dev		= {
-			.dma_mask		= &ti81xx_fb_dma_mask,
+			.dma_mask		= &ti81xx_dma_mask,
 			.coherent_dma_mask	= ~(u32)0,
 	},
 	.num_resources = 2,
-	.resource = ti81xx_hdvpss_resource,
+	.resource = ti81xx_hdvpss_capture_resource,
 };
 
-void ti81xxfb_set_platform_data(struct ti81xxfb_platform_data *data)
+static int __init ti81xx_vin_init(void)
 {
-	ti81xxfb_config = *data;
-}
-
-static inline int ti81xx_init_fb(void)
-{
-	int retval = 0;
-	retval =  platform_device_register(&ti81xx_fb_device);
+	int r;
 	hdvpss_capture_dev.dev.platform_data = &ti81xx_hsvpss_capture_cfg;
 	if (cpu_is_ti814x()) {
 		hdvpss_capture_sdev_info[0].ti81xxvin_select_decoder =
@@ -287,10 +337,107 @@ static inline int ti81xx_init_fb(void)
 			NULL;
 		hdvpss_capture_sdev_info[1].decoder_id = 0;
 	}
-	retval += platform_device_register(&hdvpss_capture_dev);
+	r = platform_device_register(&hdvpss_capture_dev);
+	if (r)
+		printk(KERN_ERR "unable to register ti81xx_vin device\n");
+	else
+		printk(KERN_INFO "registered ti81xx_vin device\n");
+	return r;
+
+}
+#else
+static int __init ti81xx_vin_init(void)
+{
+	return 0;
+}
+
+#endif
+
+#if defined(CONFIG_FB_TI81XX_MODULE) || defined(CONFIG_FB_TI81XX)
+static struct ti81xxfb_platform_data ti81xxfb_config;
+
+static struct platform_device ti81xx_fb_device = {
+	.name		= "ti81xxfb",
+	.id		= -1,
+	.dev = {
+		.dma_mask		= &ti81xx_dma_mask,
+		.coherent_dma_mask	= ~(u32)0,
+		.platform_data		= &ti81xxfb_config,
+	},
+	.num_resources = 0,
+};
+
+
+void ti81xxfb_set_platform_data(struct ti81xxfb_platform_data *data)
+{
+	ti81xxfb_config = *data;
+}
+
+static int __init ti81xx_fb_init(void)
+{
+	int r;
+	r = platform_device_register(&ti81xx_fb_device);
+	if (r)
+		printk(KERN_ERR "unable to register ti81xx_fb device\n");
+	else
+		printk(KERN_INFO "registered ti81xx_fb device\n");
+	return r;
+
+}
+#else
+static int __init ti81xx_fb_init(void)
+{
+	return 0;
+}
+void ti81xxfb_set_platform_data(struct ti81xxfb_platform_data *data)
+{
+}
+#endif
+
+#if defined(CONFIG_VIDEO_TI81XX_VIDOUT_MODULE) || \
+		defined(CONFIG_VIDEO_TI81XX_VIDOUT)
+static struct resource ti81xx_vidout_resource[VPS_DISPLAY_INST_MAX] = {
+};
+
+static struct platform_device ti81xx_vidout_device = {
+	.name		= "t81xx_vidout",
+	.num_resources  = ARRAY_SIZE(ti81xx_vidout_resource),
+	.resource       = &ti81xx_vidout_resource[0],
+	.id             = -1,
+};
+
+static int __init ti81xx_init_vout(void)
+{
+	int r;
+
+	r = platform_device_register(&ti81xx_vidout_device);
+	if (r)
+		printk(KERN_ERR "Unable to register ti81xx_vidout device\n");
+	else
+		printk(KERN_INFO "registered ti81xx_vidout device\n");
+	return r;
+}
+#else
+static int __init ti81xx_init_vout(void)
+{
+	return 0;
+}
+#endif
+
+
+static int __init ti81xx_init_vpss(void)
+{
+	int retval = 0;
+	/*if vpss failed to register, none of the below could works*/
+	if (ti81xx_vpss_init())
+		return -1;
+	retval = ti81xx_init_vout();
+	retval += ti81xx_hdmi_init();
+	retval += ti81xx_fb_init();
+	retval += ti81xx_vin_init();
 	return retval;
 }
 
-arch_initcall(ti81xx_init_fb);
+arch_initcall(ti81xx_init_vpss);
 
 #endif

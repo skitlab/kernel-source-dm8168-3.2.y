@@ -116,23 +116,16 @@ static inline bool isvalidpllclk(struct vps_systemvpllclk *pllclk)
 
 	switch (pllclk->outputvenc) {
 	case VPS_SYSTEM_VPLL_OUTPUT_VENC_RF:
-		if (cpu_is_ti816x()) {
+		if (v_pdata->cpu == CPU_DM816X) {
 			if (pllclk->outputclk != 216000)
-				return false;
-		} else if (!(cpu_is_dm385())) {
-			if (pllclk->outputclk != 54000)
 				return false;
 		}
 		break;
 	case VPS_SYSTEM_VPLL_OUTPUT_VENC_A:
 	case VPS_SYSTEM_VPLL_OUTPUT_VENC_D:
-		if (cpu_is_ti814x()) {
-			if (pllclk->outputclk == 54000)
-				return false;
-		}
 		break;
 	case VPS_SYSTEM_VPLL_OUTPUT_VENC_HDMI:
-		if (cpu_is_ti816x())
+		if (v_pdata->cpu == CPU_DM816X)
 			return false;
 		break;
 	default:
@@ -437,7 +430,7 @@ static u32 system_program_pll(struct vps_systemvpllclk *pll)
 
 
 	/*if the requested pll is the same as previous, do thing*/
-	if (cpu_is_ti814x() && ((!ispllchanged(pll))))
+	if ((v_pdata->cpu != CPU_DM816X) && ((!ispllchanged(pll))))
 		return 0;
 
 	idx = pll->outputvenc;
@@ -494,12 +487,12 @@ int vps_system_setpll(struct vps_systemvpllclk *pll)
 	*sctrl->pllclk = *pll;
 
 	/*if it is pg1 and ti816x and digital clock source, double it*/
-	if (cpu_is_ti816x() &&
+	if ((v_pdata->cpu == CPU_DM816X) &&
 	    (TI8168_REV_ES1_0 == omap_rev())
 	    && (VPS_SYSTEM_VPLL_OUTPUT_VENC_D == sctrl->pllclk->outputvenc))
 		sctrl->pllclk->outputclk <<= 1;
 	/*program ti814x vid pll from A8 if possible*/
-	if (cpu_is_ti814x() && ((u32)sctrl->pbase))
+	if ((v_pdata->cpu != CPU_DM816X) && ((u32)sctrl->pbase))
 		r = system_program_pll(pll);
 
 	else
@@ -535,7 +528,7 @@ int vps_system_getpll(struct vps_systemvpllclk *pll)
 	if (r)
 		VPSSERR("get pll failed\n");
 	else {
-		if (cpu_is_ti816x() &&
+		if (v_pdata->cpu == CPU_DM816X &&
 		    (TI8168_REV_ES1_0 == omap_rev())
 		    && (sctrl->pllclk->outputvenc ==
 		    VPS_SYSTEM_VPLL_OUTPUT_VENC_D))
@@ -677,17 +670,17 @@ int __init vps_system_init(struct platform_device *pdev)
 	if (r)
 		goto exit;
 
-	if (cpu_is_ti816x()) {
+	if (v_pdata->cpu == CPU_DM816X) {
 		if (!((pid == VPS_PLATFORM_ID_EVM_TI816x) ||
 			(pid == VPS_PLATFORM_ID_SIM_TI816x))) {
 			VPSSERR("Wrong M3 firmware,"
 				"please use TI816x M3 firmware\n");
 			goto exit;
 		}
-	} else if (cpu_is_dm385()) {
+	} else if (v_pdata->cpu == CPU_DM385) {
 		if (!(pid == VPS_PLATFORM_ID_EVM_TI8107)) {
 			VPSSERR("Wrong M3 firmware,"
-				" please use TI8107 M3 firmware\n");
+				" please use Dm385 M3 firmware\n");
 			goto exit;
 		}
 	} else {
@@ -698,7 +691,7 @@ int __init vps_system_init(struct platform_device *pdev)
 			goto exit;
 		}
 	}
-	if (cpu_is_ti814x()) {
+	if (v_pdata->cpu != CPU_DM816X) {
 		sys_ctrl->pbase = ioremap(TI814X_PLL_BASE + VIDPLL_OFFSET,
 					VIDPLL_SIZE * 3);
 		if (sys_ctrl->pbase) {
@@ -724,7 +717,7 @@ int __exit vps_system_deinit(struct platform_device *pdev)
 	int r = 0;
 
 	VPSSDBG("enter system deinit\n");
-	if (cpu_is_ti814x() && sys_ctrl->pbase)
+	if ((v_pdata->cpu != CPU_DM816X) && sys_ctrl->pbase)
 		iounmap(sys_ctrl->pbase);
 
 	if (sys_ctrl) {

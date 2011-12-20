@@ -187,7 +187,8 @@ void vps_sbuf_usage(void)
 		used_mem_size,
 		((sbinfo->pages << PAGE_SHIFT) - used_mem_size));
 }
-int __init vps_sbuf_init(const char *sbaddr, const char *sbsize)
+int __init vps_sbuf_init(struct platform_device *pdev,
+		const char *sbaddr, const char *sbsize)
 {
 	int r = 0;
 	uint size = 0;
@@ -201,7 +202,7 @@ int __init vps_sbuf_init(const char *sbaddr, const char *sbsize)
 
 	/*use the default value instead if not set in the command*/
 	if (!addr) {
-		if (cpu_is_ti816x())
+		if (v_pdata->cpu == CPU_DM816X)
 			addr = TI81XX_SHARING_BUFFER_BASE;
 		else
 			if (omap_rev() >= TI8148_REV_ES2_0)
@@ -245,11 +246,11 @@ int __init vps_sbuf_init(const char *sbaddr, const char *sbsize)
 	used_mem_size = 0;
 	return 0;
 exit:
-	vps_sbuf_deinit();
+	vps_sbuf_deinit(pdev);
 	return r;
 }
 
-int __exit vps_sbuf_deinit(void)
+int __exit vps_sbuf_deinit(struct platform_device *pdev)
 {
 	struct sbuf_alloc *sba, *next;
 	VPSSDBG("sbuf deinit\n");

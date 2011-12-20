@@ -59,6 +59,7 @@ extern bool   def_i2cmode;
 
 #define VPS_CRITICAL_SECTION_LOCK  0xAAAA5555
 #define VPS_CRITICAL_SECTION_FREE  0x0
+extern struct vps_platform_data *v_pdata;
 
 /*defined the memory informaton shared between A8 and M3 for each submodule*/
 struct vps_payload_info {
@@ -102,8 +103,9 @@ void vps_fvid2_deinit(struct platform_device *pdev);
 
 
 /*shared buffer functions*/
-int __init vps_sbuf_init(const char *sbaddr, const char *sbsize);
-int __exit vps_sbuf_deinit(void);
+int __init vps_sbuf_init(struct platform_device *pdev,
+			const char *sbaddr, const char *sbsize);
+int __exit vps_sbuf_deinit(struct platform_device *pdev);
 void *vps_sbuf_alloc(size_t size, u32 *paddr);
 int vps_sbuf_free(u32 paddr, void *vaddr, size_t size);
 void vps_sbuf_usage(void);
@@ -188,14 +190,6 @@ static inline int vps_get_bitspp(enum fvid2_bitsperpixel fbpp)
 
 	return bpp;
 
-}
-
-static inline u8 vps_get_numvencs(void)
-{
-	if (cpu_is_ti816x() || cpu_is_dm385())
-		return VPS_DC_MAX_VENC;
-	else
-		return VPS_DC_MAX_VENC - 1;
 }
 
 static inline u8 vps_isnewdata(u32 df)

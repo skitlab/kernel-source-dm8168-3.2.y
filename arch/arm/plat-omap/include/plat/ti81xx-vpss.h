@@ -30,6 +30,18 @@
 #include <linux/vps_graphics.h>
 #include <linux/vps_display.h>
 
+enum ti81xx_cpu {
+	CPU_DM816X = 0,
+	CPU_DM814X,
+	CPU_DM385,
+	CPU_MAX = 0xFFFFFFFF
+};
+
+struct vps_platform_data {
+	enum ti81xx_cpu cpu;
+	u32             numvencs;
+	u32             vencmask;
+};
 
 /*structure for graphics pipeline*/
 struct vps_grpx_state {

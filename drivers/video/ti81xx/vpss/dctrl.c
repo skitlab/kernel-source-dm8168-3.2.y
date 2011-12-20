@@ -107,7 +107,7 @@ static inline bool isvalidclksrc(int vid, enum vps_dcvencclksrcsel clk)
 	if ((vid == VPS_DC_VENC_HDMI) && (!isdigitalclk(clk)))
 		return false;
 	/*ti814x, DVO2 must be aclk*/
-	if (cpu_is_ti814x()) {
+	if (v_pdata->cpu != CPU_DM816X) {
 		if ((vid == VPS_DC_VENC_DVO2) && (isdigitalclk(clk)))
 			return false;
 	}
@@ -116,7 +116,7 @@ static inline bool isvalidclksrc(int vid, enum vps_dcvencclksrcsel clk)
 
 static inline int ishdmipll(int bidx)
 {
-	if (cpu_is_ti814x() && (bidx == DVO2)) {
+	if ((v_pdata->cpu != CPU_DM816X) && (bidx == DVO2)) {
 		u32 temp;
 		temp = omap_readl(TI814X_PLL_BASE + DM814X_PLL_CLOCK_SOURCE);
 		return (temp >> 24) & 1;
@@ -126,7 +126,7 @@ static inline int ishdmipll(int bidx)
 }
 static inline u32 hdcomppll(int bidx)
 {
-	if (cpu_is_dm385() && (bidx == HDCOMP)) {
+	if ((v_pdata->cpu == CPU_DM385) && (bidx == HDCOMP)) {
 		u32 temp;
 		temp = omap_readl(TI814X_PLL_BASE + DM385_PLL_HD_CLOCK_SOURCE);
 		temp &= 3;
@@ -138,7 +138,7 @@ static inline bool isvalidmode(int vid, int mid)
 {
 	switch (vid) {
 	case VPS_DC_VENC_HDMI:
-if (cpu_is_ti816x() || cpu_is_dm385())
+if (v_pdata->cpu != CPU_DM814X)
 	case VPS_DC_VENC_HDCOMP:
 	case VPS_DC_VENC_DVO2:
 		if ((mid == FVID2_STD_NTSC) || (mid == FVID2_STD_PAL))
@@ -161,7 +161,7 @@ static inline u32 get_plloutputvenc(int bidx)
 	if (bidx == SDVENC)
 		return VPS_SYSTEM_VPLL_OUTPUT_VENC_RF;
 
-	if (cpu_is_ti814x()) {
+	if (v_pdata->cpu != CPU_DM816X) {
 		/*since DVO2 use the HDMI pll, so force to HDMI*/
 		if ((bidx == DVO2) && (ishdmipll(bidx)))
 			bidx = HDMI;
@@ -170,7 +170,7 @@ static inline u32 get_plloutputvenc(int bidx)
 			return VPS_SYSTEM_VPLL_OUTPUT_VENC_D;
 		/*DM385 HDCOMP VENC can be from either RF, D or HDMI/A clock
 		it is up to how the MUX is set*/
-		if ((cpu_is_dm385()) && (bidx == HDCOMP)) {
+		if ((v_pdata->cpu == CPU_DM385) && (bidx == HDCOMP)) {
 			switch (hdcomppll(bidx)) {
 			case 2:
 				return VPS_SYSTEM_VPLL_OUTPUT_VENC_RF;
@@ -212,7 +212,7 @@ static inline int get_pllclock(u32 mid, u32 *freq)
 			*freq = vmode_info[i].minfo.pixelclock;
 			if ((mid == FVID2_STD_NTSC) ||
 			    (mid == FVID2_STD_PAL)) {
-				if (cpu_is_ti814x())
+				if (v_pdata->cpu != CPU_DM816X)
 					*freq = 54000;
 			}
 		return 0;
@@ -285,7 +285,7 @@ static int dc_get_timing(int mid, struct fvid2_modeinfo *minfo)
 		if (mid == vmode_info[i].standard)  {
 			memcpy(minfo, &vmode_info[i].minfo, sizeof(*minfo));
 			if ((mid == FVID2_STD_NTSC) || (mid == FVID2_STD_PAL)) {
-				if (cpu_is_ti814x())
+				if (v_pdata->cpu != CPU_DM816X)
 					minfo->pixelclock = 54000;
 			}
 
@@ -1255,7 +1255,7 @@ int vps_dc_get_timing(u32 bid, struct fvid2_modeinfo *tinfo)
 			*tinfo = venc_info.modeinfo[i].minfo;
 			if ((tinfo->standard == FVID2_STD_NTSC) ||
 				(tinfo->standard == FVID2_STD_PAL)) {
-				if (cpu_is_ti814x())
+				if (v_pdata->cpu != CPU_DM816X)
 					tinfo->pixelclock = 54000;
 			}
 
@@ -1399,7 +1399,7 @@ static ssize_t blender_mode_store(struct dc_blender_info *binfo,
 
 	venc_info.modeinfo[idx].minfo.standard = mid;
 	dc_get_timing(mid, &venc_info.modeinfo[idx].minfo);
-	if (cpu_is_ti816x() && (!def_i2cmode)) {
+	if ((v_pdata->cpu == CPU_DM816X) && (!def_i2cmode)) {
 		if ((binfo->idx == HDCOMP) && (binfo->isdeviceon == true)) {
 			if ((mid == FVID2_STD_1080P_60) ||
 			    (mid == FVID2_STD_1080P_50))
@@ -1634,7 +1634,7 @@ static ssize_t blender_clksrc_store(struct dc_blender_info *binfo,
 	} else {
 		/*this is the special case to let
 		DVO2 use the HDMI_PLL*/
-		if ((cpu_is_ti814x()) && (binfo->idx == DVO2))  {
+		if ((v_pdata->cpu != CPU_DM816X) && (binfo->idx == DVO2))  {
 			u32 temp;
 			temp = omap_readl(
 				TI814X_PLL_BASE + DM814X_PLL_CLOCK_SOURCE);
@@ -1648,7 +1648,8 @@ static ssize_t blender_clksrc_store(struct dc_blender_info *binfo,
 			omap_writel(temp,
 				TI814X_PLL_BASE + DM814X_PLL_CLOCK_SOURCE);
 			r = size;
-		} else if ((cpu_is_dm385()) && (binfo->idx == HDCOMP)) {
+		} else if ((v_pdata->cpu == CPU_DM385) &&
+		    (binfo->idx == HDCOMP)) {
 			/*FIXME add DM385 support here */
 			u32 temp;
 			temp = omap_readl(
@@ -2334,7 +2335,7 @@ void __init vps_dc_ctrl_init(struct vps_dispctrl *dctrl)
 	/*setup default CSC information for HDCOMP and VCOMP*/
 	dctrl->dccreatecfg->hdcompcscconfig =
 		(struct vps_cscconfig *)dctrl->hdcompcsccfg_phy;
-	if (cpu_is_ti814x())
+	if (v_pdata->cpu != CPU_DM816X)
 		dctrl->dccreatecfg->vcompcscconfig =
 			(struct vps_cscconfig *)dctrl->vcompcsccfg_phy;
 	else
@@ -2345,7 +2346,7 @@ void __init vps_dc_ctrl_init(struct vps_dispctrl *dctrl)
 	hdccfg->coeff = NULL;
 	hdccfg->mode = VPS_CSC_MODE_HDTV_GRAPHICS_Y2R;
 
-	if (cpu_is_ti814x()) {
+	if (v_pdata->cpu != CPU_DM816X) {
 		vccfg->bypass = 0;
 		vccfg->coeff = NULL;
 		vccfg->mode = VPS_CSC_MODE_HDTV_GRAPHICS_Y2R;
@@ -2369,7 +2370,7 @@ static inline int get_payload_size(void)
 	size += sizeof(struct vps_dcenumnodeinput);
 	size += sizeof(struct vps_dccomprtconfig);
 	size += sizeof(struct vps_cscconfig);  /*hdcomp*/
-	if (cpu_is_ti814x())
+	if (v_pdata->cpu != CPU_DM816X)
 		size += sizeof(struct vps_cscconfig);  /*vcomp(ti814x only) */
 	else
 		size += sizeof(struct vps_cprocconfig); /*cproc ti816x only*/
@@ -2467,7 +2468,7 @@ static inline void assign_payload_addr(struct vps_dispctrl *dctrl,
 					sizeof(struct vps_cscconfig));
 
 	/*vcomp csc config*/
-	if (cpu_is_ti814x())
+	if (v_pdata->cpu != CPU_DM816X)
 		dctrl->vcompcsccfg = (struct vps_cscconfig *)setaddr(
 					pinfo,
 					&offset,
@@ -2497,10 +2498,11 @@ int __init vps_dc_init(struct platform_device *pdev,
 	int r = 0;
 	int i;
 	int size = 0, offset = 0;
-
+	struct vps_platform_data  *pdata;
 	VPSSDBG("dctrl init\n");
 
-	if (cpu_is_ti816x() && (!def_i2cmode))
+	pdata = pdev->dev.platform_data;
+	if ((v_pdata->cpu == CPU_DM816X) && (!def_i2cmode))
 		ti816x_pcf8575_init();
 
 	dc_payload_info = kzalloc(sizeof(struct vps_payload_info),
@@ -2528,11 +2530,9 @@ int __init vps_dc_init(struct platform_device *pdev,
 		r = -ENOMEM;
 		goto cleanup;
 	}
-	disp_ctrl->numvencs = vps_get_numvencs();
+	disp_ctrl->numvencs = pdata->numvencs;
 	venc_info.numvencs = disp_ctrl->numvencs;
-	disp_ctrl->vencmask = (1 << VPS_DC_MAX_VENC) - 1;
-	if (cpu_is_ti814x() && (!(cpu_is_dm385())))
-		disp_ctrl->vencmask -= VPS_DC_VENC_HDCOMP;
+	disp_ctrl->vencmask = pdata->vencmask;
 
 	assign_payload_addr(disp_ctrl, dc_payload_info, &offset);
 
@@ -2612,7 +2612,7 @@ int __init vps_dc_init(struct platform_device *pdev,
 			opinfo.vencnodenum = VPS_DC_VENC_HDMI;
 			opinfo.dvofmt = VPS_DC_DVOFMT_TRIPLECHAN_EMBSYNC;
 			opinfo.dataformat = FVID2_DF_RGB24_888;
-			if (cpu_is_ti816x() && (TI8168_REV_ES1_0 ==
+			if ((v_pdata->cpu == CPU_DM816X) && (TI8168_REV_ES1_0 ==
 			    omap_rev()))
 				clksrcp->clksrc = VPS_DC_CLKSRC_VENCD_DIV2;
 			else
@@ -2624,7 +2624,7 @@ int __init vps_dc_init(struct platform_device *pdev,
 			opinfo.dvofmt = VPS_DC_DVOFMT_TRIPLECHAN_DISCSYNC;
 			opinfo.dataformat = FVID2_DF_RGB24_888;
 
-			if (cpu_is_ti816x()) {
+			if (v_pdata->cpu == CPU_DM816X) {
 				if (TI8168_REV_ES1_0 == omap_rev())
 					clksrcp->clksrc =
 						VPS_DC_CLKSRC_VENCD_DIV2;
@@ -2636,13 +2636,13 @@ int __init vps_dc_init(struct platform_device *pdev,
 			break;
 		case SDVENC:
 			opinfo.vencnodenum = VPS_DC_VENC_SD;
-			if (cpu_is_ti816x())
+			if (v_pdata->cpu == CPU_DM816X)
 				opinfo.afmt = VPS_DC_A_OUTPUT_COMPOSITE;
 			else
 				opinfo.afmt = VPS_DC_A_OUTPUT_SVIDEO;
 			opinfo.dataformat = FVID2_DF_YUV422SP_UV;
 			break;
-	if (cpu_is_ti816x()) {
+	if (v_pdata->cpu != CPU_DM814X) {
 		case HDCOMP:
 			opinfo.vencnodenum = VPS_DC_VENC_HDCOMP;
 			opinfo.afmt = VPS_DC_A_OUTPUT_COMPONENT;
@@ -2681,7 +2681,7 @@ int __init vps_dc_init(struct platform_device *pdev,
 	}
 	/*config the PLL*/
 	for (i = 0; i < venc_info.numvencs; i++) {
-		if ((SDVENC == i) && (cpu_is_ti814x()))
+		if ((SDVENC == i) && (v_pdata->cpu != CPU_DM816X))
 			venc_info.modeinfo[i].minfo.pixelclock = 54000;
 
 		r = dc_set_pllclock(i,
@@ -2700,7 +2700,7 @@ int __init vps_dc_init(struct platform_device *pdev,
 	}
 	/*set the the THS filter, device is still registered even
 	if THS setup is failed*/
-	if (cpu_is_ti816x() && (!def_i2cmode)) {
+	if ((v_pdata->cpu == CPU_DM816X) && (!def_i2cmode)) {
 		r = pcf8575_ths7375_enable(TI816X_THSFILTER_ENABLE_MODULE);
 		if ((venc_info.modeinfo[HDCOMP].minfo.standard ==
 		    FVID2_STD_1080P_60)  ||
@@ -2788,7 +2788,7 @@ int __exit vps_dc_deinit(struct platform_device *pdev)
 		dc_handle = NULL;
 	}
 
-	if (cpu_is_ti816x() && (!def_i2cmode))
+	if ((v_pdata->cpu == CPU_DM816X) && (!def_i2cmode))
 		ti816x_pcf8575_exit();
 
 	return r;
@@ -2867,7 +2867,7 @@ int TI81xx_register_display_panel(struct TI81xx_display_driver *panel_driver,
 	if ((vencinfo) && (vencinfo->enabled))
 		extenc->status = TI81xx_EXT_ENCODER_ENABLED;
 
-	if ((cpu_is_ti814x() && (HDMI == display_num) &&
+	if (((v_pdata->cpu != CPU_DM816X) && (HDMI == display_num) &&
 		(panel_driver->type ==
 		TI81xx_DEVICE_TYPE_MASTER))) {
 		/*reconfigure the PLL*/

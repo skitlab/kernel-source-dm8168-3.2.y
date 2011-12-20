@@ -2042,30 +2042,6 @@ static void __init ti81xx_video_mux(void)
 }
 }
 
-#if defined(CONFIG_VIDEO_TI81XX_VIDOUT) || \
-	defined(CONFIG_VIDEO_TI81XX_VIDOUT_MODULE)
-
-static struct resource ti81xx_vidout_resource[VPS_DISPLAY_INST_MAX] = {
-};
-
-static struct platform_device ti81xx_vidout_device = {
-	.name		= "t81xx_vidout",
-	.num_resources  = ARRAY_SIZE(ti81xx_vidout_resource),
-	.resource       = &ti81xx_vidout_resource[0],
-	.id             = -1,
-};
-
-static void ti81xx_init_vout(void)
-{
-	if (platform_device_register(&ti81xx_vidout_device) < 0)
-		printk(KERN_ERR "Unable to register "
-			"ti81xx_vidout device\n");
-	else
-		printk(KERN_INFO "registered ti81xx_vidout device\n");
-}
-#else
-static inline void ti81xx_init_vout(void) {}
-#endif
 #else
 static inline void ti81xx_register_edma(void) {}
 #endif
@@ -2806,7 +2782,6 @@ static int __init omap2_init_devices(void)
 #ifdef CONFIG_MTD_CFI
 	ti814x_nor_init();
 #endif
-	ti81xx_init_vout();
 #endif
 	omap_init_ahci();
 #ifdef CONFIG_ARCH_TI81XX

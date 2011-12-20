@@ -108,9 +108,9 @@ static inline int video_get_inputid(struct vps_video_ctrl *vctrl,
 		if ((inputnode == VPS_DC_VCOMP) ||
 		    (inputnode == VPS_DC_VCOMP_MUX)) {
 			/*DM385's HDCOMP is kind of same as TI816X's DVO2*/
-			if (cpu_is_ti816x())
+			if (v_pdata->cpu == CPU_DM816X)
 				return VPS_DC_CIG_CONSTRAINED_OUTPUT;
-			else if (cpu_is_dm385())
+			else if (v_pdata->cpu == CPU_DM385)
 				return VPS_DC_CIG_NON_CONSTRAINED_OUTPUT;
 			else
 				return -EINVAL;
@@ -123,7 +123,7 @@ static inline int video_get_inputid(struct vps_video_ctrl *vctrl,
 		if ((inputnode == VPS_DC_VCOMP) ||
 		    (inputnode == VPS_DC_VCOMP_MUX))
 			/*TI816X is different vs TI814X*/
-			if (cpu_is_ti816x())
+			if (v_pdata->cpu == CPU_DM816X)
 				return VPS_DC_CIG_NON_CONSTRAINED_OUTPUT;
 			else
 				return VPS_DC_CIG_CONSTRAINED_OUTPUT;
@@ -1746,7 +1746,7 @@ int __init vps_video_init(struct platform_device *pdev)
 			vctrl->nodes[1].inputid = VPS_DC_HDCOMP_MUX;
 
 			num_outputs = 1;
-			if (cpu_is_ti816x() || cpu_is_dm385())
+			if (v_pdata->cpu != CPU_DM814X)
 				vctrl->enodes[0].nodeid = VPS_DC_HDCOMP_BLEND;
 			else
 				vctrl->enodes[0].nodeid = VPS_DC_DVO2_BLEND;

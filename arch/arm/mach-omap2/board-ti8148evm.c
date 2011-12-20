@@ -672,13 +672,6 @@ static struct omap_musb_board_data musb_board_data = {
 	.instances	= 1,
 };
 
-static struct platform_device vpss_device = {
-	.name = "vpss",
-	.id = -1,
-	.dev = {
-		.platform_data = NULL,
-	},
-};
 static void __init ti8148_evm_init_irq(void)
 {
 	omap2_init_common_infrastructure();
@@ -687,25 +680,6 @@ static void __init ti8148_evm_init_irq(void)
 	gpmc_init();
 }
 
-static void __init ti814x_vpss_init(void)
-{
-	/*FIXME add platform data here*/
-
-	if (platform_device_register(&vpss_device))
-		printk(KERN_ERR "failed to register ti814x_vpss device\n");
-	else
-		printk(KERN_INFO "registered ti814x_vpss device\n");
-}
-
-static struct platform_device ti814x_hdmi_plat_device = {
-	.name = "TI81XX_HDMI",
-	.id = -1,
-	.num_resources = 0,
-	.dev = {
-		/*.release = ti81xx_hdmi_platform_release,*/
-		.platform_data = NULL,
-	}
-};
 
 #ifdef CONFIG_SND_SOC_TI81XX_HDMI
 static struct snd_hdmi_platform_data ti8148_snd_hdmi_pdata = {
@@ -735,15 +709,6 @@ static struct platform_device *ti8148_devices[] __initdata = {
 };
 #endif
 
-static void __init ti814x_hdmi_init(void)
-{
-
-	if (platform_device_register(&ti814x_hdmi_plat_device))
-		printk(KERN_ERR "Could not register TI814x onchip-HDMI device\n");
-	else
-		printk(KERN_INFO "registered TI814x on-chip HDMI device\n");
-	/*FIXME add platform data here*/
-}
 
 static void __init ti8148_evm_init(void)
 {
@@ -775,8 +740,6 @@ static void __init ti8148_evm_init(void)
 	usb_musb_init(&musb_board_data);
 
 	ti8148_spi_init();
-	ti814x_vpss_init();
-	ti814x_hdmi_init();
 #ifdef CONFIG_SND_SOC_TI81XX_HDMI
 	platform_add_devices(ti8148_devices, ARRAY_SIZE(ti8148_devices));
 #endif
