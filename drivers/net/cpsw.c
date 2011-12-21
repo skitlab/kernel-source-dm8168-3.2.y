@@ -985,7 +985,8 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 #ifdef CONFIG_TI_CPSW_DUAL_EMAC
 	__raw_writel(slave->port_vlan, &slave->regs->port_vlan);
 	cpsw_ale_add_vlan(priv->ale, slave->port_vlan,
-			1 << slave_port | 1 << priv->host_port, 1, 1, 0);
+			1 << slave_port | 1 << priv->host_port, 0,
+			1 << slave_port | 1 << priv->host_port, 0);
 	cpsw_ale_vlan_add_mcast(priv->ale, priv->ndev->broadcast,
 			1 << slave_port | 1 << priv->host_port,
 			slave->port_vlan, 0, 0);
@@ -993,7 +994,8 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 			0, slave->port_vlan);
 	/* Add VLAN id 0 with untagging to remove VLAN ID 0 on egress */
 	cpsw_ale_add_vlan(priv->ale, 0,
-			ALE_ALL_PORTS << priv->host_port, 1, 1, 0);
+			ALE_ALL_PORTS << priv->host_port,
+			ALE_ALL_PORTS << priv->host_port, priv->host_port, 0);
 #else /* !CONFIG_TI_CPSW_DUAL_EMAC */
 	cpsw_ale_add_mcast(priv->ale, priv->ndev->broadcast,
 			   1 << slave_port, 0, 0);
@@ -2442,15 +2444,28 @@ static int cpsw_ndo_set_mac_address(struct net_device *ndev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+	cpsw_ale_vlan_del_ucast(priv->ale, priv->mac_addr, priv->host_port,
+				priv->slaves[priv->emac_port].port_vlan);
+#else /* !CONFIG_TI_CPSW_DUAL_EMAC */
 	cpsw_ale_del_ucast(priv->ale, priv->mac_addr, priv->host_port);
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
 
 	memcpy(priv->mac_addr, addr->sa_data, ETH_ALEN);
 	memcpy(ndev->dev_addr, priv->mac_addr, ETH_ALEN);
 
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+	cpsw_ale_vlan_add_ucast(priv->ale, priv->mac_addr, priv->host_port,
+				0, priv->slaves[priv->emac_port].port_vlan);
+	/*ALE_SECURE);*/
+	cpsw_set_slave_mac(&priv->slaves[priv->emac_port], priv);
+#else /* !CONFIG_TI_CPSW_DUAL_EMAC */
 	cpsw_ale_add_ucast(priv->ale, priv->mac_addr, priv->host_port,
 			   0);
 	/*ALE_SECURE);*/
 	for_each_slave(priv, cpsw_set_slave_mac, priv);
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
+
 	return 0;
 }
 
