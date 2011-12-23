@@ -1264,7 +1264,9 @@ static void __cpsw_ndo_vlan_rx_add_vid(struct net_device *ndev,
 #ifdef CONFIG_TI_CPSW_DUAL_EMAC
 		cpsw_ale_add_vlan(priv->ale, vid,
 				1 << priv->host_port |
-				1 << (priv->emac_port + 1), 0, 1, 0);
+				1 << (priv->emac_port + 1), 0,
+				1 << priv->host_port |
+				1 << (priv->emac_port + 1), 0);
 		cpsw_ale_vlan_add_ucast(priv->ale, priv->mac_addr,
 				priv->host_port, 0, vid);
 		cpsw_ale_vlan_add_mcast(priv->ale, priv->ndev->broadcast,
@@ -1273,7 +1275,8 @@ static void __cpsw_ndo_vlan_rx_add_vid(struct net_device *ndev,
 
 #else /* !CONFIG_TI_CPSW_DUAL_EMAC */
 		cpsw_ale_add_vlan(priv->ale, vid,
-				ALE_ALL_PORTS << priv->host_port, 0, 1, 0);
+				ALE_ALL_PORTS << priv->host_port, 0,
+				ALE_ALL_PORTS << priv->host_port, 0);
 		cpsw_ale_vlan_add_ucast(priv->ale, priv->mac_addr,
 				priv->host_port, 0, vid);
 		cpsw_ale_vlan_add_mcast(priv->ale, priv->ndev->broadcast,
@@ -1281,7 +1284,9 @@ static void __cpsw_ndo_vlan_rx_add_vid(struct net_device *ndev,
 #endif /* CONFIG_TI_CPSW_DUAL_EMAC */
 	} else
 		cpsw_ale_add_vlan(priv->ale, vid,
-				ALE_ALL_PORTS << priv->host_port, 1, 1, 0);
+				ALE_ALL_PORTS << priv->host_port,
+				ALE_ALL_PORTS << priv->host_port,
+				ALE_ALL_PORTS << priv->host_port, 0);
 }
 
 static void cpsw_ndo_vlan_rx_add_vid(struct net_device *ndev,
