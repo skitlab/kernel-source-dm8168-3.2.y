@@ -72,6 +72,7 @@
 #define TI81XX_CM_ETHERNET_CLKDM		0x0004
 #define TI81XX_CM_MMU_CLKDM			0x000C
 #define TI81XX_CM_MMUCFG_CLKDM			0x0010
+#define TI814X_CM_OCMC_CLKDM			0x0014
 
 /* ACTIVE */
 #define TI816X_CM_ACTIVE_GEM_CLKDM		0x0000
@@ -111,6 +112,9 @@
 
 /* HDVPSS */
 #define TI814X_CM_HDVPSS_CLKDM			0x0000
+
+/* ISP */
+#define TI814X_CM_ISP_CLKDM			0x0000
 
 /* ADPLLJ control and config register offsets */
 #define ADPLLJ_CLKCTRL				0x4

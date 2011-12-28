@@ -957,8 +957,10 @@ static struct clk dap_ick = {
 static struct clk ocmc_ram_ick = {
 	.name		= "ocmc_ram_ick",
 	.parent		= &sysclk5_ck,
-	.ops		= &clkops_null,
-	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.ops		= &clkops_ti81xx_dflt_wait,
+	.enable_reg	= TI81XX_CM_ALWON_OCMC_0_CLKCTRL,
+	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
+	.clkdm_name	= "alwon_ocmc_clkdm",
 	.recalc		= &followparent_recalc,
 };
 
@@ -1696,6 +1698,18 @@ static struct clk iss_ick = {
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &followparent_recalc,
 	.set_rate	= &ti814x_clksel_set_rate,
+
+};
+
+/* ISP Clock */
+static struct clk isp_ick = {
+	.name		= "isp_ick",
+	.parent		= &iss_dpll_ck,
+	.ops		= &clkops_ti81xx_dflt_wait,
+	.enable_reg	= TI814X_CM_ISP_ISP_CLKCTRL,
+	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
+	.clkdm_name	= "isp_clkdm",
+	.recalc		= &followparent_recalc,
 
 };
 

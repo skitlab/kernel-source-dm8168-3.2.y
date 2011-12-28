@@ -66,6 +66,17 @@ static struct clockdomain alwon_ethernet_81xx_clkdm = {
 					 CHIP_IS_DM385),
 };
 
+/* OCMC clock domain */
+static struct clockdomain alwon_ocmc_814x_clkdm = {
+	.name		= "alwon_ocmc_clkdm",
+	.pwrdm		= { .name = "alwon_pwrdm" },
+	.cm_inst	= TI81XX_CM_ALWON_MOD,
+	.clkdm_offs	= TI814X_CM_OCMC_CLKDM,
+	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,
+	.flags		= CLKDM_CAN_SWSUP,
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X | CHIP_IS_DM385),
+};
+
 static struct clockdomain mmu_81xx_clkdm = {
 	.name		= "mmu_clkdm",
 	.pwrdm		= { .name = "alwon_pwrdm" },
@@ -152,6 +163,18 @@ static struct clockdomain hdvpss_814x_clkdm = {
 	.flags		= CLKDM_CAN_SWSUP,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X | CHIP_IS_DM385),
 };
+
+/* ISP clock domain */
+static struct clockdomain isp_814x_clkdm = {
+	.name		= "isp_clkdm",
+	.pwrdm		= { .name = "isp_pwrdm" },
+	.cm_inst	= TI814X_CM_ISP_MOD,
+	.clkdm_offs	= TI814X_CM_ISP_CLKDM,
+	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,
+	.flags		= CLKDM_CAN_SWSUP,
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X | CHIP_IS_DM385),
+};
+
 
 /* L3 med clock domain */
 static struct clockdomain alwon2_l3_med_814x_clkdm = {
