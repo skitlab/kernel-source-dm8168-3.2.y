@@ -2310,9 +2310,21 @@ static void ti81xx_ethernet_init(void)
 #if defined(CONFIG_SATA_AHCI_PLATFORM) || \
 	defined(CONFIG_SATA_AHCI_PLATFORM_MODULE)
 
-static struct ahci_platform_data omap_sata_pdata;
+static int ti81xx_ahci_plat_init(struct device *dev, void __iomem *base);
+static void ti81xx_ahci_plat_exit(struct device *dev);
+
+
+static struct ahci_platform_data omap_sata0_pdata = {
+	.init	= ti81xx_ahci_plat_init,
+	.exit	= ti81xx_ahci_plat_exit,
+};
+
+static struct ahci_platform_data omap_sata1_pdata = {
+	.init	= ti81xx_ahci_plat_init,
+	.exit	= ti81xx_ahci_plat_exit,
+};
+
 static u64 omap_sata_dmamask = DMA_BIT_MASK(32);
-static struct clk *omap_sata_clk;
 
 /* SATA PHY control register offsets */
 #define SATA_P0PHYCR_REG	0x178
@@ -2334,6 +2346,7 @@ static struct clk *omap_sata_clk;
 #define SATA_PHY_TXDE(x)	((x) << 27)
 
 #define TI81XX_SATA_BASE	0x4A140000
+#define DM385_SATA1_BASE	0x4A0AE000
 
 /* These values are tried and tested and not expected to change.
  * Hence not using a macro to generate them.
@@ -2350,11 +2363,12 @@ static int ti81xx_ahci_plat_init(struct device *dev, void __iomem *base)
 {
 	unsigned int phy_val;
 	int ret;
+	struct clk *sata_clk;
 
-	omap_sata_clk = clk_get(dev, NULL);
-	if (IS_ERR(omap_sata_clk)) {
+	sata_clk = clk_get(dev, NULL);
+	if (IS_ERR(sata_clk)) {
 		pr_err("ahci : Failed to get SATA clock\n");
-		return PTR_ERR(omap_sata_clk);
+		return PTR_ERR(sata_clk);
 	}
 
 	if (!base) {
@@ -2363,7 +2377,7 @@ static int ti81xx_ahci_plat_init(struct device *dev, void __iomem *base)
 		goto err;
 	}
 
-	ret = clk_enable(omap_sata_clk);
+	ret = clk_enable(sata_clk);
 	if (ret) {
 		pr_err("ahci : Clock enable failed\n");
 		goto err;
@@ -2387,7 +2401,7 @@ static int ti81xx_ahci_plat_init(struct device *dev, void __iomem *base)
 
 		writel(phy_val, base + SATA_P0PHYCR_REG);
 		writel(phy_val, base + SATA_P1PHYCR_REG);
-	} else if (cpu_is_ti814x()) {
+	} else if (cpu_is_ti814x() || cpu_is_dm385()) {
 		/* Configuring TI814X SATA PHY */
 		writel(TI814X_SATA_PHY_CFGRX0_VAL,
 			base + TI814X_SATA_PHY_CFGRX0_OFFSET);
@@ -2407,52 +2421,80 @@ static int ti81xx_ahci_plat_init(struct device *dev, void __iomem *base)
 
 	return 0;
 err:
-	clk_put(omap_sata_clk);
+	clk_put(sata_clk);
 	return ret;
 }
 
 static void ti81xx_ahci_plat_exit(struct device *dev)
 {
-	clk_disable(omap_sata_clk);
-	clk_put(omap_sata_clk);
+	struct clk *sata_clk;
+
+	sata_clk = clk_get(dev, NULL);
+	if (IS_ERR(sata_clk)) {
+		pr_err("ahci : Failed to get SATA clock\n");
+		return;
+	}
+
+	clk_disable(sata_clk);
+	clk_put(sata_clk);
 }
 
 /* resources will be filled by soc specific init routine */
-static struct resource omap_ahci_resources[] = {
+static struct resource omap_ahci0_resources[] = {
 	{
+		.start	= TI81XX_SATA_BASE,
+		.end	= TI81XX_SATA_BASE + 0x10fff,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
+		.start	= TI81XX_IRQ_SATA,
 		.flags	= IORESOURCE_IRQ,
 	}
 };
 
-static struct platform_device omap_ahci_device = {
+static struct resource omap_ahci1_resources[] = {
+	{
+		.start	= DM385_SATA1_BASE,
+		.end	= DM385_SATA1_BASE + 0x10fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= DM385_IRQ_SATA1,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device omap_ahci0_device = {
 	.name	= "ahci",
+	.id	= 0,
 	.dev	= {
-		.platform_data = &omap_sata_pdata,
+		.platform_data = &omap_sata0_pdata,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.dma_mask		= &omap_sata_dmamask,
 	},
-	.num_resources	= ARRAY_SIZE(omap_ahci_resources),
-	.resource	= omap_ahci_resources,
+	.num_resources	= ARRAY_SIZE(omap_ahci0_resources),
+	.resource	= omap_ahci0_resources,
 };
 
-static void ti81xx_ahci_init(void)
-{
-	/* fixup platform device info for TI81XX */
-	omap_ahci_resources[0].start	= TI81XX_SATA_BASE;
-	omap_ahci_resources[0].end	= TI81XX_SATA_BASE + 0x10fff;
-	omap_ahci_resources[1].start	= TI81XX_IRQ_SATA; /* SATA IRQ */
-	omap_sata_pdata.init		= ti81xx_ahci_plat_init;
-	omap_sata_pdata.exit		= ti81xx_ahci_plat_exit;
-}
+static struct platform_device omap_ahci1_device = {
+	.name	= "ahci",
+	.id	= 1,
+	.dev	= {
+		.platform_data = &omap_sata1_pdata,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.dma_mask		= &omap_sata_dmamask,
+	},
+	.num_resources	= ARRAY_SIZE(omap_ahci1_resources),
+	.resource	= omap_ahci1_resources,
+};
+
 
 static inline void omap_init_ahci(void)
 {
 	if (cpu_is_ti81xx()) {
-		ti81xx_ahci_init();
-		platform_device_register(&omap_ahci_device);
+		platform_device_register(&omap_ahci0_device);
+		if (cpu_is_dm385())
+			platform_device_register(&omap_ahci1_device);
 	}
 }
 #else

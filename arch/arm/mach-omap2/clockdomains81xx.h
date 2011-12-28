@@ -198,6 +198,17 @@ static struct clockdomain alwon2_pcie_814x_clkdm = {
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X | CHIP_IS_DM385),
 };
 
+
+static struct clockdomain alwon2_sata1_dm385_clkdm = {
+	.name		= "alwon2_sata1_clkdm",
+	.pwrdm		= { .name = "alwon_pwrdm" },
+	.cm_inst	= TI814X_CM_ALWON2_MOD,
+	.clkdm_offs	= DM385_CM_ALWON2_SATA1_CKDM,
+	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,
+	.flags		= CLKDM_CAN_SWSUP,
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_DM385),
+};
+
 /* USB clock domain */
 static struct clockdomain alwon2_usb_814x_clkdm = {
 	.name		= "alwon2_usb_clkdm",
