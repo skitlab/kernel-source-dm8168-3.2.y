@@ -945,7 +945,8 @@ static struct omap_hwmod ti81xx_elm_hwmod = {
 	.mpu_irqs_cnt	= ARRAY_SIZE(ti81xx_elm_irqs),
 	.slaves			= ti81xx_elm_slaves,
 	.slaves_cnt		= ARRAY_SIZE(ti81xx_elm_slaves),
-	.omap_chip		= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X),
+	.omap_chip		= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X
+						| CHIP_IS_DM385),
 };
 
 /* GPIO1 TI81XX */
