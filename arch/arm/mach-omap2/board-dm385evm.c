@@ -486,16 +486,6 @@ static void __init dm385_evm_init_irq(void)
 	gpmc_init();
 }
 
-static struct platform_device ti814x_hdmi_plat_device = {
-	.name = "TI81XX_HDMI",
-	.id = -1,
-	.num_resources = 0,
-	.dev = {
-		/*.release = ti81xx_hdmi_platform_release,*/
-		.platform_data = NULL,
-	}
-};
-
 #ifdef CONFIG_SND_SOC_TI81XX_HDMI
 static struct snd_hdmi_platform_data dm385_snd_hdmi_pdata = {
 	.dma_addr = TI81xx_HDMI_WP + HDMI_WP_AUDIO_DATA,
@@ -523,16 +513,6 @@ static struct platform_device *dm385_devices[] __initdata = {
 	&dm385_hdmi_codec_device,
 };
 #endif
-
-static void __init ti814x_hdmi_init(void)
-{
-
-	if (platform_device_register(&ti814x_hdmi_plat_device))
-		printk(KERN_ERR "Could not register TI814x onchip-HDMI device\n");
-	else
-		printk(KERN_INFO "registered TI814x on-chip HDMI device\n");
-	/*FIXME add platform data here*/
-}
 
 static void __init dm385_evm_init(void)
 {
@@ -564,7 +544,6 @@ static void __init dm385_evm_init(void)
 	usb_musb_init(&musb_board_data);
 
 	dm385_spi_init();
-	ti814x_hdmi_init();
 #ifdef CONFIG_SND_SOC_TI81XX_HDMI
 	platform_add_devices(dm385_devices, ARRAY_SIZE(dm385_devices));
 #endif
