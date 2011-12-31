@@ -584,7 +584,10 @@ static int omap_hsmmc_gpio_init(struct omap_mmc_platform_data *pdata)
 		pdata->resume = omap_hsmmc_resume_cdirq;
 		pdata->slots[0].get_cover_state = omap_hsmmc_get_cover_state;
 		pdata->slots[0].get_ro = omap_hsmmc_get_wp;
-		pdata->slots[0].card_detect = omap_hsmmc_card_detect;
+		if (pdata->slots[0].caps & MMC_CAP_NEEDS_POLL)
+			pdata->slots[0].card_detect = NULL;
+		else
+			pdata->slots[0].card_detect = omap_hsmmc_card_detect;
 	}
 
 	return 0;
