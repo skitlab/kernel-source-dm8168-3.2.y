@@ -4179,6 +4179,7 @@ static struct omap_clk ti814x_clks[] = {
 	CLK(NULL,		"dcan1_ick",			&dcan1_ick,			CK_TI814X | CK_DM385),
 	CLK(NULL,		"iss_dpll_ck",			&iss_dpll_ck,			CK_TI814X | CK_DM385),
 	CLK(NULL,		"iss_ick",			&iss_ick,			CK_TI814X | CK_DM385),
+	CLK(NULL,		"isp_ick",			&isp_ick,			CK_TI814X | CK_DM385),
 	CLK(NULL,		"tppss_tso_ick",		&tppss_tso_ick,			CK_TI814X),
 	CLK(NULL,		"iss_dpll_d2_ck",		&iss_dpll_d2_ck,		CK_TI814X | CK_DM385),
 	CLK(NULL,		"ducati_ick",			&ducati_ick,			CK_TI814X | CK_DM385),
