@@ -118,11 +118,12 @@ static void __init omap_detect_sram(void)
 
 	if (cpu_class_is_omap2()) {
 		if (is_sram_locked()) {
-			if (cpu_is_ti814x()) {
+			if (cpu_is_ti814x() &&
+				(omap_rev() > TI8148_REV_ES1_0)) {
 				pr_err("ti814x: pm: SRAM is locked\n");
 				omap_sram_base = TI814X_SRAM_VA;
 				omap_sram_start = TI814X_SRAM_PA;
-				omap_sram_size = 0x20000;/* 128K */
+				omap_sram_size = 0xF000;/* 64K - 4K */
 			}
 			if (cpu_is_omap34xx()) {
 				omap_sram_base = OMAP3_SRAM_PUB_VA;
@@ -143,7 +144,8 @@ static void __init omap_detect_sram(void)
 				omap_sram_size = 0x800; /* 2K */
 			}
 		} else {
-			if (cpu_is_ti814x()) {
+			if (cpu_is_ti814x() &&
+				(omap_rev() > TI8148_REV_ES1_0)) {
 				omap_sram_base = TI814X_SRAM_VA;
 				omap_sram_start = TI814X_SRAM_PA;
 				/* Total Internal sram size is 64KB and 1KB of
@@ -463,7 +465,8 @@ int __init omap_sram_init(void)
 		omap34xx_sram_init();
 	else if (cpu_is_omap44xx())
 		omap44xx_sram_init();
-	else if (cpu_is_ti814x())
+	else if (cpu_is_ti814x() && (omap_rev() > TI8148_REV_ES1_0))
+		/* Power management is not supported on ti814x PG 1.x */
 		ti814x_sram_init();
 
 	return 0;
