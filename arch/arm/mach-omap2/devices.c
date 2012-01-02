@@ -166,6 +166,8 @@ static inline void omap_init_camera(void)
 #endif
 }
 
+#ifdef CONFIG_ARCH_TI814X
+
 #define TI814X_D_CAN_RAM_BASE			0x1000
 #define TI814X_D_CAN_NUM_MSG_OBJS		64
 #define TI814X_CTL_DCAN_RAMINIT_OFFSET		0x644
@@ -238,6 +240,7 @@ static void ti814x_d_can_init(unsigned int instance)
 	d_can_hw_raminit(instance);
 	platform_device_register(&ti814x_d_can0_device);
 }
+#endif
 
 #if defined(CONFIG_OMAP_MBOX_FWK) || defined(CONFIG_OMAP_MBOX_FWK_MODULE)
 
