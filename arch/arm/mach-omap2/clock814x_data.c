@@ -3191,7 +3191,9 @@ static struct clk atl_fck = {
 static struct clk gpio234_dbck = {
 	.name		= "gpio234_dbck",
 	.parent		= &sysclk18_ck,
-	.ops		= &clkops_null,
+	.ops		= &clkops_ti81xx_dflt_wait,
+	.enable_reg	= TI81XX_CM_ALWON_GPIO_1_CLKCTRL,
+	.enable_bit	= TI81XX_GPIO_1_DBCLK_SHIFT,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &followparent_recalc,
 };
@@ -3200,7 +3202,9 @@ static struct clk gpio234_dbck = {
 static struct clk gpio1_dbck = {
 	.name		= "gpio1_dbck",
 	.parent		= &sysclk18_ck,
-	.ops		= &clkops_null,
+	.ops		= &clkops_ti81xx_dflt_wait,
+	.enable_reg	= TI81XX_CM_ALWON_GPIO_0_CLKCTRL,
+	.enable_bit	= TI81XX_GPIO_0_DBCLK_SHIFT,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &followparent_recalc,
 };

@@ -1519,7 +1519,7 @@ static struct clk gpio1_dbck = {
 	.parent		= &sysclk18_ck,
 	.ops		= &clkops_ti81xx_dflt_wait,
 	.enable_reg	= TI81XX_CM_ALWON_GPIO_0_CLKCTRL,
-	.enable_bit	= TI816X_GPIO_0_DBCLK_SHIFT,
+	.enable_bit	= TI81XX_GPIO_0_DBCLK_SHIFT,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &followparent_recalc,
 };
@@ -1529,7 +1529,7 @@ static struct clk gpio2_dbck = {
 	.parent		= &sysclk18_ck,
 	.ops		= &clkops_ti81xx_dflt_wait,
 	.enable_reg	= TI81XX_CM_ALWON_GPIO_1_CLKCTRL,
-	.enable_bit	= TI816X_GPIO_1_DBCLK_SHIFT,
+	.enable_bit	= TI81XX_GPIO_1_DBCLK_SHIFT,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &followparent_recalc,
 };
