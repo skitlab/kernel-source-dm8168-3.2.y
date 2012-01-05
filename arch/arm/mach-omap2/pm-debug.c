@@ -669,14 +669,21 @@ static int __init pm_dbg_init(void)
 			&pm_dbg_option_fops);
 
 #if defined(CONFIG_ARCH_TI814X)
-	(void) debugfs_create_file("enable_deep_sleep", S_IRUGO | S_IWUGO, d,
-				   &enable_deep_sleep, &pm_dbg_option_fops);
-	(void) debugfs_create_file("turnoff_idle_powerdomains",
-				   S_IRUGO | S_IWUGO, d,
-				   &turnoff_idle_powerdomains,
-				   &pm_dbg_option_fops);
-	(void) debugfs_create_file("deepsleep_polarity", S_IRUGO | S_IWUGO, d,
-				   &osc_wake_polarity, &pm_dbg_option_fops);
+	if (cpu_is_dm385() || (cpu_is_ti814x() &&
+				(omap_rev() > TI8148_REV_ES1_0))) {
+		(void) debugfs_create_file("enable_deep_sleep",
+						S_IRUGO | S_IWUGO, d,
+						&enable_deep_sleep,
+						&pm_dbg_option_fops);
+		(void) debugfs_create_file("turnoff_idle_powerdomains",
+						S_IRUGO | S_IWUGO, d,
+						&turnoff_idle_powerdomains,
+						&pm_dbg_option_fops);
+		(void) debugfs_create_file("deepsleep_polarity",
+						S_IRUGO | S_IWUGO, d,
+						&osc_wake_polarity,
+						&pm_dbg_option_fops);
+	}
 #endif
 	pm_dbg_init_done = 1;
 

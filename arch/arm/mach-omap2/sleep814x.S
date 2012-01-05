@@ -121,7 +121,9 @@ ENTRY(ti814x_cpu_suspend)
 	 * treat r5 as value, no dummy load is made.
 	 */
 	ldr	r8, [r0]
-	ldr	r8, [r1]
+	/* Check if emif1 exists, non zero means presence of emif1 */
+	cmp	r1, #0
+	ldrne	r8, [r1]
 	ldr	r8, [r2]
 	ldr	r8, [r3]
 	ldr	r8, [r4]
@@ -130,7 +132,9 @@ ENTRY(ti814x_cpu_suspend)
 enter_ddr_self_refresh:
 	mov	r8, #ENTER_SELF_REFRESH
 	str	r8, [r0, #TI814X_PMCR]		@ EMIF0
-	str	r8, [r1, #TI814X_PMCR]		@ EMIF1
+	/* Check if emif1 exists, non zero means presence of emif1 */
+	cmp	r1, #0
+	strne	r8, [r1, #TI814X_PMCR]		@ EMIF1
 
 wait_for_cke_low:
 	ldr	r8, [r4, #EMIF_CLK_GATE_OFFSET]
@@ -312,12 +316,19 @@ reconfigure_dmm:
 block_self_refresh:
 	mov	r8, #0
 	str	r8, [r0, #TI814X_PMCR]		@ EMIF0
-	str	r8, [r1, #TI814X_PMCR]		@ EMIF1
+	cmp	r1, #0
+	strne	r8, [r1, #TI814X_PMCR]		@ EMIF1
 
 wait_for_cke_high:
 	ldr	r8, [r4, #EMIF_CLK_GATE_OFFSET]
+	cmp	r1, #0
+	beq	single_emif
 	and	r8, r8, #0xc
 	cmp	r8, #0xc
+	bne	wait_for_cke_high
+single_emif:
+	and	r8, r8, #0x4
+	cmp	r8, #0x4
 	bne	wait_for_cke_high
 
 	dsb

@@ -301,11 +301,13 @@ static void ti814x_ddr_dynamic_pwr_down(void)
 	__raw_writel(v, (suspend_cfg_addr_list[EMIF0_BASE] +
 			TI814X_DDR_PHY_CTRL));
 
-	v = __raw_readl(suspend_cfg_addr_list[EMIF1_BASE] +
-			TI814X_DDR_PHY_CTRL);
-	v |= (TI814X_DDR_PHY_DYN_PWRDN_MASK);
-	__raw_writel(v, (suspend_cfg_addr_list[EMIF1_BASE] +
-			TI814X_DDR_PHY_CTRL));
+	if (!cpu_is_dm385()) {
+		v = __raw_readl(suspend_cfg_addr_list[EMIF1_BASE] +
+				TI814X_DDR_PHY_CTRL);
+		v |= (TI814X_DDR_PHY_DYN_PWRDN_MASK);
+		__raw_writel(v, (suspend_cfg_addr_list[EMIF1_BASE] +
+				TI814X_DDR_PHY_CTRL));
+	}
 
 }
 
@@ -322,7 +324,8 @@ static int __init ti81xx_pm_init(void)
 
 	pr_info("Power Management for TI81XX.\n");
 
-	if (!cpu_is_ti814x() || !(omap_rev() > TI8148_REV_ES1_0))
+	if (!cpu_is_dm385() && !(cpu_is_ti814x() &&
+				(omap_rev() > TI8148_REV_ES1_0)))
 		return -ENODEV;
 
 	prcm_setup_regs();
@@ -330,8 +333,13 @@ static int __init ti81xx_pm_init(void)
 	suspend_cfg_addr_list[EMIF0_BASE] = ioremap(TI814X_EMIF0_BASE, SZ_64);
 	WARN_ON(!suspend_cfg_addr_list[EMIF0_BASE]);
 
-	suspend_cfg_addr_list[EMIF1_BASE] = ioremap(TI814X_EMIF1_BASE, SZ_64);
-	WARN_ON(!suspend_cfg_addr_list[EMIF1_BASE]);
+	if (!cpu_is_dm385()) {
+		suspend_cfg_addr_list[EMIF1_BASE] =
+					ioremap(TI814X_EMIF1_BASE, SZ_64);
+		WARN_ON(!suspend_cfg_addr_list[EMIF1_BASE]);
+	} else
+		/* DM385 has only one instance of EMIF and DDR PHY */
+		suspend_cfg_addr_list[EMIF1_BASE] = 0x0;
 
 	suspend_cfg_addr_list[DMM_BASE] = ioremap(TI814X_DMM_BASE, SZ_64);
 	WARN_ON(!suspend_cfg_addr_list[DMM_BASE]);
