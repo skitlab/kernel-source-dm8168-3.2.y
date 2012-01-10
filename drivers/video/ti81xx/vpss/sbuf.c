@@ -204,6 +204,8 @@ int __init vps_sbuf_init(struct platform_device *pdev,
 	if (!addr) {
 		if (v_pdata->cpu == CPU_DM816X)
 			addr = TI81XX_SHARING_BUFFER_BASE;
+		else if (v_pdata->cpu == CPU_DM385)
+			addr = TI81XX_SHARING_BUFFER_BASE;
 		else
 			if (omap_rev() >= TI8148_REV_ES2_0)
 				addr = TI81XX_SHARING_BUFFER_BASE;
