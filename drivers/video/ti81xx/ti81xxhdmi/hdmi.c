@@ -203,8 +203,14 @@ static u8 header[8] = {0x0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x0};
 struct video_timings edid_timings;
 static struct device *ti81xx_hdmi_device;
 static struct class *ti81xx_hdmi_class;
-
-
+static DEFINE_SPINLOCK(irqstatus_lock);
+#if 1
+struct workqueue_struct *irq_wq;
+struct hdmi_work_struct {
+	struct work_struct work;
+	int r;
+};
+#endif
 /*S*******************************  Driver structure *********************/
 
 static int hdmi_panel_enable(void *data);
@@ -958,7 +964,7 @@ static int hdmi_power_on(void)
 	HDMI_W1_StopVideoFrame(TI81xx_HDMI_WP);
 
 	HDMI_W1_SetWaitSoftReset(); /* Adding here based on DM816x, maybe move
-					this to configure_phy function */
+				       this to configure_phy function */
 
 
 	/* Turn ON the PLL, control in the WP */
@@ -970,7 +976,7 @@ static int hdmi_power_on(void)
 	/* Configure PHY */
 	if (cpu_is_ti814x()) {
 		r = ti814x_hdmi_phy_init(TI81xx_HDMI_WP,
-					 TI814x_HDMI_PHY_0_REGS, hdmi.freq);
+				TI814x_HDMI_PHY_0_REGS, hdmi.freq);
 		if (r) {
 			THDMIDBG("DM814x : Failed to start PHY\n");
 			r = -EIO;
@@ -979,7 +985,7 @@ static int hdmi_power_on(void)
 	}
 	if (cpu_is_ti816x()) {
 		r = ti816x_configure_hdmi_phy((volatile u32)hdmi.base_phy,
-						hdmi.cfg.deep_color);
+				hdmi.cfg.deep_color);
 		if (r != 0) {
 			THDMIDBG("DM816x : Failed to start PHY\n");
 			goto err;
@@ -1007,7 +1013,7 @@ static int hdmi_power_on(void)
 	/* ToDo :  initial release , no deep color support */
 	hdmi.cfg.deep_color = HDMI_DEEP_COLOR_24BIT;
 	/*force HDMI output DVI if the TV does not support HDMI
-	or TV connected*/
+	  or TV connected*/
 	if (hdmi_get_edid())
 		hdmi.cfg.hdmi_dvi   = hdmi.mode;
 	else
@@ -1020,15 +1026,17 @@ static int hdmi_power_on(void)
 	/* hdmi_configure_lr_fr(); */
 
 	/* Turn ON VENC Color bar.*/
-	#if 0
+#if 0
 	void __iomem *venc_v_addr =  ioremap(0x48106000, 0x80);
 	if (venc_v_addr == 0x0)
 		THDMIDBG("hdmi_power_on : Could not ioremap for Venc\n");
 	enable_debug_colorbar(venc_v_addr);
-	#endif
+#endif
 
 	/* After all configuration, Turn ON in HDMI Wrapper  */
 	HDMI_W1_StartVideoFrame(TI81xx_HDMI_WP);
+
+	hdmi_set_irqs(0);
 	if (cpu_is_ti814x())
 		ti814x_set_clksrc_mux(1);
 	return 0;
@@ -1047,6 +1055,61 @@ static int hdmi_set_power(void)
 	return r;
 }
 
+#if 1
+static void hdmi_work_queue(struct work_struct *ws)
+{
+	struct hdmi_work_struct *work =
+		container_of(ws, struct hdmi_work_struct, work);
+	int r = work->r;
+
+
+	if (r & HDMI_HPD_MODIFY) {
+		hdmi_disable_display();
+		hdmi_enable_display();
+	}
+	kfree(work);
+}
+#endif
+static inline void hdmi_handle_irq_work(int r)
+{
+	struct hdmi_work_struct *work;
+	if (r) {
+		work = kmalloc(sizeof(*work), GFP_ATOMIC);
+
+		if (work) {
+			INIT_WORK(&work->work, hdmi_work_queue);
+			work->r = r;
+			queue_work(irq_wq, &work->work);
+		} else {
+			printk(KERN_ERR "Cannot allocate memory to create work");
+		}
+	}
+}
+static bool hdmi_connected;
+static irqreturn_t hdmi_irq_handler(int irq, void *arg)
+{
+	unsigned long flags;
+	int r = 0;
+
+
+
+	/* process interrupt in critical section to handle conflicts */
+	spin_lock_irqsave(&irqstatus_lock, flags);
+
+	HDMI_W1_HPD_handler(&r);
+
+
+	if (r & HDMI_CONNECT)
+		hdmi_connected = true;
+	if (r & HDMI_DISCONNECT)
+		hdmi_connected = false;
+
+	spin_unlock_irqrestore(&irqstatus_lock, flags);
+#if 1
+	hdmi_handle_irq_work(r);
+#endif
+	return IRQ_HANDLED;
+}
 
 static int hdmi_enable_display(void)
 {
@@ -1054,7 +1117,8 @@ static int hdmi_enable_display(void)
 	mutex_lock(&hdmi.lock);
 
 	r = hdmi_start_display();
-
+	r = request_irq(TI81XX_IRQ_HDMIINT, hdmi_irq_handler, 0,
+			"HDMI", (void *)0);
 	hdmi.status = TI81xx_EXT_ENCODER_ENABLED;
 	mutex_unlock(&hdmi.lock);
 	return r;
@@ -1064,7 +1128,10 @@ static void hdmi_disable_display(void)
 {
 
 	mutex_lock(&hdmi.lock);
-
+	/* Free irq befor disabling the hardware else it will generate continous
+	   interrupts.
+	 */
+	free_irq(TI81XX_IRQ_HDMIINT, NULL);
 	hdmi_stop_display();
 
 	/*setting to default only in case of disable and not suspend*/
@@ -1163,7 +1230,7 @@ int __init hdmi_init(void)
 		goto err_unregister_chrdev;
 		return -ENOMEM;
 	}
-
+	irq_wq = create_singlethread_workqueue("HDMI WQ");
 
 	/* register driver as a platform driver */
 	r = platform_driver_register(&ti81xx_hdmi_driver);
@@ -1192,7 +1259,7 @@ int __init hdmi_init(void)
 		/* goto err_unregister_panel;*/
 	}
 	if (hdmi.vencinfo.enabled) {
-		r = hdmi_panel_enable(NULL);
+		r = hdmi_enable_display();
 		if (r) {
 			THDMIDBG("TI81xx_hdmi: Not able to enable HDMI\n");
 			goto err_unregister_panel;
@@ -1234,14 +1301,14 @@ void ti81xx_map_timings_to_code(struct TI81xx_video_timings *timings)
 
 void hdmi_exit(void)
 {
-	hdmi_stop_display();
+	destroy_workqueue(irq_wq);
+	hdmi_disable_display();
 	if (cpu_is_ti814x())
 		ti814x_set_clksrc_mux(0);
 	hdmi_lib_exit();
 	TI81xx_un_register_display_panel(&hdmi_driver);
-	device_destroy(ti81xx_hdmi_class, hdmi_dev_id); /*needed? Varada
-							  : ToDo : FIXME */
-	class_destroy(ti81xx_hdmi_class); /* needed? Varada : ToDo : FIXME*/
+	device_destroy(ti81xx_hdmi_class, hdmi_dev_id);
+	class_destroy(ti81xx_hdmi_class);
 	cdev_del(&hdmi_cdev);
 	platform_driver_unregister(&ti81xx_hdmi_driver);
 	unregister_chrdev_region(hdmi_dev_id, 1);
@@ -1260,16 +1327,17 @@ static void hdmi_stop_display(void)
 
 static int hdmi_panel_enable(void *data)
 {
+	int r;
 	THDMIDBG("\n Enter Panel function : hdmi_panel_enable()\n ");
-	hdmi_enable_display();
-	return 0;
+	r = hdmi_enable_display();
+	return r;
 }
 
 
 static int hdmi_panel_disable(void *data)
 {
 	THDMIDBG("\n Enter Panel function : hdmi_panel_disable()\n ");
-	hdmi_stop_display();
+	hdmi_disable_display();
 	return 0;
 }
 
@@ -1362,6 +1430,7 @@ static int hdmi_get_panel_edid(char *inbuf, void *data)
 static int hdmi_set_timings(struct TI81xx_video_timings *timings, void *data)
 {
 	THDMIDBG("\n Enter Panel function : hdmi_set_timings()\n");
+	mutex_lock(&hdmi.lock);
 	if (cpu_is_ti814x()) {
 		if (timings->pixel_clock >= 100000)
 			hdmi.freq = 0x2;
@@ -1371,16 +1440,14 @@ static int hdmi_set_timings(struct TI81xx_video_timings *timings, void *data)
 			hdmi.freq = 0x1;
 	}
 
-
 	/* In OMAP, to change the resolutions, driver stopped and then restarted
 	 * However in slave mode of 81xx, the VENC has to be stopped to change
 	 * timings. The middle layer(dctrl.c) will disable the display, when
 	 * VENC stopped.
 	 */
 	ti81xx_map_timings_to_code(timings);
+	mutex_unlock(&hdmi.lock);
 
-
-	/*	THDMIDBG("=========== TEST ================"); */
 	return 0;
 }
 

@@ -43,6 +43,7 @@
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <sound/pcm.h>
+#include <linux/hrtimer.h>
 
 /* HDMI PHY */
 #define HDMI_TXPHY_TX_CTRL			0x0ul
@@ -54,6 +55,7 @@
 #define HDMI_WP_SYSCONFIG			0x10ul
 #define HDMI_WP_IRQSTATUS_RAW			0x24ul
 #define HDMI_WP_IRQSTATUS			0x28ul
+#define HDMI_WP_IRQWAKEEN			0x34ul
 #define HDMI_WP_PWR_CTRL			0x40ul
 #define HDMI_WP_IRQENABLE_SET			0x2Cul
 #define HDMI_WP_VIDEO_CFG			0x50ul
@@ -201,6 +203,18 @@
 #define HDMI_CORE_AV__MPEG_CHSUM		0x28Cul
 #define HDMI_CORE_AV__CP_BYTE1			0x37Cul
 #define HDMI_CORE_AV__CEC_ADDR_ID		0x3FCul
+
+#define HDMI_WP_IRQSTATUS_CORE 0x00000001
+#define HDMI_WP_IRQSTATUS_PHYCONNECT 0x02000000
+#define HDMI_WP_IRQSTATUS_PHYDISCONNECT 0x04000000
+#define HDMI_WP_IRQSTATUS_OCPTIMEOUT 0x00000010
+
+#define HDMI_CORE_SYS__SYS_STAT_HPD 0x02
+
+#define HDMI_IP_CORE_SYSTEM__INTR2__BCAP	0x80
+#define HDMI_IP_CORE_SYSTEM__INTR3__RI_ERR	0xF0
+
+bool first_hpd, dirty;
 
 static struct {
 	void __iomem *base_core;	/* 0 */
@@ -402,7 +416,8 @@ int hdmi_core_ddc_edid(u8 *pEDID, int ext)
 	/* HDMI_CORE_DDC_STATUS__NO_ACK */
 	if (FLD_GET(l, 5, 5) == 1) {
 		printk("I2C No Ack\n\r");
-		REG_FLD_MOD(ins, HDMI_CORE_DDC_CMD, 0xf, 3, 0); // Varada : Abort transaction.
+		/* Abort transaction */
+		REG_FLD_MOD(ins, HDMI_CORE_DDC_CMD, 0xf, 3, 0);
 		while (FLD_GET(hdmi_read_reg(ins, sts), 4, 4) == 1);
 		hdmi_read_reg(ins, sts);
 		return -1;
@@ -429,7 +444,8 @@ int hdmi_core_ddc_edid(u8 *pEDID, int ext)
 	}
 
 	/* Abort before exit, Varada : Check it this can be removed */
-	REG_FLD_MOD(ins, HDMI_CORE_DDC_CMD, 0xf, 3, 0); // Varada : Abort transaction, this did not resolve the issues of 3/15/2011
+	REG_FLD_MOD(ins, HDMI_CORE_DDC_CMD, 0xf, 3, 0);
+	/* Abort transaction */
 	while (FLD_GET(hdmi_read_reg(ins, sts), 4, 4) == 1);
 	l= hdmi_read_reg(ins, sts);
 
@@ -591,6 +607,8 @@ static int hdmi_core_video_config(struct hdmi_core_video_config_t *cfg)
 	r = FLD_MOD(r, hen, 4, 4);
 	r = FLD_MOD(r, bsel, 2, 2);
 	r = FLD_MOD(r, edge, 1, 1);
+	/* PD bit has to be written to recieve the interrupts */
+	r = FLD_MOD(r, 1, 0, 0);
 	hdmi_write_reg(name, HDMI_CORE_CTRL1, r);
 
 	REG_FLD_MOD(name, HDMI_CORE_SYS__VID_ACEN, cfg->CoreInputBusWide, 7, 6);
@@ -640,7 +658,7 @@ static int hdmi_core_video_config(struct hdmi_core_video_config_t *cfg)
 
 	/* TMDS_CTRL */
 	REG_FLD_MOD(name, HDMI_CORE_SYS__TMDS_CTRL,
-		cfg->CoreTclkSelClkMult, 6, 5);
+			cfg->CoreTclkSelClkMult, 6, 5);
 
 	return 0;
 }
@@ -692,7 +710,7 @@ int hdmi_core_audio_config(u32 name,
 				(audio_cfg->aud_par_busclk >> 8), 7, 0);
 	REG_FLD_MOD(name, HDMI_CORE_AV__AUD_PAR_BUSCLK_3,
 				(audio_cfg->aud_par_busclk >> 16), 7, 0);
-	/* FS_OVERRIDE = 1 because // input is used */
+	/* FS_OVERRIDE = 1 because input is used */
 	WR_REG_32(name, HDMI_CORE_AV__SPDIF_CTRL, 0x1);
 	 /* refer to table209 p192 in func core spec */
 	WR_REG_32(name, HDMI_CORE_AV__I2S_CHST4, audio_cfg->fs);
@@ -978,7 +996,7 @@ int hdmi_configure_lrfr(enum hdmi_range lr_fr, int force_set)
 	case HDMI_FULL_RANGE:
 		if (hdmi.avi_param.db1y_rgb_yuv422_yuv444 ==
 						INFOFRAME_AVI_DB1Y_YUV422) {
-			printk(KERN_ERR"It is only limited range for YUV");
+			printk(KERN_ERR "It is only limited range for YUV");
 			return -1;
 		}
 		hdmi.avi_param.db3q_default_lr_fr = INFOFRAME_AVI_DB3Q_FR;
@@ -1037,7 +1055,10 @@ static void hdmi_w1_init(struct hdmi_video_timing *t_p,
 	t_p->verticalFrontPorch = 0;
 	t_p->verticalSyncPulse = 0;
 
-	f_p->packingMode = HDMI_PACK_10b_RGB_YUV444; //HDMI_PACK_24b_RGB_YUV444_YUV422; // ToDo : Varada Test. revert back to HDMI_PACK_10b_RGB_YUV444, or put conditional code
+	/*HDMI_PACK_24b_RGB_YUV444_YUV422;*/
+	/* ToDo : revert back to HDMI_PACK_10b_RGB_YUV444,
+	   or put conditional code*/
+	f_p->packingMode = HDMI_PACK_10b_RGB_YUV444;
 	mdelay(340);
 
 	f_p->linePerPanel = 0;
@@ -1049,18 +1070,10 @@ static void hdmi_w1_init(struct hdmi_video_timing *t_p,
 	i_p->interlacing = 0;
 	i_p->timingMode = 0; /* HDMI_TIMING_SLAVE */
 
-	pIrqVectorEnable->pllRecal = 0;
-	pIrqVectorEnable->pllUnlock = 0;
-	pIrqVectorEnable->pllLock = 0;
-	pIrqVectorEnable->phyDisconnect = 1;
-	pIrqVectorEnable->phyConnect = 1;
-	pIrqVectorEnable->phyShort5v = 0;
-	pIrqVectorEnable->videoEndFrame = 0;
-	pIrqVectorEnable->videoVsync = 0;
-	pIrqVectorEnable->fifoSampleRequest = 0;
-	pIrqVectorEnable->fifoOverflow = 0;
-	pIrqVectorEnable->fifoUnderflow = 0;
-	pIrqVectorEnable->ocpTimeOut = 0;
+	memset(pIrqVectorEnable, 0, sizeof(*pIrqVectorEnable));
+	pIrqVectorEnable->phyDisconnect = 0;
+	pIrqVectorEnable->phyConnect = 0;
+	pIrqVectorEnable->ocpTimeOut = 1;
 	pIrqVectorEnable->core = 1;
 
 	audio_fmt->stereo_channel_enable = HDMI_STEREO_ONECHANNELS;
@@ -1098,6 +1111,16 @@ static void hdmi_w1_irq_enable(struct hdmi_irq_vector *pIrqVectorEnable)
 		(pIrqVectorEnable->core << 0));
 
 	hdmi_write_reg(HDMI_WP, HDMI_WP_IRQENABLE_SET, r);
+}
+
+static void hdmi_w1_irq_wakeup_enable(struct hdmi_irq_vector *pIrqVectorEnable)
+{
+	u32 r = 0;
+	/* make the irq wakeup enable */
+	r = ((pIrqVectorEnable->phyDisconnect << 26) |
+			(pIrqVectorEnable->phyConnect << 25) |
+			(pIrqVectorEnable->core << 0));
+	hdmi_write_reg(HDMI_WP, HDMI_WP_IRQWAKEEN, r);
 }
 
 static inline int hdmi_w1_wait_for_bit_change(const u32 ins,
@@ -1400,28 +1423,39 @@ int hdmi_lib_enable(struct hdmi_config *cfg)
 	struct hdmi_core_packet_enable_repeat repeat_param;
 
 	hdmi_w1_init(&VideoTimingParam, &VideoFormatParam,
-		&VideoInterfaceParam, &IrqHdmiVectorEnable,
-		&audio_fmt, &audio_dma);
+			&VideoInterfaceParam, &IrqHdmiVectorEnable,
+			&audio_fmt, &audio_dma);
 
 	if ( cpu_is_ti816x() || cpu_is_ti814x() )
 	{
-		cfg->deep_color = HDMI_DEEP_COLOR_24BIT; // ToDo : TI81xx , verify support for other modes
+		/* ToDo : TI81xx , verify support for other modes*/
+		cfg->deep_color = HDMI_DEEP_COLOR_24BIT;
 	}
 	hdmi_core_init(cfg->deep_color, cfg->input_df,
 			cfg->output_df, &v_core_cfg,
 			&audio_cfg, &hdmi.avi_param,
 			&repeat_param);
 
+	/*
+	   Currently we are seeing OCP timeout interrupt.
+	   It happens if l3 is idle. we need to set the SCP
+	   clock to proper value to make sure good performance
+	   is met.
+	 */
+	hdmi_write_reg(HDMI_WP, HDMI_WP_WP_CLK, 0x100);
+
 	/* Enable PLL Lock and UnLock intrerrupts */
 	IrqHdmiVectorEnable.pllUnlock = 1;
 	IrqHdmiVectorEnable.pllLock = 1;
+	IrqHdmiVectorEnable.core = 1;
 
 	/***************** init DSS register **********************/
 
-	if ( cpu_is_omap44xx()){
-		hdmi_w1_irq_enable(&IrqHdmiVectorEnable); // ToDo : TI81xx , may support different interrupt events.
-	}
+	hdmi_w1_irq_enable(&IrqHdmiVectorEnable);
+
 	mdelay(100);
+	IrqHdmiVectorEnable.phyDisconnect = 0;
+	hdmi_w1_irq_wakeup_enable(&IrqHdmiVectorEnable);
 
 	hdmi_w1_video_init_format(&VideoFormatParam, &VideoTimingParam, cfg);
 	if ( cpu_is_omap44xx())
@@ -1433,7 +1467,7 @@ int hdmi_lib_enable(struct hdmi_config *cfg)
 	if (cpu_is_ti814x() || cpu_is_ti816x())
 		if (cfg->sync == HDMI_EMBEDDED_SYNC)
 			hdmi_core_extract_sync_config(&VideoFormatParam,
-						&VideoTimingParam);
+					&VideoTimingParam);
 
 	/* video config */
 	switch (cfg->deep_color) {
@@ -1451,18 +1485,19 @@ int hdmi_lib_enable(struct hdmi_config *cfg)
 		break;
 	}
 
-		hdmi_w1_video_config_format(&VideoFormatParam);  // TI81xx , HDMI wrapper only slave mode.
+	/* TI81xx , HDMI wrapper only slave mode. */
+	hdmi_w1_video_config_format(&VideoFormatParam);
 
 	/* FIXME */
 	if ( cpu_is_omap44xx()){
 		VideoInterfaceParam.vSyncPolarity = cfg->v_pol;
 		VideoInterfaceParam.hSyncPolarity = cfg->h_pol;
-		VideoInterfaceParam.interlacing = cfg->interlace; // ToDo : Figure out how interlace v/s progressive is passed to the driver
+		VideoInterfaceParam.interlacing = cfg->interlace;
 	}
 
 	if (( cpu_is_ti816x() || cpu_is_ti814x())){
-		VideoInterfaceParam.vSyncPolarity = 0;//cfg->v_pol;
-		VideoInterfaceParam.hSyncPolarity = 0;//cfg->h_pol;
+		VideoInterfaceParam.vSyncPolarity = 0;
+		VideoInterfaceParam.hSyncPolarity = 0;
 		VideoInterfaceParam.interlacing = cfg->interlace;
 	}
 
@@ -1534,13 +1569,40 @@ int hdmi_lib_enable(struct hdmi_config *cfg)
 	hdmi.avi_param.db1b_no_vert_hori_verthori = INFOFRAME_AVI_DB1B_NO;
 	hdmi.avi_param.db1s_0_1_2 = INFOFRAME_AVI_DB1S_0;
 	hdmi.avi_param.db2c_no_itu601_itu709_extented = INFOFRAME_AVI_DB2C_NO;
-	hdmi.avi_param.db2m_no_43_169 = INFOFRAME_AVI_DB2M_NO;
+
+	/* Support AR in AVI infoframe */
+	switch (cfg->video_format) {
+	/* 16:9 */
+	case 4:
+	case 5:
+	case 16:
+	case 19:
+	case 20:
+	case 31:
+	case 32:
+	case 39:
+		hdmi.avi_param.db2m_no_43_169 = INFOFRAME_AVI_DB2M_169;
+		break;
+		/* 4:3 */
+	case 1:
+	case 2:
+	case 6:
+	case 17:
+	case 21:
+	case 29:
+	case 35:
+	case 37:
+		hdmi.avi_param.db2m_no_43_169 = INFOFRAME_AVI_DB2M_43;
+		break;
+	}
+
 	hdmi.avi_param.db2r_same_43_169_149 = INFOFRAME_AVI_DB2R_SAME;
 	hdmi.avi_param.db3itc_no_yes = INFOFRAME_AVI_DB3ITC_NO;
 	hdmi.avi_param.db3ec_xvyuv601_xvyuv709 = INFOFRAME_AVI_DB3EC_XVYUV601;
 	hdmi.avi_param.db3q_default_lr_fr = INFOFRAME_AVI_DB3Q_DEFAULT;
 	hdmi.avi_param.db3sc_no_hori_vert_horivert = INFOFRAME_AVI_DB3SC_NO;
-	hdmi.avi_param.db4vic_videocode = cfg->video_format;					//ToDo : check this value is passed correctly from the NeCe HDMI driver
+	/*check this value is passed correctly from the NeCe HDMI driver */
+	hdmi.avi_param.db4vic_videocode = cfg->video_format;
 	hdmi.avi_param.db5pr_no_2_3_4_5_6_7_8_9_10 = INFOFRAME_AVI_DB5PR_NO;
 	hdmi.avi_param.db6_7_lineendoftop = 0;
 	hdmi.avi_param.db8_9_linestartofbottom = 0;
@@ -1576,7 +1638,8 @@ int hdmi_lib_init(void){
 	hdmi.base_wp = ioremap(HDMI_WP, (HDMI_HDCP - HDMI_WP));
 
 	if(cpu_is_ti816x()){
-		hdmi.base_wp =  ioremap(TI81xx_HDMI_WP, 512);// OMAP first, then overwrite it
+		/* OMAP first, then overwrite it */
+		hdmi.base_wp =  ioremap(TI81xx_HDMI_WP, 512);
 	}
 	if(cpu_is_ti814x()){
         hdmi.base_wp =  ioremap(TI81xx_HDMI_WP, 512);
@@ -1603,86 +1666,181 @@ void hdmi_lib_exit(void){
 	iounmap(hdmi.base_wp);
 }
 
-int hdmi_set_irqs(void)
+int hdmi_set_irqs(int i)
 {
 	u32 r = 0 , hpd = 0;
-	struct hdmi_irq_vector pIrqVectorEnable;
+	struct hdmi_irq_vector pIrqVectorEnable = {
+		.pllUnlock = 1,
+		.pllLock = 1,
+		.phyDisconnect = 0,
+		.phyConnect = 0,
+		.core = 1,
+	};
 
-	pIrqVectorEnable.pllRecal = 0;
-	pIrqVectorEnable.phyShort5v = 0;
-	pIrqVectorEnable.videoEndFrame = 0;
-	pIrqVectorEnable.videoVsync = 0;
-	pIrqVectorEnable.fifoSampleRequest = 0;
-	pIrqVectorEnable.fifoOverflow = 0;
-	pIrqVectorEnable.fifoUnderflow = 0;
-	pIrqVectorEnable.ocpTimeOut = 0;
-	pIrqVectorEnable.pllUnlock = 1;
-	pIrqVectorEnable.pllLock = 1;
-	pIrqVectorEnable.phyDisconnect = 1;
-	pIrqVectorEnable.phyConnect = 1;
-	pIrqVectorEnable.core = 1;
+	if (!i) {
+		hdmi_w1_irq_enable(&pIrqVectorEnable);
 
-	hdmi_w1_irq_enable(&pIrqVectorEnable);
+		r = hdmi_read_reg(HDMI_WP, HDMI_WP_IRQENABLE_SET);
+		DBG("Irqenable %x\n", r);
+	}
+	r = hdmi_read_reg(HDMI_CORE_SYS, HDMI_CORE_CTRL1);
+	/* PD bit has to be written to recieve the interrupts */
+	r = FLD_MOD(r, !i, 0, 0);
+	hdmi_write_reg(HDMI_CORE_SYS, HDMI_CORE_CTRL1, r);
 
-	r = hdmi_read_reg(HDMI_WP, HDMI_WP_IRQENABLE_SET);
-	DBG("Irqenable %x\n", r);
+	hdmi_write_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__UMASK1, i ? 0x00 : 0x40);
 	hpd = hdmi_read_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__UMASK1);
 	DBG("%x hpd\n", hpd);
+
 	return 0;
 }
 
 /* Interrupt handler */
 void HDMI_W1_HPD_handler(int *r)
 {
-	u32 val, set = 0, hpd_intr;
+	u32 val, set = 0, hpd_intr = 0, core_state = 0;
+	u32 time_in_ms, intr2 = 0, intr3 = 0;
+	static ktime_t ts_hpd_low, ts_hpd_high;
 
-	mdelay(30);
 	DBG("-------------DEBUG-------------------");
 	DBG("%x hdmi_wp_irqstatus\n", \
 		hdmi_read_reg(HDMI_WP, HDMI_WP_IRQSTATUS));
 	DBG("%x hdmi_core_intr_state\n", \
 		hdmi_read_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__INTR_STATE));
-	DBG("%x hdmi_core_irqstate\n", \
+	DBG("%x hdmi_core_intr1\n", \
 		hdmi_read_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__INTR1));
+	DBG("%x hdmi_core_intr2\n", \
+		hdmi_read_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__INTR2));
+	DBG("%x hdmi_core_intr3\n", \
+		hdmi_read_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__INTR3));
 	DBG("%x hdmi_core_sys_sys_stat\n", \
 		hdmi_read_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__SYS_STAT));
-	DBG("-------------DEBUG-------------------");
+	DBG("-------------DEBUG-------------------\n");
 
 	val = hdmi_read_reg(HDMI_WP, HDMI_WP_IRQSTATUS);
-	mdelay(30);
+	if (val & HDMI_WP_IRQSTATUS_CORE) {
+		core_state =
+			hdmi_read_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__INTR_STATE);
+		if (core_state & 0x1) {
+			set =
+			hdmi_read_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__SYS_STAT);
+			hpd_intr = hdmi_read_reg(HDMI_CORE_SYS,
+					HDMI_CORE_SYS__INTR1);
+			intr2 = hdmi_read_reg(HDMI_CORE_SYS,
+					HDMI_CORE_SYS__INTR2);
+			intr3 = hdmi_read_reg(HDMI_CORE_SYS,
+					HDMI_CORE_SYS__INTR3);
 
-	set = hdmi_read_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__SYS_STAT);
-	mdelay(30);
+			hdmi_write_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__INTR1,
+					hpd_intr);
+			hdmi_write_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__INTR2,
+					intr2);
+			hdmi_write_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__INTR3,
+					intr3);
 
-	hpd_intr = hdmi_read_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__INTR1);
-	mdelay(30);
+			/* Read to flush */
+			hdmi_read_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__INTR1);
+			hdmi_read_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__INTR2);
+			hdmi_read_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__INTR3);
+		}
+	}
 
+
+	if ((val & HDMI_WP_IRQSTATUS_CORE) && (core_state & 0x1)) {
+		if (hpd_intr & 0x40) {
+			if  (set & HDMI_CORE_SYS__SYS_STAT_HPD) {
+				if ((first_hpd == 0) && (dirty == 0)) {
+					*r |= HDMI_FIRST_HPD;
+					first_hpd++;
+					DBG("first hpd");
+				} else {
+					ts_hpd_high = ktime_get();
+					if (dirty) {
+						time_in_ms =
+							(int)ktime_to_us(ktime_sub\
+									(ts_hpd_high, ts_hpd_low)) / 1000;
+						if (time_in_ms >= 80)
+							*r |= HDMI_HPD_MODIFY;
+						else
+							*r |= HDMI_HPD_HIGH;
+						dirty = 0;
+					}
+				}
+			} else {
+				ts_hpd_low = ktime_get();
+				dirty = 1;
+				*r |= HDMI_HPD_LOW;
+			}
+		}
+	}
+
+	/*
+	   Handle ocp timeout in correct way. SCP clock will reset the divder
+	   to 7 automatically. We need to speed up the clock to avoid
+	   performance degradation.
+	 */
+	if (val & HDMI_WP_IRQSTATUS_OCPTIMEOUT) {
+		hdmi_write_reg(HDMI_WP, HDMI_WP_WP_CLK, 0x100);
+		DBG("OCP timeout");
+	}
+
+	if (intr2 & HDMI_IP_CORE_SYSTEM__INTR2__BCAP)
+		*r |= HDMI_BCAP;
+
+	if (intr3 & HDMI_IP_CORE_SYSTEM__INTR3__RI_ERR)
+		*r |= HDMI_RI_ERR;
+
+	/* Ack other interrupts if any */
 	hdmi_write_reg(HDMI_WP, HDMI_WP_IRQSTATUS, val);
 	/* flush posted write */
 	hdmi_read_reg(HDMI_WP, HDMI_WP_IRQSTATUS);
-	mdelay(30);
-
-	if (val & 0x02000000) {
-		DBG("connect, ");
-		*r = HDMI_CONNECT;
-	}
-	if (hpd_intr & 0x00000040) {
-		if  (set & 0x00000002)
-			*r = HDMI_HPD;
-		else
-			*r = HDMI_DISCONNECT;
-	}
-	if ((val & 0x04000000) && (!(val & 0x02000000))) {
-		DBG("Disconnect");
-		*r = HDMI_DISCONNECT;
-	}
-	/* flush posted write */
-	hdmi_write_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__INTR1, hpd_intr);
-	mdelay(30);
-	hdmi_set_irqs();
-	/* Read to flush */
-	hdmi_read_reg(HDMI_CORE_SYS, HDMI_CORE_SYS__INTR1);
 }
+#if 0
+int hdmi_rxdet(void)
+{
+	int state = 0;
+	int loop = 0, val1, val2, val3, val4;
+	struct hdmi_irq_vector IrqHdmiVectorEnable;
+
+	hdmi_write_reg(HDMI_WP, HDMI_WP_WP_DEBUG_CFG, 4);
+
+	do {
+		val1 = hdmi_read_reg(HDMI_WP, HDMI_WP_WP_DEBUG_DATA);
+		udelay(5);
+		val2 = hdmi_read_reg(HDMI_WP, HDMI_WP_WP_DEBUG_DATA);
+		udelay(5);
+		val3 = hdmi_read_reg(HDMI_WP, HDMI_WP_WP_DEBUG_DATA);
+		udelay(5);
+		val4 = hdmi_read_reg(HDMI_WP, HDMI_WP_WP_DEBUG_DATA);
+	} while ((val1 != val2 || val2 != val3 || val3 != val4)
+		&& (loop < 100));
+
+	hdmi_write_reg(HDMI_WP, HDMI_WP_WP_DEBUG_CFG, 0);
+
+	if (loop == 100)
+		state = -1;
+	else
+		state = (val1 & 1);
+
+	/* Turn on the wakeup capability of the interrupts
+	It is recommended to turn on opposite interrupt wake
+	up capability in connected and disconnected state.
+	This is to avoid race condition in interrupts.
+	*/
+	IrqHdmiVectorEnable.core = 1;
+	if (state) {
+		IrqHdmiVectorEnable.phyDisconnect = 1;
+		IrqHdmiVectorEnable.phyConnect = 0;
+		hdmi_w1_irq_wakeup_enable(&IrqHdmiVectorEnable);
+	} else {
+		IrqHdmiVectorEnable.phyDisconnect = 0;
+		IrqHdmiVectorEnable.phyConnect = 1;
+		hdmi_w1_irq_wakeup_enable(&IrqHdmiVectorEnable);
+	}
+
+	return state;
+}
+#endif
 
 /* wrapper functions to be used until L24.5 release */
 int HDMI_CORE_DDC_READEDID(u32 name, u8 *p, u16 max_length)
@@ -1702,7 +1860,8 @@ int HDMI_W1_StartVideoFrame(u32 name)
 {
 	DBG("Enter HDMI_W1_StartVideoFrame  ()\n");
 
-#if 0 // ToDo : Only for debug purpose
+#if 0
+	/*Only for debug purpose */
 	temp  = __raw_readl(hdmi.base_core + HDMI_CORE_SYS__SYS_STAT);
 	temp &= HDMI_SYS_STAT_HPD_MASK;
 	if (!temp)

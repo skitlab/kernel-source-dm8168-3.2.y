@@ -126,8 +126,14 @@ struct hdmi_core_video_config_t {
 };
 
 enum hdmi_core_fs {
-	FS_32000 = 0,
-	FS_44100 = 1
+	FS_32000 = 0x3,
+	FS_44100 = 0x0,
+	FS_48000 = 0x2,
+	FS_88200 = 0x8,
+	FS_96000 = 0xA,
+	FS_176400 = 0xC,
+	FS_192000 = 0xE,
+	FS_NOT_INDICATED = 0x1
 };
 
 enum hdmi_core_layout {
@@ -483,8 +489,17 @@ struct snd_hdmi_platform_data {
 
 #define HDMI_CONNECT		0x01
 #define HDMI_DISCONNECT		0x02
-#define HDMI_HPD		0x04
+#define HDMI_HPD_MODIFY		0x04
 #define HDMI_FIRST_HPD		0x08
+#define HDMI_HPD_LOW		0x10
+#define HDMI_HPD_HIGH		0x20
+#define HDMI_BCAP		0x40
+#define HDMI_RI_ERR		0x80
+
+#define HDMI_EVENT_POWEROFF	0x00
+#define HDMI_EVENT_POWERPHYOFF	0x01
+#define HDMI_EVENT_POWERPHYON	0x02
+#define HDMI_EVENT_POWERON	0x03
 
 /* Function prototype */
 int HDMI_W1_StopVideoFrame(u32);
@@ -503,6 +518,9 @@ int hdmi_lib_init(void);
 void hdmi_lib_exit(void);
 int hdmi_configure_csc(enum hdmi_core_av_csc csc);
 int hdmi_configure_lrfr(enum hdmi_range, int force_set);
+int hdmi_set_irqs(int i);
+
+int hdmi_set_audio_power(bool on);
 void hdmi_add_notifier(struct hdmi_notifier *notifier);
 void hdmi_remove_notifier(struct hdmi_notifier *notifier);
 void hdmi_notify_hpd(int state);
