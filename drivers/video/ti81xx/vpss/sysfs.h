@@ -100,12 +100,12 @@ static const struct dc_vencmode_info vmode_info[] = {
 	},
 	{"1080i-50", FVID2_STD_1080I_50,
 	    {FVID2_STD_1080I_50, 1920, 1080, FVID2_SF_INTERLACED,
-		742500, 50, 528, 148, 44, 2, 15, 5},
+		74250, 50, 528, 148, 44, 2, 15, 5},
 	    TI81xx_MODE_HDMI
 	},
 	{"1920x1080@50i", FVID2_STD_1080I_50,
 	    {FVID2_STD_CUSTOM, 1920, 1080, FVID2_SF_INTERLACED,
-		742500, 50, 528, 148, 44, 2, 15, 5},
+		74250, 50, 528, 148, 44, 2, 15, 5},
 	    TI81xx_MODE_HDMI
 	},
 	/*VGA*/
