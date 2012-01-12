@@ -707,7 +707,7 @@ void ti81xx_vidout_isr(void *handle)
 
 
 	spin_lock(&vout->vbq_lock);
-	if (list_empty(&vout->dma_queue)) {
+	if ((!vout->dma_queue.next) || list_empty(&vout->dma_queue)) {
 		v4l2_err(&vout->vid_dev->v4l2_dev,
 			"VIDOUT%d: list empty\n",
 			vout->vid);
@@ -876,6 +876,12 @@ static void ti81xx_vidout_buffer_queue(struct videobuf_queue *q,
 
 	/* Driver is also maintainig a queue. So enqueue buffer in the driver
 	 * queue */
+	 if (!vout->dma_queue.next) {
+		v4l2_err(&vout->vid_dev->v4l2_dev,
+			"VIDOUT%d: dma_queue is not init\n",
+			vout->vid);
+		return;
+	 }
 	list_add_tail(&vb->queue, &vout->dma_queue);
 
 	vb->state = VIDEOBUF_QUEUED;
@@ -1835,6 +1841,13 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 		ret = -EBUSY;
 		v4l2_err(&vout->vid_dev->v4l2_dev,
 			"VIDOUT%d: stream is already on\n",
+			vout->vid);
+		goto error0;
+	}
+	if (!vout->dma_queue.next) {
+		ret = -EIO;
+		v4l2_err(&vout->vid_dev->v4l2_dev,
+			"VIDOUT%d: please call VIDIOC_REQBUFS first\n",
 			vout->vid);
 		goto error0;
 	}
