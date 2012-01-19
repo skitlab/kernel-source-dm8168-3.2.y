@@ -206,11 +206,6 @@ static void omap2_init_processor_devices(void)
 			omap_device_populate_rate_fns(l3_dev,
 				omap3_l3_set_rate, omap3_l3_get_rate);
 
-	} else if (cpu_is_ti81xx()) {
-		dpll1_clk = clk_get(NULL, "arm_dpll_ck");
-		if (mpu_dev)
-			omap_device_populate_rate_fns(mpu_dev,
-				omap3_mpu_set_rate, omap3_mpu_get_rate);
 	}
 }
 

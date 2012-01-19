@@ -281,7 +281,7 @@ static struct at24_platform_data eeprom_info = {
 };
 
 static struct regulator_consumer_supply ti8148evm_mpu_supply =
-	REGULATOR_SUPPLY("mpu", "mpu.0");
+	REGULATOR_SUPPLY("mpu", NULL);
 
 /*
  * DM814x/AM387x (TI814x) devices have restriction that none of the supply to

@@ -28,7 +28,6 @@
 #include <linux/plist.h>
 #include <linux/slab.h>
 #include <linux/opp.h>
-#include <linux/regulator/consumer.h>
 
 #include <plat/common.h>
 #include <plat/voltage.h>
@@ -45,9 +44,6 @@
 #define VP_IDLE_TIMEOUT		200
 #define VP_TRANXDONE_TIMEOUT	300
 #define VOLTAGE_DIR_SIZE	16
-#if defined(CONFIG_ARCH_TI814X)
-#define TI814X_VOLTAGE_TOLERANCE 12500 /* uV */
-#endif
 
 /* Voltage processor register offsets */
 struct vp_reg_offs {
@@ -224,9 +220,6 @@ struct omap_vdd_info {
 	void (*write_reg) (u32 val, u16 mod, u8 offset);
 	int (*volt_scale) (struct omap_vdd_info *vdd,
 		unsigned long target_volt);
-#if defined(CONFIG_ARCH_TI814X)
-	struct regulator *regulator;
-#endif
 };
 
 static struct omap_vdd_info *vdd_info;
@@ -345,20 +338,6 @@ static struct omap_vdd_info omap4_vdd_info[] = {
 };
 
 #define OMAP4_NR_SCALABLE_VDD ARRAY_SIZE(omap4_vdd_info)
-
-static struct omap_vdd_info ti814x_vdd_info[] = {
-	{
-		.dep_vdd_info	= NULL,
-		.nr_dep_vdd	= 0,
-		.vp_enabled	= false,
-		.voltdm = {
-			.name = "mpu",
-		},
-	},
-/* XXX: Add core vdd info */
-};
-
-#define TI814X_NR_SCALABLE_VDD ARRAY_SIZE(ti814x_vdd_info)
 
 /*
  * Structures containing OMAP3430/OMAP3630 voltage supported and various
@@ -2033,70 +2012,6 @@ static void __init am3517_vp_init(struct omap_vdd_info *vdd)
 {
 }
 
-static void __init ti814x_vc_vp_init_nop(struct omap_vdd_info *vdd)
-{
-}
-#if defined(CONFIG_ARCH_TI814X)
-static int ti814x_vdd_volt_scale(struct omap_vdd_info *vdd,
-				unsigned long target_volt)
-{
-	int ret = -EINVAL;
-	unsigned long curr_volt;
-
-	curr_volt = regulator_get_voltage(vdd->regulator);
-	if (curr_volt == target_volt)
-		return 0;
-
-	ret = regulator_set_voltage(vdd->regulator,
-				target_volt,
-				(target_volt + TI814X_VOLTAGE_TOLERANCE));
-	if (ret) {
-		pr_debug("Voltage change request failed ret = %d\n", ret);
-	} else {
-		pr_debug("Voltage changed to %d\n",
-				regulator_get_voltage(vdd->regulator));
-	}
-	return ret;
-}
-
-/**
- * ti814x_vdd_data_configure() - Initialize vdd related data and
- *  get handle to regulator supply for this vdd
- */
-static int __init ti814x_vdd_data_configure(struct omap_vdd_info *vdd)
-{
-	int ret = 0;
-	/* Initialize voltage parameters */
-	vdd->curr_volt = 1200000;
-
-	if (!strcmp(vdd->voltdm.name, "mpu")) {
-		struct device *mpu_dev = omap2_get_mpuss_device();
-
-		vdd->regulator = regulator_get(mpu_dev, "mpu");
-		if (!vdd->regulator)
-			pr_err("Unable to get regulator supplyi for vdd mpu\n");
-		else {
-			ret = regulator_enable(vdd->regulator);
-			if (ret)
-				regulator_put(vdd->regulator);
-		}
-	}
-	vdd->volt_scale	= ti814x_vdd_volt_scale;
-	/* Init the plist */
-	spin_lock_init(&vdd->user_lock);
-	plist_head_init(&vdd->user_list, &vdd->user_lock);
-
-	/* Init the DVFS mutex */
-	mutex_init(&vdd->scaling_mutex);
-	return ret;
-}
-#else
-static int __init ti814x_vdd_data_configure(struct omap_vdd_info *vdd)
-{
-	return 0;
-}
-#endif
-
 /**
  * omap_voltage_early_init()- Volatage driver early init
  */
@@ -2122,12 +2037,6 @@ static int __init omap_voltage_early_init(void)
 		vc_init = omap4_vc_init;
 		vp_init = omap_vp_init;
 		vdd_data_configure = omap4_vdd_data_configure;
-	} else if (cpu_is_ti814x()) {
-		vdd_info = ti814x_vdd_info;
-		nr_scalable_vdd = TI814X_NR_SCALABLE_VDD;
-		vc_init = ti814x_vc_vp_init_nop;
-		vp_init = ti814x_vc_vp_init_nop;
-		vdd_data_configure = ti814x_vdd_data_configure;
 	} else {
 		pr_warning("%s: voltage driver support not added\n", __func__);
 		return -EINVAL;

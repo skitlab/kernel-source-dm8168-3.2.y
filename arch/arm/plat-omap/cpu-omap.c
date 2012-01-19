@@ -38,6 +38,11 @@
 #endif
 #include <plat/omap_device.h>
 
+#if defined(CONFIG_ARCH_TI814X)
+#include <linux/regulator/consumer.h>
+#define DEFAULT_RESOLUTION 12500
+#endif
+
 #define VERY_HI_RATE	900000000
 
 static struct cpufreq_frequency_table *freq_table;
@@ -53,6 +58,9 @@ static struct cpufreq_frequency_table *freq_table;
 #endif
 
 static struct clk *mpu_clk;
+#ifdef CONFIG_ARCH_TI814X
+static struct regulator *mpu_reg;
+#endif
 
 /* TODO: Add support for SDRAM timing changes */
 
@@ -89,12 +97,16 @@ static int omap_target(struct cpufreq_policy *policy,
 		       unsigned int target_freq,
 		       unsigned int relation)
 {
-#ifdef CONFIG_ARCH_OMAP1
+#if defined(CONFIG_ARCH_OMAP1) || defined(CONFIG_ARCH_TI814X)
 	struct cpufreq_freqs freqs;
 #endif
 #if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_TI814X)
 	unsigned long freq;
 	struct device *mpu_dev = omap2_get_mpuss_device();
+#endif
+#if defined(CONFIG_ARCH_TI814X)
+	struct opp *opp;
+	int volt_old = 0, volt_new = 0;
 #endif
 	int ret = 0;
 
@@ -105,13 +117,75 @@ static int omap_target(struct cpufreq_policy *policy,
 	if (target_freq > policy->max)
 		target_freq = policy->max;
 
-#ifdef CONFIG_ARCH_OMAP1
+#if defined(CONFIG_ARCH_OMAP1) || defined(CONFIG_ARCH_TI814X)
 	freqs.old = omap_getspeed(0);
 	freqs.new = clk_round_rate(mpu_clk, target_freq * 1000) / 1000;
 	freqs.cpu = 0;
 
 	if (freqs.old == freqs.new)
 		return ret;
+#if defined(CONFIG_ARCH_TI814X)
+	freq = target_freq * 1000; /* fix warning */
+	opp = opp_find_freq_exact(mpu_dev, freqs.new * 1000, true);
+	if (IS_ERR(opp)) {
+		dev_err(mpu_dev, "%s: cpu%d: no opp match for freq %d\n",
+			__func__, policy->cpu, target_freq);
+		return -EINVAL;
+	}
+
+	volt_new = opp_get_voltage(opp);
+	if (!volt_new) {
+		dev_err(mpu_dev, "%s: cpu%d: no opp voltage for freq %d\n",
+			__func__, policy->cpu, target_freq);
+		return -EINVAL;
+	}
+
+	volt_old = regulator_get_voltage(mpu_reg);
+
+#ifdef CONFIG_CPU_FREQ_DEBUG
+	pr_info("cpufreq-omap: frequency transition: %u --> %u\n",
+			freqs.old, freqs.new);
+	pr_info("cpufreq-omap: voltage transition: %d --> %d\n",
+			volt_old, volt_new);
+#endif
+
+	if (freqs.new > freqs.old) {
+		ret = regulator_set_voltage(mpu_reg, volt_new,
+			volt_new + DEFAULT_RESOLUTION - 1);
+		if (ret) {
+			dev_err(mpu_dev, "%s: unable to set voltage to %d uV (for %u MHz)\n",
+				__func__, volt_new, freqs.new/1000);
+			return ret;
+		}
+	}
+	/* Notify the registered users that we gonna change frequency */
+	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+
+	ret = clk_set_rate(mpu_clk, freqs.new * 1000);
+	freqs.new = omap_getspeed(policy->cpu);
+
+	/* Notify the registered users that frequency is changed */
+	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+
+	if (freqs.new < freqs.old) {
+		ret = regulator_set_voltage(mpu_reg, volt_new,
+			volt_new + DEFAULT_RESOLUTION - 1);
+		if (ret) {
+			dev_err(mpu_dev, "%s: unable to set voltage to %d uV (for %u MHz)\n",
+				__func__, volt_new, freqs.new/1000);
+
+			if (clk_set_rate(mpu_clk, freqs.old * 1000)) {
+				dev_err(mpu_dev,
+					"%s: failed restoring clock rate to %u MHz, clock rate is %u MHz",
+					__func__,
+					freqs.old/1000, freqs.new/1000);
+				return ret;
+			}
+
+			return ret;
+		}
+	}
+#else
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 #ifdef CONFIG_CPU_FREQ_DEBUG
 	printk(KERN_DEBUG "cpufreq-omap: transition: %u --> %u\n",
@@ -119,7 +193,8 @@ static int omap_target(struct cpufreq_policy *policy,
 #endif
 	ret = clk_set_rate(mpu_clk, freqs.new * 1000);
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
-#elif defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_TI814X)
+#endif
+#elif defined(CONFIG_ARCH_OMAP3)
 	freq = target_freq * 1000;
 	if (opp_find_freq_ceil(mpu_dev, &freq))
 		omap_device_scale(mpu_dev, mpu_dev, freq);
@@ -135,6 +210,14 @@ static int __init omap_cpu_init(struct cpufreq_policy *policy)
 	if (IS_ERR(mpu_clk))
 		return PTR_ERR(mpu_clk);
 
+#if defined(CONFIG_ARCH_TI814X)
+	mpu_reg = regulator_get(NULL, "mpu");
+	if (IS_ERR(mpu_reg)) {
+		result = -EINVAL;
+		pr_err("%s:Regulatro get failed\n", __func__);
+		goto fail_reg;
+	}
+#endif
 	if (policy->cpu != 0)
 		return -EINVAL;
 
@@ -167,6 +250,9 @@ static int __init omap_cpu_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency = 300 * 1000;
 
 	return 0;
+fail_reg:
+	clk_put(mpu_clk);
+	return result;
 }
 
 static int omap_cpu_exit(struct cpufreq_policy *policy)
