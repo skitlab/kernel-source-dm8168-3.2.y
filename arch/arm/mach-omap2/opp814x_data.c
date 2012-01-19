@@ -28,26 +28,12 @@ static struct omap_opp_def __initdata ti814x_opp_def_list[] = {
 	 * enough testing is not done
 	 * and may cause system instability on some boards
 	 */
-	/* MPU OPP1 - OPP 50 */
-	OPP_INITIALIZER("mpu", false, 300000000, 1200000),
+	OPP_INITIALIZER("mpu", true, 600000000, 1100000),
 	/* MPU OPP2 - OPP 100 */
-	OPP_INITIALIZER("mpu", true, 600000000, 1200000),
-	/* MPU OPP3 - OPP 120 */
 	OPP_INITIALIZER("mpu", false, 720000000, 1200000),
+	/* MPU OPP3 - OPP 120 */
+	OPP_INITIALIZER("mpu", true, 1000000000, 1350000),
 
-	/* L3 OPP1 - OPP 50 */
-	OPP_INITIALIZER("l3_slow", true, 100000000, 950000),
-	/* L3 OPP2 - OPP 100 */
-	OPP_INITIALIZER("l3_slow", true, 200000000, 1100000),
-	/* L3 OPP3 - OPP 120 */
-	OPP_INITIALIZER("l3_slow", true, 240000000, 1200000),
-
-	/* L4 OPP1 - OPP 50 */
-	OPP_INITIALIZER("l4_slow", true, 100000000, 950000),
-	/* L4 OPP2 - OPP 100 */
-	OPP_INITIALIZER("l4_slow", true, 200000000, 1100000),
-	/* L4 OPP3 - OPP 120 */
-	OPP_INITIALIZER("l4_slow", true, 240000000, 1200000),
 };
 
 /**
