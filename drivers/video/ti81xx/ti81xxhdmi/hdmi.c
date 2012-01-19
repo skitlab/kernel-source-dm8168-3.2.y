@@ -1135,7 +1135,6 @@ static void hdmi_disable_display(void)
 	hdmi_stop_display();
 
 	/*setting to default only in case of disable and not suspend*/
-	hdmi.code = 16; /* 1080P-60 */
 	hdmi.mode = 1 ; /* HDMI */
 
 	hdmi.status = TI81xx_EXT_ENCODER_DISABLED;
