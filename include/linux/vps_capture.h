@@ -421,6 +421,26 @@ enum Vps_CaptVideoIfMode {
 };
 
 /**
+	\brief Output data max width
+	This enum can be used to limit the width of the output
+	data that is captured in to the user buffer.
+	Any additional pixels coming from the source are discarded.
+  */
+enum  Vps_CaptMaxOutWidth {
+	VPS_CAPT_MAX_OUT_WIDTH_UNLIMITED = 0,
+	/**< Do not limit the output width, captured
+	  whatever is coming from the source */
+	VPS_CAPT_MAX_OUT_WIDTH_352_PIXELS = 4,
+	/**< Limit height to 352 pixels */
+	VPS_CAPT_MAX_OUT_WIDTH_768_PIXELS = 5,
+	/**< Limit height to 768 pixels */
+	VPS_CAPT_MAX_OUT_WIDTH_1280_PIXELS = 6,
+	/**< Limit height to 1280 pixels */
+	VPS_CAPT_MAX_OUT_WIDTH_1920_PIXELS = 7
+	/**< Limit height to 1920 pixels */
+};
+
+/**
   \brief Output data max height
 
   This enum can be used to limit the height of the output data that is
@@ -502,6 +522,18 @@ struct Vps_CaptScParams {
 
 	void *scCoeffConfig;
 	/**< Scaler co-eff config, set NULL to setup default co-effs */
+	u32                  enableCoeffLoad;
+	/**< Enable scaler coefficient load during IOCTL_VPS_CAPT_SET_SC_PARAMS
+	  If this is set to TRUE, it may result in the VIP instance getting
+	  stopped, reset, and restarted to load new coefficients as per the
+	  provided new scaling factor. This may result in some frame loss.
+	  The scaler coefficients are loaded only if there is a change in either
+	  the horizontal or vertical scaling set. The best scaler coefficients
+	  to  be used are determined internally when scCoeffConfig in this
+	  structure is set to NULL.
+	  If the user has provided scaler coefficients or coefficient sets to be
+	  used, these are used instead of internally calculating the best scaler
+	  coefficients. */
 
 
 };
@@ -536,7 +568,9 @@ struct Vps_CaptOutInfo {
 	/**< Pitch in bytes between two lines.
 	  Pitch can be specified separately for every plane.
 	 */
-
+	u32                  maxOutWidth;
+	/**< Set limit on the max possible width of the output frame
+	  For valid values see #Vps_CaptMaxOutWidth */
 	u32 maxOutHeight;
 	/**< Set limit on the max possible height of the output frame
 	  For valid values see #Vps_CaptMaxOutHeight
@@ -581,8 +615,8 @@ Must be FALSE for multi-channel modes
 struct Vps_CaptCreateParams {
 
 	u32 videoCaptureMode;
-	/**< Video capture mode. For valid values see
-	#Vps_CaptVideoCaptureMode */
+	/**< Video capture mode. For valid values see #Vps_CaptVideoCaptureMode
+	 */
 
 	u32 videoIfMode;
 	/**< Video interface mode. For valid values see #Vps_CaptVideoIfMode */
@@ -598,15 +632,16 @@ struct Vps_CaptCreateParams {
 	u32 periodicCallbackEnable;
 	/**< TRUE: User callback passed during FVID2 create is called
 	  periodically at a fixed duration of about 8msecs
-FALSE: User callback passed during FVID2 create is called only
-if one or more frames are captured in any of the streams,
-channels belonging to this handle
+	FALSE: User callback passed during FVID2 create is called only
+	if one or more frames are captured in any of the streams,
+	channels belonging to this handle
 	 */
 
 	u32 numCh;
 	/**< Number of channel for multi-channel modes,
 
-	  Must be 1 for VPS_CAPT_VIDEO_CAPTURE_MODE_SINGLE_CH_NON_MUX_EMBEDDED_SYNC
+	  Must be 1 for
+	  VPS_CAPT_VIDEO_CAPTURE_MODE_SINGLE_CH_NON_MUX_EMBEDDED_SYNC
 	 */
 
 	u32 numStream;
@@ -642,6 +677,13 @@ channels belonging to this handle
 	u32 inScanFormat;
 	/**< Input source scan format - interlaced or progressive.
 	  For valid values see #FVID2_ScanFormat. */
+	u32                  muxModeStartChId;
+	/**< Start channel ID in pixel or line mux mode. Used to add an
+	  offset to  start channel mapping. This will be used when the
+	  decoder start channel ID is other than 0.
+	  For example some decoder's channel 0 CHID starts from 4 instead of 0.
+	  This is valid only in multi-channel mode and is ignored in single
+	  channel or other modes. */
 
 };
 

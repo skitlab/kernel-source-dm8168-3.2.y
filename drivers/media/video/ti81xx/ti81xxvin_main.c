@@ -170,6 +170,10 @@ static int ti81xxvin_vps_config_scalar(struct v4l2_rect *crop,
 	sc_params->inScanFormat = FVID2_SF_PROGRESSIVE;
 	sc_params->scConfig = NULL;
 	sc_params->scCoeffConfig = NULL;
+	/* We dont suport lazy loading as we dont support
+	   run-time scaling change
+	 */
+	sc_params->enableCoeffLoad = 0;
 	in_cropcfg->cropstartx = crop->left;
 	in_cropcfg->cropstarty = crop->top;
 	in_cropcfg->cropwidth = crop->width;
@@ -206,6 +210,8 @@ static int ti81xxvin_vps_config_format(struct ti81xxvin_instance_obj *inst)
 	cparams->periodicCallbackEnable = 0;
 	cparams->numCh = 1;
 	cparams->numStream = 1;
+	/* Don't care for single channel capture */
+	cparams->muxModeStartChId = 0;
 
 	sdev_info = inst->curr_subdev_info;
 
@@ -265,12 +271,17 @@ static int ti81xxvin_vps_config_format(struct ti81xxvin_instance_obj *inst)
 		BUG();
 	}
 	out_stream_info->maxOutHeight = VPS_CAPT_MAX_OUT_HEIGHT_UNLIMITED;
+	out_stream_info->maxOutWidth = VPS_CAPT_MAX_OUT_WIDTH_UNLIMITED;
 
-	/* TODO Change this when we support scaling and cropping */
 	out_stream_info->scEnable = 0;
+
+	/* Don't care for capture driver as we dont support
+	   sub-frame based scaling
+	 */
 	out_stream_info->subFrameModeEnable = 0;
 	out_stream_info->numLinesInSubFrame = 0;
 	out_stream_info->subFrameCb = NULL;
+
 
 	/* Don't care for caputre drivers */
 	fvid2_fmt.channelnum = 0;

@@ -91,12 +91,13 @@
 #define VPS_VID_ENC_IOCTL_BASE          (FVID2_USER_BASE + 0x00070000u)
 /** \brief IOCTL base address for the video  platform driver IOCTLs. */
 #define VPS_VID_SYSTEM_IOCTL_BASE       (FVID2_USER_BASE + 0x00080000u)
-
-/**
- *  \brief IOCTL base address for the advanced debug capabilities.
- *  Caution: To be used with care.
- */
-#define VPS_ADV_IOCTL_BASE              (FVID2_USER_BASE + 0x00070000u)
+/** \brief IOCTL base address for the M2M SC driver IOCTLs. */
+#define VPS_M2M_SC_IOCTL_BASE           (FVID2_USER_BASE + 0x00090000u)
+/** \brief IOCTL base address for the M2M DEI driver IOCTLs. */
+#define VPS_M2M_DEI_IOCTL_BASE          (FVID2_USER_BASE + 0x000A0000u)
+/** \brief IOCTL base address for the advanced debug capabilities.
+   *  Caution: To be used with care. */
+#define VPS_ADV_IOCTL_BASE              (FVID2_USER_BASE + 0x000B0000u)
 
 /**
  *  \brief VPS video buffer alignment. All application buffer address and
@@ -434,10 +435,12 @@ struct vps_frameparams {
 	/**< Height of frame in lines. */
 	u32                  pitch[FVID2_MAX_PLANES];
 	/**< Pitch for each planes in bytes. Only required planes needs to be
-	     populated. */
+	  populated. */
 	u32                  memtype;
 	/**< VPDMA memory type - Tiled buffer or normal non-tiled buffer.
-	for valid values see #vps_vpdmamemorytype. */
+	  for valid values see #vps_vpdmamemorytype. */
+	u32                  dataFormat;
+	/**< Frame data Format. For valid values see #FVID2_DataFormat. */
 } ;
 
 /**

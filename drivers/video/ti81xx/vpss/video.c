@@ -762,6 +762,7 @@ static int video_set_rtcrop(struct vps_video_ctrl *vctrl, u32 posx, u32 posy,
 	vctrl->vfrmprm->pitch[0] = pitch;
 	vctrl->vfrmprm->pitch[1] = pitch;
 	vctrl->vfrmprm->pitch[2] = pitch;
+	vctrl->vfrmprm->dataFormat = vctrl->fmt->dataformat;
 
 	vctrl->vrtparams->infrmprms = (struct vps_frameparams *)
 					vctrl->vfp_phy;

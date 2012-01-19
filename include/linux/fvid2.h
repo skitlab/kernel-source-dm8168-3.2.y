@@ -373,7 +373,7 @@ enum fvid2_dataformat {
 	/**< For future purpose. */
 	FVID2_DF_INVALID,
 	/**< Invalid data format. Could be used to initialize variables. */
-	FVID2_DF_MAX
+	FVID2_DF_MAX = 0xFFFFFFFF
 	/**< Should be the last value of this enumeration.
 	 Will be used by driver for validating the input parameters. */
 } ;
