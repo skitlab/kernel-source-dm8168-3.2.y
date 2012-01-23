@@ -208,7 +208,7 @@ static const struct dc_vencmode_info vmode_info[] = {
 	/*480P*/
 	{"480p-60", FVID2_STD_480P,
 	    {FVID2_STD_480P, 720, 480, FVID2_SF_PROGRESSIVE,
-		27000, 60, 16, 60, 62, 9, 20, 6},
+		27000, 60, 16, 60, 62, 9, 30, 6},
 	    TI81xx_MODE_HDMI
 	},
 	{"1366x768@60", FVID2_STD_1366_768_60,
