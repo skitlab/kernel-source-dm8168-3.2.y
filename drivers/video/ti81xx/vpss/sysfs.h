@@ -235,9 +235,12 @@ static const struct dc_vencmode_info vmode_info[] = {
 	    {FVID2_STD_CUSTOM, 1440, 900, FVID2_SF_PROGRESSIVE,
 		106500, 60, 152, 232, 80, 6, 25, 3},
 	    TI81xx_MODE_DVI
+	},
+	{"1024x600@70", FVDI2_STD_WSVGA_70,
+	    {FVID2_STD_CUSTOM, 1024, 600, FVID2_SF_PROGRESSIVE,
+		50800, 70, 36, 60, 30, 10, 11, 10},
+	    TI81xx_MODE_DVI
 	}
-
-
 };
 /*use for the venc name*/
 static const struct dc_vencname_info venc_name[VPS_DC_MAX_VENC] = {

@@ -455,6 +455,9 @@ enum  fvid2_standard {
 	FVID2_STD_SVGA_85,
 	/**< 800x600 85FPS VESA standard. */
 
+	FVDI2_STD_WSVGA_70,
+	/**<1024x600 70FPS Standard. */
+
 	FVID2_STD_XGA_60,
 	/**< 1024x768 60FPS VESA standard. */
 	FVID2_STD_XGA_70,
