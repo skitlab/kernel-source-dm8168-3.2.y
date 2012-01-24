@@ -437,7 +437,10 @@ enum  fvid2_standard {
 	FVID2_STD_1080P_30,
 	/**< 1920x1080 30FPS progressive HD standard. */
 
-	FVID2_STD_VGA_60,
+	/* Vesa standards from here Please add all SMTPE and CEA standard enums
+	   above this only. this is to ensure proxy Oses compatibility
+	 */
+	FVID2_STD_VGA_60 = 0x100,
 	/**< 640x480 60FPS VESA standard. */
 	FVID2_STD_VGA_72,
 	/**< 640x480 72FPS VESA standard. */
@@ -445,6 +448,9 @@ enum  fvid2_standard {
 	/**< 640x480 75FPS VESA standard. */
 	FVID2_STD_VGA_85,
 	/**< 640x480 85FPS VESA standard. */
+
+	FVID2_STD_WVGA_60,
+	/**< 800x480 60PFS WVGA */
 
 	FVID2_STD_SVGA_60,
 	/**< 800x600 60FPS VESA standard. */
@@ -469,6 +475,13 @@ enum  fvid2_standard {
 	FVID2_STD_XGA_85,
 	/**< 1024x768 85FPS VESA standard. */
 
+	FVID2_STD_1368_768_60,
+	/**< 1368x768 60 PFS VESA>*/
+	FVID2_STD_1366_768_60,
+	/**< 1366x768 60 PFS VESA>*/
+	FVID2_STD_1360_768_60,
+	/**< 1360x768 60 PFS VESA>*/
+
 	FVID2_STD_WXGA_60,
 	/**< 1280x768 60FPS VESA standard. */
 	FVID2_STD_WXGA_75,
@@ -476,12 +489,18 @@ enum  fvid2_standard {
 	FVID2_STD_WXGA_85,
 	/**< 1280x768 85FPS VESA standard. */
 
+	FVID2_STD_1440_900_60,
+	/**< 1440x900 60 PFS VESA>*/
+
 	FVID2_STD_SXGA_60,
 	/**< 1280x1024 60FPS VESA standard. */
 	FVID2_STD_SXGA_75,
 	/**< 1280x1024 75FPS VESA standard. */
 	FVID2_STD_SXGA_85,
 	/**< 1280x1024 85FPS VESA standard. */
+
+	FVID2_STD_WSXGAP_60,
+	/**< 1680x1050 60 PFS VESA>*/
 
 	FVID2_STD_SXGAP_60,
 	/**< 1400x1050 60FPS VESA standard. */
@@ -491,7 +510,9 @@ enum  fvid2_standard {
 	FVID2_STD_UXGA_60,
 	/**< 1600x1200 60FPS VESA standard. */
 
-	FVID2_STD_MUX_2CH_D1,
+	/* Multi channel standards from here Please add all VESA standards enums
+	   above this only. this is to ensure proxy Oses compatibility */
+	FVID2_STD_MUX_2CH_D1 = 0x200,
 	/**< Interlaced, 2Ch D1, NTSC or PAL. */
 	FVID2_STD_MUX_2CH_HALF_D1,
 	/**< Interlaced, 2ch half D1, NTSC or PAL. */
@@ -508,27 +529,14 @@ enum  fvid2_standard {
 	FVID2_STD_MUX_8CH_HALF_D1,
 	/**< Interlaced, 8Ch Half-D1, NTSC or PAL. */
 
-	FVID2_STD_AUTO_DETECT,
+	/* Auto detect and Custom standards Please add all multi channel standard
+	   enums above this only. this is to ensure proxy Oses compatibility */
+	FVID2_STD_AUTO_DETECT = 0x300,
 	/**< Auto-detect standard. Used in capture mode. */
 	FVID2_STD_CUSTOM,
 	/**< Custom standard used when connecting to external LCD etc...
-	 The video timing is provided by the application.
-	 Used in display mode. */
-	FVID2_STD_WVGA_60,
-	/**< 800x480 60PFS WVGA */
-	FVID2_STD_1368_768_60 = 0x10000000,
-	/**< 1368x768 60 PFS VESA>*/
-	FVID2_STD_1366_768_60,
-	/**< 1366x768 60 PFS VESA>*/
-	FVID2_STD_1360_768_60,
-	/**< 1360x768 60 PFS VESA>*/
-	FVID2_STD_1680_1050_60,
-	/**< 1680x1050 60 PFS VESA>*/
-	FVID2_STD_1440_900_60,
-	/**< 1440x900 60 PFS VESA>*/
-	FVID2_STD_MAX = 0xFFFFFFFF
-	/**< Should be the last value of this enumeration.
-	 Will be used by driver for validating the input parameters. */
+	  The video timing is provided by the application.
+	  Used in display mode. */
 };
 
 /**

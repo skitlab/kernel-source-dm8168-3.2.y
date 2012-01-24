@@ -226,7 +226,7 @@ static const struct dc_vencmode_info vmode_info[] = {
 		85860, 60, 72, 216, 144, 1, 23, 3},
 	    TI81xx_MODE_DVI
 	},
-	{"1680x1050@60", FVID2_STD_1680_1050_60,
+	{"1680x1050@60", FVID2_STD_WSXGAP_60,
 	    {FVID2_STD_CUSTOM, 1680, 1050, FVID2_SF_PROGRESSIVE,
 		146250, 60, 176, 280, 104, 6, 30, 3},
 	    TI81xx_MODE_DVI
