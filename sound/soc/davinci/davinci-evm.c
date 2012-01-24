@@ -242,11 +242,6 @@ static struct snd_soc_dai_link ti81xx_evm_dai[] = {
 	{
 		.name = "TLV320AIC3X",
 		.stream_name = "AIC3X",
-#if defined(CONFIG_MACH_DM385EVM)
-		.cpu_dai_name = "davinci-mcasp.1",
-#else
-		.cpu_dai_name = "davinci-mcasp.2",
-#endif
 		.codec_dai_name = "tlv320aic3x-hifi",
 		.codec_name = "tlv320aic3x-codec.1-0018",
 		.platform_name = "davinci-pcm-audio",
@@ -311,8 +306,18 @@ static struct snd_soc_card ti81xx_snd_soc_card = {
 	.num_links = ARRAY_SIZE(ti81xx_evm_dai),
 };
 
-static struct platform_device *evm_snd_device;
+static void ti81xx_evm_dai_fixup(void)
+{
+	if (machine_is_ti8168evm() || machine_is_ti8148evm()) {
+		ti81xx_evm_dai[0].cpu_dai_name = "davinci-mcasp.2";
+	} else if (machine_is_dm385evm()) {
+		ti81xx_evm_dai[0].cpu_dai_name = "davinci-mcasp.1";
+	} else {
+		ti81xx_evm_dai[0].cpu_dai_name = NULL;
+	}
+}
 
+static struct platform_device *evm_snd_device;
 static int __init evm_init(void)
 {
 	struct snd_soc_card *evm_snd_dev_data;
@@ -339,6 +344,7 @@ static int __init evm_init(void)
 		index = 0;
 	} else if (machine_is_ti8168evm() || machine_is_ti8148evm()
 					|| machine_is_dm385evm()) {
+		ti81xx_evm_dai_fixup();
 		evm_snd_dev_data = &ti81xx_snd_soc_card;
 		index = 0;
 	} else

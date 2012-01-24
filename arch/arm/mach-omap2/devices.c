@@ -2505,9 +2505,7 @@ static inline void omap_init_ahci(void) {}
 #endif
 
 #if defined(CONFIG_ARCH_TI81XX)
-
-#if defined(CONFIG_MACH_DM385EVM)
-static struct resource ti81xx_mcasp_resource[] = {
+static struct resource dm385_mcasp_resource[] = {
 	{
 		.name = "mcasp",
 		.start = TI81XX_ASP1_BASE,
@@ -2527,7 +2525,7 @@ static struct resource ti81xx_mcasp_resource[] = {
 		.flags = IORESOURCE_DMA,
 	},
 };
-#else
+
 static struct resource ti81xx_mcasp_resource[] = {
 	{
 		.name = "mcasp",
@@ -2548,21 +2546,26 @@ static struct resource ti81xx_mcasp_resource[] = {
 		.flags = IORESOURCE_DMA,
 	},
 };
-#endif
 
 static struct platform_device ti81xx_mcasp_device = {
 	.name = "davinci-mcasp",
-#if defined(CONFIG_MACH_DM385EVM)
-	.id = 1,
-#else
-	.id = 2,
-#endif
-	.num_resources = ARRAY_SIZE(ti81xx_mcasp_resource),
-	.resource = ti81xx_mcasp_resource,
 };
 
 void __init ti81xx_register_mcasp(int id, struct snd_platform_data *pdata)
 {
+	if (machine_is_ti8168evm() || machine_is_ti8148evm()) {
+		ti81xx_mcasp_device.id = 2;
+		ti81xx_mcasp_device.resource = ti81xx_mcasp_resource;
+		ti81xx_mcasp_device.num_resources = ARRAY_SIZE(ti81xx_mcasp_resource);
+	} else if (machine_is_dm385evm()) {
+		ti81xx_mcasp_device.id = 1;
+		ti81xx_mcasp_device.resource = dm385_mcasp_resource;
+		ti81xx_mcasp_device.num_resources = ARRAY_SIZE(dm385_mcasp_resource);
+	} else {
+		pr_err("%s: platform not supported\n", __func__);
+		return;
+	}
+
 	ti81xx_mcasp_device.dev.platform_data = pdata;
 	platform_device_register(&ti81xx_mcasp_device);
 }
