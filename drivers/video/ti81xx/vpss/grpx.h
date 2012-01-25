@@ -26,9 +26,9 @@
 #ifdef __KERNEL__
 
 /* 2 extra lines output from scaler*/
-#define GRPX_SCALED_REGION_EXTRA_LINES      0x02
+#define GRPX_SCALED_REGION_EXTRA_LINES      0x00
 /* 2 extra pixel output from scaler*/
-#define GRPX_SCALED_REGION_EXTRA_PIXES      0x02
+#define GRPX_SCALED_REGION_EXTRA_PIXES      0x00
 /* one line gap for the up scaled except first region*/
 #define GRPX_REGION_UP_SCALED_GAP           0x01
 /* two lines gap for the downscaled except first region*/
