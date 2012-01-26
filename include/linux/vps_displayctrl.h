@@ -942,9 +942,10 @@ enum vps_dcvencclksrcsel {
 	VPS_DC_CLKSRC_VENCA_DIV2,
 	/**< Clk1X input clock and venc output clock are
 	    sourced from VENA/2 clock */
-	VPS_DC_CLKSRC_VENCA_DIV2_DIFF
+	VPS_DC_CLKSRC_VENCA_DIV2_DIFF,
 	/**< Clk1X input is sourced from VENCA/2 clock and VENC output clock
 	 is from VENCA DIV2 Clock */
+	 VPS_DC_CLKSRC_MAX
 };
 
 /* ======================================================================== */
