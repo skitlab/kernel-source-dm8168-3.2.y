@@ -27,6 +27,7 @@
 #include <linux/irq.h>
 #include <linux/videodev2.h>
 #include <linux/slab.h>
+#include <linux/ti81xxscalar.h>
 
 #include <media/videobuf-dma-contig.h>
 #include <media/v4l2-device.h>
@@ -76,6 +77,8 @@ static u32 video2_bufsize = TI81XX_VIDOUT_HD_MAX_BUF_SIZE;
 static u32 video3_bufsize = TI81XX_VIDOUT_SD_MAX_BUF_SIZE;
 static u32 video3_memtype = VPS_VPDMA_MT_NONTILEDMEM;
 static int debug;
+static struct ti81xxvid_scalarparam scalar_prms;
+static unsigned long scoutbuf;
 
 /* Module parameters */
 module_param(video1_numbuffers, uint, S_IRUGO);
@@ -167,6 +170,17 @@ static inline enum vps_vpdmamemorytype get_mtype(struct ti81xx_vidout_dev *vout)
 
 }
 
+static void ti81xx_vidout_setscparams(struct ti81xxvid_scalarparam *scprm)
+{
+	scalar_prms.scalar_enable = scprm->scalar_enable;
+	scalar_prms.inframe_width = scprm->inframe_width;
+	scalar_prms.inframe_height = scprm->inframe_height;
+	scalar_prms.yframe_offset = scprm->yframe_offset;
+	scalar_prms.yframe_size = scprm->yframe_size;
+	scalar_prms.yoffset_flag = scprm->yoffset_flag;
+	scalar_prms.chroma_offset = scprm->chroma_offset;
+	scalar_prms.scoutbuf = NULL;
+}
 
 /* Return the default cropping dimension in crop by the image
  * size in pix and the video display size in fbuf.  The default
@@ -530,10 +544,15 @@ static int video_mode_to_vpss_mode(struct ti81xx_vidout_dev *vout, u32 *dfmt)
 		*dfmt = FVID2_DF_YUV422I_YUYV;
 		break;
 	case V4L2_PIX_FMT_NV12:
-		if (vout->vid == TI81XX_VIDEO3)
+		if ((vout->vctrl->caps & VPSS_VID_CAPS_SCALING) &&
+				scalar_prms.scalar_enable) {
 			*dfmt = FVID2_DF_YUV420SP_UV;
-		else
-			*dfmt = -EINVAL;
+		} else {
+			if (vout->vid == TI81XX_VIDEO3)
+				*dfmt = FVID2_DF_YUV420SP_UV;
+			else
+				*dfmt = -EINVAL;
+		}
 		break;
 	case V4L2_PIX_FMT_NV16:
 		if (vout->vid == TI81XX_VIDEO3)
@@ -560,11 +579,12 @@ int ti81xxvid_setup_video(struct ti81xx_vidout_dev *vout,
 	int ret = 0;
 	struct vps_video_ctrl  *vctrl = vout->vctrl;
 	struct fvid2_format ffmt;
-	u32 dfmt;
+	u32 dfmt, scbufphy;
 	int height, width;
 	int left, top;
 	bool crop = 0;
 	u8 fidmeg;
+	struct vps_dei_disp_params deiprms;
 	if (video_mode_to_vpss_mode(vout, &dfmt) == -EINVAL) {
 		v4l2_err(&vout->vid_dev->v4l2_dev,
 			"VIDEO%d: unsupport mode\n", vout->vid);
@@ -586,20 +606,42 @@ int ti81xxvid_setup_video(struct ti81xx_vidout_dev *vout,
 		width = vout->crop.width;
 	}
 	ffmt.dataformat = dfmt;
-
-	/*set the height and width to match crop since we do not support
-	scaling so far*/
-	/* ffmt.height = height;
-	ffmt.width = width;
-	vctrl->try_format(vctrl, width, height, dfmt,
-		vout->pix.bytesperline, 0, &ffmt); */
-	ffmt.height = vout->crop.height;
-	ffmt.width = vout->crop.width;
 	fidmeg = vout->pix.field == V4L2_FIELD_SEQ_TB ? 0 : 1;
-	vctrl->try_format(vctrl, vout->crop.width,
-			  vout->crop.height, dfmt,
-			  vout->pix.bytesperline, fidmeg, &ffmt);
 
+	if ((vout->vctrl->caps & VPSS_VID_CAPS_SCALING) &&
+		scalar_prms.scalar_enable) {
+		scoutbuf = ti81xx_vidout_alloc_buffer(vout->buffer_size,
+				&scbufphy);
+		 if (!scoutbuf) {
+			ret = -EINVAL;
+			goto error;
+		}
+		scalar_prms.scoutbuf = (u8 *)scbufphy ;
+		if (vctrl->set_scparams(&scalar_prms)) {
+			ret = -EINVAL;
+			goto error;
+		}
+	}
+	if ((vout->vctrl->caps & VPSS_VID_CAPS_SCALING) &&
+		scalar_prms.scalar_enable) {
+		ffmt.height = outh;
+		ffmt.width  = outw;
+		vctrl->try_format(vctrl, outw, outh, dfmt,
+			vout->pix.bytesperline, fidmeg, &ffmt);
+	} else {
+		/*set the height and width to match crop since scaling
+		* not enabled
+		*/
+		/* ffmt.height = height;
+		ffmt.width = width;
+		vctrl->try_format(vctrl, width, height, dfmt,
+			vout->pix.bytesperline, 0, &ffmt); */
+		ffmt.height = vout->crop.height;
+		ffmt.width = vout->crop.width;
+		vctrl->try_format(vctrl, vout->crop.width,
+			vout->crop.height, dfmt,
+			vout->pix.bytesperline, fidmeg, &ffmt);
+	}
 	if (vctrl->check_format(vctrl, &ffmt)) {
 		ret = -EINVAL;
 		goto error;
@@ -615,15 +657,38 @@ int ti81xxvid_setup_video(struct ti81xx_vidout_dev *vout,
 			ret = -EINVAL;
 			goto error;
 		}
-
 	}
-	if (vctrl->caps & VPSS_VID_CAPS_POSITIONING) {
-		left = ((vout->fbuf.fmt.width - vout->crop.width) >> 1) & ~1;
-		top = ((vout->fbuf.fmt.height - vout->crop.height) >> 1) & ~1;
-		if ((left != posy) || (top != posy)) {
+	if ((vout->vctrl->caps & VPSS_VID_CAPS_SCALING) &&
+					scalar_prms.scalar_enable) {
+		/*Setting Dei/scalar params. Currently used for scalar config*/
+		deiprms.scenable = scalar_prms.scalar_enable;
+		deiprms.startx = vout->crop.left;
+		deiprms.starty = vout->crop.top;
+		if (vctrl->set_deiparams(vctrl, &deiprms, outw, outh)) {
+			ret = -EINVAL;
+			goto error;
+		}
+		/*Necessary because for full screen display and position set
+		* to (0,0), set_pos() is not called leading non configuration
+		* of vpdmaposconfig leading to display error
+		*/
+		if (vctrl->caps & VPSS_VID_CAPS_POSITIONING) {
 			if (vctrl->set_pos(vctrl, posx, posy)) {
 				ret = -EINVAL;
 				goto error;
+			}
+		}
+	} else {
+		if (vctrl->caps & VPSS_VID_CAPS_POSITIONING) {
+			left = ((vout->fbuf.fmt.width -
+					vout->crop.width) >> 1) & ~1;
+			top = ((vout->fbuf.fmt.height -
+					vout->crop.height) >> 1) & ~1;
+			if ((left != posy) || (top != posy)) {
+				if (vctrl->set_pos(vctrl, posx, posy)) {
+					ret = -EINVAL;
+					goto error;
+				}
 			}
 		}
 	}
@@ -770,9 +835,13 @@ static int ti81xx_vidout_buffer_setup(struct videobuf_queue *q,
 		return 0;
 
 	/* Now allocated the V4L2 buffers */
-	*size = PAGE_ALIGN(vout->pix.width * vout->pix.height
-				* vout->sbpp >> 3);
-
+	if ((vout->pix.pixelformat == V4L2_PIX_FMT_NV12)
+		&& (vout->vid != TI81XX_VIDEO3)) {
+		*size = PAGE_ALIGN(scalar_prms.yframe_size * vout->sbpp >> 3);
+	} else {
+		*size = PAGE_ALIGN(vout->pix.width * vout->pix.height
+						* vout->sbpp >> 3);
+	}
 	/*check size to avoid any problems*/
 	if (*size > vout->buffer_size) {
 		v4l2_err(&vout->vid_dev->v4l2_dev,
@@ -1033,6 +1102,11 @@ static int ti81xx_vidout_vrelease(struct file *file)
 
 	/* Free all buffers */
 	ti81xx_vidout_free_allbuffers(vout);
+	if ((vout->vctrl->caps & VPSS_VID_CAPS_SCALING) &&
+			scalar_prms.scalar_enable) {
+		ti81xx_vidout_free_buffer(scoutbuf, vout->buffer_size);
+		scalar_prms.scalar_enable = 0;
+	}
 	videobuf_mmap_free(q);
 
 	/* Even if apply changes fails we should continue
@@ -1769,12 +1843,16 @@ static int vidioc_qbuf(struct file *file, void *priv,
 			the one just queued*/
 		buf = list_entry(vout->dma_queue.prev,
 				struct videobuf_buffer, queue);
-		if (ti81xx_vidout_calculate_offset(vout))
-			return -EINVAL;
+		if ((vout->vctrl->caps & VPSS_VID_CAPS_SCALING) &&
+						scalar_prms.scalar_enable) {
+			addr = (unsigned long) vout->queued_buf_addr[buf->i];
+		} else {
+			if (ti81xx_vidout_calculate_offset(vout))
+				return -EINVAL;
 
-		addr = (unsigned long) vout->queued_buf_addr[buf->i]
-			+ vout->cropped_offset;
-
+			addr = (unsigned long) vout->queued_buf_addr[buf->i]
+				+ vout->cropped_offset;
+		}
 		r = vctrl->set_buffer(vctrl, addr, buf->i);
 		if (!r)
 			r = vctrl->queue(vctrl);
@@ -1873,13 +1951,17 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 			buf->state = VIDEOBUF_ACTIVE;
 		/* Initialize field_id and started member */
 
-		if (ti81xx_vidout_calculate_offset(vout)) {
-			ret = -EINVAL;
-			goto error1;
+		if ((vout->vctrl->caps & VPSS_VID_CAPS_SCALING) &&
+						scalar_prms.scalar_enable) {
+			addr = (unsigned long) vout->queued_buf_addr[buf->i];
+		} else {
+			if (ti81xx_vidout_calculate_offset(vout)) {
+				ret  = -EINVAL;
+				goto error1;
+			}
+			addr = (unsigned long) vout->queued_buf_addr[buf->i]
+				+ vout->cropped_offset;
 		}
-		addr = (unsigned long) vout->queued_buf_addr[buf->i]
-			+ vout->cropped_offset;
-
 		ret = vctrl->set_buffer(vctrl, addr, j++);
 		if (ret)
 			goto error1;
@@ -2028,6 +2110,28 @@ static int vidioc_g_fbuf(struct file *file, void *priv,
 	return 0;
 }
 
+static long vidioc_default(struct file *file, void *priv, int cmd, void *arg)
+{
+	struct ti81xxvideo_fh *fh = priv;
+	struct ti81xx_vidout_dev *vout = fh->voutdev;
+
+	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev,
+		"VIDOUT%d: vidioc Default\n", vout->vid);
+	switch (cmd) {
+	case TISET_SCALAR_PARAMS:
+		if (scalar_prms.scalar_enable) {
+			return -EINVAL;
+		} else {
+			ti81xx_vidout_setscparams(
+			(struct ti81xxvid_scalarparam *)arg);
+			return 0;
+		}
+		break;
+	default:
+	return -EINVAL;
+	}
+}
+
 static const struct v4l2_ioctl_ops vout_ioctl_ops = {
 	.vidioc_querycap                        = vidioc_querycap,
 	.vidioc_enum_fmt_vid_out                = vidioc_enum_fmt_vid_out,
@@ -2052,6 +2156,7 @@ static const struct v4l2_ioctl_ops vout_ioctl_ops = {
 	.vidioc_dqbuf                           = vidioc_dqbuf,
 	.vidioc_streamon                        = vidioc_streamon,
 	.vidioc_streamoff                       = vidioc_streamoff,
+	.vidioc_default                         = vidioc_default,
 };
 
 static const struct v4l2_file_operations ti81xx_vidout_fops = {

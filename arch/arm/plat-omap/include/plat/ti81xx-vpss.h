@@ -28,6 +28,7 @@
 #include <linux/vps.h>
 #include <linux/vps_displayctrl.h>
 #include <linux/vps_graphics.h>
+#include <linux/vps_cfgdei.h>
 #include <linux/vps_display.h>
 
 enum ti81xx_cpu {
@@ -205,6 +206,9 @@ struct vps_video_ctrl {
 	/*dispaly status*/
 	struct vps_dispstatus           *vstatus;
 	u32                             vs_phy;
+	/* De-interlacer config params*/
+	struct vps_dei_disp_params      *vdeiprm;
+	u32                             vdei_phy;
 	/* The followings  are the FVID2 varables*/
 	/*fvid2 create params*/
 	struct fvid2_cbparams           *cbparams;
@@ -263,7 +267,9 @@ struct vps_video_ctrl {
 			struct vps_dccigrtconfig *color);
 	int (*get_color) (struct vps_video_ctrl *vctrl,
 			struct vps_dccigrtconfig *color);
-
+	int (*set_scparams) (void *scprm);
+	int (*set_deiparams) (struct vps_video_ctrl *vctrl,
+		struct vps_dei_disp_params *deiparams, u32 w, u32 h);
 };
 
 int vps_video_get_num_video(void);

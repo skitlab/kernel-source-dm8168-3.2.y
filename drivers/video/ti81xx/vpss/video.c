@@ -28,6 +28,7 @@
 #include <linux/err.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
+#include <linux/ti81xxscalar.h>
 #include <plat/ti81xx-vpss.h>
 
 #include "core.h"
@@ -37,7 +38,7 @@ static struct list_head vctrl_list;
 static int num_vctrl;
 static struct platform_device *video_dev;
 static struct vps_payload_info  *video_payload_info;
-
+static struct ti81xxvid_scalarparam scalar_prm;
 
 static inline void video_lock(struct vps_video_ctrl *vctrl)
 {
@@ -401,6 +402,12 @@ static int video_set_buffer(struct vps_video_ctrl *vctrl, u32 addr, u8 idx)
 		if (scfmt == FVID2_SF_PROGRESSIVE) {
 			frame->addr[FVID2_FRAME_ADDR_IDX] \
 				[FVID2_YUV_INT_ADDR_IDX] = (void *)addr;
+			if ((vctrl->caps & VPSS_VID_CAPS_SCALING) &&
+						scalar_prm.scalar_enable) {
+				frame->addr[FVID2_FRAME_ADDR_IDX] \
+					[FVID2_YUV_PL_CR_ADDR_IDX]
+					= (void *)(scalar_prm.scoutbuf);
+			}
 		} else {
 			/*interlaced display*/
 			if (fm) {
@@ -473,12 +480,27 @@ static int video_set_buffer(struct vps_video_ctrl *vctrl, u32 addr, u8 idx)
 	case FVID2_DF_YUV420SP_UV:
 		pitch = dfmt->pitch[FVID2_YUV_SP_Y_ADDR_IDX];
 		if (scfmt == FVID2_SF_PROGRESSIVE) {
-			frame->addr[FVID2_FRAME_ADDR_IDX] \
+			if ((vctrl->caps & VPSS_VID_CAPS_SCALING) &&
+					scalar_prm.scalar_enable) {
+				frame->addr[FVID2_FRAME_ADDR_IDX] \
+				[FVID2_YUV_SP_Y_ADDR_IDX] = (void *)(addr
+					+ scalar_prm.yframe_offset);
+
+				frame->addr[FVID2_FRAME_ADDR_IDX] \
+				[FVID2_YUV_SP_CBCR_ADDR_IDX] =
+				(void *)(addr +	scalar_prm.yframe_size +
+					scalar_prm.chroma_offset);
+				frame->addr[FVID2_FRAME_ADDR_IDX] \
+				[FVID2_YUV_PL_CR_ADDR_IDX] =
+					(void *)(scalar_prm.scoutbuf);
+			} else {
+				frame->addr[FVID2_FRAME_ADDR_IDX] \
 				[FVID2_YUV_SP_Y_ADDR_IDX] = (void *)addr;
 
-			frame->addr[FVID2_FRAME_ADDR_IDX] \
+				frame->addr[FVID2_FRAME_ADDR_IDX] \
 				[FVID2_YUV_SP_CBCR_ADDR_IDX] = (void *)(addr +
 					(dfmt->height * pitch));
+			}
 
 		} else {
 			/*interlaced display*/
@@ -566,31 +588,33 @@ static int video_check_format(struct vps_video_ctrl *vctrl,
 		    fmt->dataformat);
 		r = -EINVAL;
 	}
-
-
-	if (FVID2_DF_YUV420SP_UV == fmt->dataformat ||
-	    FVID2_DF_YUV422SP_UV == fmt->dataformat) {
-		if (((fmt->pitch[FVID2_YUV_SP_Y_ADDR_IDX] <
-		     (fmt->width))) ||
-		     (fmt->pitch[FVID2_YUV_SP_CBCR_ADDR_IDX] <
-		     (fmt->width))) {
-			VPSSERR("Y/UV Pitch (%d/%d) less than Width"
-				"(%d) in bytes!!\n",
+	/*If scaling is enabled from user App */
+	if (!(scalar_prm.scalar_enable  &&
+		(vctrl->caps & VPSS_VID_CAPS_SCALING))) {
+		if (FVID2_DF_YUV420SP_UV == fmt->dataformat ||
+			FVID2_DF_YUV422SP_UV == fmt->dataformat) {
+			if (((fmt->pitch[FVID2_YUV_SP_Y_ADDR_IDX] <
+				(fmt->width))) ||
+				(fmt->pitch[FVID2_YUV_SP_CBCR_ADDR_IDX] <
+				(fmt->width))) {
+				VPSSERR("Y/UV Pitch (%d/%d) less than Width"
+					"(%d) in bytes!!\n",
 				fmt->pitch[FVID2_YUV_SP_Y_ADDR_IDX],
 				fmt->pitch[FVID2_YUV_SP_CBCR_ADDR_IDX],
 				(fmt->width));
-			r = -EINVAL;
-		}
-	} else if (FVID2_DF_YUV422I_YUYV == fmt->dataformat) {
-		if (fmt->pitch[FVID2_YUV_INT_ADDR_IDX] <
-		    (fmt->width * 2u)) {
-			VPSSERR("pitch (%d) less than width (%d) in bytes!!\n",
+				r = -EINVAL;
+			}
+		} else if (FVID2_DF_YUV422I_YUYV == fmt->dataformat) {
+			if (fmt->pitch[FVID2_YUV_INT_ADDR_IDX] <
+				(fmt->width * 2u)) {
+				VPSSERR("pitch (%d) less than width \
+						(%d) in bytes!!\n",
 				fmt->pitch[FVID2_YUV_INT_ADDR_IDX],
 				(fmt->width * 2u));
-			r = -EINVAL;
+				r = -EINVAL;
+			}
 		}
 	}
-
 	/* Check whether window width is even */
 	if (fmt->width & 0x01u)	{
 		VPSSERR("width(%d) can't be odd!!\n", fmt->width);
@@ -772,6 +796,53 @@ static int video_set_rtcrop(struct vps_video_ctrl *vctrl, u32 posx, u32 posy,
 
 	return 0;
 }
+
+static int video_set_scparams(void *scinfo)
+{
+	struct ti81xxvid_scalarparam *scprm;
+	VPSSDBG("Populate scalar params\n");
+
+	scprm = (struct ti81xxvid_scalarparam *)scinfo;
+	scalar_prm.yframe_offset =  scprm->yframe_offset;
+	scalar_prm.yoffset_flag = scprm->yoffset_flag;
+	scalar_prm.yframe_size =  scprm->yframe_size;
+	scalar_prm.chroma_offset = scprm->chroma_offset;
+	scalar_prm.scoutbuf = scprm->scoutbuf;
+	scalar_prm.scalar_enable = scprm->scalar_enable;
+	scalar_prm.inframe_width = scprm->inframe_width;
+	scalar_prm.inframe_height = scprm->inframe_height;
+	VPSSDBG("scalar configs %d\t%d\t%d\t%d\n", scalar_prm.yframe_offset,
+	scalar_prm.yoffset_flag, scalar_prm.yframe_size,
+	scalar_prm.chroma_offset);
+	return 0;
+}
+
+static int video_set_deiparams(struct vps_video_ctrl *vctrl,
+			struct vps_dei_disp_params *deiparams,
+			u32 w, u32 h)
+{
+	int r;
+	VPSSDBG("Set dei/scalar config params\n");
+
+	vctrl->vdeiprm->startx  = deiparams->startx;
+	vctrl->vdeiprm->starty = deiparams->starty;
+	vctrl->vdeiprm->sctarwidth = w;
+	vctrl->vdeiprm->sctarheight = h;
+	vctrl->vdeiprm->fmt.height = scalar_prm.inframe_height;
+	vctrl->vdeiprm->fmt.width = scalar_prm.inframe_width;
+	vctrl->vdeiprm->scenable = scalar_prm.scalar_enable;
+	vctrl->vdeiprm->deicfg = NULL;
+	vctrl->vdeiprm->deihqcfg = NULL;
+	r = vps_fvid2_control(
+		vctrl->handle,
+		IOCTL_VPS_DEI_DISP_SET_PARAMS,
+		(struct vps_dei_disp_params *)vctrl->vdei_phy,
+		NULL);
+	if (r)
+		VPSSERR("set dei/scalar failed\n");
+	return r;
+}
+
 /*video display get color call*/
 static int video_get_color(struct vps_video_ctrl *vctrl,
 	struct vps_dccigrtconfig *color)
@@ -1576,7 +1647,8 @@ void __init vps_fvid2_video_ctrl_init(struct vps_video_ctrl *vctrl)
 	vctrl->set_color = video_set_color;
 	vctrl->get_color = video_get_color;
 	vctrl->apply_changes = video_apply_changes;
-
+	vctrl->set_scparams = video_set_scparams;
+	vctrl->set_deiparams = video_set_deiparams;
 }
 
 static inline int get_alloc_size(void)
@@ -1589,6 +1661,7 @@ static inline int get_alloc_size(void)
 	size += sizeof(struct vps_posconfig);
 	size += sizeof(struct vps_frameparams);
 	size += sizeof(struct vps_dispstatus);
+	size += sizeof(struct vps_dei_disp_params);
 
 	size += sizeof(struct fvid2_cbparams);
 	size += sizeof(struct fvid2_format);
@@ -1638,6 +1711,12 @@ static inline void assign_payload_addr(struct vps_video_ctrl *vctrl,
 				buf_offset,
 				&vctrl->vs_phy,
 				sizeof(struct vps_dispstatus));
+
+	vctrl->vdeiprm = (struct vps_dei_disp_params *)
+				setaddr(pinfo,
+				buf_offset,
+				&vctrl->vdei_phy,
+				sizeof(struct vps_dei_disp_params));
 
 	vctrl->cbparams = (struct fvid2_cbparams *)
 				setaddr(pinfo,
@@ -1736,7 +1815,8 @@ int __init vps_video_init(struct platform_device *pdev)
 				VPS_DC_CIG_NON_CONSTRAINED_OUTPUT;
 
 			vctrl->caps = VPSS_VID_CAPS_POSITIONING |
-				VPSS_VID_CAPS_COLOR | VPSS_VID_CAPS_CROPING;
+				VPSS_VID_CAPS_COLOR | VPSS_VID_CAPS_CROPING |
+				VPSS_VID_CAPS_SCALING;
 			break;
 		case 1:
 			num_edges = 2;

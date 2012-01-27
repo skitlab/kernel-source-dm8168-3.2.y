@@ -43,6 +43,19 @@
  */
 #define IOCTL_VPS_DISP_GET_STATUS       (VPS_DISP_IOCTL_BASE + 0x0001u)
 
+/**
+ *  \brief Set DEI display params IOCTL.
+ *
+ *  This IOCTL can be used to set the DEI display params.
+ *  Note: See respective counter comments for details.
+ *
+ *  \param cmdArgs       [IN] const Vps_DeiDispParams *
+ *
+ *  \return FVID_SOK on success, else failure
+ *
+ */
+#define IOCTL_VPS_DEI_DISP_SET_PARAMS   (VPS_DISP_IOCTL_BASE + 0x0002u)
+
 /* @} */
 
 /*
@@ -85,6 +98,77 @@ struct vps_dispcreateparams {
 	    to the driver. FALSE: User callback passed during FVID2 create
 	    is called only if one or more frames (requests) are available in
 	    the driver output queue for the application to dequeue. */
+};
+
+/**
+ *  struct Vps_ScConfig
+ *  \brief Scalar parameters.
+ */
+
+struct vps_scconfig {
+	u32                  bypass;
+	/**< Scalar should be bypassed or not. */
+	u32                  nonlinear;
+	/**< Flag to enabled the non linear scaling like from 16/9 aspect
+	ratio to 4/3 aspect ratio. */
+	u32                  stripsize;
+	/**< Strip size for the non linear scaling. */
+	u32                  vstype;
+	/**< Scalar type to used for vertical scaling.  Scalers are polyphase
+	and running average scalar. Polyphase filters can be used for both
+	up as well as down scaling.  Running average is used for downscaling
+	ratios <= 0.5x.
+	For valid values see #Vps_ScVertScalarType. */
+	u32                  enablepeaking;
+	/**< Enable or disable peaking filter. Peaking filter is a low pass
+	filter. This should normally enabled for downscaling and disabled for
+	up scaling */
+	u32                  enableedgedetect;
+	/**< Enables/disables edge detection. defConfFactor is only used when
+	edge detection is disabled. Edge detection is only available in high
+	quality scalar. */
+};
+
+/**
+ *  struct Vps_DeiDispParams
+ *  \brief Dei Display driver  parameter structure to be passed to the
+ *  driver at the time of IOCTL IOCTL_VPS_DEI_DISP_SET_PARAMS call .
+ */
+struct vps_dei_disp_params {
+	struct fvid2_format           fmt;
+	/**< Input FVID frame format. */
+	u32                           drnenable;
+	/**< Enables/disables the DRN module in the DEI path. DRN is not
+	available in TI814X platform, hence this is not used for TI814X
+	platform. */
+	u32                           scenable;
+	/**< Enable/Disable the Scalar block in the DEI Path. */
+	struct vps_scconfig           sccfg;
+	/**< Scalar parameters like crop and scaler type for the
+	 scalar in DEI path. */
+	struct vps_deihqconfig        *deihqcfg;
+	/**< Pointer to the high quality deinterlacer configuration used for
+	*  DEI HQ drivers. This parameter should be set to NULL for others. */
+	struct vps_deiconfig          *deicfg;
+	/**< Pointer to the deinterlacer configuration used for
+	*  DEI drivers. This parameter should be set to NULL for
+	*  DEI HQ drivers. */
+	struct vps_cropconfig          deicropcfg;
+	/**< Cropping configuration for the DEI scalar. */
+	u32                            startx;
+	/**< Horizontal start position in pixels. */
+	u32                            starty;
+	/**< Vertical start position in lines. */
+	u32                            sctarwidth;
+	/**< Target image Width(o/p of scalar).User should provide
+	this data even if scalar is in bypass. If scalar is in bypass
+	this is used to program the VPDMA, if scalar is enabled scalar IP
+	will be programmed to output this resolution */
+	u32                            sctarheight;
+	/**< Target image Height(o/p of scalar).User should provide
+	this data even if scalar is in bypass. If scalar is in bypass
+	this is used to program the VPDMA, if scalar is enabled scalar IP
+	will be programmed to output this resolution */
 };
 
 /**
