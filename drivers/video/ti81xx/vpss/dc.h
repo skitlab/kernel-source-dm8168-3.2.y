@@ -116,6 +116,7 @@ struct vps_dispctrl {
 	void                       *fvid2_handle;
 };
 
+int vps_dc_get_vid(u32 bid);
 int vps_dc_get_id(char *name, int *id, enum dc_idtype type);
 int vps_dc_get_outpfmt(int id, u32 *width, u32 *height,
 		      u8 *scformat, enum dc_idtype type);

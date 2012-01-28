@@ -777,6 +777,17 @@ static int dc_set_vencmode(struct vps_dcvencinfo *vinfo)
 				memcpy(&venc_info.modeinfo[bidx],
 				       &vi.modeinfo[i],
 				       sizeof(struct vps_dcmodeinfo));
+				/*Update the SDVENC Clock */
+				if (bidx == SDVENC) {
+					if (v_pdata->cpu == CPU_DM816X)
+						venc_info.modeinfo[bidx].\
+						    minfo.pixelclock = 216000;
+					else
+						venc_info.modeinfo[bidx].\
+						    minfo.pixelclock = 54000;
+
+				}
+
 				continue;
 			} else
 				VPSSDBG("venc %d already running\n",
@@ -1045,11 +1056,24 @@ int vps_dc_get_outpfmt(int id, u32 *width,
 	dc_unlock(disp_ctrl);
 	return r;
 }
+/*get the VENC id based on the blender id*/
+int vps_dc_get_vid(u32 bid)
+{
+	int i;
+	for (i = 0; i < disp_ctrl->numvencs; i++) {
+		if (bid == venc_name[i].bid)
+			return venc_name[i].vid;
+	}
+	return -1;
 
+}
 
 /*get the tied venc information*/
 int vps_dc_get_tiedvenc(u8 *tiedvenc)
 {
+	if (!disp_ctrl || !tiedvenc)
+		return -EINVAL;
+
 	*tiedvenc = disp_ctrl->tiedvenc;
 	return 0;
 }
@@ -1058,6 +1082,10 @@ EXPORT_SYMBOL(vps_dc_get_tiedvenc);
 int vps_dc_get_vencinfo(struct vps_dcvencinfo *vinfo)
 {
 	int r;
+
+	if ((!disp_ctrl) || (!disp_ctrl->fvid2_handle) || (!vinfo))
+		return -EINVAL;
+
 	dc_lock(disp_ctrl);
 	r = dc_get_vencinfo(vinfo);
 	dc_unlock(disp_ctrl);
@@ -1069,6 +1097,10 @@ EXPORT_SYMBOL(vps_dc_get_vencinfo);
 int vps_dc_get_node_name(int id, char *name)
 {
 	int i;
+
+	if (!name)
+		return -EINVAL;
+
 	for (i = 0; i < ARRAY_SIZE(dc_nodes); i++) {
 		const struct vps_sname_info *ninfo = &dc_nodes[i];
 		if (id == ninfo->value) {
@@ -1085,7 +1117,8 @@ int vps_dc_set_config(struct vps_dcconfig *usercfg, int setflag)
 {
 	int r = 0;
 
-	if ((disp_ctrl == NULL) || (disp_ctrl->fvid2_handle == NULL))
+	if ((disp_ctrl == NULL) || (disp_ctrl->fvid2_handle == NULL)
+		|| (!usercfg))
 		return -EINVAL;
 
 	if (usercfg->vencinfo.numvencs > disp_ctrl->numvencs) {
@@ -1226,6 +1259,9 @@ int vps_dc_enum_node_input(struct vps_dcenumnodeinput *eninput)
 {
 	int r = 0;
 
+	if ((!disp_ctrl) || (!disp_ctrl->fvid2_handle) || (!eninput))
+		return -EINVAL;
+
 	VPSSDBG("enum node input\n");
 	dc_lock(disp_ctrl);
 	r = dc_enum_node_input(disp_ctrl, eninput);
@@ -1237,6 +1273,9 @@ int vps_dc_get_node_status(struct vps_dcnodeinput *ninput)
 {
 	int r = 0;
 
+	if ((!disp_ctrl) || (!disp_ctrl->fvid2_handle) || (!ninput))
+		return -EINVAL;
+
 	VPSSDBG("get node status\n");
 	dc_lock(disp_ctrl);
 	r = dc_get_node_status(disp_ctrl, ninput);
@@ -1245,23 +1284,40 @@ int vps_dc_get_node_status(struct vps_dcnodeinput *ninput)
 
 }
 EXPORT_SYMBOL(vps_dc_get_node_status);
-int vps_dc_get_timing(u32 bid, struct fvid2_modeinfo *tinfo)
+int vps_dc_get_timing(u32 vid, struct fvid2_modeinfo *tinfo)
 {
-	int i;
+	int r, bid;
+	struct vps_dcvencinfo vinfo;
+
+	if ((!disp_ctrl) || (!disp_ctrl->fvid2_handle) || (!tinfo))
+		return -EINVAL;
+
+	r = get_idx_from_vid(vid, &bid);
+	if (r)
+		return -EINVAL;
+
+	vinfo.numvencs = 1;
+	vinfo.tiedvencs = 0;
+	vinfo.modeinfo[0].vencid = vid;
+	dc_lock(disp_ctrl);
+	r = dc_get_vencinfo(&vinfo);
+	dc_unlock(disp_ctrl);
 
 
-	for (i = 0; i < disp_ctrl->numvencs; i++) {
-		if (bid == venc_name[i].bid) {
-			*tinfo = venc_info.modeinfo[i].minfo;
-			if ((tinfo->standard == FVID2_STD_NTSC) ||
-				(tinfo->standard == FVID2_STD_PAL)) {
-				if (v_pdata->cpu != CPU_DM816X)
-					tinfo->pixelclock = 54000;
-			}
-
-
+	if (r || (!vinfo.modeinfo[0].isvencrunning)) {
+			memcpy(tinfo, &venc_info.modeinfo[bid].minfo,
+				sizeof(struct fvid2_modeinfo));
 			return 0;
+	} else {
+		memcpy(tinfo, &vinfo.modeinfo[0].minfo,
+			sizeof(struct fvid2_modeinfo));
+		if (bid == SDVENC) {
+			if (v_pdata->cpu != CPU_DM816X)
+				tinfo->pixelclock = 54000;
+			else
+				tinfo->pixelclock = 216000;
 		}
+		return 0;
 	}
 	return -EINVAL;
 }
@@ -1270,6 +1326,10 @@ EXPORT_SYMBOL(vps_dc_get_timing);
 int vps_dc_set_vencmode(struct vps_dcvencinfo *vinfo)
 {
 	int r;
+
+	if ((!disp_ctrl) || (!disp_ctrl->fvid2_handle) || (!vinfo))
+		return -EINVAL;
+
 	dc_lock(disp_ctrl);
 	r = dc_set_vencmode(vinfo);
 	dc_unlock(disp_ctrl);
@@ -1289,6 +1349,9 @@ int vps_dc_get_edid(int vid, u8 *edid)
 {
 	int r = 0;
 
+	if ((!disp_ctrl) || (!disp_ctrl->fvid2_handle) || (!edid))
+		return  -EINVAL;
+
 	dc_lock(disp_ctrl);
 	r = dc_get_edid(vid, edid);
 	dc_unlock(disp_ctrl);
@@ -1298,6 +1361,10 @@ EXPORT_SYMBOL(vps_dc_get_edid);
 int vps_dc_set_comp_rtconfig(struct vps_dccomprtconfig *compcfg)
 {
 	int r;
+
+	if ((!disp_ctrl) || (!disp_ctrl->fvid2_handle) || (!compcfg))
+		return -EINVAL;
+
 	dc_lock(disp_ctrl);
 	r = dc_set_comp_rtconfig(disp_ctrl, compcfg);
 	dc_unlock(disp_ctrl);
@@ -1308,6 +1375,10 @@ EXPORT_SYMBOL(vps_dc_set_comp_rtconfig);
 int vps_dc_get_comp_rtconfig(struct vps_dccomprtconfig *compcfg)
 {
 	int r;
+
+	if ((!disp_ctrl) || (!disp_ctrl->fvid2_handle) || (!compcfg))
+		return -EINVAL;
+
 	dc_lock(disp_ctrl);
 	r = dc_get_comp_rtconfig(disp_ctrl, compcfg);
 	dc_unlock(disp_ctrl);
@@ -1317,6 +1388,10 @@ EXPORT_SYMBOL(vps_dc_get_comp_rtconfig);
 int vps_dc_get_output(struct vps_dcoutputinfo *oinfo)
 {
 	int r;
+
+	if ((!disp_ctrl) || (!disp_ctrl->fvid2_handle) || (!oinfo))
+		return -EINVAL;
+
 	dc_lock(disp_ctrl);
 	r = dc_get_output(oinfo);
 	dc_unlock(disp_ctrl);
@@ -1327,6 +1402,10 @@ EXPORT_SYMBOL(vps_dc_get_output);
 int vps_dc_set_output(struct vps_dcoutputinfo *oinfo)
 {
 	int r;
+
+	if ((!disp_ctrl) || (!disp_ctrl->fvid2_handle) || (!oinfo))
+		return -EINVAL;
+
 	dc_lock(disp_ctrl);
 	r = dc_set_output(oinfo);
 	dc_unlock(disp_ctrl);
@@ -1339,23 +1418,42 @@ EXPORT_SYMBOL(vps_dc_set_output);
 /*sysfs function for blender starting from here*/
 static ssize_t blender_mode_show(struct dc_blender_info *binfo, char *buf)
 {
-	int i;
+	int i, r;
 	u32 idx = binfo->idx;
 	int l = 0;
+	u32 standard;
+	struct vps_dcvencinfo vinfo;
+	struct vps_dcmodeinfo *dcminfo;
+
+	vinfo.numvencs = 1;
+	vinfo.tiedvencs = 0;
+	vinfo.modeinfo[0].vencid = venc_name[binfo->idx].vid;
+	dc_lock(binfo->dctrl);
+	r = dc_get_vencinfo(&vinfo);
+	dc_unlock(binfo->dctrl);
+
+
+	if (r || (!vinfo.modeinfo[0].isvencrunning)) {
+		dcminfo = &venc_info.modeinfo[idx];
+		standard = dcminfo->minfo.standard;
+	} else	{
+		dcminfo = &vinfo.modeinfo[0];
+		standard = dcminfo->minfo.standard;
+	}
 	for (i = 0; i < ARRAY_SIZE(vmode_info); i++) {
-		u32 standard = venc_info.modeinfo[idx].minfo.standard;
 		if (standard == FVID2_STD_CUSTOM) {
-			if (venc_info.modeinfo[idx].minfo.scanformat ==
+			l = snprintf(buf, PAGE_SIZE, "%ux%u@%u\n",
+				dcminfo->minfo.width,
+				dcminfo->minfo.height,
+				dcminfo->minfo.fps);
+
+			if (dcminfo->minfo.scanformat ==
 			    FVID2_SF_INTERLACED)
-				l = snprintf(buf, PAGE_SIZE, "%ux%u@%ui\n",
-				venc_info.modeinfo[idx].minfo.width,
-				venc_info.modeinfo[idx].minfo.height,
-				venc_info.modeinfo[idx].minfo.fps);
+				l += snprintf(buf + l, PAGE_SIZE - l, "i\n");
 			else
-				l = snprintf(buf, PAGE_SIZE, "%ux%u@%u\n",
-					venc_info.modeinfo[idx].minfo.width,
-					venc_info.modeinfo[idx].minfo.height,
-					venc_info.modeinfo[idx].minfo.fps);
+				l += snprintf(buf + l, PAGE_SIZE - l, "\n");
+
+			break;
 
 		} else if (vmode_info[i].standard == standard) {
 			l = snprintf(buf, PAGE_SIZE, "%s\n",
@@ -1425,8 +1523,25 @@ static ssize_t blender_timings_show(struct dc_blender_info *binfo, char *buf)
 {
 	int r;
 	struct fvid2_modeinfo *t;
+	struct vps_dcvencinfo vinfo;
 
-	t = &venc_info.modeinfo[binfo->idx].minfo;
+	vinfo.numvencs = 1;
+	vinfo.tiedvencs = 0;
+	vinfo.modeinfo[0].vencid = venc_name[binfo->idx].vid;
+	dc_lock(binfo->dctrl);
+	r = dc_get_vencinfo(&vinfo);
+	dc_unlock(binfo->dctrl);
+	if ((r) || (vinfo.modeinfo[0].isvencrunning == 0))
+		t = &venc_info.modeinfo[binfo->idx].minfo;
+	else
+		t = &vinfo.modeinfo[0].minfo;
+	if (binfo->idx == SDVENC) {
+		if (v_pdata->cpu == CPU_DM816X)
+			t->pixelclock = 216000;
+		else
+			t->pixelclock = 54000;
+
+	}
 	r = snprintf(buf,
 			PAGE_SIZE,
 			"%u,%u/%u/%u/%u,%u/%u/%u/%u,%u\n",

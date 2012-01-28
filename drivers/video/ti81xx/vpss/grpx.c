@@ -353,9 +353,14 @@ static int vps_grpx_get_timing(struct vps_grpx_ctrl *gctrl,
 		struct fvid2_modeinfo *tinfo)
 {
 	int r;
+	int vid;
 	VPSSDBG("(%d) - get timing\n", gctrl->grpx_num);
 
-	r = vps_dc_get_timing(gctrl->enodes[0], tinfo);
+	vid = vps_dc_get_vid(gctrl->enodes[0]);
+	if (vid > 0)
+		r = vps_dc_get_timing(vid, tinfo);
+	else
+		r = -EINVAL;
 	return r;
 }
 
