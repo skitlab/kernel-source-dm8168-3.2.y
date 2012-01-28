@@ -163,11 +163,12 @@ static inline u32 get_plloutputvenc(int bidx)
 
 	if (v_pdata->cpu != CPU_DM816X) {
 		/*since DVO2 use the HDMI pll, so force to HDMI*/
-		if ((bidx == DVO2) && (ishdmipll(bidx)))
-			bidx = HDMI;
-
-		if (bidx == DVO2)
-			return VPS_SYSTEM_VPLL_OUTPUT_VENC_D;
+		if (bidx == DVO2) {
+			if (ishdmipll(bidx))
+				bidx = HDMI;
+			else
+				return VPS_SYSTEM_VPLL_OUTPUT_VENC_D;
+		}
 		/*DM385 HDCOMP VENC can be from either RF, D or HDMI/A clock
 		it is up to how the MUX is set*/
 		if ((v_pdata->cpu == CPU_DM385) && (bidx == HDCOMP)) {
