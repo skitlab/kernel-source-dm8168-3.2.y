@@ -23,6 +23,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
+#include <linux/phy.h>
 #include <linux/i2c/at24.h>
 #include <linux/i2c/qt602240_ts.h>
 #include <linux/i2c/pcf857x.h>
@@ -709,6 +710,20 @@ static struct platform_device *ti8148_devices[] __initdata = {
 };
 #endif
 
+#define LSI_PHY_ID		0x0282F014
+#define LSI_PHY_MASK		0xffffffff
+#define PHY_CONFIG_REG		22
+
+static int ti8148_evm_lsi_phy_fixup(struct phy_device *phydev)
+{
+	unsigned int val;
+
+	/* This enables TX_CLK-ing in case of 10/100MBps operation */
+	val = phy_read(phydev, PHY_CONFIG_REG);
+	phy_write(phydev, PHY_CONFIG_REG, (val | BIT(5)));
+
+	return 0;
+}
 
 static void __init ti8148_evm_init(void)
 {
@@ -746,6 +761,10 @@ static void __init ti8148_evm_init(void)
 	regulator_use_dummy_regulator();
 	board_nor_init(ti814x_evm_norflash_partitions,
 		ARRAY_SIZE(ti814x_evm_norflash_partitions), 0);
+
+	/* LSI Gigabit Phy fixup */
+	phy_register_fixup_for_uid(LSI_PHY_ID, LSI_PHY_MASK,
+				   ti8148_evm_lsi_phy_fixup);
 }
 
 static void __init ti8148_evm_map_io(void)

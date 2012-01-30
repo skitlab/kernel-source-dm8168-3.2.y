@@ -889,7 +889,6 @@ static ssize_t cpsw_hw_stats_show(struct device *dev,
 
 DEVICE_ATTR(hw_stats, S_IRUGO, cpsw_hw_stats_show, NULL);
 
-#define PHY_CONFIG_REG	22
 static void cpsw_set_phy_config(struct cpsw_priv *priv, struct phy_device *phy)
 {
 	struct cpsw_platform_data *pdata = priv->pdev->dev.platform_data;
@@ -932,17 +931,6 @@ static void cpsw_set_phy_config(struct cpsw_priv *priv, struct phy_device *phy)
 		ADVERTISE_100HALF | ADVERTISE_100FULL);
 	miibus->write(miibus, phy_addr, MII_ADVERTISE, val);
 	tmp = miibus->read(miibus, phy_addr, MII_ADVERTISE);
-
-	/* TODO : This check is required. This should be
-	 * moved to a board init section as its specific
-	 * to a phy.*/
-	if (phy->phy_id == 0x0282F014) {
-		/* This enables TX_CLK-ing in case of 10/100MBps operation */
-		val = miibus->read(miibus, phy_addr, PHY_CONFIG_REG);
-		val |= BIT(5);
-		miibus->write(miibus, phy_addr, PHY_CONFIG_REG, val);
-		tmp = miibus->read(miibus, phy_addr, PHY_CONFIG_REG);
-	}
 
 	return;
 }
