@@ -354,6 +354,7 @@ header-y += termios.h
 header-y += ti81xxvin.h
 header-y += ti81xxfb.h
 header-y += ti81xxhdmi.h
+header-y += ti81xxscalar.h
 header-y += time.h
 header-y += times.h
 header-y += timex.h
