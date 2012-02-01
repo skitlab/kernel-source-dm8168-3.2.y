@@ -311,7 +311,7 @@ struct cpsw_priv {
 	struct cpsw_host_regs __iomem	*host_port_regs;
 
 	struct cpts_regs __iomem	*cpts_reg;
-	struct cpts_time_handle	cpts_time;
+	struct cpts_time_handle		*cpts_time;
 
 	u8				port_state[3];
 	u32				msg_enable;
@@ -351,6 +351,7 @@ struct cpsw_priv {
 static int cpsw_set_coalesce(struct net_device *ndev,
 			struct ethtool_coalesce *coal);
 
+#ifdef CONFIG_PTP_1588_CLOCK_CPTS
 DEFINE_SPINLOCK(cpts_time_lock);
 static struct cpsw_priv *gpriv;
 static u64 time_push;
@@ -369,7 +370,6 @@ static int cpts_time_evts_fifo_push(struct cpts_evts_fifo *fifo,
 	return 0;
 }
 
-#ifdef CONFIG_PTP_1588_CLOCK_CPTS
 static int cpts_time_evts_fifo_pop(struct cpts_evts_fifo *fifo,
 				u32 evt_high, struct cpts_time_evts *evt)
 {
@@ -398,7 +398,6 @@ static int cpts_time_evts_fifo_pop(struct cpts_evts_fifo *fifo,
 	}
 	return 0;
 }
-#endif
 
 static int cpts_isr(struct cpsw_priv *priv)
 {
@@ -414,24 +413,24 @@ static int cpts_isr(struct cpsw_priv *priv)
 
 		if ((event_high & 0xf00000) == CPTS_TS_PUSH) {
 			/*Push TS to Read */
-			if (priv->cpts_time.first_half &&
+			if (priv->cpts_time->first_half &&
 					event_tslo & 0x80000000) {
 				/* this is misaligned ts */
-				ts = (u64)(priv->cpts_time.tshi - 1);
+				ts = (u64)(priv->cpts_time->tshi - 1);
 			} else {
-				ts = (u64)(priv->cpts_time.tshi);
+				ts = (u64)(priv->cpts_time->tshi);
 			}
 			time_push = (ts << 32) | event_tslo;
 		} else if ((event_high & 0xf00000) == CPTS_TS_ROLLOVER) {
 			/* Roll over */
 			spin_lock_irqsave(&cpts_time_lock, flags);
-			priv->cpts_time.tshi++;
-			priv->cpts_time.first_half = true;
+			priv->cpts_time->tshi++;
+			priv->cpts_time->first_half = true;
 			spin_unlock_irqrestore(&cpts_time_lock, flags);
 		} else if ((event_high & 0xf00000) == CPTS_TS_HROLLOVER) {
 			/* Half Roll Over */
 			spin_lock_irqsave(&cpts_time_lock, flags);
-			priv->cpts_time.first_half = false;
+			priv->cpts_time->first_half = false;
 			spin_unlock_irqrestore(&cpts_time_lock, flags);
 		} else if ((event_high & 0xf00000) == CPTS_TS_HW_PUSH) {
 			/* HW TS Push */
@@ -444,18 +443,18 @@ static int cpts_isr(struct cpsw_priv *priv)
 			evt.event_high = event_high & 0xfffff;
 			evt.ts = event_tslo;
 
-			if (priv->cpts_time.first_half &&
+			if (priv->cpts_time->first_half &&
 					event_tslo & 0x80000000) {
 				/* this is misaligned ts */
-				ts = (u64)(priv->cpts_time.tshi - 1);
+				ts = (u64)(priv->cpts_time->tshi - 1);
 			} else {
-				ts = (u64)(priv->cpts_time.tshi);
+				ts = (u64)(priv->cpts_time->tshi);
 			}
 			evt.ts |= ts << 32;
-			if (priv->cpts_time.enable_timestamping) {
+			if (priv->cpts_time->enable_timestamping) {
 				spin_lock_irqsave(&cpts_time_lock, flags);
 				cpts_time_evts_fifo_push(
-					&(priv->cpts_time.rx_fifo), &evt);
+					&(priv->cpts_time->rx_fifo), &evt);
 				spin_unlock_irqrestore(&cpts_time_lock, flags);
 			}
 		} else if ((event_high & 0xf00000) == CPTS_TS_ETH_TX) {
@@ -464,18 +463,18 @@ static int cpts_isr(struct cpsw_priv *priv)
 
 			evt.event_high = event_high & 0xfffff;
 			evt.ts = event_tslo;
-			if (priv->cpts_time.first_half &&
+			if (priv->cpts_time->first_half &&
 					event_tslo & 0x80000000) {
 				/* this is misaligned ts */
-				ts = (u64)(priv->cpts_time.tshi - 1);
+				ts = (u64)(priv->cpts_time->tshi - 1);
 			} else {
-				ts = (u64)(priv->cpts_time.tshi);
+				ts = (u64)(priv->cpts_time->tshi);
 			}
 			evt.ts |= ts << 32;
-			if (priv->cpts_time.enable_timestamping) {
+			if (priv->cpts_time->enable_timestamping) {
 				spin_lock_irqsave(&cpts_time_lock, flags);
 				cpts_time_evts_fifo_push(
-					&(priv->cpts_time.tx_fifo), &evt);
+					&(priv->cpts_time->tx_fifo), &evt);
 				spin_unlock_irqrestore(&cpts_time_lock, flags);
 			}
 		} else {
@@ -497,7 +496,7 @@ int cpts_systime_write(u64 ns)
 	ns = NANOSEC_TO_CPTSCOUNT(ns);
 	__raw_writel((u32)(ns & 0xffffffff), &gpriv->cpts_reg->ts_load_val);
 	__raw_writel(0x1, &gpriv->cpts_reg->ts_load_en);
-	gpriv->cpts_time.tshi = (u32)(ns >> 32);
+	gpriv->cpts_time->tshi = (u32)(ns >> 32);
 
 	return 0;
 }
@@ -527,14 +526,13 @@ int cpts_systime_read(u64 *ns)
 	return ret;
 }
 
-#ifdef CONFIG_PTP_1588_CLOCK_CPTS
 static void cpts_rx_timestamp(struct cpsw_priv *priv,
 			struct sk_buff *skb, u32 evt_high)
 {
 	struct cpts_time_evts evt = {0, 0};
 	struct skb_shared_hwtstamps *shhwtstamps;
 
-	cpts_time_evts_fifo_pop(&(priv->cpts_time.rx_fifo), evt_high, &evt);
+	cpts_time_evts_fifo_pop(&(priv->cpts_time->rx_fifo), evt_high, &evt);
 
 	shhwtstamps = skb_hwtstamps(skb);
 	memset(shhwtstamps, 0, sizeof(*shhwtstamps));
@@ -547,7 +545,7 @@ static void cpts_tx_timestamp(struct cpsw_priv *priv,
 	struct cpts_time_evts evt = {0, 0};
 	struct skb_shared_hwtstamps shhwtstamps;
 
-	cpts_time_evts_fifo_pop(&(priv->cpts_time.tx_fifo), evt_high, &evt);
+	cpts_time_evts_fifo_pop(&(priv->cpts_time->tx_fifo), evt_high, &evt);
 
 	memset(&shhwtstamps, 0, sizeof(struct skb_shared_hwtstamps));
 	shhwtstamps.hwtstamp = ns_to_ktime(evt.ts);
@@ -586,7 +584,7 @@ void cpsw_tx_handler(void *token, int len, int status)
 		netif_start_queue(ndev);
 
 #ifdef CONFIG_PTP_1588_CLOCK_CPTS
-	if ((priv->cpts_time.enable_timestamping) &&
+	if ((priv->cpts_time->enable_timestamping) &&
 			((htons(*((unsigned short *)&skb->data[12]))) ==
 			PTP_ETHER_TYPE)) {
 		evt_high = (skb->data[14] & 0xf) << 16;
@@ -621,13 +619,6 @@ void cpsw_rx_handler(void *token, int len, int status)
 		priv = netdev_priv(ndev);
 		skb->dev = ndev;
 	}
-	#if 0
-	else {
-		/* we are shutting down */
-		dev_kfree_skb_any(skb);
-		return;
-	}
-	#endif
 #endif /* CONFIG_TI_CPSW_DUAL_EMAC */
 
 	/* free and bail if we are shutting down */
@@ -641,7 +632,7 @@ void cpsw_rx_handler(void *token, int len, int status)
 		skb_put(skb, len);
 
 #ifdef CONFIG_PTP_1588_CLOCK_CPTS
-		if ((priv->cpts_time.enable_timestamping) &&
+		if ((priv->cpts_time->enable_timestamping) &&
 				((htons(*((unsigned short *)&skb->data[12])))
 				== PTP_ETHER_TYPE)) {
 			evt_high = (skb->data[14] & 0xf) << 16;
@@ -1393,11 +1384,11 @@ static int cpsw_hwtstamp_ioctl(struct net_device *ndev,
 			&priv->slaves[0].regs->ts_seq_ltype);
 
 		/* Empty Queue */
-		priv->cpts_time.rx_fifo.head = 0;
-		priv->cpts_time.tx_fifo.head = 0;
-		priv->cpts_time.rx_fifo.tail = 0;
-		priv->cpts_time.tx_fifo.tail = 0;
-		priv->cpts_time.enable_timestamping = false;
+		priv->cpts_time->rx_fifo.head = 0;
+		priv->cpts_time->tx_fifo.head = 0;
+		priv->cpts_time->rx_fifo.tail = 0;
+		priv->cpts_time->tx_fifo.tail = 0;
+		priv->cpts_time->enable_timestamping = false;
 		pr_debug("Disabling Time stamping...\n");
 	} else {
 		u32 val = 0;
@@ -1406,16 +1397,22 @@ static int cpsw_hwtstamp_ioctl(struct net_device *ndev,
 		val |= (1<<4);			/* enable TX */
 		val |= (0xFFFFu << 16);		/* enable all message types */
 
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+		__raw_writel(val, &priv->slaves[priv->emac_port].regs->ts_ctl);
+		__raw_writel(0x001e88f7,
+			&priv->slaves[priv->emac_port].regs->ts_seq_ltype);
+#else /* !CONFIG_TI_CPSW_DUAL_EMAC */
 		__raw_writel(val, &priv->slaves[0].regs->ts_ctl);
 		__raw_writel(0x001e88f7,
 			&priv->slaves[0].regs->ts_seq_ltype);
+#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
 
 		/* Empty Queue */
-		priv->cpts_time.rx_fifo.head = 0;
-		priv->cpts_time.tx_fifo.head = 0;
-		priv->cpts_time.rx_fifo.tail = 0;
-		priv->cpts_time.tx_fifo.tail = 0;
-		priv->cpts_time.enable_timestamping = true;
+		priv->cpts_time->rx_fifo.head = 0;
+		priv->cpts_time->tx_fifo.head = 0;
+		priv->cpts_time->rx_fifo.tail = 0;
+		priv->cpts_time->tx_fifo.tail = 0;
+		priv->cpts_time->enable_timestamping = true;
 	}
 
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
@@ -2719,12 +2716,10 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 	priv->msg_enable = netif_msg_init(debug_level, CPSW_DEBUG);
 	priv->rx_packet_max = max(rx_packet_max, 128);
 
+	priv->cpts_time = kzalloc(sizeof(struct cpts_time_handle), GFP_KERNEL);
+#ifdef CONFIG_PTP_1588_CLOCK_CPTS
 	gpriv = priv;
-	priv->cpts_time.rx_fifo.head = 0;
-	priv->cpts_time.tx_fifo.head = 0;
-	priv->cpts_time.rx_fifo.tail = 0;
-	priv->cpts_time.tx_fifo.tail = 0;
-	priv->cpts_time.enable_timestamping = false;
+#endif /* CONFIG_PTP_1588_CLOCK_CPTS */
 
 	if (is_valid_ether_addr(data->mac_addr)) {
 		memcpy(priv->mac_addr, data->mac_addr, ETH_ALEN);
@@ -2935,12 +2930,7 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 	priv_sl2->dev  = &ndev->dev;
 	priv_sl2->msg_enable = netif_msg_init(debug_level, CPSW_DEBUG);
 	priv_sl2->rx_packet_max = max(rx_packet_max, 128);
-
-	priv_sl2->cpts_time.rx_fifo.head = 0;
-	priv_sl2->cpts_time.tx_fifo.head = 0;
-	priv_sl2->cpts_time.rx_fifo.tail = 0;
-	priv_sl2->cpts_time.tx_fifo.tail = 0;
-	priv_sl2->cpts_time.enable_timestamping = false;
+	priv_sl2->cpts_time = priv->cpts_time;
 
 	/* Temprovary work around as both mac address are same in e-fuse */
 	if (!memcmp(data->slave_data[0].mac_addr,
@@ -3032,6 +3022,7 @@ clean_cpsw_iores_ret:
 				resource_size(priv->cpsw_res));
 clean_clk_ret:
 	clk_put(priv->clk);
+	kfree(priv->cpts_time);
 	kfree(priv->slaves);
 clean_ndev_ret:
 	free_netdev(ndev);
@@ -3057,6 +3048,7 @@ static int __devexit cpsw_remove(struct platform_device *pdev)
 	release_mem_region(priv->cpsw_ss_res->start,
 					resource_size(priv->cpsw_ss_res));
 	clk_put(priv->clk);
+	kfree(priv->cpts_time);
 	kfree(priv->slaves);
 	free_netdev(ndev);
 
