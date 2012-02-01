@@ -1450,7 +1450,7 @@ int __init vps_grpx_init(struct platform_device *pdev)
 			break;
 		case 1:
 			gctrl->snode = VPS_DC_GRPX1_INPUT_PATH;
-			if (v_pdata->cpu != CPU_DM814X)
+			if (v_pdata->cpu == CPU_DM816X)
 				gctrl->enodes[0] = VPS_DC_HDCOMP_BLEND;
 			else
 				gctrl->enodes[0] = VPS_DC_DVO2_BLEND;

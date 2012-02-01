@@ -1827,7 +1827,7 @@ int __init vps_video_init(struct platform_device *pdev)
 			vctrl->nodes[1].inputid = VPS_DC_HDCOMP_MUX;
 
 			num_outputs = 1;
-			if (v_pdata->cpu != CPU_DM814X)
+			if (v_pdata->cpu == CPU_DM816X)
 				vctrl->enodes[0].nodeid = VPS_DC_HDCOMP_BLEND;
 			else
 				vctrl->enodes[0].nodeid = VPS_DC_DVO2_BLEND;
