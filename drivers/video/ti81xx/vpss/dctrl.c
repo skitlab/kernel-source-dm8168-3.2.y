@@ -126,9 +126,9 @@ static inline int ishdmipll(int bidx)
 }
 static inline u32 hdcomppll(int bidx)
 {
-	if ((v_pdata->cpu == CPU_DM385) && (bidx == HDCOMP)) {
+	if ((v_pdata->cpu == CPU_DM813X) && (bidx == HDCOMP)) {
 		u32 temp;
-		temp = omap_readl(TI814X_PLL_BASE + DM385_PLL_HD_CLOCK_SOURCE);
+		temp = omap_readl(TI814X_PLL_BASE + DM813X_PLL_HD_CLOCK_SOURCE);
 		temp &= 3;
 		return temp;
 	}
@@ -169,9 +169,9 @@ static inline u32 get_plloutputvenc(int bidx)
 			else
 				return VPS_SYSTEM_VPLL_OUTPUT_VENC_D;
 		}
-		/*DM385 HDCOMP VENC can be from either RF, D or HDMI/A clock
+		/*DM813X HDCOMP VENC can be from either RF, D or HDMI/A clock
 		it is up to how the MUX is set*/
-		if ((v_pdata->cpu == CPU_DM385) && (bidx == HDCOMP)) {
+		if ((v_pdata->cpu == CPU_DM813X) && (bidx == HDCOMP)) {
 			switch (hdcomppll(bidx)) {
 			case 2:
 				return VPS_SYSTEM_VPLL_OUTPUT_VENC_RF;
@@ -1763,12 +1763,12 @@ static ssize_t blender_clksrc_store(struct dc_blender_info *binfo,
 			omap_writel(temp,
 				TI814X_PLL_BASE + DM814X_PLL_CLOCK_SOURCE);
 			r = size;
-		} else if ((v_pdata->cpu == CPU_DM385) &&
+		} else if ((v_pdata->cpu == CPU_DM813X) &&
 		    (binfo->idx == HDCOMP)) {
-			/*FIXME add DM385 support here */
+			/*FIXME add DM813X support here */
 			u32 temp;
 			temp = omap_readl(
-				TI814X_PLL_BASE + DM385_PLL_HD_CLOCK_SOURCE);
+				TI814X_PLL_BASE + DM813X_PLL_HD_CLOCK_SOURCE);
 			temp &= ~3;
 			if (sysfs_streq(buf, "sd"))
 				temp |= 0x2;
@@ -1776,7 +1776,7 @@ static ssize_t blender_clksrc_store(struct dc_blender_info *binfo,
 				temp |= 0x1;
 
 			omap_writel(temp,
-				TI814X_PLL_BASE + DM385_PLL_HD_CLOCK_SOURCE);
+				TI814X_PLL_BASE + DM813X_PLL_HD_CLOCK_SOURCE);
 			r = size;
 
 		} else {

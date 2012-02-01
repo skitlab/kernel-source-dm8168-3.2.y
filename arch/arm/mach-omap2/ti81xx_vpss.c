@@ -57,7 +57,7 @@ static int __init ti81xx_vpss_init(void)
 	int r;
 	if (cpu_is_ti816x() || cpu_is_dm385()) {
 		if (cpu_is_dm385())
-			vps_pdata.cpu = CPU_DM385;
+			vps_pdata.cpu = CPU_DM813X;
 		else
 			vps_pdata.cpu = CPU_DM816X;
 		vps_pdata.numvencs = 4;

@@ -108,10 +108,10 @@ static inline int video_get_inputid(struct vps_video_ctrl *vctrl,
 	case VPS_DC_HDCOMP_BLEND:
 		if ((inputnode == VPS_DC_VCOMP) ||
 		    (inputnode == VPS_DC_VCOMP_MUX)) {
-			/*DM385's HDCOMP is kind of same as TI816X's DVO2*/
+			/*DM813X's HDCOMP is kind of same as TI816X's DVO2*/
 			if (v_pdata->cpu == CPU_DM816X)
 				return VPS_DC_CIG_CONSTRAINED_OUTPUT;
-			else if (v_pdata->cpu == CPU_DM385)
+			else if (v_pdata->cpu == CPU_DM813X)
 				return VPS_DC_CIG_NON_CONSTRAINED_OUTPUT;
 			else
 				return -EINVAL;

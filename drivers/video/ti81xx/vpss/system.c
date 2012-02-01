@@ -677,7 +677,7 @@ int __init vps_system_init(struct platform_device *pdev)
 				"please use TI816x M3 firmware\n");
 			goto exit;
 		}
-	} else if (v_pdata->cpu == CPU_DM385) {
+	} else if (v_pdata->cpu == CPU_DM813X) {
 		if (!(pid == VPS_PLATFORM_ID_EVM_TI8107)) {
 			VPSSERR("Wrong M3 firmware,"
 				" please use Dm385 M3 firmware\n");

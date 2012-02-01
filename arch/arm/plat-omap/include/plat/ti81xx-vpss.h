@@ -34,7 +34,7 @@
 enum ti81xx_cpu {
 	CPU_DM816X = 0,
 	CPU_DM814X,
-	CPU_DM385,
+	CPU_DM813X,
 	CPU_MAX = 0xFFFFFFFF
 };
 
