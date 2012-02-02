@@ -95,6 +95,7 @@ static void usbotg_ss_init(void)
 		usbss_write(USBSS_IRQ_EOI, 0);
 		usbss_write(USBSS_IRQ_STATUS, usbss_read(USBSS_IRQ_STATUS));
 		usbss_init_done = 1;
+		pr_info("USBSS revision %08x\n", usbss_read(0));
 	}
 }
 static void usbotg_ss_uninit(void)
@@ -1038,6 +1039,7 @@ int ti81xx_musb_init(struct musb *musb)
 	rev = musb_readl(reg_base, USB_REVISION_REG);
 	if (!rev)
 		return -ENODEV;
+	pr_info("MUSB controller-%d revision %08x\n", musb->id, rev);
 
 	if (is_host_enabled(musb))
 		setup_timer(&musb->otg_workaround, otg_timer,
