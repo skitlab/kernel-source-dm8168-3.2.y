@@ -739,8 +739,6 @@ static int dc_set_vencmode(struct vps_dcvencinfo *vinfo)
 	int vencs = 0;
 	int bidx = 0;
 	struct vps_dcvencinfo vi;
-	struct vps_dcvencinfo tied_vi;
-	struct vps_dcvencinfo ntied_vi;
 	if ((disp_ctrl == NULL) || (disp_ctrl->fvid2_handle == NULL))
 		return -EINVAL;
 
@@ -761,10 +759,6 @@ static int dc_set_vencmode(struct vps_dcvencinfo *vinfo)
 	/*make sure current venc status is matching */
 	disp_ctrl->vinfo->numvencs = 0;
 	disp_ctrl->vinfo->tiedvencs = 0;
-	tied_vi.numvencs = 0;
-	tied_vi.tiedvencs = 0;
-	ntied_vi.numvencs = 0;
-	ntied_vi.tiedvencs = 0;
 	for (i = 0; i < vinfo->numvencs; i++) {
 		if (vi.modeinfo[i].isvencrunning) {
 			if (vi.modeinfo[i].minfo.standard !=
@@ -789,50 +783,32 @@ static int dc_set_vencmode(struct vps_dcvencinfo *vinfo)
 
 				}
 
-				continue;
 			} else
 				VPSSDBG("venc %d already running\n",
 					vi.modeinfo[i].vencid);
 
 
 		} else {
-			/*store the infor based tied or notied*/
-			if (vinfo->tiedvencs & vinfo->modeinfo[i].vencid) {
-				memcpy(&tied_vi.modeinfo[tied_vi.numvencs++],
-					&vinfo->modeinfo[i],
-					sizeof(struct vps_dcmodeinfo));
-				tied_vi.tiedvencs |= vinfo->modeinfo[i].vencid;
-			} else
-				memcpy(&ntied_vi.modeinfo[ntied_vi.numvencs++],
-				       &vinfo->modeinfo[i],
-				       sizeof(struct vps_dcmodeinfo));
+
+			memcpy(&disp_ctrl->vinfo->modeinfo \
+				    [disp_ctrl->vinfo->numvencs++],
+				&vinfo->modeinfo[i],
+				sizeof(struct vps_dcmodeinfo));
 
 			vencs |= vinfo->modeinfo[i].vencid;
 		}
 	}
-	/*handle non tied vencs case*/
-	for (i = 0; i < ntied_vi.numvencs; i++) {
-		disp_ctrl->vinfo->numvencs = 1;
-		memcpy(&disp_ctrl->vinfo->modeinfo[0],
-			&ntied_vi.modeinfo[i],
-			sizeof(struct vps_dcmodeinfo));
-		r = vps_fvid2_control(disp_ctrl->fvid2_handle,
-				IOCTL_VPS_DCTRL_SET_VENC_MODE,
-				(void *)disp_ctrl->vinfo_phy,
-				NULL);
-		if (r) {
-			VPSSERR("failed to set venc mdoe.\n");
+	if (vinfo->tiedvencs) {
+		if ((vencs & vinfo->tiedvencs) != vinfo->tiedvencs) {
+			r = -EINVAL;
+			VPSSERR("can not set tied VENC\n");
 			goto exit;
-		}
-		disp_ctrl->enabled_venc_ids |= ntied_vi.modeinfo[i].vencid;
-		/*set up the external video device if applicable*/
+		} else
+			disp_ctrl->vinfo->tiedvencs = vinfo->tiedvencs;
 
 	}
-	/*handle tied vencs case*/
-	if (tied_vi.numvencs) {
-		memcpy(disp_ctrl->vinfo,
-			&tied_vi,
-			sizeof(struct vps_dcvencinfo));
+
+	if (disp_ctrl->vinfo->numvencs) {
 		if (disp_ctrl->vinfo->numvencs <= 1)
 			disp_ctrl->vinfo->tiedvencs = 0;
 
@@ -844,7 +820,7 @@ static int dc_set_vencmode(struct vps_dcvencinfo *vinfo)
 			VPSSERR("failed to set venc mdoe.\n");
 			goto exit;
 		}
-		disp_ctrl->enabled_venc_ids |= disp_ctrl->vinfo->tiedvencs;
+		disp_ctrl->enabled_venc_ids |= vencs;
 		disp_ctrl->tiedvenc = disp_ctrl->vinfo->tiedvencs;
 
 	}
