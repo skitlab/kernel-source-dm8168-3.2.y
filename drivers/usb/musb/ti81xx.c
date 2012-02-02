@@ -967,6 +967,8 @@ static irqreturn_t ti81xx_interrupt(int irq, void *hci)
 
 	if (is_babble) {
 		if (!musb->enable_babble_work) {
+			ERR("Babble: devctl(%x) set session to resume\n",
+				musb_readb(musb->mregs, MUSB_DEVCTL));
 			musb_writeb(musb->mregs, MUSB_DEVCTL,
 				musb_readb(musb->mregs, MUSB_DEVCTL) |
 				MUSB_DEVCTL_SESSION);
@@ -1110,10 +1112,9 @@ int ti81xx_musb_init(struct musb *musb)
 #endif
 	/* enable babble workaround */
 	INIT_WORK(&musb->work, evm_deferred_musb_restart);
-	musb->enable_babble_work = 1;
-	if (cpu_is_dm385() || (cpu_is_ti81xx() &&
-		((omap_rev() == TI8168_REV_ES2_0) ||
-		(omap_rev() == TI8148_REV_ES2_0)))) {
+	musb->enable_babble_work = data->babble_ctrl;
+	if ((cpu_is_ti81xx() && ((omap_rev() == TI8168_REV_ES2_0)
+		|| (omap_rev() == TI8148_REV_ES2_0)))) {
 		musb->enable_babble_work = 0;
 	}
 
