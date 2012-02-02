@@ -2684,7 +2684,6 @@ int __init vps_dc_init(struct platform_device *pdev,
 		VPSSERR("failed to parse mode.\n");
 		goto cleanup;
 	}
-
 	/*set up the default clksrc and output format*/
 	for (i = 0; i < disp_ctrl->numvencs; i++) {
 		struct vps_dcvencclksrc *clksrcp =
@@ -2757,7 +2756,42 @@ int __init vps_dc_init(struct platform_device *pdev,
 		VPSSERR("failed to parse clock source\n");
 		goto cleanup;
 	}
-
+	/*for DM813X, HDCOMP share the frequency with either HDMI or DVO2
+	so if HDCOMP's pixel clock does not match either HDMI or DVO2,
+	we need force HDCOMP to one based on the clock mux*/
+	if (pdata->cpu == CPU_DM813X) {
+		u8 hdcomp_clk;
+		hdcomp_clk = hdcomppll(HDCOMP);
+		switch (hdcomp_clk) {
+		case 0:
+			/*HDMI*/
+			if (venc_info.modeinfo[HDMI].minfo.pixelclock !=
+				venc_info.modeinfo[HDCOMP].minfo.pixelclock) {
+				memcpy(&venc_info.modeinfo[HDCOMP].minfo,
+					&venc_info.modeinfo[HDMI].minfo,
+					sizeof(struct fvid2_modeinfo));
+				VPSSDBG("HDCOMP timing changed"
+					" to match HDMI\n");
+			}
+			break;
+		case 1:
+			/*DVO2*/
+			if (venc_info.modeinfo[DVO2].minfo.pixelclock !=
+				venc_info.modeinfo[HDCOMP].minfo.pixelclock) {
+				memcpy(&venc_info.modeinfo[HDCOMP].minfo,
+					&venc_info.modeinfo[DVO2].minfo,
+					sizeof(struct fvid2_modeinfo));
+				VPSSDBG("HDCOMP timing changed"
+					" to match DVO2\n");
+			}
+			break;
+		default:
+			/**/
+			VPSSER("HDCOMP uses SDVENC clock,
+			     SDVENC may not work properly\n");
+			break;
+		}
+	}
 	/*set the clock source*/
 	for (i = 0; i < venc_info.numvencs; i++) {
 		if (disp_ctrl->blenders[i].idx != SDVENC) {
