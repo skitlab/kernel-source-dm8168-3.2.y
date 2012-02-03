@@ -2751,7 +2751,7 @@ int __init vps_dc_init(struct platform_device *pdev,
 			break;
 		case SDVENC:
 			opinfo.vencnodenum = VPS_DC_VENC_SD;
-			if (v_pdata->cpu == CPU_DM816X)
+			if (v_pdata->cpu != CPU_DM814X)
 				opinfo.afmt = VPS_DC_A_OUTPUT_COMPOSITE;
 			else
 				opinfo.afmt = VPS_DC_A_OUTPUT_SVIDEO;
