@@ -981,6 +981,38 @@ exit:
 	return r;
 
 }
+static void dc_set_hdcomp_pll(u32 pllclk)
+{
+	u32 value;
+	if (v_pdata->cpu != CPU_DM813X)
+		return;
+	/*HDCOMP PLL clock bit[1:0]
+	    0: share with HDMI_PLL
+	    1: share with VIDEO1_PLL(DVO2)
+	    2: sharew with VIDEO0_PLL(SDVENC)
+	    */
+
+	value = omap_readl(TI814X_PLL_BASE + DM813X_PLL_HD_CLOCK_SOURCE);
+	switch (pllclk) {
+	case VPS_SYSTEM_VPLL_OUTPUT_VENC_RF:
+		value &= ~3;
+		value |= 2;
+		break;
+	case VPS_SYSTEM_VPLL_OUTPUT_VENC_D:
+		value &= ~3;
+		value |= 1;
+		break;
+	case VPS_SYSTEM_VPLL_OUTPUT_VENC_A:
+	case VPS_SYSTEM_VPLL_OUTPUT_VENC_HDMI:
+		value &= ~3;
+		break;
+	default:
+		break;
+	}
+	omap_writel(value, TI814X_PLL_BASE + DM813X_PLL_HD_CLOCK_SOURCE);
+	return;
+
+}
 /*E******************************** private functions *********************/
 
 /*S*******************************  public functions  *********************/
@@ -1742,17 +1774,16 @@ static ssize_t blender_clksrc_store(struct dc_blender_info *binfo,
 		} else if ((v_pdata->cpu == CPU_DM813X) &&
 		    (binfo->idx == HDCOMP)) {
 			/*FIXME add DM813X support here */
-			u32 temp;
-			temp = omap_readl(
-				TI814X_PLL_BASE + DM813X_PLL_HD_CLOCK_SOURCE);
-			temp &= ~3;
+			enum vps_vplloutputclk pllclk;
+			pllclk = VPS_SYSTEM_VPLL_OUTPUT_MAX_VENC;
 			if (sysfs_streq(buf, "sd"))
-				temp |= 0x2;
+				pllclk = VPS_SYSTEM_VPLL_OUTPUT_VENC_RF;
 			else if (sysfs_streq(buf, "dvo2"))
-				temp |= 0x1;
+				pllclk = VPS_SYSTEM_VPLL_OUTPUT_VENC_D;
+			else if (sysfs_streq(buf, "hdmi"))
+				pllclk = VPS_SYSTEM_VPLL_OUTPUT_VENC_HDMI;
 
-			omap_writel(temp,
-				TI814X_PLL_BASE + DM813X_PLL_HD_CLOCK_SOURCE);
+			dc_set_hdcomp_pll(pllclk);
 			r = size;
 
 		} else {
@@ -2334,9 +2365,32 @@ static int parse_def_clksrc(const char *clksrc)
 
 			}
 		}
-		if (i == ARRAY_SIZE(vclksrc_name))
-			VPSSERR("wrong clock source\n");
+		if (i == ARRAY_SIZE(vclksrc_name)) {
+			if (v_pdata->cpu == CPU_DM813X) {
+				if (dc_get_vencid(venc, &vid)) {
+					VPSSERR("wrong venc\n");
+					break;
+				}
+				if (vid == VPS_DC_VENC_HDCOMP) {
+					enum vps_vplloutputclk pllclk;
+					pllclk =
+					    VPS_SYSTEM_VPLL_OUTPUT_MAX_VENC;
+					/*this is the HDCOMP clock source*/
+					if (sysfs_streq(csrc, "hdmi"))
+						pllclk = \
+						VPS_SYSTEM_VPLL_OUTPUT_VENC_A;
+					else if (sysfs_streq(csrc, "dvo2"))
+						pllclk = \
+						VPS_SYSTEM_VPLL_OUTPUT_VENC_D;
+					else if (sysfs_streq(csrc, "sd"))
+						pllclk = \
+						VPS_SYSTEM_VPLL_OUTPUT_VENC_RF;
+					dc_set_hdcomp_pll(pllclk);
+				}
 
+			} else
+				VPSSERR("wrong clock source\n");
+		}
 		if (options == NULL)
 			break;
 
@@ -2589,10 +2643,8 @@ int __init vps_dc_init(struct platform_device *pdev,
 	int r = 0;
 	int i;
 	int size = 0, offset = 0;
-	struct vps_platform_data  *pdata;
 	VPSSDBG("dctrl init\n");
 
-	pdata = pdev->dev.platform_data;
 	if ((v_pdata->cpu == CPU_DM816X) && (!def_i2cmode))
 		ti816x_pcf8575_init();
 
@@ -2621,9 +2673,9 @@ int __init vps_dc_init(struct platform_device *pdev,
 		r = -ENOMEM;
 		goto cleanup;
 	}
-	disp_ctrl->numvencs = pdata->numvencs;
+	disp_ctrl->numvencs = v_pdata->numvencs;
 	venc_info.numvencs = disp_ctrl->numvencs;
-	disp_ctrl->vencmask = pdata->vencmask;
+	disp_ctrl->vencmask = v_pdata->vencmask;
 
 	assign_payload_addr(disp_ctrl, dc_payload_info, &offset);
 
@@ -2759,7 +2811,7 @@ int __init vps_dc_init(struct platform_device *pdev,
 	/*for DM813X, HDCOMP share the frequency with either HDMI or DVO2
 	so if HDCOMP's pixel clock does not match either HDMI or DVO2,
 	we need force HDCOMP to one based on the clock mux*/
-	if (pdata->cpu == CPU_DM813X) {
+	if (v_pdata->cpu == CPU_DM813X) {
 		u8 hdcomp_clk;
 		hdcomp_clk = hdcomppll(HDCOMP);
 		switch (hdcomp_clk) {
@@ -2787,8 +2839,8 @@ int __init vps_dc_init(struct platform_device *pdev,
 			break;
 		default:
 			/**/
-			VPSSER("HDCOMP uses SDVENC clock,
-			     SDVENC may not work properly\n");
+			VPSSERR("HDCOMP uses SDVENC clock,"
+			     " SDVENC may not work properly\n");
 			break;
 		}
 	}
