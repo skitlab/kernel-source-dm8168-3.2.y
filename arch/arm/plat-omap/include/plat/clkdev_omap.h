@@ -41,6 +41,7 @@ struct omap_clk {
 #define CK_TI814X	(1 << 12)
 #define CK_TI816X	(1 << 13)
 #define CK_DM385	(1 << 14)
+#define CK_TI811X	(1 << 15)
 
 
 #define CK_34XX		(CK_3430ES1 | CK_3430ES2PLUS)
