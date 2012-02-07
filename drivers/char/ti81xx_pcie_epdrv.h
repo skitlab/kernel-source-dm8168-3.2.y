@@ -25,7 +25,7 @@
 #define TI81XX_SET_OUTBOUND_SIZE	_IOW('P', 4, unsigned int)
 #define TI81XX_SET_OUTBOUND		_IOW('P', 5, struct ti81xx_outb_region)
 #define TI81XX_ACCESS_REGS		_IOWR('P', 6, struct ti81xx_pciess_regs)
-#define TI81XX_SEND_MSI			_IOW('P', 7, struct ti81xx_msi_bar)
+#define TI81XX_SEND_MSI			_IOW('P', 7, struct ti81xx_msi_info)
 #define TI81XX_GET_PCIE_MEM_INFO	_IOR('P', 8, struct ti81xx_pcie_mem_info)
 #define TI81XX_GET_OUTBOUND_STATUS	_IOR('p', 11, unsigned int)
 #define TI81XX_CLR_OUTBOUND_MAP		_IOW('p', 12, struct ti81xx_outb_region)
@@ -113,22 +113,6 @@ struct ti81xx_msi_info {
 struct ti81xx_pcie_mem_info {
 	u32 base;
 	u32 size;
-};
-
-/**
- * ti81xx_msi_bar: this structure contains bar0 and bar1 address passed
- * by application to genrate msi.
- * @bar0: address of bar0
- * @bar1: address of bar1
- *
- * in case 64 bit msi application have to pass both bar0 and bar1 while
- * in case of 32 bit msi
- * bar1 will always be passed as zero.
- */
-
-struct ti81xx_msi_bar {
-	u32 bar0;
-	u32 bar1;
 };
 
 /**
