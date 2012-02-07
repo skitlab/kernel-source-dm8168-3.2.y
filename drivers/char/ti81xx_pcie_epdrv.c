@@ -128,7 +128,10 @@
 #define NMEM				1
 #define INOB				2
 #define FAIL				3
-#define XCEEDREG			32
+#define XCEEDREG			31
+
+/* Used for locking of outbound configurations */
+static DEFINE_SPINLOCK(ti81xx_pcie_ob_lock);
 
 /**
  * ti81xx_outb_info: this structure represents current outbound mappings info.
@@ -168,7 +171,7 @@ extern u32 ti81xx_ep_mem_size;
 
 dev_t ti81xx_ep_pcie_dev;
 static struct cdev ti81xx_ep_pcie_cdev;
-static u32 reg_vir, reg_mem;
+static u32 reg_vir;
 static u16 device_id;
 static struct resource *res_mem;
 /* 6MB : default value of size to be reserved for
@@ -182,6 +185,8 @@ static struct class *ti81xx_pci_class;
  * each bit of this integer is correspond to a outbound region
  * if bit set-- free
  * else-- in use
+ *
+ * NOTE: Always keep the 32nd outbound window reserved for MSI.
  */
 
 static u32 status_out;
@@ -212,7 +217,7 @@ static int ti81xx_pciess_register_access(void __user *arg);
 static int ti816x_pcie_fault(unsigned long addr, unsigned int fsr,
 							struct pt_regs *regs);
 #endif
-static int ti81xx_send_msi(struct ti81xx_msi_bar *bar);
+static int ti81xx_send_msi(void __user *argp);
 static int ti81xx_ep_pcie_open(struct inode *inode, struct file *file);
 static long ti81xx_ep_pcie_ioctl(struct file *file, unsigned int cmd,
 							unsigned long arg);
@@ -261,6 +266,9 @@ static int ti81xx_set_inbound(struct ti81xx_inb_window *in)
 /**
  * ti81xx_check_region()-check availability of continuous available regions.
  * @regions: no of continuous regions you are looking for.
+ *
+ * Returns 0-30 as the start of reagion(s) that can be allocated. Else, returns
+ * 31 indicating unavailability of region(s).
  */
 
 static u32  ti81xx_check_regions(unsigned int  regions)
@@ -298,6 +306,9 @@ static u32  ti81xx_check_regions(unsigned int  regions)
  * Return values:
  * NMEM: if not able to serve.
  * INOB: if can be served by increasing OB_SIZE.
+ *
+ * NOTE: We only conside 8MB (OB SIZTE = 3) as limit here since the other sizes
+ * beyond that anyway don't occupy all the outbound windows.
  */
 
 static u32 ti81xx_check_req_status(struct ti81xx_outb_region *out, u32 ob_size)
@@ -311,7 +322,7 @@ static u32 ti81xx_check_req_status(struct ti81xx_outb_region *out, u32 ob_size)
 						(struct ti81xx_outb_info *)tmp;
 				if ((ptr->size_req) % (8 * MB) != 0)
 					reg_current +=
-						(ptr->size_req) / (8 * MB)+1;
+						(ptr->size_req) / (8 * MB) + 1;
 				else
 					reg_current +=
 						(ptr->size_req) / (8 * MB);
@@ -349,22 +360,20 @@ static int ti81xx_set_out_region(struct ti81xx_outb_region *out)
 	list_for_each(tmp, &outb_req) {
 		region_in_use += ((struct ti81xx_outb_info *) tmp)->regions;
 	}
-	/*also keep in mind that some reasons may be disabled.*/
+
+	/* Also keep in mind that some regions may be disabled. */
 
 	if ((out->size) % (region_size) != 0)
 		regions = ((out->size) / (region_size)) + 1;
 	else
 		regions = ((out->size) / (region_size));
 
-	if (status_out == 0)
-		return ti81xx_check_req_status(out, ob_size);
-
-	if (regions > 31)
+	if (!status_out || ((region_in_use + regions)  > 31))
 		return ti81xx_check_req_status(out, ob_size);
 
 	start_region = ti81xx_check_regions(regions);
 
-	if (start_region >= 0 && start_region <= 30) {
+	if (start_region < XCEEDREG) {
 		u32 i, tr_size;
 		u32 start_idx = out->ob_offset_idx;
 		u32 hi_idx_add = out->ob_offset_hi;
@@ -459,8 +468,8 @@ static int ti81xx_free_outb_map(void)
 /**
  * ti81xx_pciess_register_access() - access pciess registers
  * @arg: Userspace pointer holding struct ti81xx_pciess_regs data.
- * 		IN	: in case mode is write register
- * 		INOUT	: in case mode is read register
+ *		IN	: in case mode is write register
+ *		INOUT	: in case mode is read register
  */
 
 static int ti81xx_pciess_register_access(void __user *arg)
@@ -486,8 +495,8 @@ static int ti81xx_pciess_register_access(void __user *arg)
  * @arg: Userspace pointer to struct ti81xx_bar_info structure
  *
  * This is INOUT parameter.
- * 	IN	: BAR number
- * 	OUT	: BAR info
+ *	IN	: BAR number
+ *	OUT	: BAR info
  */
 
 static int query_bar_info(void __user *arg)
@@ -589,74 +598,51 @@ static int ti816x_pcie_fault(unsigned long addr, unsigned int fsr,
 
 /**
  * ti81xx_send_msi()-- send msi interrupt to RC/EP
- * @bar: it points to structure containing bar0 and bar1 address of
- * targeted ep.
+ * @argp: User pointer to structure containing address and data for MSI
+ * generation. Can be NULL when generating MSI to RC.
  *
- * it configures PCIESS registers so that it can send MSI to any RC or EP.
- * in case of 64 bit mode application must set bar0 and bar1 both while in
- * case of 32 bit mode application must set bar1 0 always.
+ * Configures PCIESS registers so that it can send MSI to any RC or EP. In case
+ * the msi_data is NULL, we use the MSI information configured by the RC to
+ * generate MSI.
  *
- * There is a register at an offset 0x54 from ox51000000 on every RC and EP
- * that must be written from remote EP / RC to genrate an interrupt.
- *
- *
- * TODO: 64 bit MSI.
- * Only 32 bit MSI is enabled. so as for now MSI_UP32 addr is always zero.
+ * Uses 32nd outbound window to generate MSI.
  */
-
-
-static int ti81xx_send_msi(struct ti81xx_msi_bar *bar)
+static int ti81xx_send_msi(void __user *argp)
 {
-	struct ti81xx_msi_info msi;
-	u32 offset;
-	u32 mask, low;
+	u32 offset, rounded_addr_ls, msi_ob_addr;
 	u32 ob_size = __raw_readl(reg_vir + OB_SIZE);
-	u32 size_region;
-	msi.msi_data = __raw_readl(reg_vir +
+	u32 region_size = (1 << ob_size) * MB;
+	struct ti81xx_msi_info msi;
+
+	if (argp) {
+		if (copy_from_user(&msi, argp, sizeof(msi)))
+			return -EFAULT;
+	} else {
+		msi.msi_data = __raw_readl(reg_vir +
 				LOCAL_CONFIG_OFFSET + MSI_DATA + MSI_OFF);
-	msi.msi_addr_low = __raw_readl(reg_vir +
+		msi.msi_addr_low = __raw_readl(reg_vir +
 				LOCAL_CONFIG_OFFSET + MSI_LOW32 + MSI_OFF);
-	msi.msi_addr_hi = __raw_readl(reg_vir +
+		msi.msi_addr_hi = __raw_readl(reg_vir +
 				LOCAL_CONFIG_OFFSET + MSI_UP32 + MSI_OFF);
-	if (ob_size == 3) {
-		mask = 0xFF800000;
-		size_region = 8 * MB;
-	} else if (ob_size == 2) {
-		mask = 0xFFC00000;
-		size_region = 4 * MB;
-	} else if (ob_size == 1) {
-		mask = 0xFFE00000;
-		size_region = 2 * MB;
-	} else {
-		mask = 0xFFF00000;
-		size_region = 1 * MB;
-	}
-
-	/* fix region 31 for MSI generation*/
-
-	if (bar == NULL) {/* target is RC */
-
-		/* XXX: Should be able to do this w/o outbound setting */
-
-		low = msi.msi_addr_low & mask;
-		offset = msi.msi_addr_low - low;
-		__raw_writel(msi.msi_addr_hi,  reg_vir + OB_OFFSET_HI(31));
-		__raw_writel(low | 0x1, reg_vir + OB_OFFSET_INDEX(31));
-		__raw_writel(msi.msi_data, reg_mem + offset + 31 * size_region);
-
-	} else {
-		bar->bar0 += 0x54;
-		low = bar->bar0 & mask;
-		offset = bar->bar0 - low;
-		__raw_writel(bar->bar1, reg_vir + OB_OFFSET_HI(31));
-		__raw_writel(low | 0x1, reg_vir + OB_OFFSET_INDEX(31));
-		__raw_writel(msi.msi_data, reg_mem + offset + 31 * size_region);
-
 	}
 
 	/*
-	 * FIXME: Need to restore outbound window
+	 * Arrive at rounded LS address & offset combination as we cannot
+	 * configure exact outbound address translation.
 	 */
+	rounded_addr_ls = msi.msi_addr_low & ~(region_size - 1);
+	offset = msi.msi_addr_low & (region_size - 1);
+
+	msi_ob_addr = (u32) ioremap((0x20000000 + 31 * region_size),
+						region_size);
+	if (!msi_ob_addr)
+		pr_err(DRIVER_NAME ":Outbound mapping for MSI failed");
+
+	__raw_writel(msi.msi_addr_hi,  reg_vir + OB_OFFSET_HI(31));
+	__raw_writel(rounded_addr_ls | 0x1, reg_vir + OB_OFFSET_INDEX(31));
+	__raw_writel(msi.msi_data, msi_ob_addr + offset);
+
+	iounmap((void *)msi_ob_addr);
 
 	return 0;
 }
@@ -721,10 +707,7 @@ static long ti81xx_ep_pcie_ioctl(struct file *file, unsigned int cmd,
 
 	case TI81XX_SEND_MSI:
 	{
-		struct ti81xx_msi_bar msi;
-		if (copy_from_user(&msi, argp, sizeof(msi)))
-			return -EFAULT;
-		ti81xx_send_msi(&msi);
+		return ti81xx_send_msi(argp);
 	}
 	break;
 
