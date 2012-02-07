@@ -88,7 +88,7 @@ unsigned int omap_rev(void);
  * cpu_is_omap243x():	True for OMAP2430
  * cpu_is_omap343x():	True for OMAP3430
  * cpu_is_omap443x():	True for OMAP4430
- * cpu_is_ti814x():	True for TI8148, DM385, TI811X
+ * cpu_is_ti814x():	True for TI8148, DM385
  * cpu_is_ti816x():	True for TI8168
  */
 #define GET_OMAP_CLASS	(omap_rev() & 0xff)
@@ -150,7 +150,6 @@ IS_TI_SUBCLASS(816x, 0x816)
 #define cpu_is_ti81xx()			0
 #define cpu_is_ti814x()			0
 #define cpu_is_dm385()			0
-#define cpu_is_ti811x()			0
 #define cpu_is_ti816x()			0
 
 #if defined(MULTI_OMAP1)
@@ -382,12 +381,10 @@ IS_OMAP_TYPE(3517, 0x3517)
 # undef cpu_is_ti81xx
 # undef cpu_is_ti814x
 # undef cpu_is_dm385
-# undef cpu_is_ti811x
 # undef cpu_is_ti816x
 # define cpu_is_ti81xx()		is_ti81xx()
 # define cpu_is_ti814x()		is_ti814x()
 # define cpu_is_dm385()			(cpu_is_ti814x() && !omap3_has_dsp())
-# define cpu_is_ti811x()		(cpu_is_ti814x() && !omap3_has_iva())
 # define cpu_is_ti816x()		is_ti816x()
 # endif
 
@@ -468,7 +465,6 @@ IS_OMAP_TYPE(3517, 0x3517)
 #define CHIP_IS_TI816X			(1 << 12)
 #define CHIP_IS_TI814X			(1 << 13)
 #define CHIP_IS_DM385			(1 << 14)
-#define CHIP_IS_TI811X			(1 << 15)
 
 #define CHIP_IS_OMAP24XX		(CHIP_IS_OMAP2420 | CHIP_IS_OMAP2430)
 
@@ -476,7 +472,7 @@ IS_OMAP_TYPE(3517, 0x3517)
 						 CHIP_IS_OMAP4430ES2)
 
 #define CHIP_IS_TI81XX			(CHIP_IS_TI816X | CHIP_IS_TI814X | \
-						CHIP_IS_DM385 | CHIP_IS_TI811X)
+						CHIP_IS_DM385)
 
 /*
  * "GE" here represents "greater than or equal to" in terms of ES
