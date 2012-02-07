@@ -1133,10 +1133,15 @@ static unsigned int ahci_dev_classify(struct ata_port *ap)
 	return ata_dev_classify(&tf);
 }
 
+static u32 saved_cmd_slot[4];
+
 static void ahci_fill_cmd_slot(struct ahci_port_priv *pp, unsigned int tag,
 			       u32 opts)
 {
 	dma_addr_t cmd_tbl_dma;
+	volatile u32 *ptr;
+
+	ptr = &(pp->cmd_slot[tag].opts);
 
 	cmd_tbl_dma = pp->cmd_tbl_dma + tag * AHCI_CMD_TBL_SZ;
 
@@ -1144,6 +1149,9 @@ static void ahci_fill_cmd_slot(struct ahci_port_priv *pp, unsigned int tag,
 	pp->cmd_slot[tag].status = 0;
 	pp->cmd_slot[tag].tbl_addr = cpu_to_le32(cmd_tbl_dma & 0xffffffff);
 	pp->cmd_slot[tag].tbl_addr_hi = cpu_to_le32((cmd_tbl_dma >> 16) >> 16);
+
+	saved_cmd_slot[0] = *ptr;
+	dmb();
 }
 
 int ahci_kick_engine(struct ata_port *ap)
