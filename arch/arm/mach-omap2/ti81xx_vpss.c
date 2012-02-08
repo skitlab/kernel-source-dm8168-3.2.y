@@ -35,6 +35,7 @@
 #include <mach/hardware.h>
 #include <mach/board-ti814x.h>
 #include <mach/board-ti816x.h>
+#include <mach/board-dm813x.h>
 #include <asm/mach/map.h>
 
 
@@ -56,10 +57,23 @@ static int __init ti81xx_vpss_init(void)
 	/*FIXME add platform data here*/
 	int r;
 	if (cpu_is_ti816x() || cpu_is_dm385()) {
-		if (cpu_is_dm385())
+		if (cpu_is_dm385()) {
 			vps_pdata.cpu = CPU_DM813X;
-		else
+			/*setup the ths filter functioin*/
+			vps_pdata.pcf_ths_init = dm813x_pcf8575_init;
+			vps_pdata.pcf_ths_exit = dm813x_pcf8575_exit;
+			vps_pdata.pcf_ths_hd_set =
+					dm813x_pcf8575_ths7360_hd_enable;
+			vps_pdata.pcf_ths_sd_set =
+					dm813x_pcf8575_ths7360_sd_enable;
+		} else {
 			vps_pdata.cpu = CPU_DM816X;
+			/*setup the ths filter functioin*/
+			vps_pdata.pcf_ths_init = ti816x_pcf8575_init;
+			vps_pdata.pcf_ths_exit = ti816x_pcf8575_exit;
+			vps_pdata.pcf_ths_hd_set = pcf8575_ths7360_hd_enable;
+			vps_pdata.pcf_ths_sd_set = pcf8575_ths7360_sd_enable;
+		}
 		vps_pdata.numvencs = 4;
 		vps_pdata.vencmask = (1 << VPS_DC_MAX_VENC) - 1;
 	} else if (cpu_is_ti814x()) {
@@ -67,6 +81,11 @@ static int __init ti81xx_vpss_init(void)
 		vps_pdata.numvencs = 3;
 		vps_pdata.vencmask = (1 << VPS_DC_MAX_VENC) - 1 \
 					- VPS_DC_VENC_HDCOMP;
+		/*setup the ths filter functioin*/
+		vps_pdata.pcf_ths_init = ti814x_pcf8575_init;
+		vps_pdata.pcf_ths_exit = ti814x_pcf8575_exit;
+		vps_pdata.pcf_ths_hd_set = NULL;
+		vps_pdata.pcf_ths_sd_set = NULL;
 	}
 
 	vpss_device.dev.platform_data = &vps_pdata;

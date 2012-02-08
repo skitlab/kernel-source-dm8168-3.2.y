@@ -36,7 +36,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
-#include <mach/board-ti814x.h>
 
 #include "core.h"
 #include <mach/capt.h>
@@ -989,10 +988,6 @@ void __exit vps_capt_deinit(struct platform_device *pdev)
 	}
 	num_captctrl = 0;
 	capture_dev = NULL;
-
-	if (cpu_is_ti814x() && (!def_i2cmode))
-		ti814x_pcf8575_exit();
-
 }
 
 int __init vps_capt_init(struct platform_device *pdev)
@@ -1002,9 +997,6 @@ int __init vps_capt_init(struct platform_device *pdev)
 	u32 size = 0;
 	u32 offset = 0;
 	VPSSDBG("cap init\n");
-
-	if (cpu_is_ti814x() && (!def_i2cmode))
-		ti814x_pcf8575_init();
 
 	INIT_LIST_HEAD(&cctrl_list);
 

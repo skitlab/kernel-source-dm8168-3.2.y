@@ -22,49 +22,27 @@
 #define VPS_SEL_TVP7002_DECODER	0
 #define VPS_SEL_SIL9135_DECODER	1
 
-
-enum ti816x_ths_filter_ctrl {
-	TI816X_THSFILTER_ENABLE_MODULE = 0,
-	TI816X_THSFILTER_BYPASS_MODULE,
-	TI816X_THSFILTER_DISABLE_MODULE
-};
-
-/* \brief Enum for selecting filter for component input/output in THS7360 */
-enum ti816x_ths7360_sf_ctrl {
-	TI816X_THS7360_DISABLE_SF = 0,
-	TI816X_THS7360_BYPASS_SF,
-	TI816X_THS7360_SF_SD_MODE,
-	TI816X_THS7360_SF_ED_MODE,
-	TI816X_THS7360_SF_HD_MODE,
-	TI816X_THS7360_SF_TRUE_HD_MODE
-};
-
 #ifdef CONFIG_ARCH_TI816X
-int pcf8575_ths7375_enable(enum ti816x_ths_filter_ctrl ctrl);
-int pcf8575_ths7360_sd_enable(enum ti816x_ths_filter_ctrl ctrl);
-int pcf8575_ths7360_hd_enable(enum ti816x_ths7360_sf_ctrl ctrl);
+int pcf8575_ths7360_sd_enable(enum ti81xx_ths_filter_ctrl ctrl);
+int pcf8575_ths7360_hd_enable(enum ti81xx_ths7360_sf_ctrl ctrl);
 int ti816x_pcf8575_init(void);
 int ti816x_pcf8575_exit(void);
 int vps_ti816x_select_video_decoder(int vid_decoder_id);
 int vps_ti816x_set_tvp7002_filter(enum fvid2_standard standard);
 #else
-int pcf8575_ths7375_enable(enum ti816x_ths_filter_ctrl ctrl)
+static inline int pcf8575_ths7360_sd_enable(enum ti81xx_ths_filter_ctrl ctrl)
 {
 	return 0;
 }
-int pcf8575_ths7360_sd_enable(enum ti816x_ths_filter_ctrl ctrl)
+static inline int pcf8575_ths7360_hd_enable(enum ti81xx_ths7360_sf_ctrl ctrl)
 {
 	return 0;
 }
-int pcf8575_ths7360_hd_enable(enum ti816x_ths7360_sf_ctrl ctrl)
+static inline int ti816x_pcf8575_init(void)
 {
 	return 0;
 }
-int ti816x_pcf8575_init(void)
-{
-	return 0;
-}
-int ti816x_pcf8575_exit(void)
+static inline int ti816x_pcf8575_exit(void)
 {
 	return 0;
 }

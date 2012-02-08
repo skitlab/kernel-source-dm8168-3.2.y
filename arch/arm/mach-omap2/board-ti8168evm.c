@@ -467,7 +467,7 @@ int vps_ti816x_set_tvp7002_filter(enum fvid2_standard standard)
 #endif
 }
 EXPORT_SYMBOL(vps_ti816x_set_tvp7002_filter);
-int pcf8575_ths7375_enable(enum ti816x_ths_filter_ctrl ctrl)
+int pcf8575_ths7375_enable(enum ti81xx_ths_filter_ctrl ctrl)
 {
 	struct i2c_msg msg = {
 			.addr = pcf8575_1_client->addr,
@@ -481,9 +481,8 @@ int pcf8575_ths7375_enable(enum ti816x_ths_filter_ctrl ctrl)
 
 	return i2c_transfer(pcf8575_1_client->adapter, &msg, 1);
 }
-EXPORT_SYMBOL(pcf8575_ths7375_enable);
 
-int pcf8575_ths7360_sd_enable(enum ti816x_ths_filter_ctrl ctrl)
+int pcf8575_ths7360_sd_enable(enum ti81xx_ths_filter_ctrl ctrl)
 {
 	struct i2c_msg msg = {
 		.addr = pcf8575_1_client->addr,
@@ -492,13 +491,13 @@ int pcf8575_ths7360_sd_enable(enum ti816x_ths_filter_ctrl ctrl)
 	};
 	pcf8575_1_port[0] &= ~VPS_THS7360_SD_MASK;
 	switch (ctrl) {
-	case TI816X_THSFILTER_ENABLE_MODULE:
+	case TI81XX_THSFILTER_ENABLE_MODULE:
 		pcf8575_1_port[0] &= ~(VPS_THS7360_SD_MASK);
 		break;
-	case TI816X_THSFILTER_BYPASS_MODULE:
+	case TI81XX_THSFILTER_BYPASS_MODULE:
 		pcf8575_1_port[0] |= VPS_PCF8575_PIN2;
 		break;
-	case TI816X_THSFILTER_DISABLE_MODULE:
+	case TI81XX_THSFILTER_DISABLE_MODULE:
 		pcf8575_1_port[0] |= VPS_THS7360_SD_MASK;
 		break;
 	default:
@@ -508,9 +507,8 @@ int pcf8575_ths7360_sd_enable(enum ti816x_ths_filter_ctrl ctrl)
 	msg.buf = pcf8575_1_port;
 	return i2c_transfer(pcf8575_1_client->adapter, &msg, 1);
 }
-EXPORT_SYMBOL(pcf8575_ths7360_sd_enable);
 
-int pcf8575_ths7360_hd_enable(enum ti816x_ths7360_sf_ctrl ctrl)
+int pcf8575_ths7360_hd_enable(enum ti81xx_ths7360_sf_ctrl ctrl)
 {
 	int ret_val;
 	struct i2c_msg msg = {
@@ -521,22 +519,22 @@ int pcf8575_ths7360_hd_enable(enum ti816x_ths7360_sf_ctrl ctrl)
 
 	pcf8575_1_port[0] &= ~VPS_THS7360_SF_MASK;
 	switch (ctrl) {
-	case TI816X_THS7360_DISABLE_SF:
+	case TI81XX_THS7360_DISABLE_SF:
 		pcf8575_1_port[0] |= VPS_PCF8575_PIN4;
 		break;
-	case TI816X_THS7360_BYPASS_SF:
+	case TI81XX_THS7360_BYPASS_SF:
 		pcf8575_1_port[0] |= VPS_PCF8575_PIN3;
 		break;
-	case TI816X_THS7360_SF_SD_MODE:
+	case TI81XX_THS7360_SF_SD_MODE:
 		pcf8575_1_port[0] &= ~(VPS_THS7360_SF_MASK);
 		break;
-	case TI816X_THS7360_SF_ED_MODE:
+	case TI81XX_THS7360_SF_ED_MODE:
 		pcf8575_1_port[0] |= VPS_PCF8575_PIN0;
 		break;
-	case TI816X_THS7360_SF_HD_MODE:
+	case TI81XX_THS7360_SF_HD_MODE:
 		pcf8575_1_port[0] |= VPS_PCF8575_PIN1;
 		break;
-	case TI816X_THS7360_SF_TRUE_HD_MODE:
+	case TI81XX_THS7360_SF_TRUE_HD_MODE:
 		pcf8575_1_port[0] |= VPS_PCF8575_PIN0|VPS_PCF8575_PIN1;
 		break;
 	default:
@@ -548,7 +546,6 @@ int pcf8575_ths7360_hd_enable(enum ti816x_ths7360_sf_ctrl ctrl)
 	return ret_val;
 
 }
-EXPORT_SYMBOL(pcf8575_ths7360_hd_enable);
 
 static int pcf8575_video_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
@@ -590,14 +587,13 @@ int ti816x_pcf8575_init(void)
 	i2c_add_driver(&pcf8575_driver);
 	return 0;
 }
-EXPORT_SYMBOL(ti816x_pcf8575_init);
 
 int ti816x_pcf8575_exit(void)
 {
 	i2c_del_driver(&pcf8575_driver);
 	return 0;
 }
-EXPORT_SYMBOL(ti816x_pcf8575_exit);
+
 /* FIX ME: Check on the Bit Value */
 
 #define TI816X_EVM_CIR_UART BIT(5)

@@ -285,6 +285,138 @@ static struct i2c_board_info __initdata ti814x_i2c_boardinfo[] = {
 	},
 };
 
+static struct i2c_board_info __initdata dm813x_i2c_boardinfo1[] = {
+	{
+		I2C_BOARD_INFO("pcf8575_1_dm813x", 0x20),
+	},
+
+};
+
+static const struct i2c_device_id pcf8575_video_id[] = {
+	{ "pcf8575_1_dm813x", 0 },
+	{ }
+};
+static struct i2c_client *pcf8575_1_client;
+static unsigned char pcf8575_1_port[2] = {0x4F, 0x7F};
+
+#define VPS_PCF8575_PIN0                (0x10)
+#define VPS_PCF8575_PIN1                (0x20)
+#define VPS_PCF8575_PIN2                (0x4)
+#define VPS_PCF8575_PIN3                (0x8)
+#define VPS_PCF8575_PIN4                (0x2)
+#define VPS_PCF8575_PIN5                (0x1)
+#define VPS_PCF8575_PIN6                (0x40)
+#define VPS_PCF8575_PIN7                (0x80)
+
+#define VPS_PCF8575_PIN10               (0x1)
+#define VPS_PCF8575_PIN11               (0x2)
+
+#define VPS_THS7375_MASK                (VPS_PCF8575_PIN10 | VPS_PCF8575_PIN11)
+
+#define VPS_THS7360_SD_MASK             (VPS_PCF8575_PIN2 | VPS_PCF8575_PIN5)
+
+#define VPS_THS7360_SF_MASK             (VPS_PCF8575_PIN0 |                    \
+					VPS_PCF8575_PIN1 |                    \
+					VPS_PCF8575_PIN3 |                    \
+					VPS_PCF8575_PIN4)
+int dm813x_pcf8575_ths7360_sd_enable(enum ti81xx_ths_filter_ctrl ctrl)
+{
+	struct i2c_msg msg = {
+		.addr = pcf8575_1_client->addr,
+		.flags = 0,
+		.len = 2,
+	};
+	pcf8575_1_port[0] &= ~VPS_THS7360_SD_MASK;
+	switch (ctrl) {
+	case TI81XX_THSFILTER_ENABLE_MODULE:
+		pcf8575_1_port[0] &= ~(VPS_THS7360_SD_MASK);
+		break;
+	case TI81XX_THSFILTER_BYPASS_MODULE:
+		pcf8575_1_port[0] |= VPS_PCF8575_PIN2;
+		break;
+	case TI81XX_THSFILTER_DISABLE_MODULE:
+		pcf8575_1_port[0] |= VPS_THS7360_SD_MASK;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	msg.buf = pcf8575_1_port;
+	return i2c_transfer(pcf8575_1_client->adapter, &msg, 1);
+}
+
+int dm813x_pcf8575_ths7360_hd_enable(enum ti81xx_ths7360_sf_ctrl ctrl)
+{
+	int ret_val;
+	struct i2c_msg msg = {
+		.addr = pcf8575_1_client->addr,
+		.flags = 0,
+		.len = 2,
+	};
+
+	pcf8575_1_port[0] &= ~VPS_THS7360_SF_MASK;
+	switch (ctrl) {
+	case TI81XX_THS7360_DISABLE_SF:
+		pcf8575_1_port[0] |= VPS_PCF8575_PIN4;
+		break;
+	case TI81XX_THS7360_BYPASS_SF:
+		pcf8575_1_port[0] |= VPS_PCF8575_PIN3;
+		break;
+	case TI81XX_THS7360_SF_SD_MODE:
+		pcf8575_1_port[0] &= ~(VPS_THS7360_SF_MASK);
+		break;
+	case TI81XX_THS7360_SF_ED_MODE:
+		pcf8575_1_port[0] |= VPS_PCF8575_PIN0;
+		break;
+	case TI81XX_THS7360_SF_HD_MODE:
+		pcf8575_1_port[0] |= VPS_PCF8575_PIN1;
+		break;
+	case TI81XX_THS7360_SF_TRUE_HD_MODE:
+		pcf8575_1_port[0] |= VPS_PCF8575_PIN0|VPS_PCF8575_PIN1;
+		break;
+	default:
+		return -EINVAL;
+	}
+	msg.buf = pcf8575_1_port;
+
+	ret_val = i2c_transfer(pcf8575_1_client->adapter, &msg, 1);
+	return ret_val;
+
+}
+static int pcf8575_video_probe(struct i2c_client *client,
+				const struct i2c_device_id *id)
+{
+	pcf8575_1_client = client;
+	return 0;
+}
+
+static int __devexit pcf8575_video_remove(struct i2c_client *client)
+{
+	pcf8575_1_client = NULL;
+	return 0;
+}
+
+static struct i2c_driver pcf8575_driver = {
+	.driver = {
+		.name   = "pcf8575_1_dm813x",
+	},
+	.probe          = pcf8575_video_probe,
+	.remove         = pcf8575_video_remove,
+	.id_table       = pcf8575_video_id,
+};
+
+int dm813x_pcf8575_init(void)
+{
+	i2c_add_driver(&pcf8575_driver);
+	return 0;
+}
+
+int dm813x_pcf8575_exit(void)
+{
+	i2c_del_driver(&pcf8575_driver);
+	return 0;
+}
+
 static void __init ti814x_tsc_init(void)
 {
 	int error;
@@ -311,6 +443,9 @@ static void __init ti814x_evm_i2c_init(void)
 	 */
 	omap_register_i2c_bus(1, 100, ti814x_i2c_boardinfo,
 				ARRAY_SIZE(ti814x_i2c_boardinfo));
+	omap_register_i2c_bus(3, 100, dm813x_i2c_boardinfo1,
+				ARRAY_SIZE(dm813x_i2c_boardinfo1));
+
 }
 
 static u8 dm385_iis_serializer_direction[] = {

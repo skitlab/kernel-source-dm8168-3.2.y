@@ -38,10 +38,30 @@ enum ti81xx_cpu {
 	CPU_MAX = 0xFFFFFFFF
 };
 
+enum ti81xx_ths_filter_ctrl {
+	TI81XX_THSFILTER_ENABLE_MODULE = 0,
+	TI81XX_THSFILTER_BYPASS_MODULE,
+	TI81XX_THSFILTER_DISABLE_MODULE
+};
+
+/* \brief Enum for selecting filter for component input/output in THS7360 */
+enum ti81xx_ths7360_sf_ctrl {
+	TI81XX_THS7360_DISABLE_SF = 0,
+	TI81XX_THS7360_BYPASS_SF,
+	TI81XX_THS7360_SF_SD_MODE,
+	TI81XX_THS7360_SF_ED_MODE,
+	TI81XX_THS7360_SF_HD_MODE,
+	TI81XX_THS7360_SF_TRUE_HD_MODE
+};
+
 struct vps_platform_data {
 	enum ti81xx_cpu cpu;
 	u32             numvencs;
 	u32             vencmask;
+	int (*pcf_ths_init)(void);
+	int (*pcf_ths_exit)(void);
+	int (*pcf_ths_hd_set)(u32 mode);
+	int (*pcf_ths_sd_set)(u32 ctrl);
 };
 
 /*structure for graphics pipeline*/
