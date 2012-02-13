@@ -390,7 +390,7 @@ void __init ti81xx_check_revision(void)
 			strcpy(cpu_rev, "2.0");
 		}
 
-		omap3_features |= OMAP3_HAS_DSP;
+		omap3_features |= OMAP3_HAS_DSP | OMAP3_HAS_IVA;
 		pr_info("OMAP chip is TI8168 %s\n", cpu_rev);
 		return;
 	} else if ((partnum == 0xb8f2)) {
@@ -408,7 +408,7 @@ void __init ti81xx_check_revision(void)
 			strcpy(cpu_rev, "2.0");
 		}
 
-		omap3_features |= OMAP3_HAS_DSP;
+		omap3_features |= OMAP3_HAS_DSP | OMAP3_HAS_IVA;
 		pr_info("OMAP chip is TI8148 %s\n", cpu_rev);
 		return;
 	} else if ((partnum == 0xb96b)) {
@@ -422,7 +422,22 @@ void __init ti81xx_check_revision(void)
 			strcpy(cpu_rev, "1.0");
 		}
 
+		omap3_features |= OMAP3_HAS_IVA;
 		pr_info("OMAP chip is DM385 %s\n", cpu_rev);
+		return;
+	} else if ((partnum == 0xb968)) {
+		omap_chip.oc |= CHIP_IS_TI811X;
+
+		switch (rev) {
+		case 0:
+			/* FALLTHROUGH */
+		default:
+			omap_revision = TI8148_REV_ES1_0;
+			strcpy(cpu_rev, "1.0");
+		}
+
+		omap3_features |= OMAP3_HAS_DSP;
+		pr_info("OMAP chip is TI811X %s\n", cpu_rev);
 		return;
 	}
 
