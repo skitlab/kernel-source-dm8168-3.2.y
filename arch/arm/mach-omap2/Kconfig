@@ -331,6 +331,11 @@ config MACH_DM385EVM
 	default y
 	depends on ARCH_TI814X
 
+config MACH_TI811XEVM
+	bool "TI811X Evaluation Module"
+	default y
+	depends on ARCH_TI814X
+
 config MACH_TI8168EVM
 	bool "TI8168 Evaluation Module"
 	default y
