@@ -211,6 +211,13 @@
 #define TI814X_CPTS_RFT_SHIFT				1
 #define TI814X_CPTS_RFT_MASK				(7 << 1)
 
+/* TI811X specific muxes */
+#define TI811X_GMAC_125_MUX_SHIFT			16
+#define TI811X_GMAC_125_MUX_MASK			(1 << 16)
+
+#define TI811X_GMAC_50_MUX_SHIFT			17
+#define TI811X_GMAC_50_MUX_MASK				(1 << 17)
+
 /* GMAC ECO MUX CLKSRC SELECT */
 #define TI814X_GMAC_GMII_MUX_SHIFT			4
 #define TI814X_GMAC_GMII_MUX_MASK			(3 << 4)
@@ -232,6 +239,14 @@
 /* Select WDT0_CLKSRC */
 #define TI814X_WDT0_SHIFT				0
 #define TI814X_WDT0_MASK				(1 << 0)
+
+/* Select DUCATI_MUX_SRC */
+#define TI811X_DUCATI_CLKSEL_SHIFT			0
+#define TI811X_DUCATI_CLKSEL_MASK			(3 << 0)
+
+/* Select DSS_MUX_SRC */
+#define TI811X_DSS_CLKSEL_SHIFT				0
+#define TI811X_DSS_CLKSEL_MASK				(3 << 0)
 
 /* Select EMIF_CLK_GATE */
 #define TI814X_EMIFSS_CLK_GATE_SHIFT			0
