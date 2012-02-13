@@ -359,7 +359,7 @@ struct clk {
 	u8			enable_bit;
 	s8			usecount;
 	u8			fixed_div;
-	u8			flags;
+	u16			flags;
 #ifdef CONFIG_ARCH_OMAP2PLUS
 	void __iomem		*clksel_reg;
 	u32			clksel_mask;
