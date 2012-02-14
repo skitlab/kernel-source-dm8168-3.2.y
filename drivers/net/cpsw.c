@@ -2816,13 +2816,13 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 	dma_params.rxfree		= (void __iomem *)(((u32)priv->regs) +
 						data->cpdma_reg_ofs + 0x0e0);
 	dma_params.txhdp		= (void __iomem *)(((u32)priv->regs) +
-						data->cpdma_reg_ofs + 0x100);
+						data->cpdma_sram_ofs);
 	dma_params.rxhdp		= (void __iomem *)(((u32)priv->regs) +
-						data->cpdma_reg_ofs + 0x120);
+						data->cpdma_sram_ofs + 0x020);
 	dma_params.txcp			= (void __iomem *)(((u32)priv->regs) +
-						data->cpdma_reg_ofs + 0x140);
+						data->cpdma_sram_ofs + 0x040);
 	dma_params.rxcp			= (void __iomem *)(((u32)priv->regs) +
-						data->cpdma_reg_ofs + 0x160);
+						data->cpdma_sram_ofs + 0x060);
 	dma_params.num_chan		= data->channels;
 	dma_params.has_soft_reset	= true;
 	dma_params.min_packet_size	= CPSW_MIN_PACKET_SIZE;

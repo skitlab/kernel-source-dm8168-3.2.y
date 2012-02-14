@@ -2148,6 +2148,7 @@ static struct cpsw_platform_data ti814x_cpsw_pdata = {
 	.ss_reg_ofs		= 0x900,
 	.channels		= 8,
 	.cpdma_reg_ofs		= 0x100,
+	.cpdma_sram_ofs         = 0x200,
 	.slaves			= 2,
 	.slave_data		= cpsw_slaves,
 	.ale_reg_ofs		= 0x600,

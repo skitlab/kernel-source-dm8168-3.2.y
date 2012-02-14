@@ -16,6 +16,7 @@ struct cpsw_platform_data {
 	u32	ss_reg_ofs;	/* Subsystem control register offset */
 	int	channels;	/* number of cpdma channels (symmetric) */
 	u32	cpdma_reg_ofs;	/* cpdma register offset */
+	u32     cpdma_sram_ofs; /* cpdma sram offset */
 
 	int	slaves;		/* number of slave cpgmac ports */
 	struct cpsw_slave_data	*slave_data;
