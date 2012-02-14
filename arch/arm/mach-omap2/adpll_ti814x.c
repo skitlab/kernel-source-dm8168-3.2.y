@@ -651,7 +651,7 @@ int ti814x_dpll_enable(struct clk *clk)
 	v = __raw_readl(dd->control_reg);
 	v |= (dd->enable_mask);
 	__raw_writel(v, dd->control_reg);
-	
+
 	/* Check if DPLL is disabled before
 	 * If yes, DPLL will be in  LOW POWERMODE, bringout of LP */
 	v = (__raw_readl(dd->idlest_reg) &
@@ -723,8 +723,17 @@ static int ti814x_dpll_program(struct clk *clk, u16 m, u32 frac_m, u8 n,
 
 	if (!dd)
 		return -EINVAL;
-	if (enterbypass)
+	if (enterbypass) {
+		ret = _ti814x_dpll_bypass(clk);
+		if (ret) {
+			pr_err("set_rate: for %s :PLL could not enter"
+						" bypass mode\n", clk->name);
+			return -EBUSY;
+		} else
+			pr_debug("PLL entered bypass %s\n", clk->name);
+
 		_ti814x_dpll_init_config_sequence(clk);
+	}
 
 	/* Set DPLL multiplier (m)*/
 	v = __raw_readl(dd->mult_div1_reg);
@@ -863,6 +872,7 @@ int ti814x_dpll_set_rate(struct clk *clk, unsigned long rate)
 	struct dpll_data *dd;
 	int ret;
 	unsigned long currate;
+	unsigned long  diff, sc_rate;
 	bool enterbyp = true;
 
 	if (!clk || !rate)
@@ -902,7 +912,15 @@ int ti814x_dpll_set_rate(struct clk *clk, unsigned long rate)
 
 		pr_debug("clock: %s: set rate: locking rate to %lu.\n",
 			clk->name, dd->last_rounded_rate);
-		if ((abs(dd->last_rounded_rate - currate)*100/currate) < 3)
+
+		/* enter bypass mode only if the change is greater than or
+		 * equal to 3% of current rate
+		 * divide  rates by 1000  to prevent overflow
+		 */
+		diff = abs(dd->last_rounded_rate/1000 - currate/1000);
+		sc_rate = currate/1000;
+
+		if ((diff*100/sc_rate) < 3)
 			enterbyp = false;
 
 		ret = ti814x_dpll_program(clk,
