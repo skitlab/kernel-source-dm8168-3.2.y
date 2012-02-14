@@ -29,7 +29,7 @@ static struct powerdomain alwon_81xx_pwrdm = {
 	.name		  = "alwon_pwrdm",
 	.prcm_offs	  = TI81XX_PRM_ALWON_MOD,
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X |
-					   CHIP_IS_DM385),
+					CHIP_IS_DM385 | CHIP_IS_TI811X),
 };
 
 /*
@@ -39,7 +39,7 @@ static struct powerdomain alwon_81xx_pwrdm = {
 static struct powerdomain gem_814x_pwrdm = {
 	.name		= "gem_pwrdm",
 	.prcm_offs	= TI814X_PRM_DSP_MOD,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X | CHIP_IS_TI811X),
 	.pwrsts		= PWRSTS_OFF_ON,
 };
 
@@ -53,14 +53,15 @@ static struct powerdomain ivahd_814x_pwrdm = {
 static struct powerdomain hdvpss_814x_pwrdm = {
 	.name		= "hdvpss_pwrdm",
 	.prcm_offs	= TI814X_PRM_HDVPSS_MOD,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X | CHIP_IS_DM385),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X | CHIP_IS_DM385 |
+					CHIP_IS_TI811X),
 	.pwrsts		= PWRSTS_OFF_ON,
 };
 
 static struct powerdomain sgx_814x_pwrdm = {
 	.name		= "sgx_pwrdm",
 	.prcm_offs	= TI814X_PRM_GFX_MOD,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X | CHIP_IS_TI811X),
 	.pwrsts		= PWRSTS_OFF_ON,
 };
 
@@ -69,6 +70,12 @@ static struct powerdomain isp_814x_pwrdm = {
 	.prcm_offs	= TI814X_PRM_ISP_MOD,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI814X | CHIP_IS_DM385),
 	.pwrsts		= PWRSTS_OFF_ON,
+};
+
+/* TI811X only */
+static struct powerdomain rtc_811x_pwrdm = {
+	.name		= "rtc_pwrdm",
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI811X),
 };
 
 /*

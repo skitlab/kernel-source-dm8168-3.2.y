@@ -302,6 +302,7 @@ static struct powerdomain *powerdomains_ti81xx[] __initdata = {
 	&ivahd1_816x_pwrdm,
 	&ivahd2_816x_pwrdm,
 	&sgx_816x_pwrdm,
+	&rtc_811x_pwrdm,
 #endif
 	NULL
 };
