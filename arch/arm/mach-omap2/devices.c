@@ -2575,7 +2575,8 @@ static struct platform_device ti81xx_mcasp_device = {
 
 void __init ti81xx_register_mcasp(int id, struct snd_platform_data *pdata)
 {
-	if (machine_is_ti8168evm() || machine_is_ti8148evm()) {
+	if (machine_is_ti8168evm() || machine_is_ti8148evm()
+				|| machine_is_ti811xevm()) {
 		ti81xx_mcasp_device.id = 2;
 		ti81xx_mcasp_device.resource = ti81xx_mcasp_resource;
 		ti81xx_mcasp_device.num_resources = ARRAY_SIZE(ti81xx_mcasp_resource);
