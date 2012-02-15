@@ -90,6 +90,15 @@ static struct multiproc_module_object ti81xx_multiproc_state = {
 	.id = MULTIPROC_INVALIDID
 };
 
+static struct multiproc_module_object ti813x_multiproc_state = {
+	.def_cfg.num_processors = 3,
+	.def_cfg.name_list[0] = "VIDEO-M3",
+	.def_cfg.name_list[1] = "VPSS-M3",
+	.def_cfg.name_list[2] = "HOST",
+	.def_cfg.id = 2,
+	.id = MULTIPROC_INVALIDID
+};
+
 /*
  * ========= multiproc_module =========
  *  Pointer to the MultiProc module state.
@@ -123,7 +132,9 @@ void multiproc_get_config(struct multiproc_config *cfg)
 			src = &(omap3_multiproc_state.def_cfg);
 		else if (cpu_is_omap443x())
 			src = &(omap4_multiproc_state.def_cfg);
-		else if (cpu_is_ti81xx())
+		else if (cpu_is_dm385())
+			src = &(ti813x_multiproc_state.def_cfg);
+		else if (cpu_is_ti816x() || cpu_is_ti814x())
 			src = &(ti81xx_multiproc_state.def_cfg);
 		else
 			pr_err("multiproc is not supported on this platform\n");
@@ -152,7 +163,9 @@ s32 multiproc_setup(struct multiproc_config *cfg)
 			multiproc_module = &omap3_multiproc_state;
 		else if	(cpu_is_omap443x())
 			multiproc_module = &omap4_multiproc_state;
-		else if (cpu_is_ti81xx())
+		else if (cpu_is_dm385())
+			multiproc_module = &ti813x_multiproc_state;
+		else if (cpu_is_ti816x() || cpu_is_ti814x())
 			multiproc_module = &ti81xx_multiproc_state;
 		else {
 			pr_err("multiproc is not supported on this platform\n");
