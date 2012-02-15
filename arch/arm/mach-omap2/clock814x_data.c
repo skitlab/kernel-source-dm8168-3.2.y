@@ -4598,13 +4598,21 @@ void _update_data_for_ti811x(void)
 
 	/* gptimer no of inputs and sources changed */
 	gpt1_fck.clksel		= gpt0to7_fclk_mux_811x_sel;
+	gpt1_fck.clksel_mask	= TI811X_DMTIMER1_CLKS_MASK;
 	gpt2_fck.clksel		= gpt0to7_fclk_mux_811x_sel;
+	gpt2_fck.clksel_mask	= TI811X_DMTIMER2_CLKS_MASK;
 	gpt3_fck.clksel		= gpt0to7_fclk_mux_811x_sel;
+	gpt3_fck.clksel_mask	= TI811X_DMTIMER3_CLKS_MASK;
 	gpt4_fck.clksel		= gpt0to7_fclk_mux_811x_sel;
+	gpt4_fck.clksel_mask	= TI811X_DMTIMER4_CLKS_MASK;
 	gpt5_fck.clksel		= gpt0to7_fclk_mux_811x_sel;
+	gpt5_fck.clksel_mask	= TI811X_DMTIMER5_CLKS_MASK;
 	gpt6_fck.clksel		= gpt0to7_fclk_mux_811x_sel;
+	gpt6_fck.clksel_mask	= TI811X_DMTIMER6_CLKS_MASK;
 	gpt7_fck.clksel		= gpt0to7_fclk_mux_811x_sel;
+	gpt7_fck.clksel_mask	= TI811X_DMTIMER7_CLKS_MASK;
 	gpt8_fck.clksel		= gpt0to7_fclk_mux_811x_sel;
+	gpt8_fck.clksel_mask	= TI811X_DMTIMER8_CLKS_MASK;
 
 	clkout_prcm_mux_ck.clksel	= clkout0to3_811x_mux_sel;
 	sys_clkout1.clksel		= clkout0to10_811x_mux_sel;
