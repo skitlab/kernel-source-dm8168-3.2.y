@@ -2285,12 +2285,23 @@ void ti814x_cpsw_init(void)
 #if 0
 	ti814x_cpsw_mux();
 #endif
-	if (cpu_is_dm385() || (cpu_is_ti814x() &&
-			      omap_rev() > TI8148_REV_ES1_0)) {
-		cpsw_slaves[0].phy_id = "0:00";
-		cpsw_slaves[1].phy_id = "0:01";
-	} else
+	if (!(cpu_is_ti811x() || cpu_is_dm385() ||
+			(cpu_is_ti814x() && omap_rev() > TI8148_REV_ES1_0)))
 		cpsw_slaves[0].phy_id = "0:01";
+
+	if (cpu_is_ti811x()) {
+		cpsw_slaves[0].slave_reg_ofs		= 0x208;
+		cpsw_slaves[0].sliver_reg_ofs		= 0xd80;
+		cpsw_slaves[1].slave_reg_ofs		= 0x308;
+		cpsw_slaves[1].sliver_reg_ofs		= 0xdc0;
+
+		ti814x_cpsw_pdata.ss_reg_ofs		= 0x1200;
+		ti814x_cpsw_pdata.cpdma_reg_ofs		= 0x800;
+		ti814x_cpsw_pdata.cpdma_sram_ofs	= 0xa00;
+		ti814x_cpsw_pdata.ale_reg_ofs		= 0xd00;
+		ti814x_cpsw_pdata.host_port_reg_ofs	= 0x108;
+		ti814x_cpsw_pdata.hw_stats_reg_ofs	= 0x900;
+	}
 
 	platform_device_register(&cpsw_mdio_device);
 	platform_device_register(&ti814x_cpsw_device);
