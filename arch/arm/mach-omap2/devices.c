@@ -2121,7 +2121,9 @@ static void ti814x_nor_init(void)
 #ifdef CONFIG_ARCH_TI814X
 #define TI814X_CPSW_BASE		(0x4A100000)
 #define TI814X_CPSW_MDIO_BASE		(0x4A100800)
+#define TI811X_CPSW_MDIO_BASE		(0x4A101000)
 #define	TI814X_CPSW_SS_BASE		(0x4A100900)
+#define	TI811X_CPSW_SS_BASE		(0x4A101200)
 #define TI814X_EMAC_MDIO_FREQ		(1000000)
 /* Port Vlan IDs for Dual Mac Mode */
 #define CPSW_PORT_VLAN_SLAVE_0		2
@@ -2301,6 +2303,14 @@ void ti814x_cpsw_init(void)
 		ti814x_cpsw_pdata.ale_reg_ofs		= 0xd00;
 		ti814x_cpsw_pdata.host_port_reg_ofs	= 0x108;
 		ti814x_cpsw_pdata.hw_stats_reg_ofs	= 0x900;
+
+		cpsw_mdio_resources[0].start	= TI811X_CPSW_MDIO_BASE;
+		cpsw_mdio_resources[0].end	= TI811X_CPSW_MDIO_BASE
+						  + SZ_256 - 1;
+
+		ti814x_cpsw_resources[1].start  = TI811X_CPSW_SS_BASE;
+		ti814x_cpsw_resources[1].end    = TI811X_CPSW_SS_BASE
+						  + SZ_256 - 1;
 	}
 
 	platform_device_register(&cpsw_mdio_device);
