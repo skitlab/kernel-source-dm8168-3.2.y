@@ -456,8 +456,8 @@ static u8 ti811x_iis_serializer_direction[] = {
 };
 
 static struct snd_platform_data ti811x_evm_snd_data = {
-	.tx_dma_offset	= 0x46400000,
-	.rx_dma_offset	= 0x46400000,
+	.tx_dma_offset	= 0x46800000,
+	.rx_dma_offset	= 0x46800000,
 	.op_mode	= DAVINCI_MCASP_IIS_MODE,
 	.num_serializer = ARRAY_SIZE(ti811x_iis_serializer_direction),
 	.tdm_slots	= 2,
