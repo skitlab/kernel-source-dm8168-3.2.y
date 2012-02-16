@@ -828,7 +828,8 @@ static struct omap_hwmod ti816x_i2c2_hwmod = {
 	.slaves         = ti816x_i2c2_slaves,
 	.slaves_cnt     = ARRAY_SIZE(ti816x_i2c2_slaves),
 	.class          = &i2c_class,
-	.omap_chip      = OMAP_CHIP_INIT(CHIP_IS_TI816X),
+	.omap_chip      = OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X |
+					CHIP_IS_DM385),
 };
 /* I2C3 */
 static struct omap_hwmod_irq_info i2c3_mpu_irqs[] = {
