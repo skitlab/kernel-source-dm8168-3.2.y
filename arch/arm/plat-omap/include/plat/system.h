@@ -19,7 +19,7 @@ extern void voiceblue_reset(void);
 
 static inline void arch_idle(void)
 {
-	if (!cpu_is_ti814x() || cpu_is_dm385() || (omap_rev() > TI8148_REV_ES1_0))
+	if (!cpu_is_ti814x() || (omap_rev() > TI8148_REV_ES1_0))
 		cpu_do_idle();
 }
 
