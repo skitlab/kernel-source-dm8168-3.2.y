@@ -74,14 +74,14 @@ static inline u32 usbss_read(u32 offset)
 {
 	if (!usbss_init_done)
 		return 0;
-	return __raw_readl(usbss_virt_base + offset);
+	return readl(usbss_virt_base + offset);
 }
 
 static inline void usbss_write(u32 offset, u32 data)
 {
 	if (!usbss_init_done)
 		return ;
-	__raw_writel(data, usbss_virt_base + offset);
+	writel(data, usbss_virt_base + offset);
 }
 
 static void usbotg_ss_init(void)
@@ -162,7 +162,7 @@ u16 ti81xx_musb_readw(const void __iomem *addr, unsigned offset)
 	u32 tmp;
 	u16 val;
 
-	tmp = __raw_readl(addr + (offset & ~3));
+	tmp = readl(addr + (offset & ~3));
 
 	switch (offset & 0x3) {
 	case 0:
@@ -182,7 +182,7 @@ u16 ti81xx_musb_readw(const void __iomem *addr, unsigned offset)
 
 void ti81xx_musb_writew(void __iomem *addr, unsigned offset, u16 data)
 {
-	__raw_writew(data, addr + offset);
+	writew(data, addr + offset);
 }
 
 u8 ti81xx_musb_readb(const void __iomem *addr, unsigned offset)
@@ -190,7 +190,7 @@ u8 ti81xx_musb_readb(const void __iomem *addr, unsigned offset)
 	u32 tmp;
 	u8 val;
 
-	tmp = __raw_readl(addr + (offset & ~3));
+	tmp = readl(addr + (offset & ~3));
 
 	switch (offset & 0x3) {
 	case 0:
@@ -211,7 +211,7 @@ u8 ti81xx_musb_readb(const void __iomem *addr, unsigned offset)
 }
 void ti81xx_musb_writeb(void __iomem *addr, unsigned offset, u8 data)
 {
-	__raw_writeb(data, addr + offset);
+	writeb(data, addr + offset);
 }
 
 #ifdef CONFIG_USB_TI_CPPI41_DMA
@@ -1366,8 +1366,8 @@ static int __init ti81xx_probe(struct platform_device *pdev)
 	usbotg_ss_init();
 
 	/* clear any USBSS interrupts */
-	__raw_writel(0, glue->mem_va + USBSS_IRQ_EOI);
-	__raw_writel(__raw_readl(glue->mem_va + USBSS_IRQ_STATUS),
+	writel(0, glue->mem_va + USBSS_IRQ_EOI);
+	writel(readl(glue->mem_va + USBSS_IRQ_STATUS),
 					glue->mem_va + USBSS_IRQ_STATUS);
 
 	/* create the child platform device for mulitple instances of musb */
