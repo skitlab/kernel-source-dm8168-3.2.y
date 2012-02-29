@@ -23,6 +23,8 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 
+#include <asm/mach-types.h>
+
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -462,6 +464,18 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		mcasp_clr_bits(base + DAVINCI_MCASP_RXFMCTL_REG, AFSRE);
 
 		mcasp_clr_bits(base + DAVINCI_MCASP_PDIR_REG, (0x3f << 26));
+
+		/* TI811x AIC_MCLK <-- McASP2_AHCLKX(Pin out) */
+		switch (dev->clk_input_pin) {
+		case MCASP_AHCLKX_IN:
+			mcasp_clr_bits(base + DAVINCI_MCASP_PDIR_REG, AHCLKX);
+			break;
+		case MCASP_AHCLKX_OUT:
+			mcasp_set_bits(base + DAVINCI_MCASP_PDIR_REG, AHCLKX);
+			break;
+		default:
+			return -EINVAL;
+		}
 		break;
 
 	default:
@@ -907,6 +921,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	dev->version = pdata->version;
 	dev->txnumevt = pdata->txnumevt;
 	dev->rxnumevt = pdata->rxnumevt;
+	dev->clk_input_pin = pdata->clk_input_pin;
 
 	dma_data = &dev->dma_params[SNDRV_PCM_STREAM_PLAYBACK];
 	dma_data->asp_chan_q = pdata->asp_chan_q;

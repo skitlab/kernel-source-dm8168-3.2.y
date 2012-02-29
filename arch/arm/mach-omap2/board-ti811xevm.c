@@ -466,6 +466,8 @@ static struct snd_platform_data ti811x_evm_snd_data = {
 	.version	= MCASP_VERSION_2,
 	.txnumevt	= 1,
 	.rxnumevt	= 1,
+	/* McASP2_AHCLKX out to feed CODEC CLK*/
+	.clk_input_pin	= MCASP_AHCLKX_OUT,
 };
 
 /* NOR Flash partitions */

@@ -2591,6 +2591,8 @@ void __init ti81xx_register_mcasp(int id, struct snd_platform_data *pdata)
 		return;
 	}
 
+	/* TI811x AIC_MCLK is connected to SoC pin MCA2_AHCLKX */
+	//omap_mux_init_signal("xref_clk2.mcasp2_ahclkx", 0);
 	ti81xx_mcasp_device.dev.platform_data = pdata;
 	platform_device_register(&ti81xx_mcasp_device);
 }

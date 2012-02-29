@@ -47,6 +47,20 @@ struct snd_platform_data {
 	unsigned enable_channel_combine:1;
 	unsigned sram_size_playback;
 	unsigned sram_size_capture;
+	/*
+	 * If McBSP peripheral gets the clock from an external pin,
+	 * there are three chooses, that are MCBSP_CLKX, MCBSP_CLKR
+	 * and MCBSP_CLKS.
+	 * Depending on different hardware connections it is possible
+	 * to use this setting to change the behaviour of McBSP
+	 * driver. The dm365_clk_input_pin enum is available for dm365
+	 *
+	 * Codec clock can drive from the MCA_AHCLKX output
+	 * This needs the McASP pin direction configurations
+	 * as output and the soc pin-mux.This can be used to
+	 * configure the McASP driver PIN_DIR
+	 */
+	int clk_input_pin;
 
 	/* McASP specific fields */
 	int tdm_slots;
@@ -63,6 +77,16 @@ enum {
 	MCASP_VERSION_2,	/* DA8xx/OMAPL1x/DM81xx */
 };
 
+/*
+ * codec clock drive from the AHCLKX out from the SoC
+ * This need the McASP pin direction configurations
+ * as out put and the soc pin-mux.This can be used to
+ * configure the McASP driver PIN_DIR
+ */
+enum ti81xx_clk_input_pin {
+	MCASP_AHCLKX_IN = 0,	/*TI81XX*/
+	MCASP_AHCLKX_OUT,
+};
 #define INACTIVE_MODE	0
 #define TX_MODE		1
 #define RX_MODE		2

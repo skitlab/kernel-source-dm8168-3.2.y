@@ -60,6 +60,14 @@ struct davinci_audio_dev {
 	/* McASP FIFO related */
 	u8	txnumevt;
 	u8	rxnumevt;
+
+	/*
+	 * codec clock drive from the AHCLKX out from the SoC
+	 * This need the McASP pin direction configurations
+	 * as out put and the soc pin-mux.This can be used to
+	 * configure the McASP driver PIN_DIR
+	 */
+	int clk_input_pin;
 };
 
 #endif	/* DAVINCI_MCASP_H */

@@ -64,9 +64,12 @@ static int evm_hw_params(struct snd_pcm_substream *substream,
 				machine_is_davinci_da850_evm() ||
 				machine_is_ti8168evm() ||
 				machine_is_ti8148evm() ||
-				machine_is_dm385evm()  || 
-				machine_is_ti811xevm())
+				machine_is_dm385evm())
 		sysclk = 24576000;
+
+	/*TI811x use OSC1 22.5792MHz*/
+	else if (machine_is_ti811xevm())
+		sysclk = 22579200;
 
 	else
 		return -EINVAL;
