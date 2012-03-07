@@ -90,7 +90,7 @@ static struct clockdomain mmu_81xx_clkdm = {
 	.flags		= CLKDM_CAN_HWSUP_SWSUP,
 #endif
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X |
-					 CHIP_IS_DM385),
+					CHIP_IS_DM385 | CHIP_IS_TI811X),
 };
 
 static struct clockdomain mmu_cfg_81xx_clkdm = {
@@ -105,7 +105,7 @@ static struct clockdomain mmu_cfg_81xx_clkdm = {
 	.flags		= CLKDM_CAN_HWSUP_SWSUP,
 #endif
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X |
-					 CHIP_IS_DM385),
+					CHIP_IS_DM385 | CHIP_IS_TI811X),
 };
 
 /*
