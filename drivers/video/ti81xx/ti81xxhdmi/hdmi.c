@@ -143,6 +143,12 @@ enum hdmi_power_state {
 	HDMI_POWER_FULL,	/* full power */
 } hdmi_power;
 
+/* Different state of this device on the CEC n/w */
+enum hdmi_cec_state {
+	HDMI_CEC_BYPASS,
+	HDMI_CEC_REGISTERED,
+	HDMI_CEC_UN_REGISTERED
+};
 
 struct hdmi {
 	struct kobject kobj;
@@ -164,6 +170,7 @@ struct hdmi {
 	struct hdmi_config cfg;
 	struct platform_device *pdev;
 	struct ti81xx_venc_info vencinfo;
+	enum hdmi_cec_state cec_state;
 } hdmi;
 
 /* Structures for chardevice move this to panel */
@@ -211,6 +218,8 @@ struct hdmi_work_struct {
 	int r;
 };
 #endif
+static __u8 cec_pa[2] = {0, 0};
+
 /*S*******************************  Driver structure *********************/
 
 static int hdmi_panel_enable(void *data);
@@ -877,6 +886,8 @@ static void hdmi_power_off(void)
 		ti816x_disable_hdmi_clocks((u32)hdmi.base_prcm);
 		ti816x_hdmi_phy_off(TI81xx_HDMI_WP);
 	}
+	if (hdmi.cec_state != HDMI_CEC_BYPASS)
+		hdmi.cec_state = HDMI_CEC_BYPASS;
 	edid_set = false;
 }
 
@@ -897,6 +908,7 @@ static long hdmi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int r = 0;
 	struct ti81xxhdmi_status  *status;
+	unsigned long flags;
 
 	switch (cmd) {
 	case TI81XXHDMI_START:
@@ -937,6 +949,133 @@ static long hdmi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			THDMIDBG("Error : copy_to_user, r = %d ", r);
 			r = -EFAULT;
 		}
+		break;
+	case TI81XXHDMI_CEC_ACTIVATE:
+		mutex_lock(&hdmi.lock);
+		if (hdmi.cec_state == HDMI_CEC_BYPASS) {
+			if (hdmi_lib_cec_activate() != 0) {
+				/* Cant power up CEC, but why? */
+				r = ENODEV;
+				break;
+			}
+			spin_lock_irqsave(&irqstatus_lock, flags);
+			hdmi.cec_state = HDMI_CEC_UN_REGISTERED;
+			spin_unlock_irqrestore(&irqstatus_lock, flags);
+		}
+		mutex_unlock(&hdmi.lock);
+		break;
+	case TI81XXHDMI_CEC_REG_DEV:
+		THDMIDBG("ioctl TI81XXHDMI_CEC_REG_DEV\n");
+		/* Require to be in HDMI mode and sink detected, to be able to
+		 * register, check that */
+		r = EINVAL;
+		mutex_lock(&hdmi.lock);
+		while (arg) {
+			if (hdmi.cec_state != HDMI_CEC_UN_REGISTERED) {
+				r = EBUSY;
+				break;
+			}
+			if (!(hdmi.cfg.hdmi_dvi)) {
+				r = EPERM;
+				break;
+			}
+			if (!hdmi_get_hpd_pin_state()) {
+				r = EPERM;
+				break;
+			}
+			if (hdmi_tv_cec_get_pa(edid, cec_pa) != true)
+				break;
+			/* Change the state before registration, in case sink
+			was disconnected, after this, the state would be updated
+			by isr */
+			spin_lock_irqsave(&irqstatus_lock, flags);
+			if (hdmi_get_hpd_pin_state())
+				hdmi.cec_state = HDMI_CEC_REGISTERED;
+
+			spin_unlock_irqrestore(&irqstatus_lock, flags);
+
+			r = hdmi_lib_cec_reg_dev(
+				(struct ti81xxhdmi_cec_register_dev *) arg,
+				cec_pa);
+			if (hdmi.cec_state != HDMI_CEC_REGISTERED) {
+				r = EIO;
+				break;
+			}
+			if (r != 0) {
+				spin_lock_irqsave(&irqstatus_lock, flags);
+				hdmi.cec_state = HDMI_CEC_UN_REGISTERED;
+				spin_unlock_irqrestore(&irqstatus_lock, flags);
+				break;
+			}
+			((struct ti81xxhdmi_cec_register_dev *)
+				arg)->physical_addr[0] = cec_pa[0];
+			((struct ti81xxhdmi_cec_register_dev *)
+				arg)->physical_addr[1] = cec_pa[1];
+			break;
+		}
+		if (r) {
+			THDMIDBG("Error : hdmi_lib_cec_reg_dev, r = %d ", r);
+			r = -EFAULT;
+		}
+		mutex_unlock(&hdmi.lock);
+		break;
+	case TI81XXHDMI_CEC_TRANSMIT_MSG:
+		r = EINVAL;
+		mutex_lock(&hdmi.lock);
+		while (arg) {
+			struct ti81xxhdmi_cec_transmit_msg *msg =
+				(struct ti81xxhdmi_cec_transmit_msg *)arg;
+			r = EPERM;
+			if (!(hdmi.cfg.hdmi_dvi)) {
+				THDMIDBG("Write failed - DVI mode\n");
+				break;
+			}
+			if (!hdmi_get_hpd_pin_state()) {
+				THDMIDBG("Write failed - No Sink\n");
+				break;
+			}
+			if (hdmi.cec_state != HDMI_CEC_REGISTERED) {
+				THDMIDBG("Write failed - CEC not reg\n");
+				r = EPERM;
+				break;
+			}
+			if (msg->no_retransmits > 0x5u) {
+				THDMIDBG("Write failed - retrans high\n");
+				break;
+			}
+			if (msg->no_args > 0xFu) {
+				THDMIDBG("Write failed - High args\n");
+				break;
+			}
+			r = hdmi_lib_cec_write_msg(msg);
+			break;
+		}
+		mutex_unlock(&hdmi.lock);
+		break;
+	case TI81XXHDMI_CEC_RECEIVE_MSG:
+		r = EINVAL;
+		mutex_lock(&hdmi.lock);
+		while (arg) {
+			r = EPERM;
+			if (!(hdmi.cfg.hdmi_dvi)) {
+				THDMIDBG("Read failed - DVI mode\n");
+				break;
+			}
+
+			if (!hdmi_get_hpd_pin_state()) {
+				THDMIDBG("Read failed - No Sink\n");
+				break;
+			}
+			if (hdmi.cec_state == HDMI_CEC_BYPASS) {
+				THDMIDBG("Read failed - Not Activated\n");
+				r = EPERM;
+				break;
+			}
+			r = hdmi_lib_cec_read_msg(
+				(struct ti81xxhdmi_cec_received_msg *)arg);
+			break;
+		}
+		mutex_unlock(&hdmi.lock);
 		break;
 	default:
 		r = -EINVAL;
@@ -1039,6 +1178,7 @@ static int hdmi_power_on(void)
 	hdmi_set_irqs(0);
 	if (cpu_is_ti814x())
 		ti814x_set_clksrc_mux(1);
+
 	return 0;
 err:
 	return r;
@@ -1064,9 +1204,16 @@ static void hdmi_work_queue(struct work_struct *ws)
 
 
 	if (r & HDMI_HPD_MODIFY) {
+		/* FIX ME When connected sink is removed, (not a toggel on HPD)
+			ensure to set hdmi.cec_state to HDMI_CEC_BYPASS
+			if this device was registered in the CEC n/w */
+		if (hdmi.cec_state != HDMI_CEC_BYPASS)
+			hdmi.cec_state = HDMI_CEC_BYPASS;
+
 		hdmi_disable_display();
 		hdmi_enable_display();
 	}
+
 	kfree(work);
 }
 #endif
@@ -1081,7 +1228,7 @@ static inline void hdmi_handle_irq_work(int r)
 			work->r = r;
 			queue_work(irq_wq, &work->work);
 		} else {
-			printk(KERN_ERR "Cannot allocate memory to create work");
+			THDMIDBG(KERN_ERR "Cannot allo memory to create work");
 		}
 	}
 }
@@ -1133,7 +1280,6 @@ static void hdmi_disable_display(void)
 	 */
 	free_irq(TI81XX_IRQ_HDMIINT, NULL);
 	hdmi_stop_display();
-
 	/*setting to default only in case of disable and not suspend*/
 	hdmi.mode = 1 ; /* HDMI */
 
@@ -1167,6 +1313,9 @@ int __init hdmi_init(void)
 
 	THDMIDBG("Initializing HDMI\n");
 	mutex_init(&hdmi.lock);
+
+	/* Devices CEC default state */
+	hdmi.cec_state = HDMI_CEC_BYPASS;
 
 	if (cpu_is_ti814x()) {
 		hdmi.base_pll =  ioremap(TI814x_HDMI_PLL_BASE_ADDR, 0x80);

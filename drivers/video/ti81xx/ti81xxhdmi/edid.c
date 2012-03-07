@@ -387,3 +387,46 @@ bool hdmi_tv_hdmi_supported(__u8 *edid)
 	return false;
 
 }
+
+bool hdmi_tv_cec_get_pa(__u8 *edid, __u8 *pa)
+{
+	/*check with TV suppport HDMI or not
+	if no externsion block, HDMI is not supported*/
+	if (edid[0x7e] == 0x00)
+		return false;
+	else {
+		enum extension_edid_db db = DATABLOCK_VENDOR;
+		int offset, i, blocks, idx = 0;
+		blocks = edid[0x7e];
+		for (i = 1; i <= blocks; i++) {
+			/*only version 3 or up and
+				CEA EDID is possible to support EDID*/
+			if ((edid[128 * i] == 0x02) &&
+			    (edid[128 * i + 1] >= 0x03)) {
+				/*if IEEE code(first three bytes)
+				  in Vender specific data block
+				  are 00-0C-00, it is HDMI*/
+				if (!hdmi_get_datablock_offset(
+				    &edid[idx], db, &offset)) {
+					if ((edid[idx + offset + 1] == 0x3) &&
+					(edid[idx + offset + 2] == 0xc) &&
+					(edid[idx + offset + 3] == 0x0)) {
+
+						/* Get CEC PA now
+						 * Bytes 4 & 5 specify the sam
+						 * HDMI 1.3a spec,
+						 * Table 8-6 VSDB
+						 */
+						pa[0] = edid[idx + offset + 4];
+						pa[1] = edid[idx + offset + 5];
+						return true;
+					}
+				}
+			}
+			idx = i*128;
+		}
+
+	}
+	return false;
+
+}

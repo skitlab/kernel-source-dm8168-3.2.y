@@ -44,6 +44,7 @@
 #include <linux/seq_file.h>
 #include <sound/pcm.h>
 #include <linux/hrtimer.h>
+#include <linux/ti81xxhdmi.h>
 
 /* HDMI PHY */
 #define HDMI_TXPHY_TX_CTRL			0x0ul
@@ -204,6 +205,33 @@
 #define HDMI_CORE_AV__CP_BYTE1			0x37Cul
 #define HDMI_CORE_AV__CEC_ADDR_ID		0x3FCul
 
+/* CEC */
+#define HDMI_CORE_CEC_DEV_ID			0x00ul
+#define HDMI_CORE_CEC_SPEC			0x04ul
+#define HDMI_CORE_CEC_SUFF			0x08ul
+#define HDMI_CORE_CEC_FW			0x0Cul
+#define HDMI_CORE_CEC_DBG_3			0x1Cul
+#define HDMI_CORE_CEC_TX_INIT			0x20ul
+#define HDMI_CORE_CEC_TX_DEST			0x24ul
+#define HDMI_CORE_CEC_SET_UP			0x38ul
+#define HDMI_CORE_CEC_TX_COMMAND		0x3Cul
+#define HDMI_CORE_CEC_TX_OPERAND		0x40ul
+#define HDMI_CORE_CEC_TRANSMIT_DATA		0x7Cul
+#define HDMI_CORE_CEC_CA_7_0			0x88ul
+#define HDMI_CORE_CEC_CA_15_8			0x8Cul
+#define HDMI_CORE_CEC_INT_STATUS_0		0x98ul
+#define HDMI_CORE_CEC_INT_STATUS_1		0x9Cul
+#define HDMI_CORE_CEC_RX_CONTROL		0xB0ul
+#define HDMI_CORE_CEC_RX_COUNT			0xB4ul
+#define HDMI_CORE_CEC_RX_CMD_HEAD		0xB8ul
+#define HDMI_CORE_CEC_RX_COMMAND		0xBCul
+#define HDMI_CORE_CEC_RX_OPERAND		0xC0ul
+
+
+/* CEC wait timeouts configurations */
+#define HDMI_CORE_CEC_TIMEOUT			200
+
+
 #define HDMI_WP_IRQSTATUS_CORE 0x00000001
 #define HDMI_WP_IRQSTATUS_PHYCONNECT 0x02000000
 #define HDMI_WP_IRQSTATUS_PHYDISCONNECT 0x04000000
@@ -220,6 +248,7 @@ static struct {
 	void __iomem *base_core;	/* 0 */
 	void __iomem *base_core_av;	/* 1 */
 	void __iomem *base_wp;		/* 2 */
+	void __iomem *base_core_cec;	/* 3 */
 	struct hdmi_core_infoframe_avi avi_param;
 	struct mutex mutex;
 	struct list_head notifier_head;
@@ -238,6 +267,9 @@ static inline void hdmi_write_reg(u32 base, u16 idx, u32 val)
 		break;
 	case HDMI_WP:
 		b = hdmi.base_wp;
+		break;
+	case HDMI_CORE_CEC:
+		b = hdmi.base_core_cec;
 		break;
 	default:
 		BUG();
@@ -260,6 +292,9 @@ static inline u32 hdmi_read_reg(u32 base, u16 idx)
 		break;
 	case HDMI_WP:
 		b = hdmi.base_wp;
+		break;
+	case HDMI_CORE_CEC:
+		b = hdmi.base_core_cec;
 		break;
 	default:
 		BUG();
@@ -1639,10 +1674,12 @@ int hdmi_lib_init(void){
 
 	if(cpu_is_ti816x()){
 		/* OMAP first, then overwrite it */
+		/* FIX ME - Update the size, 512 is incorrect */
 		hdmi.base_wp =  ioremap(TI81xx_HDMI_WP, 512);
 	}
 	if(cpu_is_ti814x()){
-        hdmi.base_wp =  ioremap(TI81xx_HDMI_WP, 512);
+		/* FIX ME - Update the size, 512 is incorrect */
+		hdmi.base_wp =  ioremap(TI81xx_HDMI_WP, 512);
 	}
 
 	if (!hdmi.base_wp) {
@@ -1652,6 +1689,7 @@ int hdmi_lib_init(void){
 
 	hdmi.base_core = hdmi.base_wp + 0x400;
 	hdmi.base_core_av = hdmi.base_wp + 0x900;
+	hdmi.base_core_cec = hdmi.base_wp + 0xD00;
 
 	mutex_init(&hdmi.mutex);
 	INIT_LIST_HEAD(&hdmi.notifier_head);
@@ -1659,6 +1697,9 @@ int hdmi_lib_init(void){
 	rev = hdmi_read_reg(HDMI_WP, HDMI_WP_REVISION);
 	printk(KERN_INFO "HDMI W1 rev %d.%d\n",
 		FLD_GET(rev, 10, 8), FLD_GET(rev, 5, 0));
+	rev = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_SPEC);
+	printk(KERN_INFO "HDMI CEC Spec version %x.%x\n",
+		FLD_GET(rev, 7, 4), (FLD_GET(rev, 3, 0) - 1));
 	return 0;
 }
 
@@ -2006,6 +2047,330 @@ int hdmi_get_video_timing()
 	return ret;
 }
 
+/*******************************************************************************
+ *	CEC Specifics
+ ******************************************************************************/
+
+int hdmi_lib_cec_activate(void)
+{
+	u32 temp;
+
+	temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_SET_UP);
+	if (FLD_GET(temp, 4, 4) != 0) {
+		temp = FLD_MOD(temp, 0, 4, 4);
+		hdmi_write_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_SET_UP, temp);
+
+		/* If we enabled CEC in middle of a CEC messages on CEC n/w,
+			we will could have start bit irregularity and/or short
+			pulse event. Clear them now */
+		temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_INT_STATUS_1);
+		temp = FLD_MOD(0x0, 0x5, 2, 0);
+		hdmi_write_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_INT_STATUS_1, temp);
+	}
+	return 0x0;
+}
+
+int hdmi_lib_cec_reg_dev(struct ti81xxhdmi_cec_register_dev *dev, __u8 *pa)
+{
+	u32 temp, regis_reg, shift_cnt, old_ca_7_0, old_ca_15_8;
+	int r;
+	struct ti81xxhdmi_cec_transmit_msg wr_msg;
+	/*
+	1. Send an Ping command - if required
+	2. If acked, return error
+	3. Register to receive for registered initiator
+	4. send report physical address
+	5. check for nacks
+	6. set flag is_pa_set to TRUE indicating we are registered.
+	*/
+	/* In case device requires to be registered as un-registered device,
+	skip the ping */
+	if (dev->dev_id == 0xF) {
+		wr_msg.acked_nacked = 1;
+		goto no_ping_required;
+	}
+
+	wr_msg.initiator = 0xF;
+	wr_msg.destination = dev->dev_id;
+	/* cmd and no of arguments are not used for ping command */
+	wr_msg.cmd = 0x0;
+	wr_msg.no_args = 0x0;
+
+	wr_msg.acked_nacked = 0xFF;
+	wr_msg.errors = 0xFFFFFFFF;
+	wr_msg.send_ping = 0x1;
+	wr_msg.no_retransmits = 5;
+
+	r = hdmi_lib_cec_write_msg(&wr_msg);
+
+	if (r != 0) {
+		printk(KERN_ERR "\nCould not Ping device\n");
+		return -1;
+	}
+
+no_ping_required:
+	old_ca_15_8 = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_CA_15_8);
+	old_ca_7_0 = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_CA_7_0);
+
+	/* Check if device is already present */
+	if (wr_msg.acked_nacked != 1) {
+
+		/* Register to receive messages intended for this device
+			and broad cast messages */
+		regis_reg = HDMI_CORE_CEC_CA_7_0;
+		shift_cnt = dev->dev_id;
+		temp = 0;
+		if (dev->dev_id > 0x7) {
+			regis_reg = HDMI_CORE_CEC_CA_15_8;
+			shift_cnt -= 0x7;
+		}
+		if (dev->clear_registered_dev == 0x1) {
+			hdmi_write_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_CA_7_0, 0);
+			hdmi_write_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_CA_15_8, 0);
+		} else {
+			temp = hdmi_read_reg(HDMI_CORE_CEC, regis_reg);
+		}
+		temp |= 0x1 << shift_cnt;
+		hdmi_write_reg(HDMI_CORE_CEC, regis_reg, temp);
+
+		/* Report Association between physical address and device id */
+		/* Report Physical address broadcast message */
+		wr_msg.initiator = dev->dev_id;
+		wr_msg.destination = 0xF;
+		wr_msg.cmd = ti81xxhdmi_cec_cmd_b_report_physical_address;
+		wr_msg.no_args = 0x3;
+		wr_msg.args[0] = pa[0];
+		wr_msg.args[1] = pa[1];
+		wr_msg.args[2] = dev->dev_id;
+		wr_msg.acked_nacked = 0xFF;
+		wr_msg.no_retransmits = 5;
+		wr_msg.send_ping = 0;
+		wr_msg.errors = 0xFFFFFFFF;
+		r = hdmi_lib_cec_write_msg(&wr_msg);
+		if ((wr_msg.acked_nacked != 1) || (r != 0x0)) {
+			/* Restore previous registration */
+			hdmi_write_reg(HDMI_CORE_CEC,
+				HDMI_CORE_CEC_CA_15_8, old_ca_15_8);
+			hdmi_write_reg(HDMI_CORE_CEC,
+				HDMI_CORE_CEC_CA_7_0, old_ca_7_0);
+		}
+	} else {
+		/* Device present */
+		r = EEXIST;
+	}
+
+	return r;
+}
+
+int hdmi_lib_cec_write_msg(struct ti81xxhdmi_cec_transmit_msg *msg)
+{
+	int r = EINVAL;
+	u32 timeout = HDMI_CORE_CEC_TIMEOUT;
+	u32 temp, i = 0;
+
+	if (msg == NULL)
+		goto error_exit;
+	/* 1. Flush TX FIFO - required as change of initiator ID / destination
+		ID while TX is in progress could result in courrupted message.
+	2. Clear interrupt status registers for TX.
+	3. Set initiator Address, set retry count
+	4. Set Destination Address
+	5. Clear TX interrupt flags - if required
+	6. Set the command
+	7. Transmit
+	8. Check for NACK / ACK - report the same. */
+
+	/* Clear TX FIFO */
+	temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_DBG_3);
+	temp = FLD_MOD(temp, 1, 7, 7);
+	hdmi_write_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_DBG_3, temp);
+
+	while (timeout) {
+		temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_DBG_3);
+		if (FLD_GET(temp, 7, 7) == 0)
+			break;
+		timeout--;
+	}
+	if (timeout == 0x0) {
+		printk(KERN_ERR "Could not clear TX FIFO");
+		printk(KERN_ERR "\n FIFO Reset - timeouts  : %d - was %d\n",
+			timeout, HDMI_CORE_CEC_TIMEOUT);
+		goto error_exit;
+	}
+
+	/* Clear out TX change event if any */
+	temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_INT_STATUS_0);
+	if (FLD_GET(temp, 5, 5) == 1) {
+		temp = FLD_MOD(0x0, 1, 5, 5);
+printk(KERN_INFO "HDMI CECDBG TX INT STAT0 value - %x\n", temp);
+		hdmi_write_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_INT_STATUS_0, temp);
+	}
+
+	/* Set the initiator detination addresses */
+	temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_TX_INIT);
+	temp = FLD_MOD(temp, msg->initiator, 3, 0);
+	hdmi_write_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_TX_INIT, temp);
+
+	temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_TX_DEST);
+	temp = FLD_MOD(temp, msg->destination, 3, 0);
+	hdmi_write_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_TX_DEST, temp);
+
+	/* Set the retry count */
+	temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_DBG_3);
+	temp = FLD_MOD(temp, msg->no_retransmits, 6, 4);
+	hdmi_write_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_DBG_3, temp);
+
+	if (msg->send_ping)
+		goto send_ping;
+
+	/* Setup command and arguments for the command */
+	temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_TX_COMMAND);
+	temp = FLD_MOD(temp, msg->cmd, 7, 0);
+	hdmi_write_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_TX_COMMAND, temp);
+
+
+	for (i = 0; i < msg->no_args; i++) {
+		temp = hdmi_read_reg(HDMI_CORE_CEC,
+			(HDMI_CORE_CEC_TX_OPERAND + (i * 4)));
+		temp = FLD_MOD(temp, msg->args[i], 7, 0);
+		hdmi_write_reg(HDMI_CORE_CEC,
+			(HDMI_CORE_CEC_TX_OPERAND + (i * 4)), temp);
+	}
+
+	/* Operand count */
+	temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_TRANSMIT_DATA);
+	temp = FLD_MOD(temp, msg->no_args, 3, 0);
+	/* Transmit */
+	temp = FLD_MOD(temp, 0x1, 4, 4);
+	hdmi_write_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_TRANSMIT_DATA, temp);
+
+	goto wait_for_ack_nack;
+
+send_ping:
+	temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_TX_DEST);
+	temp = FLD_MOD(temp, 1, 7, 7);
+	hdmi_write_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_TX_DEST, temp);
+
+wait_for_ack_nack:
+	timeout = HDMI_CORE_CEC_TIMEOUT + 200;
+	i = 0;
+	do {
+		temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_INT_STATUS_0);
+		/* Look for TX change event */
+		if (FLD_GET(temp, 5, 5) == 1) {
+			i = 1;
+			/* Clear interrupt status */
+			temp = FLD_MOD(0x0, 1, 5, 5);
+			hdmi_write_reg(HDMI_CORE_CEC,
+				HDMI_CORE_CEC_INT_STATUS_0, temp);
+			r = 0;
+			break;
+		}
+		/* Wait for re-transmits to expire */
+		temp = hdmi_read_reg(HDMI_CORE_CEC,
+			HDMI_CORE_CEC_INT_STATUS_1);
+		if (FLD_GET(temp, 1, 1) == 0) {
+			/* Wait for 7 mSecs - As per CEC protocol
+				nominal bit period is ~3 msec
+				delay of >= 3 bit period before next attempt
+			*/
+			mdelay(10);
+			timeout--;
+		} else {
+			/* Nacked ensure to clear the status */
+			temp = FLD_MOD(0x0, 1, 1, 1);
+			hdmi_write_reg(HDMI_CORE_CEC,
+				HDMI_CORE_CEC_INT_STATUS_1, temp);
+			r = 0;
+			break;
+		}
+	} while (timeout);
+
+	if (timeout == 0x0) {
+		printk(KERN_ERR "\nCould not send\n");
+		printk(KERN_ERR "\nNo ack / nack sensed\n");
+		printk(KERN_ERR "\nResend did not complete in : %d\n",
+			((HDMI_CORE_CEC_TIMEOUT - timeout) * 10));
+	}
+
+error_exit:
+	msg->acked_nacked = i;
+	return r;
+}
+
+int hdmi_lib_cec_read_msg(struct ti81xxhdmi_cec_received_msg *msg)
+{
+	int r = 0;
+	u32 temp, cmd_cnt, rx_byte_cnt, i;
+
+	/*
+	1. Check for RX FIFO non-empty pending pending in INT_STATUS0
+	2. Ensure RX_CMD_CNT is non zero in RX_COUNT, no of data bytes & errors
+	3. Read the received command from RX_COMMAD
+	4. Extract the initiator and destination ID from CMD_HEADER
+	5. Read in the operands if any
+	6. Clear the current received cmd
+	7. Check for RX FIFO overflow, if so let the app know
+	8. if RX_CMD_CNT is 0x0, clear the event status in INT_STATUS0
+	*/
+	r = EAGAIN;
+	temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_INT_STATUS_0);
+	if (FLD_GET(temp, 1, 1)) {
+		cmd_cnt = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_RX_COUNT);
+		if (FLD_GET(cmd_cnt, 6, 4) == 0x0) {
+			printk(KERN_INFO "HDMI CECDBG - flase notification\n");
+			/* Stale status, but why, clear them now */
+			temp = FLD_MOD(0x0, 1, 1, 1);
+			hdmi_write_reg(HDMI_CORE_CEC,
+				HDMI_CORE_CEC_INT_STATUS_0, temp);
+			goto exit_this_func;
+		}
+
+		r = 0;
+		/* Even in case error, go ahead and recevive command, let the
+			apps figure to what to do with this */
+		if (FLD_GET(cmd_cnt, 7, 7))
+			msg->errors = -1;
+
+		rx_byte_cnt = FLD_GET(cmd_cnt, 3, 0);
+		cmd_cnt = FLD_GET(cmd_cnt, 6, 4);
+
+		/* Get initiator / destination */
+		temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_RX_CMD_HEAD);
+		msg->initiator = FLD_GET(temp, 7, 4);
+		msg->destination = FLD_GET(temp, 3, 0);
+
+		/* Get the command and operands */
+		temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_RX_COMMAND);
+		msg->cmd = FLD_GET(temp, 7, 0);
+		msg->no_args = rx_byte_cnt;
+		for (i = 0; i < rx_byte_cnt; i++) {
+			temp = hdmi_read_reg(HDMI_CORE_CEC,
+				HDMI_CORE_CEC_RX_OPERAND + (i * 4));
+			msg->args[i] = FLD_GET(temp, 7, 0);
+		}
+
+		/* Clear the just read command */
+		temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_RX_CONTROL);
+		temp = FLD_MOD(temp, 1, 0, 0);
+		hdmi_write_reg(HDMI_CORE_CEC,
+				HDMI_CORE_CEC_RX_CONTROL, temp);
+
+		/* Clear up status registers */
+		temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_INT_STATUS_0);
+		if (cmd_cnt == 1) {
+			temp = FLD_MOD(0x0, 1, 1, 1);
+			hdmi_write_reg(HDMI_CORE_CEC,
+				HDMI_CORE_CEC_INT_STATUS_0, temp);
+		}
+	}
+
+exit_this_func:
+	return r;
+}
+
+
+
 EXPORT_SYMBOL(hdmi_lib_enable);
 EXPORT_SYMBOL(hdmi_lib_init);
 EXPORT_SYMBOL(hdmi_lib_exit);
@@ -2036,3 +2401,7 @@ EXPORT_SYMBOL(hdmi_core_powerdown_disable);
 EXPORT_SYMBOL(hdmi_core_swreset_assert);
 EXPORT_SYMBOL(hdmi_core_swreset_release);
 EXPORT_SYMBOL(hdmi_w1_audio_config_dma);
+EXPORT_SYMBOL(hdmi_lib_cec_reg_dev);
+EXPORT_SYMBOL(hdmi_lib_cec_activate);
+EXPORT_SYMBOL(hdmi_lib_cec_write_msg);
+EXPORT_SYMBOL(hdmi_lib_cec_read_msg);

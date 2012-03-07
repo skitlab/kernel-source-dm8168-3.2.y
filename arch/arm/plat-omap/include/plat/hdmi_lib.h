@@ -18,12 +18,14 @@
 #define _HDMI_H_
 
 #include <linux/string.h>
+#include <linux/ti81xxhdmi.h>
 
 #define HDMI_WP			0x58006000
 #define HDMI_CORE_SYS		0x58006400
 #define HDMI_CORE_AV		0x58006900
 #define HDMI_HDCP		0x58007000
 #define HDMI_WP_AUDIO_DATA	0x8Cul
+#define HDMI_CORE_CEC		0x58006D00
 
 #define TI81xx_HDMI_WP		0x46c00000u
 
@@ -538,5 +540,9 @@ int hdmi_w1_audio_config_dma(u32 name, struct hdmi_audio_dma *audio_dma);
 void hdmi_core_swreset_release(void);
 void hdmi_core_swreset_assert(void);
 void hdmi_core_powerdown_disable(void);
+int hdmi_lib_cec_reg_dev(struct ti81xxhdmi_cec_register_dev *dev, __u8 *pa);
+int hdmi_lib_cec_activate(void);
+int hdmi_lib_cec_write_msg(struct ti81xxhdmi_cec_transmit_msg *msg);
+int hdmi_lib_cec_read_msg(struct ti81xxhdmi_cec_received_msg *msg);
 #endif
 
