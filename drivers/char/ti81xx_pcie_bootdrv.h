@@ -133,6 +133,7 @@
 #define IB_START_LO(x)			(0x304 + (0x10 * x))
 #define IB_START_HI(x)			(0x308 + (0x10 * x))
 #define IB_OFFSET(x)			(0x30c + (0x10 * x))
+#define GPR0				0x70
 
 /* Application command register values */
 #define DBI_CS2_EN_VAL			BIT(5)
@@ -159,5 +160,6 @@ struct ti81xx_bar_info {
 #define TI81XX_PCI_SET_BAR_WINDOW	_IOW('P', 2, unsigned int)
 #define TI81XX_PCI_GET_BAR_INFO		_IOWR('P', 3, unsigned int)
 #define TI81XX_PCI_GET_DEVICE_ID	_IOR('P', 4, unsigned int)
+#define TI81XX_PCI_GET_BOOT_INFO	_IOR('P', 5, unsigned int)
 
 #endif

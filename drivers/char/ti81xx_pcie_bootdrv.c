@@ -344,6 +344,10 @@ long ti81xx_pcie_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		*(unsigned int *) arg = pci_device_id;
 		break;
 
+	case TI81XX_PCI_GET_BOOT_INFO:
+		*(unsigned int *) arg = __raw_readl(reg_virt + GPR0);
+		break;
+
 	default:
 		ret = -1;
 	}
