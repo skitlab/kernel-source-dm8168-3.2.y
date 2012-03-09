@@ -383,6 +383,9 @@ void __init usb_musb_init(struct omap_musb_board_data *board_data)
 			board_data->babble_ctrl = 1;
 		}
 
+		if (cpu_is_ti811x() && board_data->mode == MUSB_HOST)
+			board_data->instances = 0;
+			
 		/* only usb0 port enabled in peripheral mode*/
 		if (board_data->mode == MUSB_PERIPHERAL) {
 			board_data->instances = 0;
