@@ -1039,6 +1039,61 @@ int ti81xx_musb_set_mode(struct musb *musb, u8 musb_mode)
 	return 0;
 }
 
+#define USBPHY_RX_CALIB		1
+void usb2phy_config(struct musb *musb, u8 config)
+{
+	u32 regs_offset, val, sign, rx_calib, timeout = 0x1000;
+
+	switch (config)	{
+	case USBPHY_RX_CALIB:
+
+		regs_offset = 0x304;
+		/* wait till rx_calib done become true */
+		do {
+			val = musb_readl(musb->ctrl_base, regs_offset);
+		} while (timeout-- && !(val & (1 << 22)));
+		pr_info("%s: default rxcalib regval %08x\n", __func__, val);
+
+		sign = (val >> 29) & 1;
+		rx_calib = (val >> 24) & 0x1F;
+		pr_info("%s: musb(%d) sign %d current RXcalib %d\n", __func__,
+				musb->id, sign, rx_calib);
+
+		/* Always reduce the threshold by 15 codes (~15mV
+		 * If sign bit is .1., add 0xf to the magnitude bits
+		 * new_mag = old_mag + 0xf;
+		 * It will increase threshold in -ve direction
+		 * If sign bit is .0. and magnitude >= 0xf;
+		 * new_mag = old_mag . 0xf It will decrease threshold
+		 * If sign bit is .0. and magnitude < 0xf;
+		 * make sign bit = .1., new_mag = 0xf old_mag
+		 */
+		if (sign) {
+			if (rx_calib > 16)
+				rx_calib -= 15;
+			else
+				rx_calib += 15;
+		} else {
+			if (rx_calib >= 15)
+				rx_calib -= 15;
+			else {
+				sign = 1;
+				rx_calib = 15 - rx_calib;
+			}
+		}
+		val &= ~(0x3F << 24);
+		val |= ((rx_calib << 24) | (sign << 29) | (1 << 30));
+		pr_info("%s: musb(%d) sign %d computed RXcalib %d written"
+			" val %x\n", __func__, musb->id, sign, rx_calib, val);
+		musb_writel(musb->ctrl_base, regs_offset, val);
+
+	break;
+
+	default:
+		break;
+	}
+}
+
 int ti81xx_musb_init(struct musb *musb)
 {
 	void __iomem *reg_base = musb->ctrl_base;
@@ -1080,6 +1135,9 @@ int ti81xx_musb_init(struct musb *musb)
 	/* Start the on-chip PHY and its PLL. */
 	if (data->set_phy_power)
 		data->set_phy_power(musb->id, 1);
+
+	if (!cpu_is_ti816x())
+		usb2phy_config(musb, USBPHY_RX_CALIB);
 
 	musb->a_wait_bcon = A_WAIT_BCON_TIMEOUT;
 	musb->isr = ti81xx_interrupt;
