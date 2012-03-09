@@ -1027,7 +1027,27 @@ exit:
 	return r;
 
 }
-static void dc_set_hdcomp_pll(u32 pllclk)
+static void dc_select_dvo2_clock(u32 src)
+{
+	u32 temp;
+	if (v_pdata->cpu != CPU_DM816X)
+		return;
+
+	temp = omap_readl(
+		TI814X_PLL_BASE + DM814X_PLL_CLOCK_SOURCE);
+
+	temp &= ~(0x1 << 24);
+
+	if (src == HDMI)
+		temp |= 0x1 << 24;
+
+	omap_writel(temp,
+		TI814X_PLL_BASE + DM814X_PLL_CLOCK_SOURCE);
+
+	return;
+
+}
+static void dc_select_hdcomp_pll(u32 pllclk)
 {
 	u32 value;
 	if (v_pdata->cpu != CPU_DM813X)
@@ -1057,6 +1077,52 @@ static void dc_set_hdcomp_pll(u32 pllclk)
 	}
 	omap_writel(value, TI814X_PLL_BASE + DM813X_PLL_HD_CLOCK_SOURCE);
 	return;
+
+}
+/*select correct sync source*/
+static int dc_select_hdcomp_syncsrc(u32 src)
+{
+	if (cpu_is_ti816x() && (omap_rev() >= TI8168_REV_ES2_0)) {
+		u32 reg = omap_readl(TI81XX_CTRL_BASE +
+			VPSS_HDCOMP_SYNC_SRC_OFFSET);
+		/*select the sync source for DVO or HDCOMP
+		 in the 2.0 silicon, HDCOMP supports discrete
+		 sync output(HSYNC/VSYNC),
+		 these two signals are shared with SYNC pins of either DVO1 or
+		 DVO2 as below.
+
+		Pin Mapping:
+		HSYNC -- AR5/AT9/AR8
+		VSYNC -- AL5/AP9/AL9
+		Change pin names:
+		Pins AR5 and AT9 - change VOUT[1]_HSYNC to DAC_VOUT[1]_HSYNC
+		Pin AR8 - change VOUT[0]_AVID to DAC_HSYNC_VOUT[0]_AVID
+		Pins AL5 and AP9 - change VOUT[1]_VSYNC to DAC_VOUT[1]_VSYNC
+		Pin AL9 - change VOUT[0]_FLD to DAC_VSYNC_VOUT[0]_FLD
+
+		Bits   Field          Value        Descriptions
+		2      SPR_CTL0_2		To Select DAC or VOUT[0]
+					0	Selects VOUT[0]_AVID/FLD
+					1	Selects DAC_HSYNC/VSYNC
+
+
+		1	SPR_CTL0_1		To Select DAC or VOUT[1]
+
+					0	Selects VOUT[1]_HSYNC/VSYNC
+					1	Selects DAC_HSYNC/VSYNC
+
+		 */
+		reg &= ~(VPSS_HDCOMP_SYNC_SRC_DVO1 |
+				VPSS_HDCOMP_SYNC_SRC_DVO2);
+		if (src == HDMI)
+			reg |= VPSS_HDCOMP_SYNC_SRC_DVO1;
+		else if (src == DVO2)
+			reg |= VPSS_HDCOMP_SYNC_SRC_DVO2;
+
+		omap_writel(reg, TI81XX_CTRL_BASE +
+			VPSS_HDCOMP_SYNC_SRC_OFFSET);
+	}
+	return 0;
 
 }
 /*E******************************** private functions *********************/
@@ -1785,42 +1851,8 @@ static ssize_t blender_clksrc_store(struct dc_blender_info *binfo,
 			binfo->clksrc.clksrc = clksrc.clksrc;
 		}
 	} else {
-		/*this is the special case to let
-		DVO2 use the HDMI_PLL*/
-		if ((v_pdata->cpu != CPU_DM816X) && (binfo->idx == DVO2))  {
-			u32 temp;
-			temp = omap_readl(
-				TI814X_PLL_BASE + DM814X_PLL_CLOCK_SOURCE);
-
-			if (sysfs_streq(buf, "hdmi"))
-				temp |= 0x1 << 24;
-			else
-				temp &= ~(0x1 << 24);
-
-
-			omap_writel(temp,
-				TI814X_PLL_BASE + DM814X_PLL_CLOCK_SOURCE);
-			r = size;
-		} else if ((v_pdata->cpu == CPU_DM813X) &&
-		    (binfo->idx == HDCOMP)) {
-			/*FIXME add DM813X support here */
-			enum vps_vplloutputclk pllclk;
-			pllclk = VPS_SYSTEM_VPLL_OUTPUT_MAX_VENC;
-			if (sysfs_streq(buf, "sd"))
-				pllclk = VPS_SYSTEM_VPLL_OUTPUT_VENC_RF;
-			else if (sysfs_streq(buf, "dvo2"))
-				pllclk = VPS_SYSTEM_VPLL_OUTPUT_VENC_D;
-			else if (sysfs_streq(buf, "hdmi"))
-				pllclk = VPS_SYSTEM_VPLL_OUTPUT_VENC_HDMI;
-
-			dc_set_hdcomp_pll(pllclk);
-			r = size;
-
-		} else {
-			r = -EINVAL;
-			VPSSERR("invalid clock source input\n");
-		}
-
+		r = -EINVAL;
+		VPSSERR("invalid clock source input\n");
 	}
 
 exit:
@@ -1828,6 +1860,107 @@ exit:
 	return r;
 }
 
+static ssize_t blender_source_show(struct dc_blender_info *binfo, char *buf)
+{
+	u32 value, r = 0;
+	if (binfo->idx == HDMI || binfo->idx == SDVENC)
+		return -EINVAL;
+	if ((binfo->idx == DVO2) && (v_pdata->cpu != CPU_DM816X)) {
+		value = omap_readl(
+		TI814X_PLL_BASE + DM814X_PLL_CLOCK_SOURCE);
+		if ((value >> 24) & 1)
+			r = snprintf(buf, PAGE_SIZE, "hdmi\n");
+		else
+			r = snprintf(buf, PAGE_SIZE, "dvo2\n");
+	} else if ((v_pdata->cpu == CPU_DM813X) &&
+	    (binfo->idx == HDCOMP)) {
+		value = omap_readl(TI814X_PLL_BASE +
+				DM813X_PLL_HD_CLOCK_SOURCE);
+		value &= 3;
+		switch (value) {
+		case 0:
+			r = snprintf(buf, PAGE_SIZE, "hdmi\n");
+			break;
+		case 2:
+			r = snprintf(buf, PAGE_SIZE, "sd\n");
+			break;
+		default:
+			r = snprintf(buf, PAGE_SIZE, "dvo2\n");
+			break;
+		}
+
+	} else if ((v_pdata->cpu == CPU_DM816X) &&
+		   (binfo->idx == HDCOMP) &&
+		   (omap_rev() >= TI8168_REV_ES2_0)) {
+
+		value = omap_readl(TI81XX_CTRL_BASE +
+			VPSS_HDCOMP_SYNC_SRC_OFFSET);
+		if (value & VPSS_HDCOMP_SYNC_SRC_DVO2)
+			r = snprintf(buf, PAGE_SIZE, "dvo2\n");
+		else if (value & VPSS_HDCOMP_SYNC_SRC_DVO1)
+			r = snprintf(buf, PAGE_SIZE, "dvo2\n");
+		else
+			r = snprintf(buf, PAGE_SIZE, "none\n");
+	}
+
+
+	return r;
+}
+
+static ssize_t blender_source_store(struct dc_blender_info *binfo,
+				     const char *buf,
+				     size_t size)
+{
+
+	int r = 0;
+
+	if (binfo->idx == HDMI || binfo->idx == SDVENC)
+		return -EINVAL;
+
+	/*this is the special case to let
+	DVO2 use the HDMI_PLL*/
+	if ((v_pdata->cpu != CPU_DM816X) && (binfo->idx == DVO2))  {
+		u32 src = DVO2;;
+
+		if (sysfs_streq(buf, "hdmi"))
+			src = HDMI;
+		/*select right clock source*/
+		dc_select_dvo2_clock(src);
+		r = size;
+	} else if ((v_pdata->cpu == CPU_DM813X) &&
+	    (binfo->idx == HDCOMP)) {
+		/*add DM813X support here */
+		enum vps_vplloutputclk pllclk;
+		pllclk = VPS_SYSTEM_VPLL_OUTPUT_MAX_VENC;
+		if (sysfs_streq(buf, "sd"))
+			pllclk = VPS_SYSTEM_VPLL_OUTPUT_VENC_RF;
+		else if (sysfs_streq(buf, "dvo2"))
+			pllclk = VPS_SYSTEM_VPLL_OUTPUT_VENC_D;
+		else if (sysfs_streq(buf, "hdmi"))
+			pllclk = VPS_SYSTEM_VPLL_OUTPUT_VENC_HDMI;
+
+		dc_select_hdcomp_pll(pllclk);
+		r = size;
+
+	} else if ((v_pdata->cpu == CPU_DM816X) &&
+		   (binfo->idx == HDCOMP) &&
+		   (omap_rev() >= TI8168_REV_ES2_0)) {
+			u32 src = HDCOMP;
+			if (sysfs_streq(buf, "dvo1"))
+				src = HDMI;
+			else if (sysfs_streq(buf, "dvo2"))
+				src = DVO2;
+
+		/*set the correct sync source*/
+		dc_select_hdcomp_syncsrc(src);
+		r = size;
+	} else {
+		r = -EINVAL;
+		VPSSERR("invalid clock source input\n");
+	}
+
+	return r;
+}
 static ssize_t blender_output_show(struct dc_blender_info *binfo, char *buf)
 {
 	struct vps_dcoutputinfo oinfo;
@@ -1846,11 +1979,17 @@ static ssize_t blender_output_show(struct dc_blender_info *binfo, char *buf)
 		l += snprintf(buf + l,
 			      PAGE_SIZE - l, "%s",
 			      dfmt_name[oinfo.dvofmt].name);
-	else
-		l += snprintf(buf + l,
+	else {
+		if ((oinfo.afmt == VPS_DC_A_OUTPUT_COMPONENT) &&
+			(oinfo.dvofmt == VPS_DC_DVOFMT_TRIPLECHAN_DISCSYNC) &&
+			binfo->idx == HDCOMP)
+			l += snprintf(buf + l,
+			      PAGE_SIZE - l, "vga");
+		else
+			l += snprintf(buf + l,
 			      PAGE_SIZE - l, "%s",
 			      afmt_name[oinfo.afmt].name);
-
+	}
 	if (binfo->idx != SDVENC) {
 		for (i = 0 ; i < ARRAY_SIZE(datafmt_name); i++) {
 			if (datafmt_name[i].value == oinfo.dataformat)
@@ -1912,7 +2051,7 @@ static ssize_t blender_output_store(struct dc_blender_info *binfo,
 		/*check digital format or analog format based on current venc*/
 		if (!found) {
 			if (isdigitalvenc(oinfo.vencnodenum)) {
-				for (i = 0; i < VPS_DC_DVOFMT_MAX; i++)
+				for (i = 0; i < ARRAY_SIZE(dfmt_name); i++)
 					if (sysfs_streq(ptr,
 					    dfmt_name[i].name)) {
 						dfmt = dfmt_name[i].value;
@@ -1920,7 +2059,7 @@ static ssize_t blender_output_store(struct dc_blender_info *binfo,
 						break;
 					}
 			} else {
-				for (i = 0; i < VPS_DC_A_OUTPUT_MAX; i++)
+				for (i = 0; i < ARRAY_SIZE(afmt_name); i++)
 					if (sysfs_streq(ptr,
 					    afmt_name[i].name)) {
 						afmt = afmt_name[i].value;
@@ -1959,13 +2098,6 @@ static ssize_t blender_output_store(struct dc_blender_info *binfo,
 		if (dfmt != VPS_DC_DVOFMT_MAX)
 			oinfo.dvofmt = dfmt;
 
-		if (pol == 0xFF) {
-			oinfo.dvoactvidpolarity = polarity[0];
-			oinfo.dvofidpolarity = polarity[1];
-			oinfo.dvohspolarity = polarity[2];
-			oinfo.dvovspolarity = polarity[3];
-		}
-
 	} else {
 		if ((afmt == VPS_DC_A_OUTPUT_MAX) && (fmt == FVID2_DF_MAX)) {
 			VPSSERR("no valid analog output settings\n");
@@ -1974,14 +2106,41 @@ static ssize_t blender_output_store(struct dc_blender_info *binfo,
 
 		}
 		if ((binfo->idx == SDVENC) &&
-		     (afmt == VPS_DC_A_OUTPUT_COMPONENT)) {
+		     ((afmt == VPS_DC_A_OUTPUT_COMPONENT) ||
+		     (afmt == VPS_DC_OUTPUT_VGA))) {
 			VPSSERR("component out not supported on sdvenc\n");
 			r = -EINVAL;
 			goto exit;
 
 		}
-		if (afmt != VPS_DC_A_OUTPUT_MAX)
+		if (afmt != VPS_DC_A_OUTPUT_MAX) {
 			oinfo.afmt = afmt;
+			if (afmt == VPS_DC_A_OUTPUT_COMPONENT)
+				oinfo.dvofmt =
+					VPS_DC_DVOFMT_TRIPLECHAN_EMBSYNC;
+			else if (afmt == VPS_DC_OUTPUT_VGA) {
+				oinfo.afmt = VPS_DC_A_OUTPUT_COMPONENT;
+				oinfo.dvofmt =
+				    VPS_DC_DVOFMT_TRIPLECHAN_EMBSYNC;
+				if ((v_pdata->cpu == CPU_DM816X) &&
+					(omap_rev() >= TI8168_REV_ES2_0))
+					oinfo.dvofmt =
+					    VPS_DC_DVOFMT_TRIPLECHAN_DISCSYNC;
+				else
+					VPSSERR("vga is not support"
+						"on this silicon, forced to"
+						"component\n");
+
+			}
+		}
+
+	}
+
+	if (pol == 0xFF) {
+		oinfo.dvoactvidpolarity = polarity[0];
+		oinfo.dvofidpolarity = polarity[1];
+		oinfo.dvohspolarity = polarity[2];
+		oinfo.dvovspolarity = polarity[3];
 	}
 
 	if (fmt != FVID2_DF_MAX)
@@ -2124,13 +2283,6 @@ static ssize_t blender_edid_show(struct dc_blender_info *binfo, char *buf)
 	return l;
 }
 
-static ssize_t blender_edid_store(struct dc_blender_info *binfo,
-				     const char *buf,
-				     size_t size)
-{
-	return 0;
-}
-
 struct blender_attribute {
 	struct attribute attr;
 	ssize_t (*show)(struct dc_blender_info *, char *);
@@ -2155,9 +2307,11 @@ static BLENDER_ATTR(clksrc, S_IRUGO | S_IWUSR,
 		blender_clksrc_show, blender_clksrc_store);
 static BLENDER_ATTR(order, S_IRUGO | S_IWUSR,
 		blender_order_show, blender_order_store);
+static BLENDER_ATTR(source, S_IRUGO | S_IWUSR,
+		blender_source_show, blender_source_store);
 /* currently EDID read only */
 static BLENDER_ATTR(edid, S_IRUGO,
-		blender_edid_show, blender_edid_store);
+		blender_edid_show, NULL);
 
 static struct attribute *blender_sysfs_attrs[] = {
 	&blender_attr_mode.attr,
@@ -2168,6 +2322,7 @@ static struct attribute *blender_sysfs_attrs[] = {
 	&blender_attr_order.attr,
 	&blender_attr_name.attr,
 	&blender_attr_edid.attr,
+	&blender_attr_source.attr,
 	NULL
 };
 
@@ -2213,10 +2368,6 @@ static struct kobj_type blender_ktype = {
 	.sysfs_ops = &blender_sysfs_ops,
 	.default_attrs = blender_sysfs_attrs,
 };
-
-
-
-/*sysfs for the display controller*/
 
 static ssize_t dctrl_tiedvencs_show(struct vps_dispctrl *dctrl, char *buf)
 {
@@ -2415,7 +2566,7 @@ static int parse_def_clksrc(const char *clksrc)
 					else if (sysfs_streq(csrc, "sd"))
 						pllclk = \
 						VPS_SYSTEM_VPLL_OUTPUT_VENC_RF;
-					dc_set_hdcomp_pll(pllclk);
+					dc_select_hdcomp_pll(pllclk);
 				}
 
 			} else
@@ -2819,6 +2970,7 @@ int __init vps_dc_init(struct platform_device *pdev,
 			opinfo.vencnodenum = VPS_DC_VENC_HDCOMP;
 			opinfo.afmt = VPS_DC_A_OUTPUT_COMPONENT;
 			opinfo.dataformat = FVID2_DF_YUV422SP_UV;
+			opinfo.dvofmt = VPS_DC_DVOFMT_TRIPLECHAN_EMBSYNC;
 
 			clksrcp->clksrc = VPS_DC_CLKSRC_VENCA;
 			break;
