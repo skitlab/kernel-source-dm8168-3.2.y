@@ -382,12 +382,16 @@ void __init ti81xx_check_revision(void)
 		case 1:
 			omap_revision = TI8168_REV_ES1_1;
 			strcpy(cpu_rev, "1.1");
-			break;	
+			break;
 		case 2:
-			/* FALLTHROUGH */
-		default:
 			omap_revision = TI8168_REV_ES2_0;
 			strcpy(cpu_rev, "2.0");
+			break;
+		case 3:
+			/* FALLTHROUGH */
+		default:
+			omap_revision = TI8168_REV_ES2_1;
+			strcpy(cpu_rev, "2.1");
 		}
 
 		omap3_features |= OMAP3_HAS_DSP | OMAP3_HAS_IVA;
