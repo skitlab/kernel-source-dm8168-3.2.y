@@ -611,6 +611,18 @@ static int ti81xx_pcie_setup(int nr, struct pci_sys_data *sys)
 	 * scanning.
 	 */
 
+	/* Optional: io window */
+	plat_res = platform_get_resource_byname(pcie_pdev, IORESOURCE_IO,
+						"pcie-io");
+	if (!plat_res) {
+		pr_warning(DRIVER_NAME ": no resource for PCI I/O\n");
+	} else {
+		res[0].start = plat_res->start;
+		res[0].end = plat_res->end;
+		res[0].name = "PCI I/O";
+		res[0].flags = IORESOURCE_IO;
+	}
+
 	plat_res = platform_get_resource_byname(pcie_pdev, IORESOURCE_MEM,
 						"pcie-nonprefetch");
 	if (!plat_res) {
@@ -618,34 +630,10 @@ static int ti81xx_pcie_setup(int nr, struct pci_sys_data *sys)
 		goto err_memres;
 	}
 
-	res[0].start = plat_res->start;
-	res[0].end = plat_res->end;
-	res[0].name = "PCI Memory";
-	res[0].flags = IORESOURCE_MEM;
-
-#if 0
-	{
-		if (insert_resource(&iomem_resource, &res[0])) {
-			pr_err(DRIVER_NAME ": Failed to reserve memory res\n");
-			goto err_memres;
-	}
-#endif
-	/* Optional: io window */
-	plat_res = platform_get_resource_byname(pcie_pdev, IORESOURCE_IO,
-						"pcie-io");
-	if (!plat_res) {
-		pr_warning(DRIVER_NAME ": no resource for PCI I/O\n");
-	} else {
-		res[1].start = plat_res->start;
-		res[1].end = plat_res->end;
-		res[1].name = "PCI I/O";
-		res[1].flags = IORESOURCE_IO;
-
-		if (insert_resource(&ioport_resource, &res[1])) {
-			pr_err(DRIVER_NAME ": Failed to reserve io resource\n");
-			goto err_iores;
-		}
-	}
+	res[1].start = plat_res->start;
+	res[1].end = plat_res->end;
+	res[1].name = "PCI Memory";
+	res[1].flags = IORESOURCE_MEM;
 
 	/*
 	 * Note: Only one inbound window can be considered as BAR0 is set up for
@@ -669,7 +657,7 @@ static int ti81xx_pcie_setup(int nr, struct pci_sys_data *sys)
 
 	if (!reg_virt) {
 		pr_err(DRIVER_NAME ": PCIESS register memory remap failed\n");
-		goto err_ioremap;
+		goto err_memres;
 	}
 
 	pr_info(DRIVER_NAME ": Register base mapped @0x%08x\n", (int)reg_virt);
@@ -749,34 +737,11 @@ static int ti81xx_pcie_setup(int nr, struct pci_sys_data *sys)
 	 */
 	disable_bars();
 
-	set_outbound_trans(res[0].start, res[0].end);
+	set_outbound_trans(res[1].start, res[1].end);
 
 	/* Enable 32-bit IO addressing support */
 	__raw_writew(PCI_IO_RANGE_TYPE_32 | (PCI_IO_RANGE_TYPE_32 << 8),
 			reg_virt + SPACE0_LOCAL_CFG_OFFSET + PCI_IO_BASE);
-
-	/*
-	 * FIXME: The IO Decode size bits in IO base and limit registers are
-	 * writable from host any time and during enumeration, the Linux PCI
-	 * core clears the lower 4-bits of these registers while writing lower
-	 * IO address. This makes IO upper address and limit registers to show
-	 * value as '0' and not the actual value as configured by the core
-	 * during enumeration. We need to re-write bits 0 of IO limit and base
-	 * registers again. Need to find if a post configuration hook is
-	 * possible. An easier and clear but possibly inefficient WA is to snoop
-	 * each config write and restore 32-bit IO decode configuration.
-	 */
-
-	/*
-	 * Setup as PCI master, also clear any pending  status bits.
-	 * FIXME: Nolonger needed as post-scan fixup handles this (see below).
-	 */
-#if 0
-	__raw_writel((__raw_readl(reg_virt + SPACE0_LOCAL_CFG_OFFSET
-					+ PCI_COMMAND)
-			| CFG_PCIM_CSR_VAL),
-			reg_virt + SPACE0_LOCAL_CFG_OFFSET + PCI_COMMAND);
-#endif
 
 	legacy_irq = platform_get_irq_byname(pcie_pdev, "legacy_int");
 
@@ -821,11 +786,6 @@ err_clken:
 	 clk_put(pcie_ck);
 err_clkget:
 	 iounmap((void __iomem *)reg_virt);
-err_ioremap:
-	 if (res[1].flags == IORESOURCE_IO)
-		 release_resource(&res[1]);
-err_iores:
-	 release_resource(&res[0]);
 err_memres:
 	 kfree(res);
 
@@ -926,10 +886,20 @@ int ti81xx_pci_io_read(u32 addr, int size, u32 *value)
 	__raw_writel(addr & 0xfffff000, reg_virt + IOBASE);
 
 	/* Get the actual address in I/O space */
-	addr = reg_virt + SPACE0_IO_OFFSET + (addr & 0xffc);
+	addr = reg_virt + SPACE0_IO_OFFSET + (addr & 0xfff);
 
-	*value = __raw_readl(addr);
-	*value >>= ((addr & 3)*8);
+	switch (size) {
+	case 1:
+		*value = (u8)__raw_readb(addr);
+		break;
+	case 2:
+		*value = (u16)__raw_readw(addr);
+		break;
+	case 4:
+	default:
+		*value = __raw_readl(addr);
+		break;
+	}
 
 	spin_unlock_irqrestore(&ti81xx_pci_io_lock, flags);
 
@@ -948,7 +918,6 @@ EXPORT_SYMBOL(ti81xx_pci_io_read);
 int ti81xx_pci_io_write(u32 addr, int size, u32 value)
 {
 	unsigned long flags;
-	u32 iospace_addr;
 
 	if (!IS_ALIGNED(addr, size))
 		return -1;
@@ -960,16 +929,20 @@ int ti81xx_pci_io_write(u32 addr, int size, u32 value)
 	__raw_writel(addr & 0xfffff000, reg_virt + IOBASE);
 
 	/* Get the actual address in I/O space */
-	iospace_addr = reg_virt + SPACE0_IO_OFFSET + (addr & 0xffc);
+	addr = reg_virt + SPACE0_IO_OFFSET + (addr & 0xfff);
 
-	if (size != 4) {
-		u32 shift = (addr & 3) * 8;
-		u32 mask = (size == 1 ? 0xff : 0xffff) << shift;
-		u32 readval = __raw_readl(iospace_addr);
-		value = ((value << shift) & mask) | (readval & ~mask);
+	switch (size) {
+	case 1:
+		__raw_writeb((u8)value, addr);
+		break;
+	case 2:
+		__raw_writew((u16)value, addr);
+		break;
+	case 4:
+	default:
+		__raw_writel((u32)value, addr);
+		break;
 	}
-
-	__raw_writel(value, iospace_addr);
 
 	spin_unlock_irqrestore(&ti81xx_pci_io_lock, flags);
 
@@ -1071,12 +1044,41 @@ static struct pci_bus *ti81xx_pcie_scan(int nr, struct pci_sys_data *sys)
 	pr_info(DRIVER_NAME ": Starting PCI scan...\n");
 	if (nr == 0) {
 		bus = pci_scan_bus(0, &ti81xx_pci_ops, sys);
+		pr_info(DRIVER_NAME ": PCI scan done.\n");
 
 		/* Post enumeration fixups */
 		set_inbound_trans();
 
 		/* Bridges are not getting enabled by default! */
 		pci_assign_unassigned_resources();
+
+		/*
+		 * The IO Decode size bits in IO base and limit registers are
+		 * writable from host any time and during enumeration, the Linux
+		 * PCI core clears the lower 4-bits of these registers while
+		 * writing lower IO address. This makes IO upper address and
+		 * limit registers to show value as '0' and not the actual value
+		 * as configured by the core during enumeration. We need to
+		 * re-write bits 0 of IO limit and base registers again.
+		 *
+		 * Forcing the same after scan - it may be ok to also do this as
+		 * a quirk.
+		 *
+		 * Without this, the I/O behind bridge (RC) will be shows
+		 * incorrectly as:
+		 *
+		 * I/O behind bridge: 00000000-00000fff
+		 *
+		 * instead of:
+		 *
+		 * I/O behind bridge: 40000000-40000fff
+		 */
+
+		__raw_writew(__raw_readw(reg_virt + SPACE0_LOCAL_CFG_OFFSET +
+					PCI_IO_BASE) | PCI_IO_RANGE_TYPE_32 |
+					(PCI_IO_RANGE_TYPE_32 << 8),
+					reg_virt + SPACE0_LOCAL_CFG_OFFSET +
+					PCI_IO_BASE);
 	}
 
 	return bus;
