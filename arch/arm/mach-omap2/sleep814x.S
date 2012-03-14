@@ -19,12 +19,9 @@
 #include <asm/assembler.h>
 #include <plat/sram.h>
 #include <plat/ti81xx.h>
-#include <mach/io.h>
-
 #include "cm2xxx_3xxx.h"
 #include "prm2xxx_3xxx.h"
 #include "cm-regbits-81xx.h"
-#include "control.h"
 #include "cm81xx.h"
 
 /*
