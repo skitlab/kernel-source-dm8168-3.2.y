@@ -80,7 +80,7 @@
 #define OMAP_PACKAGE_ZAF		1		/* 2420 447-pin SIP */
 
 
-#define OMAP_MUX_NR_MODES		8		/* Available modes */
+#define OMAP_MUX_NR_MODES		12		/* Available modes */
 #define OMAP_MUX_NR_SIDES		2		/* Bottom & top */
 
 /*
