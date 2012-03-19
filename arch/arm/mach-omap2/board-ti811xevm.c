@@ -289,7 +289,9 @@ static struct i2c_board_info __initdata ti811x_i2c_boardinfo1[] = {
 	{
 		I2C_BOARD_INFO("pcf8575_1_ti811x", 0x20),
 	},
-
+	{
+		I2C_BOARD_INFO("sii9022a", 0x39),
+	},
 };
 
 static const struct i2c_device_id pcf8575_video_id[] = {
