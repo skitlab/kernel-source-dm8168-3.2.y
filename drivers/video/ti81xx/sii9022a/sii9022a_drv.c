@@ -70,7 +70,7 @@ static int sii9022a_set_timings(struct TI81xx_video_timings *timings,
 				void *data);
 
 static struct TI81xx_display_driver hdmi_driver = {
-	.display = TI81xx_DISPLAY_DVO2,
+	.display = TI81xx_DISPLAY_HDMI,
 	.enable	= sii9022a_panel_enable,
 	.disable = sii9022a_panel_disable,
 	.suspend = sii9022a_panel_suspend,
@@ -838,7 +838,7 @@ static int sii9022a_set_power(void)
 	struct hdmi_video_encoder_create_params  input_encoder_create_params;
 	u32 input_standard;
 
-	input_encoder_create_params.device_i2c_inst_id = 1;
+	input_encoder_create_params.device_i2c_inst_id = 3;
 	input_encoder_create_params.device_i2c_addr = 0x39;
 	input_encoder_create_params.inp_clk = 0;
 	input_encoder_create_params.hdmi_hot_plug_gpio_intr_line = 0;
