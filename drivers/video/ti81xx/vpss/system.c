@@ -683,14 +683,21 @@ int __init vps_system_init(struct platform_device *pdev)
 				" please use Dm385 M3 firmware\n");
 			goto exit;
 		}
-	} else {
+	} else if (v_pdata->cpu == CPU_DM814X) {
 		if (!((pid == VPS_PLATFORM_ID_EVM_TI814x) ||
 			(pid == VPS_PLATFORM_ID_SIM_TI814x))) {
 			VPSSERR("Wrong firmware,"
 				" please use TI814x M3 firmware\n");
 			goto exit;
 		}
-	}
+	} else if (v_pdata->cpu == CPU_DM811X) {
+		if (!(pid == VPS_PLATFORM_ID_EVM_TI811x)) {
+			
+			VPSSERR("Wrong firmware,"
+				" please use TI811x M3 firmware\n");
+			goto exit;
+		}
+       }	  	
 	if (v_pdata->cpu != CPU_DM816X) {
 		sys_ctrl->pbase = ioremap(TI814X_PLL_BASE + VIDPLL_OFFSET,
 					VIDPLL_SIZE * 3);
