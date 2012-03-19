@@ -36,6 +36,7 @@
 #include <mach/board-ti814x.h>
 #include <mach/board-ti816x.h>
 #include <mach/board-dm813x.h>
+#include <mach/board-ti811x.h>
 #include <asm/mach/map.h>
 
 
@@ -76,6 +77,16 @@ static int __init ti81xx_vpss_init(void)
 		}
 		vps_pdata.numvencs = 4;
 		vps_pdata.vencmask = (1 << VPS_DC_MAX_VENC) - 1;
+	} else if (cpu_is_ti811x()) {
+		vps_pdata.cpu = CPU_DM811X;
+		vps_pdata.numvencs = 3;
+		vps_pdata.vencmask = (1 << VPS_DC_MAX_VENC) - 1 \
+					- VPS_DC_VENC_HDCOMP;
+		/*setup the ths filter functioin*/
+		vps_pdata.pcf_ths_init = NULL;
+		vps_pdata.pcf_ths_exit = NULL;
+		vps_pdata.pcf_ths_hd_set = NULL;
+		vps_pdata.pcf_ths_sd_set = NULL;
 	} else if (cpu_is_ti814x()) {
 		vps_pdata.cpu = CPU_DM814X;
 		vps_pdata.numvencs = 3;
