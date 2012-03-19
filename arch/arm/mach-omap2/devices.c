@@ -1860,6 +1860,52 @@ static void __init ti81xx_video_mux(void)
 		omap_mux_init_signal("iic1_scl", OMAP_MUX_MODE0 | OMAP_PULL_UP);
 		omap_mux_init_signal("iic1_sda", OMAP_MUX_MODE0 | OMAP_PULL_UP);
 
+	} else if (cpu_is_ti811x()){
+		/*Temporary hack, till we have interface
+		 to configure pin mux for J5-Eco*/
+
+		/*I2c2 - Pin Muxing*/
+		omap_writel(0x60040, 0x48140A18);
+		omap_writel(0x60040, 0x48140A1c);
+		omap_writel(0x1, 0x48140924);
+		omap_writel(0x1, 0x48140928);
+		omap_writel(0x1, 0x481409a0);
+		omap_writel(0x1, 0x481409a4);
+		omap_writel(0x1, 0x48140a6c);
+		omap_writel(0x1, 0x48140b8c);
+		omap_writel(0x1, 0x48140b90);
+		omap_writel(0x1, 0x48140ba8);
+
+		/*Pin Muxing for Vout1*/
+		omap_writel(0x1, 0x48140B2c);
+		omap_writel(0x1, 0x481409f0);
+		omap_writel(0x1, 0x48140b30);
+		omap_writel(0x1, 0x48140b34);
+		omap_writel(0x1, 0x48140B38);
+		omap_writel(0x1, 0x48140B3C);
+		omap_writel(0x1, 0x48140B40);
+		omap_writel(0x1, 0x48140B44);
+		omap_writel(0x1, 0x48140B48);
+		omap_writel(0x1, 0x48140B4C);
+		omap_writel(0x1, 0x48140B50);
+		omap_writel(0x1, 0x48140B54);
+		omap_writel(0x1, 0x48140B58);
+		omap_writel(0x1, 0x48140B5C);
+		omap_writel(0x1, 0x48140B60);
+		omap_writel(0x1, 0x48140B64);
+		omap_writel(0x1, 0x48140B68);
+		omap_writel(0x1, 0x48140B6C);
+		omap_writel(0x1, 0x48140B70);
+		omap_writel(0x1, 0x48140B74);
+		omap_writel(0x1, 0x48140B78);
+		omap_writel(0x1, 0x48140B7C);
+		omap_writel(0x1, 0x48140B80);
+		omap_writel(0x1, 0x48140B84);
+		omap_writel(0x1, 0x48140B88);
+		omap_writel(0x1, 0x48140B8C);
+		omap_writel(0x1, 0x48140B90);
+		omap_writel(0x1, 0x48140B94);
+
 	} else if (cpu_is_ti814x())	{
 		/*VOUT0 DVO2 configuration*/
 		omap_mux_init_signal("vout0_fid_mux1", OMAP_MUX_MODE0);
