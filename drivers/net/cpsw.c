@@ -769,6 +769,8 @@ static void _cpsw_adjust_link(struct cpsw_slave *slave,
 
 		if (phy->speed == 10)
 			mac_control |= BIT(18);
+		else if (phy->speed == 100)
+			mac_control |= BIT(15);
 		else if (phy->speed == 1000)
 			mac_control |= BIT(7);	/* GIGABITEN	*/
 		if (phy->duplex)
