@@ -83,8 +83,8 @@ static int __init ti81xx_vpss_init(void)
 		vps_pdata.vencmask = (1 << VPS_DC_MAX_VENC) - 1 \
 					- VPS_DC_VENC_HDCOMP;
 		/*setup the ths filter functioin*/
-		vps_pdata.pcf_ths_init = NULL;
-		vps_pdata.pcf_ths_exit = NULL;
+		vps_pdata.pcf_ths_init = ti811x_pcf8575_init;
+		vps_pdata.pcf_ths_exit = ti811x_pcf8575_exit;
 		vps_pdata.pcf_ths_hd_set = NULL;
 		vps_pdata.pcf_ths_sd_set = NULL;
 	} else if (cpu_is_ti814x()) {
