@@ -270,7 +270,7 @@ static struct i2c_board_info __initdata ti814x_i2c_boardinfo[] = {
 		I2C_BOARD_INFO("tlv320aic3x", 0x18),
 	},
 	{
-		I2C_BOARD_INFO("IO Expander", 0x20),
+		I2C_BOARD_INFO("pcf8575_1_ti811x", 0x20),
 	},
 	{
 		I2C_BOARD_INFO("tlc59108", 0x40),
@@ -286,9 +286,6 @@ static struct i2c_board_info __initdata ti814x_i2c_boardinfo[] = {
 };
 
 static struct i2c_board_info __initdata ti811x_i2c_boardinfo1[] = {
-	{
-		I2C_BOARD_INFO("pcf8575_1_ti811x", 0x20),
-	},
 	{
 		I2C_BOARD_INFO("sii9022a", 0x39),
 	},
@@ -385,10 +382,26 @@ int ti811x_pcf8575_ths7360_hd_enable(enum ti81xx_ths7360_sf_ctrl ctrl)
 	return ret_val;
 
 }
+static int ti811x_pcf8575_enable_lcd(void)
+{
+	struct i2c_msg msg = {
+		.addr = pcf8575_1_client->addr,
+		.flags = 0,
+		.len = 2,
+	};
+
+        i2c_master_recv(pcf8575_1_client, pcf8575_1_port, 2);
+	pcf8575_1_port[1] |= 0x40;
+	msg.buf = pcf8575_1_port;
+
+	i2c_transfer(pcf8575_1_client->adapter, &msg, 1);
+	return 0;
+}
 static int pcf8575_video_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	pcf8575_1_client = client;
+	ti811x_pcf8575_enable_lcd();
 	return 0;
 }
 
