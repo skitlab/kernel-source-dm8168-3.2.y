@@ -120,7 +120,7 @@ int cppi41_queue_mgr_init(u8 q_mgr, dma_addr_t rgn0_base, u16 rgn0_size)
 	    q_mgr_regs + QMGR_LINKING_RAM_RGN0_SIZE_REG,
 	    readl(q_mgr_regs + QMGR_LINKING_RAM_RGN0_SIZE_REG));
 
-	ptr = kzalloc(BITS_TO_LONGS(cppi41_queue_mgr[q_mgr].num_queue),
+	ptr = kzalloc(BITS_TO_LONGS(cppi41_queue_mgr[q_mgr].num_queue) * sizeof(long),
 		      GFP_KERNEL);
 	if (ptr == NULL) {
 		printk(KERN_ERR "ERROR: %s: Unable to allocate queue bitmap.\n",
