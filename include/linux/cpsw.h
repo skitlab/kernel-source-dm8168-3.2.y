@@ -47,6 +47,7 @@ struct cpsw_platform_data {
 	u32	host_port_num; /* The port number for the host port */
 
 	bool	no_bd_ram; /* no embedded BD ram*/
+	u32	default_vlan;
 };
 
 #endif /* __CPSW_H__ */

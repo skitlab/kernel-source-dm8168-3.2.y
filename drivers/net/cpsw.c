@@ -1073,6 +1073,16 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	for_each_slave(priv, cpsw_slave_open, priv);
 #endif /* CONFIG_TI_CPSW_DUAL_EMAC */
 
+#if defined(VLAN_SUPPORT) && !defined(CONFIG_TI_CPSW_DUAL_EMAC)
+	__raw_writel(priv->data.default_vlan, &priv->host_port_regs->port_vlan);
+	__raw_writel(priv->data.default_vlan, &priv->slaves[0].regs->port_vlan);
+	__raw_writel(priv->data.default_vlan, &priv->slaves[1].regs->port_vlan);
+	cpsw_ale_add_vlan(priv->ale, priv->data.default_vlan,
+			ALE_ALL_PORTS << priv->host_port,
+			ALE_ALL_PORTS << priv->host_port,
+			ALE_ALL_PORTS << priv->host_port, 0);
+#endif
+
 #ifdef CONFIG_TI_CPSW_DUAL_EMAC
 	if (!cpsw_common_res_usage_stat(priv)) {
 #endif /* CONFIG_TI_CPSW_DUAL_EMAC */
