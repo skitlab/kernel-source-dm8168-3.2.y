@@ -2128,6 +2128,7 @@ static void ti814x_nor_init(void)
 /* Port Vlan IDs for Dual Mac Mode */
 #define CPSW_PORT_VLAN_SLAVE_0		2
 #define CPSW_PORT_VLAN_SLAVE_1		3
+#define TI81XX_DEFAULT_VLAN		4000
 
 static u64 cpsw_dma_mask = DMA_BIT_MASK(32);
 /* TODO : Verify the offsets */
@@ -2165,6 +2166,7 @@ static struct cpsw_platform_data ti814x_cpsw_pdata = {
 	.gigabit_en		= 1,
 	.host_port_num		= 0,
 	.no_bd_ram		= false,
+	.default_vlan		= TI81XX_DEFAULT_VLAN,
 };
 
 static struct mdio_platform_data cpsw_mdio_pdata = {
