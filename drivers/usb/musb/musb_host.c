@@ -706,7 +706,8 @@ static bool musb_tx_dma_program(struct dma_controller *dma,
 	 */
 	wmb();
 
-	if (!dma->channel_program(channel, pkt_size, mode,
+	if (!dma->channel_program(channel, pkt_size |
+			(qh->hb_mult << 11), mode,
 			urb->transfer_dma + offset, length)) {
 		dma->channel_release(channel);
 		hw_ep->tx_channel = NULL;
@@ -831,7 +832,7 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 						packet_sz) - 1) << 11);
 			else
 				musb_writew(epio, MUSB_TXMAXP,
-					packet_sz);
+					qh->maxpacket | (qh->hb_mult << 11));
 			musb_writeb(epio, MUSB_TXINTERVAL, qh->intv_reg);
 		} else {
 			musb_writeb(epio, MUSB_NAKLIMIT0, qh->intv_reg);
@@ -906,7 +907,7 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 				 * errors, we dare not queue multiple transfers.
 				 */
 				dma_ok = dma_controller->channel_program(
-						dma_channel, packet_sz,
+						dma_channel, packet_sz | (qh->hb_mult << 11),
 						!(urb->transfer_flags
 							& URB_SHORT_NOT_OK),
 						urb->transfer_dma + offset,
@@ -1680,7 +1681,8 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 				length =
 					urb->iso_frame_desc[qh->iso_idx].length;
 
-				ret = c->channel_program(dma, qh->maxpacket,
+				ret = c->channel_program(dma, qh->maxpacket |
+						(qh->hb_mult << 11),
 						0, (u32) buf, length);
 				done = false;
 			} else {
@@ -1825,7 +1827,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			 * adjusted first...
 			 */
 			ret = c->channel_program(
-				dma, qh->maxpacket,
+				dma, qh->maxpacket | ((qh->hb_mult - 1) << 11),
 				dma->desired_mode, buf, length);
 
 			if (!ret) {
