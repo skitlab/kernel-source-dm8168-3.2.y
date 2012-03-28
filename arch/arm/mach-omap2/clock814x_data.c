@@ -979,6 +979,7 @@ static struct clk ocmc_ram_ick = {
 	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
 	.clkdm_name	= "alwon_ocmc_clkdm",
 	.recalc		= &followparent_recalc,
+	.flags		= ENABLE_ON_INIT,
 };
 
 /* MMCHS2 Clock(final) */
