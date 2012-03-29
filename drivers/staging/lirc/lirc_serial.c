@@ -103,17 +103,34 @@ struct lirc_serial {
 #define LIRC_IGOR		4
 #define LIRC_NSLU2		5
 
+/* Pulse Width for different protocols */
+#define PULSE_SONY	600
+#define PULSE_RC5	880
+#define PULSE_NEC	560
+
+/*Space value in starting for different protocols */
+#define SPACE_SONY	193675 /* Same for RC-5 */
+#define SPACE_NEC	399727
+#define SPACE_NEC_REPEAT	99727 /* Space between code and repeat code */
+
+/* Base address for UART and IRQ number */
+#define LIRC_UART_BASE	TI81XX_UART2_BASE
+#define LIRC_IRQ_UART	TI81XX_IRQ_UART1
 /*** module parameters ***/
+static int pulse = PULSE_NEC; /* pulse width for the selected protocol (NEC by default)*/
 static int type;
 static int io;
 static int irq;
-static int iommap;
-static int ioshift;
+static int iommap = 1; /* The registers are memory mapped */
+static int ioshift = 2; /* The ioshift for memory mapped register */
 static int softcarrier = 1;
 static int share_irq;
 static int debug;
-static int sense = -1;	/* -1 = auto, 0 = active high, 1 = active low */
-static int txsense;	/* 0 = active high, 1 = active low */
+static int sense = -1; /* -1 = auto, 0 = active high, 1 = active low */
+static int txsense; /* 0 = active high, 1 = active low */
+static int dll;
+static int dlh;
+static int protocol = 1; /* protocol 0 for RC-5, 1 for NEC, 2 for SONY*/
 
 #define dprintk(fmt, args...)					\
 	do {							\
@@ -642,109 +659,211 @@ static void frbwrite(int l)
 	}
 	rbwrite(l);
 }
+static void configure_reg(void)
+{
+	switch (protocol) {
+	case 0:
+		pulse = PULSE_RC5; /* RC-5*/
+		dll = 0x6b;
+		dlh = 0x0a;
+		break;
+	case 1:
+		pulse = PULSE_NEC; /* NEC*/
+		dll = 0x90;
+		dlh = 0x6;
+		break;
+	case 2:
+		pulse = PULSE_SONY; /* SONY*/
+		dll = 0x90;
+		dlh = 0x6;
+		break;
+	}
+	/* The configuration of UART registers for
+	 * making it to work in CIR mode.*/
+	soutp(UART_LCR , 0xbf);
+	soutp(UART_EFR , 0x10);
+	soutp(UART_LCR , 0);
+	soutp(UART_IER , 0);
+	soutp(UART_MCR , 0);
+	soutp(UART_LCR , 0xbf);
+	soutp(UART_EFR , 0);
+	soutp(UART_LCR , 0);
+	soutp(UART1_OMAP_SCR , 0x1);
+	soutp(UART_LCR , 0xbf);
+	soutp(UART_EFR , 0x10);
+	soutp(UART_LCR , 0);
+	soutp(UART_MCR , 0x40);
+	soutp(UART_OMAP_TCR , 0x8a);
+	soutp(UART_TLR , 0x10);
+	soutp(UART_MCR , 0);
+	soutp(UART_LCR , 0xbf);
+	soutp(UART_EFR , 0);
+	soutp(UART_LCR , 0);
+	soutp(UART_OMAP_MDR1 , 0x7);
+	soutp(UART_LCR , 0xbf);
+	soutp(UART_EFR , 0x10);
+	soutp(UART_LCR , 0);
+	soutp(UART_IER , 0xc);
+	soutp(UART_FCR , 0x57);
+	soutp(UART_LCR , 0x2);
+	soutp(UART_MCR , 0x3f);
+	soutp(UART_LCR , 0xbf);
+	soutp(UART_EFR , 0);
+	soutp(UART_LCR , 0);
+	soutp(UART_OMAP_MDR1 , 0x27);
+	soutp(UART_OMAP_MDR2 , 0x10);
+	soutp(UART_LCR , 0xbf);
+	soutp(UART_TXFLL , 0x4);
+	soutp(UART_TXFLH , 0);
+	soutp(UART_DLL , dll);
+	soutp(UART_DLM , dlh);
+	soutp(UART_LCR , 0x0);
+	soutp(UART_OMAP_EBLR , 0x9);
+	soutp(UART_OMAP_CFPS , 105);
+	soutp(UART_OMAP_ACREG , 0x10);
+	soutp(UART_OMAP_MDR3 , 0x1);
+	soutp(UART_OMAP_MDR1 , 0x26);
+	soutp(UART_FCR , 0x57);
+}
 
 static irqreturn_t irq_handler(int i, void *blah)
 {
-	struct timeval tv;
-	int counter, dcd;
-	u8 status;
-	long deltv;
-	int data;
-	static int last_dcd = -1;
-
+	int cur_rhr;
+	int rhr;
+	int end_of_data;
+	int first_signal = 0;
+	int prev_rhr = -1;
+	int num_bits = 0;
+	int first_bit = 0;
+	int position = 0;
 	if ((sinp(UART_IIR) & UART_IIR_NO_INT)) {
 		/* not our interrupt */
 		return IRQ_NONE;
 	}
-
-	counter = 0;
-	do {
-		counter++;
-		status = sinp(UART_MSR);
-		if (counter > RS_ISR_PASS_LIMIT) {
-			printk(KERN_WARNING LIRC_DRIVER_NAME ": AIEEEE: "
-			       "We're caught!\n");
-			break;
+	soutp(UART_IER , 0); /*Disable more Interrupts till handling*/
+	while (sinp(UART_IER))
+		;
+	/*Waiting for UART_IER to be zero*/
+	udelay(50);
+	/*Delay for registers to take stable value*/
+	end_of_data = sinp(UART_LSR);
+	end_of_data &= 0x1;
+	while (!end_of_data) {
+		if (first_signal == 0) {
+			first_signal++;
+			if (protocol == 0 || protocol == 2) {
+				frbwrite(SPACE_SONY);
+				/* Space value at
+				 * the start of each code pulse
+				 * for Sony and RC-5*/
+				wake_up_interruptible(&rbuf.wait_poll);
+			}
 		}
-		if ((status & hardware[type].signal_pin_change)
-		    && sense != -1) {
-			/* get current time */
-			do_gettimeofday(&tv);
-
-			/* New mode, written by Trent Piepho
-			   <xyzzy@u.washington.edu>. */
-
-			/*
-			 * The old format was not very portable.
-			 * We now use an int to pass pulses
-			 * and spaces to user space.
-			 *
-			 * If PULSE_BIT is set a pulse has been
-			 * received, otherwise a space has been
-			 * received.  The driver needs to know if your
-			 * receiver is active high or active low, or
-			 * the space/pulse sense could be
-			 * inverted. The bits denoted by PULSE_MASK are
-			 * the length in microseconds. Lengths greater
-			 * than or equal to 16 seconds are clamped to
-			 * PULSE_MASK.  All other bits are unused.
-			 * This is a much simpler interface for user
-			 * programs, as well as eliminating "out of
-			 * phase" errors with space/pulse
-			 * autodetection.
-			 */
-
-			/* calc time since last interrupt in microseconds */
-			dcd = (status & hardware[type].signal_pin) ? 1 : 0;
-
-			if (dcd == last_dcd) {
-				printk(KERN_WARNING LIRC_DRIVER_NAME
-				": ignoring spike: %d %d %lx %lx %lx %lx\n",
-				dcd, sense,
-				tv.tv_sec, lasttv.tv_sec,
-				tv.tv_usec, lasttv.tv_usec);
+		rhr = sinp(UART_RX);
+		/* Readin the rhr register
+		 *  till data is present*/
+		udelay(50); /*Delay to read cur_rhr*/
+		position = 0;
+		for ( ; position < 8 ; position++) {
+			/*read 8 bits of the rhr register*/
+			cur_rhr = rhr & 0x1; /*Checking the last bit*/
+			if (first_bit == 0) {
+				num_bits++;
+				first_bit++;
+				prev_rhr = cur_rhr;
+				rhr = rhr >> 1;
+				continue;
+			}
+			if (prev_rhr != cur_rhr) {
+				if (protocol == 1) { /* For NEC*/
+					if (prev_rhr != 0 ||
+							num_bits <= 8) {
+						/*Neglecting last big space */
+						num_bits *= pulse;
+						if (prev_rhr == 1)
+							num_bits |= PULSE_BIT;
+						if (num_bits != 0)
+							frbwrite(num_bits);
+						num_bits &= PULSE_MASK;
+						num_bits /= pulse;
+					}
+				} else {
+					if (num_bits != 0) {
+						/* Write data into the buffer*/
+						num_bits *= pulse;
+						if (prev_rhr == 1)
+							num_bits |= PULSE_BIT;
+						frbwrite(num_bits);
+						num_bits &= PULSE_MASK;
+						num_bits = num_bits /  pulse;
+					}
+				}
+				wake_up_interruptible(&rbuf.wait_poll);
+				num_bits = 1;
+				prev_rhr = cur_rhr;
+				rhr = rhr >> 1;
+				continue;
+			}
+			if (protocol == 1 && prev_rhr == cur_rhr) {
+				/* For NEC to differentiate
+				* between
+				* repeat code and Normal code.*/
+				if (num_bits == 15  && cur_rhr == 1) {
+					/* Start of NEC
+					*  9ms pulse and
+					*  4.5 ms space*/
+					end_of_data = sinp(UART_LSR);
+					end_of_data &= 0x1;
+					if (end_of_data == 1)
+						break; /* No data , error */
+					rhr = sinp(UART_RX);
+					if (rhr == 0) {
+						frbwrite(SPACE_NEC);
+						/* Space to differentiate
+						*  between different key
+						*  presses*/
+					} else {
+						frbwrite(SPACE_NEC_REPEAT);
+						/*Space to differentiate
+						 * between code and
+						 * repeat code*/
+					}
+					num_bits = 0;
+					position = -1;
+					prev_rhr = 0;
+					wake_up_interruptible(&rbuf.wait_poll);
+					frbwrite(PULSE_BIT|8960);
+					wake_up_interruptible(&rbuf.wait_poll);
+					continue;
+				}
+				num_bits++;
+				prev_rhr = cur_rhr;
+				rhr = rhr >> 1;
+				continue;
+			}
+			if (protocol != 1 && prev_rhr == cur_rhr) {
+				num_bits++;
+				prev_rhr = cur_rhr;
+				rhr = rhr >> 1;
 				continue;
 			}
 
-			deltv = tv.tv_sec-lasttv.tv_sec;
-			if (tv.tv_sec < lasttv.tv_sec ||
-			    (tv.tv_sec == lasttv.tv_sec &&
-			     tv.tv_usec < lasttv.tv_usec)) {
-				printk(KERN_WARNING LIRC_DRIVER_NAME
-				       ": AIEEEE: your clock just jumped "
-				       "backwards\n");
-				printk(KERN_WARNING LIRC_DRIVER_NAME
-				       ": %d %d %lx %lx %lx %lx\n",
-				       dcd, sense,
-				       tv.tv_sec, lasttv.tv_sec,
-				       tv.tv_usec, lasttv.tv_usec);
-				data = PULSE_MASK;
-			} else if (deltv > 15) {
-				data = PULSE_MASK; /* really long time */
-				if (!(dcd^sense)) {
-					/* sanity check */
-					printk(KERN_WARNING LIRC_DRIVER_NAME
-					       ": AIEEEE: "
-					       "%d %d %lx %lx %lx %lx\n",
-					       dcd, sense,
-					       tv.tv_sec, lasttv.tv_sec,
-					       tv.tv_usec, lasttv.tv_usec);
-					/*
-					 * detecting pulse while this
-					 * MUST be a space!
-					 */
-					sense = sense ? 0 : 1;
-				}
-			} else
-				data = (int) (deltv*1000000 +
-					       tv.tv_usec -
-					       lasttv.tv_usec);
-			frbwrite(dcd^sense ? data : (data|PULSE_BIT));
-			lasttv = tv;
-			last_dcd = dcd;
-			wake_up_interruptible(&rbuf.wait_poll);
 		}
-	} while (!(sinp(UART_IIR) & UART_IIR_NO_INT)); /* still pending ? */
+			end_of_data = sinp(UART_LSR);
+			/* Checking LSR register
+			 * to see if more data
+			 * is present or not.*/
+			end_of_data &= 0x1;
+	}
+	if (num_bits != 0 && prev_rhr != 0) {
+		num_bits *= pulse;
+		/* Write to buffer */
+		frbwrite(prev_rhr ? (num_bits|PULSE_BIT) : num_bits);
+		num_bits = num_bits / pulse;
+		wake_up_interruptible(&rbuf.wait_poll); /*Polling mechanism*/
+	}
+	soutp(UART_IER, 0xc); /*Enable Interrupts*/
+	/* UART_IER=0xc again after acknowledgment of the interrupt*/
 	return IRQ_HANDLED;
 }
 
@@ -763,13 +882,13 @@ static int hardware_init_port(void)
 	outb(0xff, 0x080);
 #endif
 	scratch2 = sinp(UART_IER) & 0x0f;
-	soutp(UART_IER, 0x0f);
+	soutp(UART_IER, 0x11); /* 0xf value is not allowed in UART_IER */
 #ifdef __i386__
 	outb(0x00, 0x080);
 #endif
-	scratch3 = sinp(UART_IER) & 0x0f;
+	scratch3 = sinp(UART_IER) & 0x11;
 	soutp(UART_IER, scratch);
-	if (scratch2 != 0 || scratch3 != 0x0f) {
+	if (scratch2 != 0 || scratch3 != 0x11) {
 		/* we fail, there's nothing here */
 		printk(KERN_ERR LIRC_DRIVER_NAME ": port existence test "
 		       "failed, cannot continue\n");
@@ -786,8 +905,8 @@ static int hardware_init_port(void)
 	      (~(UART_IER_MSI|UART_IER_RLSI|UART_IER_THRI|UART_IER_RDI)));
 
 	/* Clear registers. */
+	/* UART_RX can not be read till data is present in FIFO */
 	sinp(UART_LSR);
-	sinp(UART_RX);
 	sinp(UART_IIR);
 	sinp(UART_MSR);
 
@@ -809,8 +928,8 @@ static int hardware_init_port(void)
 	off();
 
 	/* Clear registers again to be sure. */
+	/* UART_RX can not be read till data is present in FIFO */
 	sinp(UART_LSR);
-	sinp(UART_RX);
 	sinp(UART_IIR);
 	sinp(UART_MSR);
 
@@ -922,12 +1041,8 @@ static int set_use_inc(void *data)
 	};
 
 	spin_lock_irqsave(&hardware[type].lock, flags);
-
-	/* Set DLAB 0. */
-	soutp(UART_LCR, sinp(UART_LCR) & (~UART_LCR_DLAB));
-
-	soutp(UART_IER, sinp(UART_IER)|UART_IER_MSI);
-
+	/* Configuration of registers of UART for CIR mode */
+	configure_reg();
 	spin_unlock_irqrestore(&hardware[type].lock, flags);
 
 	return 0;
@@ -1060,7 +1175,6 @@ static const struct file_operations lirc_fops = {
 	.poll		= lirc_dev_fop_poll,
 	.open		= lirc_dev_fop_open,
 	.release	= lirc_dev_fop_close,
-	.llseek		= no_llseek,
 };
 
 static struct lirc_driver driver = {
@@ -1102,7 +1216,6 @@ static int lirc_serial_suspend(struct platform_device *dev,
 
 	/* Clear registers. */
 	sinp(UART_LSR);
-	sinp(UART_RX);
 	sinp(UART_IIR);
 	sinp(UART_MSR);
 
@@ -1202,9 +1315,11 @@ static int __init lirc_serial_init_module(void)
 	case LIRC_IRDEO_REMOTE:
 	case LIRC_ANIMAX:
 	case LIRC_IGOR:
-		/* if nothing specified, use ttyS0/com1 and irq 4 */
-		io = io ? io : 0x3f8;
-		irq = irq ? irq : 4;
+		/* if nothing specified, use ttyO2/com1 and irq for UART1 */
+		io = io ? io : (int)(ioremap(LIRC_UART_BASE, 0x100000));
+		irq = irq ? irq : LIRC_IRQ_UART;
+		share_irq = 1;
+		iommap = 1;
 		break;
 #ifdef CONFIG_LIRC_SERIAL_NSLU2
 	case LIRC_NSLU2:
@@ -1299,10 +1414,18 @@ MODULE_PARM_DESC(irq, "Interrupt (4 or 3)");
 module_param(share_irq, bool, S_IRUGO);
 MODULE_PARM_DESC(share_irq, "Share interrupts (0 = off, 1 = on)");
 
+module_param(protocol, int, S_IRUGO);
+MODULE_PARM_DESC(protocol, "0 for RC-5, 1 For NEC, 2 for SONY(sony can work"
+		"with Raw mode perfectly using -f option)");
+
 module_param(sense, bool, S_IRUGO);
 MODULE_PARM_DESC(sense, "Override autodetection of IR receiver circuit"
 		 " (0 = active high, 1 = active low )");
 
+module_param(dll, int, S_IRUGO);
+MODULE_PARM_DESC(dll, "DLL");
+module_param(dlh, int, S_IRUGO);
+MODULE_PARM_DESC(dlh, "DLH");
 #ifdef CONFIG_LIRC_SERIAL_TRANSMITTER
 module_param(txsense, bool, S_IRUGO);
 MODULE_PARM_DESC(txsense, "Sense of transmitter circuit"

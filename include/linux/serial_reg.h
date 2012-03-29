@@ -165,6 +165,11 @@
 #define UART_XON2	5	/* I/O: Xon character 2 */
 #define UART_XOFF1	6	/* I/O: Xoff character 1 */
 #define UART_XOFF2	7	/* I/O: Xoff character 2 */
+#define UART_OMAP_TCR   6	/* Transmission Control register*/
+#define UART_TLR        7	/* Trigger Level Register*/
+#define UART_TXFLL	10	/* Transmit Frame Length Lor*/
+#define UART_TXFLH	11	/* Transmit Frmae Length High*/
+#define UART1_OMAP_SCR  16	/* Supplementary Control register*/
 
 /*
  * EFR[4]=1 MCR[6]=1, TI16C752
@@ -340,6 +345,7 @@
 #define UART_OMAP_MDR1		0x08	/* Mode definition register */
 #define UART_OMAP_MDR2		0x09	/* Mode definition register 2 */
 #define UART_OMAP_SCR		0x10	/* Supplementary control register */
+#define UART_OMAP_ACREG		0xf	/* Auxilarry Control Register */
 #define UART_OMAP_SSR		0x11	/* Supplementary status register */
 #define UART_OMAP_EBLR		0x12	/* BOF length register */
 #define UART_OMAP_OSC_12M_SEL	0x13	/* OMAP1510 12MHz osc select */
@@ -348,6 +354,8 @@
 #define UART_OMAP_SYSS		0x16	/* System status register */
 #define UART_OMAP_WER		0x17	/* Wake-up enable register */
 
+#define UART_OMAP_CFPS		0x18	/* Carrier Freq prescalar register */
+#define UART_OMAP_MDR3		0x20	/* Mode control register 3 */
 /*
  * These are the definitions for the MDR1 register
  */
