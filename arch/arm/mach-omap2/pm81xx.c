@@ -32,6 +32,7 @@
 #include "prm-regbits-81xx.h"
 #include "prm2xxx_3xxx.h"
 #include <mach/omap4-common.h>
+#include <mach/ti81xx-common.h>
 #include <plat/serial.h>
 #include <plat/sram.h>
 
@@ -312,6 +313,41 @@ static void ti814x_ddr_dynamic_pwr_down(void)
 }
 
 /**
+ * ti81xx_idle - idle routine for the CPU.'
+ *
+ * This function is used as replacement for default_idle()->arch_idle(), it does
+ * following apart from just invoking WFI as arch_idle() would do otherwise:
+ *	1) Skip wfi on ti81xx ES1.0
+ *	2) Do DMM and L3 interconnect write buffer draining before entering WFI
+ *	- this is required as workaround to avoid issue of aync brides in
+ *	MPU->L3 and MPU->DMM path getting corrupted write pointers leading to
+ *	incorrect writes resulting into undefined behavior (kernel crash or even
+ *	lockup). This workaround involves writes to respective locations in the
+ *	above paths (DDR for MPU->DMM), OCMC RAM for MPU->L3) mapped as strongly
+ *	ordered which would go as non-posted writes.
+ *	3) Ensure that no normal memory accesses (posted writes) or even cache
+ *	maintainance kicks in after the above non-posted writes.
+ *	4) If or during the time the DDR and OCMC regions are not mapped,
+ *	proceed to use default cpu_do_idle().
+ *
+ *	Note: We don't disable and enable FIQs here. It is expected that we are
+ *	called with IRQs disabled.
+ */
+static void ti81xx_idle(void)
+{
+	if (!cpu_is_ti814x() || cpu_is_dm385() ||
+			(omap_rev() > TI8148_REV_ES1_0)) {
+
+		if(dram_sync && sram_sync)
+			ti81xx_do_wfi_sync(dram_sync, sram_sync);
+		else
+			cpu_do_idle();
+	}
+
+	local_irq_enable();
+}
+
+/**
  * ti81xx_pm_init - Init routine for TI81XX PM
  *
  * Initializes all powerdomain and clockdomain target states
@@ -324,9 +360,16 @@ static int __init ti81xx_pm_init(void)
 
 	pr_info("Power Management for TI81XX.\n");
 
+	/*
+	 * Override default_idle as we will be doing more than just wfi --> see
+	 * ti81xx_idle()
+	 */
+	pm_idle = ti81xx_idle;
+
+	/* Not all devices support PM beyond idle (WFI), return */
 	if (!cpu_is_dm385() && !(cpu_is_ti814x() &&
 				(omap_rev() > TI8148_REV_ES1_0)))
-		return -ENODEV;
+		return 0;
 
 	prcm_setup_regs();
 

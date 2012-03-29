@@ -93,6 +93,13 @@
 #define TI81XX_L2_MC_IO_ADDRESS(pa)	IOMEM((pa) + TI81XX_L2_MC_IO_OFFSET)
 
 /*
+ * Required to map if using workaround for draining async bridge path draining
+ * on entering WFI
+ */
+#define TI81XX_DRAM_BARRIER_VA		0xfe500000
+#define TI81XX_SRAM_BARRIER_VA		0xfe600000
+
+/*
  * ----------------------------------------------------------------------------
  * Omap1 specific IO mapping
  * ----------------------------------------------------------------------------

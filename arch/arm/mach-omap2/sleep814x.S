@@ -54,19 +54,86 @@
 #define OSC1_CTRL				0x046C
 
 /**
+ * ti81xx_do_wfi_sync - sync write paths from MPU and enter WFI
+ *
+ * This routine performs non-posted memory writes in MPU -> DDR and MPU -> L3
+ * paths to drain the async bridges in respective paths before entering WFI.
+ * This is required to avoid the write pointers in the bridges getting corrupted
+ * on master disconnect during WFI pending earlier posted transfers (e.g, DDR
+ * writes, device writes, cache flush etc).
+ *
+ * r0 & r1 are passed word pointers for locations on DDR & L3 mapped as Strongly
+ * Ordered (SO) to do non-posted writes on respective paths.
+ *
+ * Since it *must* be ensured that no posted writes happen on these paths
+ * *after* SO writes are performed, following constraints should be considered:
+ *	1) No D cache op should happen, it may lead to a L1/L2 line being evicted.
+ *		- We do avoid any cache operation for data during the time of SO
+ *		write and entering WFI.
+ *	2) No I cache op should happen. This is so because the PoU for Cortex A8
+ *	is on L2, thus, an instruction fetch can cause miss on L2 and may lead
+ *	to a line being evicted causing memory write.
+ *		- As seen below, the routine is aligned on 16 instruction (word)
+ *		boundary to ensure the code including WFI resides in the same
+ *		line and thus not causing cache fill.
+ *	3) Page table walk should be prevented after SO writes. This is
+ *	necessary since L2 plays role here too and can have miss leading to
+ *	eviction.
+ *		- The approach used for (2) above automatically ensures this.
+ *
+ * *** IMPORTANT ***
+ * Thus, above points must be honored before changing anything in this routine.
+ *
+ * Some of the simpler (but costlier) approaches could include:
+ *	a) Disable D cache
+ *	b) Disable L2 cache
+ *	c) Preload code in L2 cache and
+ *	d) TLB lockdown
+ */
+ENTRY(ti81xx_do_wfi_sync)
+	.align	6
+
+	stmfd	sp!, {r0-r3, lr}		@ push on stack
+
+	ldr	r2, [r0]
+	ldr	r3, [r1]
+
+	dsb					@ ensure sync of memory, cache,
+	isb					@ instruction execution etc.
+
+	str	r3, [r1]			@ SO write on L3 path
+	str	r2, [r0]			@ SO write on DDR
+
+	wfi
+
+	nop					@ ensure pipeline fill post isb
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+
+	ldmfd	sp!, {r0-r3, pc}		@ pop and return
+ENDPROC(ti81xx_do_wfi_sync)
+
+/**
  * ti814x_cpu_suspend - Put DDR in self refresh and enter processor
  * idle/DeepSleep.
  *
  * This routine is supposed to be executed from internal RAM and expects the
  * array of base addresses of various registers required to enter idle are
  * passed in r0 _strictly_ in following order:
- * 	1) EMIF0 base virtual address [r0]
- * 	2) EMIF1 base virtual address [r1]
- * 	3) DMM base virtual address [r2]
- * 	4) PLL base virtual address [r3]
- * 	5) Control module base virtual address [r4]
- * 	6) Flag indicating whether to proceed for DeepSleep (non-zero = yes)
- * 	[r5]
+ *	1) EMIF0 base virtual address [r0]
+ *	2) EMIF1 base virtual address [r1]
+ *	3) DMM base virtual address [r2]
+ *	4) PLL base virtual address [r3]
+ *	5) Control module base virtual address [r4]
+ *	6) Flag indicating whether to proceed for DeepSleep (non-zero = yes)
+ *	[r5]
  *
  * The code loads these addresses taking r0 value as reference to the array in
  * registers starting from r0, that is, EMIF0 base virtual address goes into r0
@@ -74,7 +141,7 @@
  * rest in the code for other purpose (r7 to r12).
  *
  * Notes:
- * 	1) Support DeepSleep is untested so far
+ *	1) Support DeepSleep is untested so far
  *	2) It is assumed that no TLB management is required for this mode. E.g.,
  *	not doing any invalidate operation on TLBs.
  *	3) All targets for load/store in this file during the time DDR is in
