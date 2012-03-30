@@ -690,13 +690,14 @@ void  ti81xxvin_instance_isr(void *dev_id)
 	field = inst->buf_obj.fmt.fmt.pix.field;
 
 	buf_obj = &inst->buf_obj;
-	if (list_empty(&inst->dma_queue)) {
+	spin_lock(&buf_obj->buf_irqlock);
+	if ((!inst->dma_queue.next) || list_empty(&inst->dma_queue)) {
 		v4l2_err(ti81xxvin_dev->driver, "list empty\n");
-		return;
+		goto isr_error;
 	}
 	if (0 == buf_obj->started) {
 		v4l2_err(ti81xxvin_dev->driver, "Instance not started\n");
-		return;
+		goto isr_error;
 	}
 	do_gettimeofday(&timevalue);
 	buf = list_first_entry(&inst->dma_queue, struct videobuf_buffer,
@@ -706,6 +707,13 @@ void  ti81xxvin_instance_isr(void *dev_id)
 	wake_up_interruptible(&buf->done);
 	/*remove this buffer from the queue*/
 	list_del(&buf->queue);
+	/*set the next buffer status to the active*/
+	buf = list_entry(inst->dma_queue.next,
+			struct videobuf_buffer,
+			queue);
+	buf->state = VIDEOBUF_ACTIVE;
+isr_error:
+	spin_unlock(&buf_obj->buf_irqlock);
 }
 /**
  * ti81xxvin_buffer_setup : Callback function for buffer setup.
@@ -808,8 +816,6 @@ static void ti81xxvin_buffer_queue(struct videobuf_queue *q,
 	struct ti81xxvin_fh *fh = q->priv_data;
 	struct ti81xxvin_instance_obj *inst = fh->instance;
 	struct ti81xxvin_buffer_obj *buf_obj;
-	u32 addr, offset;
-	int ret;
 
 	buf_obj = &inst->buf_obj;
 
@@ -820,7 +826,7 @@ static void ti81xxvin_buffer_queue(struct videobuf_queue *q,
 				&buf_obj->buffer_queue.stream,
 				struct videobuf_buffer,
 				stream);
-
+#if 0
 	/* Make FVID2_Framelist here and queue the buffers here */
 	/* By the time function comes here FVID2 create is complete and capture
 	 * driver is opened and all the parameters are set
@@ -838,7 +844,7 @@ static void ti81xxvin_buffer_queue(struct videobuf_queue *q,
 	 */
 	ret = inst->captctrl->queue(inst->captctrl, vb->i);
 	BUG_ON(ret);
-
+#endif
 	/* Queue the buffer to driver maintained queueu */
 	list_add_tail(&vb->queue, &inst->dma_queue);
 	/* Change state of the buffer */
@@ -1661,6 +1667,8 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	struct ti81xxvin_instance_obj *inst = fh->instance;
 	struct ti81xxvin_buffer_obj *buf_obj = &inst->buf_obj;
 	struct v4l2_buffer tbuf = *buf;
+	u32 addr, offset;
+	int ret = 0;
 
 	ti81xxvin_dbg(2, debug, "vidioc_qbuf\n");
 
@@ -1672,7 +1680,26 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		ti81xxvin_err("fh io not allowed\n");
 		return -EACCES;
 	}
-	return videobuf_qbuf(&buf_obj->buffer_queue, buf);
+	ret = videobuf_qbuf(&buf_obj->buffer_queue, buf);
+	if (buf_obj->started && !ret) {
+		struct videobuf_buffer *vb;
+		vb = list_entry(inst->dma_queue.prev,
+				struct videobuf_buffer, queue);
+
+		if (V4L2_MEMORY_USERPTR == buf_obj->memory)
+			addr = vb->boff;
+		else
+			addr = videobuf_to_dma_contig(vb);
+		offset = (inst->win.w.left) +
+			(inst->win.w.top * buf_obj->fmt.fmt.pix.bytesperline);
+		inst->captctrl->set_buffer(inst->captctrl, addr, vb->i, offset);
+
+		/* TODO Check all the software conditions which are checked in
+		 * FVID2_queue so that queue call should never return error
+		 */
+		ret = inst->captctrl->queue(inst->captctrl, vb->i);
+	}
+	return ret;
 }
 
 /**
@@ -1717,27 +1744,35 @@ static int vidioc_streamon(struct file *file, void *priv,
 	struct ti81xxvin_buffer_obj *buf_obj = &inst->buf_obj;
 	struct ti81xxvin_obj *vid_ch;
 	int ret = 0;
+	struct videobuf_buffer *vb;
+	u32 addr, offset;
 
 	ti81xxvin_dbg(2, debug, "vidioc_streamon\n");
-
+	if (mutex_lock_interruptible(&buf_obj->buf_lock))
+		return -ERESTARTSYS;
 	vid_ch = &inst->video;
 	if (buftype != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		ti81xxvin_dbg(1, debug, "buffer type not supported\n");
+		mutex_unlock(&buf_obj->buf_lock);
 		return -EINVAL;
 	}
 	/* If file handle is not allowed IO, return error */
 	if (!fh->io_allowed) {
 		ti81xxvin_dbg(1, debug, "io not allowed\n");
+		mutex_unlock(&buf_obj->buf_lock);
 		return -EACCES;
 	}
 	/* If Streaming is already started, return error */
 	if (buf_obj->started) {
 		ti81xxvin_dbg(1, debug, "instance->started\n");
+		mutex_unlock(&buf_obj->buf_lock);
 		return -EBUSY;
 	}
 	ret = ti81xxvin_check_format(inst, &buf_obj->fmt.fmt.pix, 0);
-	if (ret)
+	if (ret) {
+		mutex_unlock(&buf_obj->buf_lock);
 		return ret;
+	}
 	/* After checking the buffer format. Call the FVID2 Create and
 	 * Set format for starting the driver
 	 */
@@ -1747,11 +1782,13 @@ static int vidioc_streamon(struct file *file, void *priv,
 
 	if (ret && (ret != -ENOIOCTLCMD)) {
 		ti81xxvin_dbg(1, debug, "stream on failed in subdev\n");
+		mutex_unlock(&buf_obj->buf_lock);
 		return ret;
 	}
 	ret = ti81xxvin_vps_create(inst);
 	if (ret) {
 		ti81xxvin_err("Vps create failed\n");
+		mutex_unlock(&buf_obj->buf_lock);
 		goto ti81xxvin_vps_create_failed;
 
 	}
@@ -1762,10 +1799,36 @@ static int vidioc_streamon(struct file *file, void *priv,
 	ret = videobuf_streamon(&buf_obj->buffer_queue);
 	if (ret) {
 		ti81xxvin_dbg(1, debug, "videobuf_streamon\n");
+		mutex_unlock(&buf_obj->buf_lock);
 		goto streamon_failed;
 	}
-	if (mutex_lock_interruptible(&buf_obj->buf_lock))
-		return -ERESTARTSYS;
+	if (list_empty(&inst->dma_queue)) {
+		mutex_unlock(&buf_obj->buf_lock);
+		ret = -EIO;
+		goto streamon_failed;
+	}
+
+	list_for_each_entry(vb, &inst->dma_queue, queue) {
+		/*though queue all prime buffer, but only the first
+		buffer will be displayed. other still int the QUEUE state*/
+		if (vb->i == 0)
+			vb->state = VIDEOBUF_ACTIVE;
+		if (V4L2_MEMORY_USERPTR == buf_obj->memory)
+			addr = vb->boff;
+		else
+			addr = videobuf_to_dma_contig(vb);
+		offset = (inst->win.w.left) +
+			(inst->win.w.top * buf_obj->fmt.fmt.pix.bytesperline);
+		inst->captctrl->set_buffer(inst->captctrl, addr, vb->i, offset);
+
+		/* TODO Check all the software conditions which are checked in
+		* FVID2_queue so that queue call should never return error
+		*/
+		ret = inst->captctrl->queue(inst->captctrl, vb->i);
+		BUG_ON(ret);
+
+	}
+
 	/* Initialize field_id and started member */
 	inst->field_id = 0;
 	buf_obj->started = 1;
