@@ -1198,6 +1198,11 @@ static int cppi41_channel_abort(struct dma_channel *channel)
 	if (cppi_ch->transmit) {
 		dprintk("Tx channel teardown, cppi_ch = %p\n", cppi_ch);
 
+		/* disable the DMAreq before teardown */
+		csr  = musb_readw(epio, MUSB_TXCSR);
+		csr &= ~MUSB_TXCSR_DMAENAB;
+		musb_writew(epio, MUSB_TXCSR, csr);
+
 		cppi_ch->tx_complete = 0;
 		cppi_ch->txf_complete = 0;
 		/* Tear down Tx DMA channel */
@@ -1216,11 +1221,24 @@ static int cppi41_channel_abort(struct dma_channel *channel)
 	} else { /* Rx */
 		dprintk("Rx channel teardown, cppi_ch = %p\n", cppi_ch);
 
+		/* disable the DMAreq and remove reqpkt */
+		csr  = musb_readw(epio, MUSB_RXCSR);
+		DBG(4, "before rx-teardown: rxcsr %x rxcount %x\n", csr,
+			musb_readw(epio, MUSB_RXCOUNT));
+		csr &= ~(MUSB_RXCSR_H_REQPKT | MUSB_RXCSR_DMAENAB);
+		musb_writew(epio, MUSB_RXCSR, csr);
+
+		/* wait till xdma completes last 64 bytes transfer from
+		 * mentor fifo to internal cppi fifo
+		 */
+		udelay(5);
+
 		/* Flush FIFO of the endpoint */
 		csr  = musb_readw(epio, MUSB_RXCSR);
-		csr |= MUSB_RXCSR_FLUSHFIFO | MUSB_RXCSR_H_WZC_BITS;
+		csr = MUSB_RXCSR_FLUSHFIFO | MUSB_RXCSR_H_WZC_BITS;
 		musb_writew(epio, MUSB_RXCSR, csr);
 		musb_writew(epio, MUSB_RXCSR, csr);
+		csr  = musb_readw(epio, MUSB_RXCSR);
 
 		/* Issue CPPI FIFO teardown for Rx channel */
 		td_reg  = musb_readl(reg_base, cppi->teardown_reg_offs);
