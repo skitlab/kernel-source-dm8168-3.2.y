@@ -927,7 +927,7 @@ static int ti81xxvin_vps_stop(struct ti81xxvin_instance_obj *inst)
 	ret = (inst->captctrl->stop(inst->captctrl));
 	return ret;
 }
-
+/* This function is protected under mutex */
 static int ti81xxvin_hdvpss_stop(struct ti81xxvin_instance_obj *inst)
 {
 	struct videobuf_buffer *buf;
@@ -1595,8 +1595,8 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 		return -EINVAL;
 
 	buf_obj = &inst->buf_obj;
-	if (mutex_lock_interruptible(&buf_obj->buf_lock))
-		return -ERESTARTSYS;
+	mutex_lock(&buf_obj->buf_lock);
+
 	if (0 != buf_obj->io_usrs) {
 		ret = -EBUSY;
 		goto reqbuf_exit;
@@ -1609,7 +1609,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 			reqbuf->type,
 			buf_obj->fmt.fmt.pix.field,
 			sizeof(struct videobuf_buffer), fh,
-			NULL);
+			&buf_obj->buf_lock);
 
 	/* Set io allowed member of file handle to TRUE */
 	fh->io_allowed = 1;
@@ -1640,7 +1640,9 @@ static int vidioc_querybuf(struct file *file, void *priv,
 	struct ti81xxvin_fh *fh = priv;
 	struct ti81xxvin_instance_obj *inst = fh->instance;
 	struct ti81xxvin_buffer_obj *buf_obj = &inst->buf_obj;
+	int r;
 
+	mutex_lock(&buf_obj->buf_lock);
 	ti81xxvin_dbg(2, debug, "vidioc_querybuf\n");
 
 	if (buf_obj->fmt.type != buf->type)
@@ -1650,8 +1652,9 @@ static int vidioc_querybuf(struct file *file, void *priv,
 		ti81xxvin_dbg(1, debug, "Invalid memory\n");
 		return -EINVAL;
 	}
-
-	return videobuf_querybuf(&buf_obj->buffer_queue, buf);
+	r = videobuf_querybuf(&buf_obj->buffer_queue, buf);
+	mutex_unlock(&buf_obj->buf_lock);
+	return r;
 }
 
 /**
@@ -1670,16 +1673,20 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	u32 addr, offset;
 	int ret = 0;
 
-	ti81xxvin_dbg(2, debug, "vidioc_qbuf\n");
 
 	if (buf_obj->fmt.type != tbuf.type) {
 		ti81xxvin_err("invalid buffer type\n");
-		return -EINVAL;
+		ret =  -EINVAL;
+		goto qbuf_exit;
 	}
 	if (!fh->io_allowed) {
 		ti81xxvin_err("fh io not allowed\n");
-		return -EACCES;
+		ret = -EACCES;
+		goto qbuf_exit;
 	}
+	mutex_lock(&buf_obj->buf_lock);
+	ti81xxvin_dbg(2, debug, "vidioc_qbuf\n");
+
 	ret = videobuf_qbuf(&buf_obj->buffer_queue, buf);
 	if (buf_obj->started && !ret) {
 		struct videobuf_buffer *vb;
@@ -1698,7 +1705,10 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		 * FVID2_queue so that queue call should never return error
 		 */
 		ret = inst->captctrl->queue(inst->captctrl, vb->i);
+		BUG_ON(ret);
 	}
+qbuf_exit:
+	mutex_unlock(&buf_obj->buf_lock);
 	return ret;
 }
 
@@ -1716,6 +1726,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	int ret = 0;
 	int num_frms_dequeued;
 
+	mutex_lock(&buf_obj->buf_lock);
 	ti81xxvin_dbg(2, debug, "vidioc_dqbuf\n");
 
 	ret = inst->captctrl->dequeue(inst->captctrl, 0);
@@ -1725,6 +1736,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 
 	ret = videobuf_dqbuf(&buf_obj->buffer_queue, buf,
 			file->f_flags & O_NONBLOCK);
+	mutex_unlock(&buf_obj->buf_lock);
 	return ret;
 
 }
@@ -1748,30 +1760,30 @@ static int vidioc_streamon(struct file *file, void *priv,
 	u32 addr, offset;
 
 	ti81xxvin_dbg(2, debug, "vidioc_streamon\n");
-	if (mutex_lock_interruptible(&buf_obj->buf_lock))
-		return -ERESTARTSYS;
+	mutex_lock(&buf_obj->buf_lock);
 	vid_ch = &inst->video;
 	if (buftype != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		ti81xxvin_dbg(1, debug, "buffer type not supported\n");
-		mutex_unlock(&buf_obj->buf_lock);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto vidioc_streamon_failed;
 	}
 	/* If file handle is not allowed IO, return error */
 	if (!fh->io_allowed) {
 		ti81xxvin_dbg(1, debug, "io not allowed\n");
-		mutex_unlock(&buf_obj->buf_lock);
-		return -EACCES;
+		ret = -EACCES;
+		goto vidioc_streamon_failed;
 	}
 	/* If Streaming is already started, return error */
 	if (buf_obj->started) {
 		ti81xxvin_dbg(1, debug, "instance->started\n");
-		mutex_unlock(&buf_obj->buf_lock);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto vidioc_streamon_failed;
 	}
 	ret = ti81xxvin_check_format(inst, &buf_obj->fmt.fmt.pix, 0);
 	if (ret) {
-		mutex_unlock(&buf_obj->buf_lock);
-		return ret;
+		ti81xxvin_dbg(1, debug, "io not allowed\n");
+		goto vidioc_streamon_failed;
+
 	}
 	/* After checking the buffer format. Call the FVID2 Create and
 	 * Set format for starting the driver
@@ -1782,13 +1794,11 @@ static int vidioc_streamon(struct file *file, void *priv,
 
 	if (ret && (ret != -ENOIOCTLCMD)) {
 		ti81xxvin_dbg(1, debug, "stream on failed in subdev\n");
-		mutex_unlock(&buf_obj->buf_lock);
-		return ret;
+		goto vidioc_streamon_failed;
 	}
 	ret = ti81xxvin_vps_create(inst);
 	if (ret) {
 		ti81xxvin_err("Vps create failed\n");
-		mutex_unlock(&buf_obj->buf_lock);
 		goto ti81xxvin_vps_create_failed;
 
 	}
@@ -1799,7 +1809,6 @@ static int vidioc_streamon(struct file *file, void *priv,
 	ret = videobuf_streamon(&buf_obj->buffer_queue);
 	if (ret) {
 		ti81xxvin_dbg(1, debug, "videobuf_streamon\n");
-		mutex_unlock(&buf_obj->buf_lock);
 		goto streamon_failed;
 	}
 	if (list_empty(&inst->dma_queue)) {
@@ -1853,12 +1862,11 @@ static int vidioc_streamon(struct file *file, void *priv,
 		jiffies + msecs_to_jiffies(100));
 	if (ret)
 		ti81xxvin_err("Setting up of timer failed\n");
-	mutex_unlock(&buf_obj->buf_lock);
 
-	return ret;
+	mutex_unlock(&buf_obj->buf_lock);
+	return 0;
 
 vps_start_failed:
-	mutex_unlock(&buf_obj->buf_lock);
 	videobuf_streamoff(&buf_obj->buffer_queue);
 streamon_failed:
 	vps_capture_unregister_isr(ti81xxvin_instance_isr,
@@ -1866,6 +1874,8 @@ streamon_failed:
 ti81xxvin_vps_create_failed:
 	ret = v4l2_subdev_call(ti81xxvin_obj.sd[inst->curr_sd_index], video,
 			s_stream, 0);
+vidioc_streamon_failed:
+	mutex_unlock(&buf_obj->buf_lock);
 
 	return ret;
 }
@@ -2044,6 +2054,7 @@ static int vidioc_streamoff(struct file *file, void *priv,
 	struct ti81xxvin_buffer_obj *buf_obj = &inst->buf_obj;
 	int ret;
 
+	mutex_lock(&buf_obj->buf_lock);
 	ti81xxvin_dbg(2, debug, "vidioc_streamoff\n");
 
 	if (buftype != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
@@ -2062,10 +2073,6 @@ static int vidioc_streamoff(struct file *file, void *priv,
 		ti81xxvin_dbg(1, debug, "instance->started\n");
 		return -EINVAL;
 	}
-
-	if (mutex_lock_interruptible(&buf_obj->buf_lock))
-		return -ERESTARTSYS;
-
 	ret = ti81xxvin_hdvpss_stop(inst);
 
 	/* Set io_allowed member to false */
@@ -2229,8 +2236,7 @@ static int ti81xxvin_release(struct file *filep)
 
 	buf_obj = &inst->buf_obj;
 
-	if (mutex_lock_interruptible(&buf_obj->buf_lock))
-		return -ERESTARTSYS;
+	mutex_lock(&buf_obj->buf_lock);
 
 	/* Reset io_usrs member of instance object */
 	buf_obj->io_usrs = 0;
@@ -2283,10 +2289,11 @@ static unsigned int ti81xxvin_poll(struct file *filep, poll_table * wait)
 	struct ti81xxvin_buffer_obj *buf_obj = &(instance->buf_obj);
 
 	ti81xxvin_dbg(2, debug, "ti81xxvin_poll\n");
-
+	mutex_lock(&buf_obj->buf_lock);
 	if (buf_obj->started)
 		err = videobuf_poll_stream(filep, &buf_obj->buffer_queue, wait);
 
+	mutex_unlock(&buf_obj->buf_lock);
 	return 0;
 }
 
@@ -2303,8 +2310,9 @@ static int ti81xxvin_mmap(struct file *filep, struct vm_area_struct *vma)
 	struct ti81xxvin_buffer_obj *buf_obj = &(inst->buf_obj);
 
 	ti81xxvin_dbg(2, debug, "ti81xxvin_mmap\n");
-
+	mutex_lock(&buf_obj->buf_lock);
 	return videobuf_mmap_mapper(&buf_obj->buffer_queue, vma);
+	mutex_unlock(&buf_obj->buf_lock);
 }
 /* TI81xx capture file operations */
 static struct v4l2_file_operations hdvpss_fops = {

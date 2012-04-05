@@ -123,6 +123,9 @@ struct ti81xxvin_buffer_obj {
 	u8 started;
 	/* Pointer pointing to the last DONE buffer in buffer_queue */
 	struct videobuf_buffer *last_done_buffer;
+	/* Serialize queueing from multiple threads.
+	 * Still de-queue and queue are not serialized
+	 */
 };
 
 struct ti81xxvin_instance_obj {

@@ -1092,6 +1092,7 @@ static int ti81xx_vidout_vrelease(struct file *file)
 		return 0;
 	}
 	q = &vout->vbq;
+	mutex_lock(&vout->lock);
 	if (vout->streaming)
 		ret = vctrl->stop(vctrl);
 
@@ -1133,6 +1134,7 @@ static int ti81xx_vidout_vrelease(struct file *file)
 		" vidout%d\n",
 		 __func__, vout->vid);
 	kfree(file->private_data);
+	mutex_unlock(&vout->lock);
 	return ret;
 }
 
@@ -1189,7 +1191,7 @@ static int ti81xx_vidout_vopen(struct file *file)
 
 	videobuf_queue_dma_contig_init(q, &video_vbq_ops, q->dev,
 			&vout->vbq_lock, vout->type, V4L2_FIELD_NONE,
-			sizeof(struct videobuf_buffer), vout, NULL);
+			sizeof(struct videobuf_buffer), vout, &vout->lock);
 
 	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "Exiting %s for"
 		" VIDOUT%d\n",
@@ -1806,8 +1808,9 @@ static int vidioc_querybuf(struct file *file, void *priv,
 	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev,
 		"VIDOUT%d: query buffer\n",
 		vout->vid);
-
+	mutex_lock(&vout->lock);
 	return videobuf_querybuf(&vout->vbq, b);
+	mutex_unlock(&vout->lock);
 }
 
 static int vidioc_qbuf(struct file *file, void *priv,
@@ -1835,7 +1838,7 @@ static int vidioc_qbuf(struct file *file, void *priv,
 			return -EINVAL;
 		}
 	}
-
+	mutex_lock(&vout->lock);
 	r = videobuf_qbuf(q, buffer);
 	if (vout->streaming) {
 		struct videobuf_buffer *buf;
@@ -1847,8 +1850,10 @@ static int vidioc_qbuf(struct file *file, void *priv,
 						scalar_prms.scalar_enable) {
 			addr = (unsigned long) vout->queued_buf_addr[buf->i];
 		} else {
-			if (ti81xx_vidout_calculate_offset(vout))
+			if (ti81xx_vidout_calculate_offset(vout)) {
+				mutex_unlock(&vout->lock);
 				return -EINVAL;
+			}
 
 			addr = (unsigned long) vout->queued_buf_addr[buf->i]
 				+ vout->cropped_offset;
@@ -1862,6 +1867,7 @@ static int vidioc_qbuf(struct file *file, void *priv,
 			vout->vid, buffer->index, buf->i,
 			addr);
 	}
+	mutex_unlock(&vout->lock);
 	return r;
 
 }
@@ -1874,11 +1880,12 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 	struct videobuf_queue *q = &vout->vbq;
 	struct vps_video_ctrl *vctrl = vout->vctrl;
 
+	mutex_lock(&vout->lock);
 	if (!vout->streaming) {
 		v4l2_err(&vout->vid_dev->v4l2_dev,
 			"VIDOUT%d: invalid dequeue\n",
 			vout->vid);
-
+		mutex_unlock(&vout->lock);
 		return -EINVAL;
 	}
 
@@ -1896,6 +1903,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 
 		r = vctrl->dequeue(vctrl);
 	}
+	mutex_unlock(&vout->lock);
 	return r;
 }
 

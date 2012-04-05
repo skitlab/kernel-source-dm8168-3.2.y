@@ -61,8 +61,14 @@ struct vps_fvid2_ctrl {
 	u32                                     fdqprms_phy;
 	struct vps_psrvcallback                 *cbprms;
 	u32                                     cbprms_phy;
-	struct vps_psrvcommandstruct            *cmdprms;
-	u32                                     cmdprms_phy;
+	struct vps_psrvcommandstruct            *createcmdprms;
+	u32                                     createcmdprms_phy;
+	struct vps_psrvcommandstruct            *ctrlcmdprms;
+	u32                                     ctrlcmdprms_phy;
+	struct vps_psrvcommandstruct		*qcmdprms;
+	u32					qcmdprms_phy;
+	struct vps_psrvcommandstruct		*dqcmdprms;
+	u32					dqcmdprms_phy;;
 	struct vps_psrverrorcallback            *ecbprms;
 	u32                                     ecbprms_phy;
 };
@@ -258,20 +264,20 @@ void *vps_fvid2_create(u32 drvid,
 			(struct vps_psrverrorcallback *)fctrl->ecbprms_phy;
 	}
 
-	fctrl->cmdprms->cmdtype = VPS_FVID2_CMDTYPE_SIMPLEX;
-	fctrl->cmdprms->simplexcmdarg = (void *)fctrl->fcrprms_phy;
+	fctrl->createcmdprms->cmdtype = VPS_FVID2_CMDTYPE_SIMPLEX;
+	fctrl->createcmdprms->simplexcmdarg = (void *)fctrl->fcrprms_phy;
 	/*set the event to M3*/
 	#ifdef CONFIG_TI81XX_VPSS_SYSNLINK_NOTIFY
 	status = Notify_sendEvent(fctrl->rmprocid,
 				  fctrl->lineid,
 				  VPS_FVID2_RESERVED_NOTIFY,
-				  fctrl->cmdprms_phy,
+				  fctrl->createcmdprms_phy,
 				  1);
 	#else
 	status = notify_send_event(fctrl->rmprocid,
 				  fctrl->lineid,
 				  VPS_FVID2_RESERVED_NOTIFY,
-				  fctrl->cmdprms_phy,
+				  fctrl->createcmdprms_phy,
 				  1);
 	#endif
 	if (status < 0) {
@@ -358,21 +364,21 @@ int vps_fvid2_delete(void *handle, void *deleteargs)
 	fctrl->fdltprms->returnvalue = VPS_FVID2_M3_INIT_VALUE;
 
 
-	fctrl->cmdprms->cmdtype = VPS_FVID2_CMDTYPE_SIMPLEX;
-	fctrl->cmdprms->simplexcmdarg = (void *)fctrl->fdltprms_phy;
+	fctrl->createcmdprms->cmdtype = VPS_FVID2_CMDTYPE_SIMPLEX;
+	fctrl->createcmdprms->simplexcmdarg = (void *)fctrl->fdltprms_phy;
 
 	/*send event to proxy in M3*/
 	#ifdef CONFIG_TI81XX_VPSS_SYSNLINK_NOTIFY
 	status = Notify_sendEvent(fctrl->rmprocid,
 				  fctrl->lineid,
 				  fctrl->notifyno,
-				  fctrl->cmdprms_phy,
+				  fctrl->createcmdprms_phy,
 				  1);
 	#else
 	status = notify_send_event(fctrl->rmprocid,
 				  fctrl->lineid,
 				  fctrl->notifyno,
-				  fctrl->cmdprms_phy,
+				  fctrl->createcmdprms_phy,
 				  1);
 	#endif
 	if (status < 0) {
@@ -450,20 +456,20 @@ int vps_fvid2_control(void *handle,
 	fctrl->fctrlprms->cmdstatusargs = cmdstatusargs;
 	fctrl->fctrlprms->returnvalue = VPS_FVID2_M3_INIT_VALUE;
 
-	fctrl->cmdprms->cmdtype = VPS_FVID2_CMDTYPE_SIMPLEX;
-	fctrl->cmdprms->simplexcmdarg = (void *)fctrl->fctrlprms_phy;
+	fctrl->ctrlcmdprms->cmdtype = VPS_FVID2_CMDTYPE_SIMPLEX;
+	fctrl->ctrlcmdprms->simplexcmdarg = (void *)fctrl->fctrlprms_phy;
 	/*send the event*/
 	#ifdef CONFIG_TI81XX_VPSS_SYSNLINK_NOTIFY
 	status = Notify_sendEvent(fctrl->rmprocid,
 				  fctrl->lineid,
 				  fctrl->notifyno,
-				  fctrl->cmdprms_phy,
+				  fctrl->ctrlcmdprms_phy,
 				  1);
 	#else
 	status = notify_send_event(fctrl->rmprocid,
 				  fctrl->lineid,
 				  fctrl->notifyno,
-				  fctrl->cmdprms_phy,
+				  fctrl->ctrlcmdprms_phy,
 				  1);
 	#endif
 
@@ -520,21 +526,21 @@ int vps_fvid2_queue(void *handle,
 	fctrl->fqprms->streamid = streamid;
 	fctrl->fqprms->returnvalue = VPS_FVID2_M3_INIT_VALUE;
 
-	fctrl->cmdprms->cmdtype = VPS_FVID2_CMDTYPE_SIMPLEX;
-	fctrl->cmdprms->simplexcmdarg = (void *)fctrl->fqprms_phy;
+	fctrl->qcmdprms->cmdtype = VPS_FVID2_CMDTYPE_SIMPLEX;
+	fctrl->qcmdprms->simplexcmdarg = (void *)fctrl->fqprms_phy;
 
 	/* send event to proxy in M3*/
 	#ifdef CONFIG_TI81XX_VPSS_SYSNLINK_NOTIFY
 	status = Notify_sendEvent(fctrl->rmprocid,
 				  fctrl->lineid,
 				  fctrl->notifyno,
-				  fctrl->cmdprms_phy,
+				  fctrl->qcmdprms_phy,
 				  1);
 	#else
 	status = notify_send_event(fctrl->rmprocid,
 				  fctrl->lineid,
 				  fctrl->notifyno,
-				  fctrl->cmdprms_phy,
+				  fctrl->qcmdprms_phy,
 				  1);
 	#endif
 	if (status < 0) {
@@ -590,8 +596,8 @@ int vps_fvid2_dequeue(void *handle,
 	fctrl->fdqprms->timeout = timeout;
 	fctrl->fdqprms->returnvalue = VPS_FVID2_M3_INIT_VALUE;
 
-	fctrl->cmdprms->cmdtype = VPS_FVID2_CMDTYPE_SIMPLEX;
-	fctrl->cmdprms->simplexcmdarg = (void *)fctrl->fdqprms_phy;
+	fctrl->dqcmdprms->cmdtype = VPS_FVID2_CMDTYPE_SIMPLEX;
+	fctrl->dqcmdprms->simplexcmdarg = (void *)fctrl->fdqprms_phy;
 
 
 	/* send event to proxy in M3*/
@@ -599,13 +605,13 @@ int vps_fvid2_dequeue(void *handle,
 	status = Notify_sendEvent(fctrl->rmprocid,
 				  fctrl->lineid,
 				  fctrl->notifyno,
-				  fctrl->cmdprms_phy,
+				  fctrl->dqcmdprms_phy,
 				  1);
 	#else
 	status = notify_send_event(fctrl->rmprocid,
 				  fctrl->lineid,
 				  fctrl->notifyno,
-				  fctrl->cmdprms_phy,
+				  fctrl->dqcmdprms_phy,
 				  1);
 	#endif
 
@@ -790,11 +796,29 @@ static inline void assign_payload_addr(struct vps_fvid2_ctrl *fctrl,
 				&fctrl->ecbprms_phy,
 				sizeof(struct vps_psrverrorcallback));
 
-	fctrl->cmdprms = (struct vps_psrvcommandstruct *)
+	fctrl->createcmdprms = (struct vps_psrvcommandstruct *)
 			setaddr(pinfo,
 				buf_offset,
-				&fctrl->cmdprms_phy,
+				&fctrl->createcmdprms_phy,
 				sizeof(struct vps_psrvcommandstruct));
+	fctrl->ctrlcmdprms = (struct vps_psrvcommandstruct *)
+			setaddr(pinfo,
+				buf_offset,
+				&fctrl->ctrlcmdprms_phy,
+				sizeof(struct vps_psrvcommandstruct));
+	fctrl->qcmdprms = (struct vps_psrvcommandstruct *)
+			setaddr(pinfo,
+				buf_offset,
+				&fctrl->qcmdprms_phy,
+				sizeof(struct vps_psrvcommandstruct));
+	fctrl->dqcmdprms = (struct vps_psrvcommandstruct *)
+			setaddr(pinfo,
+				buf_offset,
+				&fctrl->dqcmdprms_phy,
+				sizeof(struct vps_psrvcommandstruct));
+
+
+
 
 }
 
