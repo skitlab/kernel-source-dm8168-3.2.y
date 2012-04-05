@@ -1298,7 +1298,7 @@ static struct musb_fifo_cfg __devinitdata ep0_cfg = {
 	.style = FIFO_RXTX, .maxpacket = 64,
 };
 
-static int __devinit ep_config_from_table(struct musb *musb)
+int __devinit ep_config_from_table(struct musb *musb)
 {
 	const struct musb_fifo_cfg	*cfg;
 	unsigned		i, n;
@@ -1391,7 +1391,7 @@ done:
 
 	return 0;
 }
-
+EXPORT_SYMBOL(ep_config_from_table);
 
 /*
  * ep_config_from_hw - when MUSB_C_DYNFIFO_DEF is false

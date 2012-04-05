@@ -807,7 +807,8 @@ void musb_babble_workaround(struct musb *musb)
 
 	/* Reset the controller */
 	musb_writel(reg_base, USB_CTRL_REG, USB_SOFT_RESET_MASK);
-	udelay(100);
+	while ((musb_readl(reg_base, USB_CTRL_REG) & 0x1))
+		udelay(1);
 
 	/* Shutdown the on-chip PHY and its PLL. */
 	if (data->set_phy_power)
@@ -825,9 +826,7 @@ void musb_babble_workaround(struct musb *musb)
 		data->set_phy_power(musb->id, 1);
 	mdelay(100);
 
-	/* save the usbotgss register contents */
-	musb_platform_enable(musb);
-
+	ep_config_from_table(musb);
 	musb_start(musb);
 }
 
