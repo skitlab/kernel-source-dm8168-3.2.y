@@ -204,6 +204,17 @@ ti814x_do_ds_wfi:
 	strne	r8, [r3, #DEEPSLEEP_CONTROL]	@ enter DeepSleep
 	ldrne	r8, [r3, #DEEPSLEEP_CONTROL]	@ and readback
 
+	beq	do_wfi
+
+ds_completion_loop:
+	ldr   r8, [r3, #DEEPSLEEP_STATUS]
+	and   r8, r8, #0x1			@poll for DSCOMPLETE
+	cmp   r8, #0x1				@ == 1 if DSCOUNT equals timer
+	bne   ds_completion_loop
+
+	cmp	r5, #0				@don't enter wfi if enterd ds
+do_wfi:
+
 	wfieq					@ or WFI
 
 	/*
