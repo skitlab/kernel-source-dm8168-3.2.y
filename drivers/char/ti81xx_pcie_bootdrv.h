@@ -146,13 +146,17 @@
  * @num: BAR register index - 0 to 5
  * @addr: For 'SET' operations, contains ti816x internal address to translate
  * @size: Size allocated for this BAR (only usd for GET operation)
+ * @mode: mode of operation of PCIE core in ti81xx i.e. 32/64 bit.
  * this BAR access to. For 'GET'' operations, contains the (host) physical
  * address assigned to this BAR.
+ * in case of 64 bit BARS.
+ * @num: 0, 2 or 4. ( region 0, region 2, region 4).
  */
 struct ti81xx_bar_info {
-	u32 num;
-	u32 addr;
+	u32  num;
+	unsigned long addr;
 	u32 size;
+	u32 mode;
 };
 
 /* IOCTLs defined for the application as well as driver */

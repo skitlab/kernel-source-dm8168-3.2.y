@@ -50,14 +50,16 @@ struct pci_dev *ti81xx_pci_dev;
  * TI81XX access ranges. Note that all the addresses below translate to PCIe
  * access.
  */
-static unsigned int reg_phys, reg_virt, reg_len;
-static unsigned int ocmc1_phys, ocmc1_virt, ocmc1_len;
-static unsigned int ddr_phys, ddr_virt, ddr_len;
+
+static unsigned long reg_phys, reg_virt, reg_len;
+static unsigned long ocmc1_phys, ocmc1_virt, ocmc1_len;
+static unsigned long ddr_phys, ddr_virt, ddr_len;
 
 static int ti81xx_pci_major;
 static struct cdev ti81xx_pci_cdev;
 static struct class *ti81xx_pci_class;
 static dev_t ti81xx_dev;
+static unsigned int mode_64bit;
 
 /* List of TI81XX family devices supported by this driver */
 static unsigned int supported_dev_list[] = {
@@ -83,6 +85,7 @@ static unsigned int bar1_ib_offset;
  *
  * Returns pointer of pci device structure on success, NULL otherwise.
  */
+
 static struct pci_dev *ti81xx_ep_find_device(unsigned int device_id)
 {
 	struct pci_dev *dev = pci_get_device(TI81XX_PCI_VENDOR_ID,
@@ -116,22 +119,25 @@ static struct pci_dev *ti81xx_ep_find_device(unsigned int device_id)
  * On TI81XX, BAR0 is hrdwired and hence skipped for inbound configuration and a
  * maximum of 4 inbound translations are allowed for 32-bit BARs.
  *
- * TODO: Add 64-bit addressing support.
  */
-static int ti81xx_ep_setup_bar(u32 bar_num, u32 addr)
-{
-	u32 bar_val, ib_num;
 
-	if ((bar_num == 0) || (bar_num > 4))
-		return -1;
+static int ti81xx_ep_setup_bar(unsigned int bar_num, unsigned int addr)
+{
+	unsigned long bar_val, ib_num;
 
 	ib_num = bar_num - 1;
 
 	bar_val = pci_resource_start(ti81xx_pci_dev, bar_num);
 
 	__raw_writel(0, PCI_REGV(IB_BAR(ib_num)));
-	__raw_writel(bar_val, PCI_REGV(IB_START_LO(ib_num)));
-	__raw_writel(0, PCI_REGV(IB_START_HI(ib_num)));
+	__raw_writel((u32)(bar_val), PCI_REGV(IB_START_LO(ib_num)));
+
+	if (mode_64bit == 1)
+		__raw_writel((u32)(bar_val >> 32),
+				PCI_REGV(IB_START_HI(ib_num)));
+	else if (mode_64bit == 0)
+		__raw_writel(0, PCI_REGV(IB_START_HI(ib_num)));
+
 	__raw_writel(addr, PCI_REGV(IB_OFFSET(ib_num)));
 	__raw_writel(bar_num, PCI_REGV(IB_BAR(ib_num)));
 
@@ -141,38 +147,48 @@ static int ti81xx_ep_setup_bar(u32 bar_num, u32 addr)
 /**
  * ti81xx_pci_get_resources() - Read BARs as set by Host and reserve resources
  *
- * Only reads first 3 BARs. Expects the BAR sizes are already set by the boot
- * ROM on TI81XX EP with minimum sizes as follows:
- * - BAR0 = 4KB
- * - BAR1 = 256KB
- * - BAR2 = 8MB
- *
- * FIXME: Presently this function maps all 3 BARs but in reality we only need to
- * map BAR0 and rest can be relied upon the application (mmap).
  */
 static int ti81xx_pci_get_resources(void)
 {
 	int index;
-	u32  bar_start[3];
-	u32  bar_len[3];
-	u32  bar_flags[3];
+	int i = 0;
+	int max_index = 0;
+	int index_inc = 0;
+	unsigned long  bar_start[3];
+	unsigned long  bar_len[3];
+	unsigned long  bar_flags[3];
+	unsigned long  flag_mode = 0;
+
+	flag_mode = (unsigned long) pci_resource_flags(ti81xx_pci_dev, 0);
+	if (flag_mode & IORESOURCE_MEM_64) {
+		dev_info(&ti81xx_pci_dev->dev, "TI81XX working in 64 bit mode\n");
+		max_index = 6;
+		index_inc = 2;
+		mode_64bit = 1;
+	} else {
+		dev_info(&ti81xx_pci_dev->dev, "TI81XX working in 32 bit mode\n");
+		max_index = 3;
+		index_inc = 1;
+		mode_64bit = 0;
+	}
 
 	dev_info(&ti81xx_pci_dev->dev, "BAR Configuration -\n\t   "
 			"Start\t|\tLength\t|\tFlags\n");
-	for (index = 0; index < 3; index++) {
-		bar_start[index] = pci_resource_start(ti81xx_pci_dev, index);
-		bar_len[index] = pci_resource_len(ti81xx_pci_dev, index);
-		bar_flags[index] = pci_resource_flags(ti81xx_pci_dev, index);
 
-		if (bar_flags[index] & IORESOURCE_IO) {
+	for (index = 0, i = 0; index < max_index; index += index_inc, i++) {
+		bar_start[i] = pci_resource_start(ti81xx_pci_dev, index);
+		bar_len[i] = pci_resource_len(ti81xx_pci_dev, index);
+		bar_flags[i] = pci_resource_flags(ti81xx_pci_dev, index);
+
+		if (bar_flags[i] & IORESOURCE_IO) {
 			dev_err(&ti81xx_pci_dev->dev,
 				"This driver does not support PCI IO.\n");
 			return -1;
 		}
-
-		dev_info(&ti81xx_pci_dev->dev, "\t0x%08x\t|\t%d\t|\t0x%08x\n",
-				(int)bar_start[index], (int)bar_len[index],
-				(int)bar_flags[index]);
+		dev_info(&ti81xx_pci_dev->dev, "%d index %d bars\n", index, i);
+		dev_info(&ti81xx_pci_dev->dev, "\t0x%08lx\t|\t0x%08lx\t|\t0x%08lx\n",
+					bar_start[i], bar_len[i],
+								bar_flags[i]);
 	}
 
 	reg_phys = bar_start[0];
@@ -183,14 +199,14 @@ static int ti81xx_pci_get_resources(void)
 		return -1;
 	}
 
-	reg_virt = (unsigned int)ioremap_nocache(reg_phys, reg_len);
+	reg_virt = (unsigned long)ioremap_nocache(reg_phys, reg_len);
 	if (!reg_virt) {
 		dev_err(&ti81xx_pci_dev->dev, "Failed remapping registers\n");
 		goto err_regremap;
 	}
 
-	dev_info(&ti81xx_pci_dev->dev, "TI81XX registers mapped to 0x%08x\n",
-			(int)reg_virt);
+	dev_info(&ti81xx_pci_dev->dev, "TI81XX registers mapped to 0x%08lx\n",
+			reg_virt);
 
 	ocmc1_phys = bar_start[1];
 	ocmc1_len = bar_len[1];
@@ -200,14 +216,14 @@ static int ti81xx_pci_get_resources(void)
 		goto err_ocmc1res;
 	}
 
-	ocmc1_virt = (unsigned int)ioremap_nocache(ocmc1_phys, ocmc1_len);
+	ocmc1_virt = (unsigned long)ioremap_nocache(ocmc1_phys, ocmc1_len);
 	if (!ocmc1_virt) {
 		dev_err(&ti81xx_pci_dev->dev, "Failed remapping OCMC\n");
 		goto err_ocmc1remap;
 	}
 
-	dev_info(&ti81xx_pci_dev->dev, "TI81XX OCMC mapped to 0x%08x\n",
-			(int)ocmc1_virt);
+	dev_info(&ti81xx_pci_dev->dev, "TI81XX OCMC mapped to 0x%08lx\n",
+			ocmc1_virt);
 
 	ddr_phys = bar_start[2];
 	ddr_len = bar_len[2];
@@ -217,14 +233,14 @@ static int ti81xx_pci_get_resources(void)
 		goto err_ramres;
 	}
 
-	ddr_virt = (unsigned int)ioremap_nocache(ddr_phys, ddr_len);
+	ddr_virt = (unsigned long)ioremap_nocache(ddr_phys, ddr_len);
 	if (!ddr_virt) {
 		dev_err(&ti81xx_pci_dev->dev, "Failed remapping RAM\n");
 		goto err_ramremap;
 	}
 
-	dev_info(&ti81xx_pci_dev->dev, "TI81XX DDR mapped to 0x%08x\n",
-			(int)ddr_virt);
+	dev_info(&ti81xx_pci_dev->dev, "TI81XX DDR mapped to 0x%08lx\n",
+			ddr_virt);
 
 	return 0;
 err_ramremap:
@@ -250,6 +266,7 @@ err_regremap:
  * boot operation and this may be skipped. It is advisable to retain some of the
  * other configurations this function does though.
  */
+
 static void ti81xx_pci_set_master(void)
 {
 	s32   ret_val ;
@@ -279,6 +296,7 @@ static void ti81xx_pci_set_master(void)
  * Complete flag written/read in TI816X/TI814X device's OCMC RAM by this driver
  * as well as the boot ROM and U-Boot running on the EP device.
  */
+
 long ti81xx_pcie_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	int ret = 0 ;
@@ -333,20 +351,20 @@ long ti81xx_pcie_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	{
 		struct ti81xx_bar_info *bar
 			= (struct ti81xx_bar_info *) arg;
-
 		bar->addr = pci_resource_start(ti81xx_pci_dev, bar->num);
 		bar->size = pci_resource_len(ti81xx_pci_dev, bar->num);
+		bar->mode = mode_64bit;
 	}
 
 	break;
 
 	case TI81XX_PCI_GET_DEVICE_ID:
 		*(unsigned int *) arg = pci_device_id;
-		break;
+	break;
 
 	case TI81XX_PCI_GET_BOOT_INFO:
 		*(unsigned int *) arg = __raw_readl(reg_virt + GPR0);
-		break;
+	break;
 
 	default:
 		ret = -1;
@@ -376,17 +394,17 @@ long ti81xx_pcie_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
  * the host code. One way to achieve this is to use ioctl
  * TI81XX_PCI_GET_BAR_INFO.
  */
+
 int ti81xx_ep_pcie_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	int ret = -EINVAL;
 	unsigned long sz = vma->vm_end - vma->vm_start;
-	unsigned int addr = (unsigned int)vma->vm_pgoff << PAGE_SHIFT;
+	unsigned long addr = (unsigned long)vma->vm_pgoff << PAGE_SHIFT;
 
-	dev_info(&ti81xx_pci_dev->dev, "Mapping %#lx bytes from address %#x\n",
+	dev_info(&ti81xx_pci_dev->dev, "Mapping %#lx bytes from address %#lx\n",
 			sz, addr);
-
-	if (is_in_ocmc1(addr, (unsigned int)sz)
-		|| is_in_ddr(addr, (unsigned int)sz)) {
+	if (is_in_ocmc1(addr, sz)
+			|| is_in_ddr(addr, sz)) {
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
 		ret = remap_pfn_range(vma, vma->vm_start,
@@ -417,6 +435,7 @@ static const struct file_operations ti81xx_pci_fops = {
  * TI814X EP detected. The sequence is to first search for TI816X devices and if
  * none found, search for TI814X endpoint.
  */
+
 static int __init ti81xx_ep_pci_init(void)
 {
 	int ret, val, i;
@@ -510,8 +529,15 @@ static int __init ti81xx_ep_pci_init(void)
 	}
 
 	/* Set up default inbound access windows */
-	ti81xx_ep_setup_bar(1, bar1_ib_offset);
-	ti81xx_ep_setup_bar(2, TI81XX_EP_KERNEL_IB_OFFSET);
+	/* decided at run time after query mode of operation 32/64 bit */
+	if (mode_64bit == 1) {
+		ti81xx_ep_setup_bar(2, bar1_ib_offset);
+		ti81xx_ep_setup_bar(4, TI81XX_EP_KERNEL_IB_OFFSET);
+	}
+	if (mode_64bit == 0) {
+		ti81xx_ep_setup_bar(1, bar1_ib_offset);
+		ti81xx_ep_setup_bar(2, TI81XX_EP_KERNEL_IB_OFFSET);
+	}
 
 	/* Enable inbound translation */
 	val = __raw_readl(PCI_REGV(CMD_STATUS));
