@@ -85,7 +85,7 @@ struct ti81xxvin_buffer_params {
 	u32 bytesperline;		/* required bytes per line */
 };
 
-struct ti81xxvin_obj {
+struct ti81xxvin_vid_obj {
 	enum v4l2_field buf_field;
 	/* Currently selected or default dv standard */
 	struct v4l2_dv_preset cur_dv_preset;
@@ -148,7 +148,7 @@ struct ti81xxvin_instance_obj {
 	/* buf_obj object array */
 	struct ti81xxvin_buffer_obj buf_obj;
 	/* video object */
-	struct ti81xxvin_obj video;
+	struct ti81xxvin_vid_obj video;
 	struct vps_capt_ctrl *captctrl;
 	/* Flag to indicate whether FVID2_dequeue call can be made to
 	 * firware
