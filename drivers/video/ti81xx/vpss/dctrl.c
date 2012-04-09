@@ -3261,6 +3261,18 @@ int TI81xx_un_register_display_panel(struct TI81xx_display_driver *panel_driver)
 		}
 
 	}
+
+	if (((v_pdata->cpu != CPU_DM816X) && (HDMI == display_num) &&
+		(panel_driver->type ==
+		TI81xx_DEVICE_TYPE_MASTER))) {
+		/*reconfigure the PLL*/
+		r = dc_set_pllclock(display_num,
+			    venc_info.modeinfo[display_num].
+				minfo.pixelclock);
+		if (r)
+			VPSSERR("failed to set pll");
+	}
+
 exit:
 	dc_unlock(disp_ctrl);
 	return r;
