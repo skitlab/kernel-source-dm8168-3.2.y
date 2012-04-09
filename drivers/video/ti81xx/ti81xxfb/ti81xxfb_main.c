@@ -1667,7 +1667,7 @@ static int __init ti81xxfb_init(void)
 {
 
 	TFBDBG("ti81xxfb_init\n");
-	if (platform_driver_register(&ti81xxfb_driver)) {
+	if (platform_driver_probe(&ti81xxfb_driver, ti81xxfb_probe)) {
 		printk(KERN_ERR "failed to register ti81xxfb driver\n");
 		return -ENODEV;
 	}

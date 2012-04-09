@@ -2478,7 +2478,8 @@ static struct platform_driver ti81xx_vidout_driver = {
 
 static int __init ti81xx_vidout_init(void)
 {
-	if (platform_driver_register(&ti81xx_vidout_driver) != 0) {
+	if ((platform_driver_probe(&ti81xx_vidout_driver,
+				ti81xx_vidout_probe)) != 0) {
 		printk(KERN_ERR VIDOUT_NAME
 			":Could not register Video driver\n");
 		return -EINVAL;

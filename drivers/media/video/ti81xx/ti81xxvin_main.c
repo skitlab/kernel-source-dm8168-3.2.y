@@ -2541,6 +2541,7 @@ static int ti81xxvin_probe(struct platform_device *pdev)
 
 		if (!ti81xxvin_obj.sd[i]) {
 			ti81xxvin_err("Error registering v4l2 subdevice\n");
+			err = -ENODEV;
 			goto probe_subdev_out;
 		}
 		if (subdevdata->ti81xxvin_select_decoder)
@@ -2548,6 +2549,7 @@ static int ti81xxvin_probe(struct platform_device *pdev)
 				subdevdata->decoder_id);
 		if (err < 0) {
 			ti81xxvin_err("Error selecting decoder\n");
+			err = -ENODEV;
 			goto probe_subdev_out;
 		}
 		if (subdevdata->ti81xxvin_set_mode)
@@ -2633,7 +2635,7 @@ static struct platform_driver hdvpss_driver = {
  */
 static __init int ti81xxvin_init(void)
 {
-	return platform_driver_register(&hdvpss_driver);
+	return platform_driver_probe(&hdvpss_driver, ti81xxvin_probe);
 }
 
 /**
