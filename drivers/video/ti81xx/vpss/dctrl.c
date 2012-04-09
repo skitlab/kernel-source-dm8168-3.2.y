@@ -2122,13 +2122,14 @@ static ssize_t blender_output_store(struct dc_blender_info *binfo,
 				oinfo.afmt = VPS_DC_A_OUTPUT_COMPONENT;
 				oinfo.dvofmt =
 				    VPS_DC_DVOFMT_TRIPLECHAN_EMBSYNC;
-				if ((v_pdata->cpu == CPU_DM816X) &&
-					(omap_rev() >= TI8168_REV_ES2_0))
+				if (((v_pdata->cpu == CPU_DM816X) &&
+					(omap_rev() >= TI8168_REV_ES2_0)) ||
+					(v_pdata->cpu == CPU_DM813X))
 					oinfo.dvofmt =
 					    VPS_DC_DVOFMT_TRIPLECHAN_DISCSYNC;
 				else
 					VPSSERR("vga is not support"
-						"on this silicon, forced to"
+						"on this silicon, forced to "
 						"component\n");
 
 			}
