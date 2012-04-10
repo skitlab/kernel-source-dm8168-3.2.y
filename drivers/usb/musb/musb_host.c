@@ -245,6 +245,7 @@ musb_start_urb(struct musb *musb, int is_in, struct musb_qh *qh)
 	/* initialize software qh state */
 	qh->offset = 0;
 	qh->segsize = 0;
+	hw_ep->xfer_type = qh->type;
 
 	/* gather right source of data */
 	switch (qh->type) {
@@ -277,6 +278,7 @@ musb_start_urb(struct musb *musb, int is_in, struct musb_qh *qh)
 			default:			s = "-intr"; break;
 			}; s; }),
 			epnum, buf + offset, len);
+
 
 	/* Configure endpoint */
 	musb_ep_set_qh(hw_ep, is_in, qh);
@@ -717,6 +719,7 @@ static bool musb_tx_dma_program(struct dma_controller *dma,
 		musb_writew(epio, MUSB_TXCSR, csr | MUSB_TXCSR_H_WZC_BITS);
 		return false;
 	}
+
 	return true;
 }
 

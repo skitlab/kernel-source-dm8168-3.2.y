@@ -277,6 +277,8 @@ struct musb_platform_ops {
 		void __iomem *);
 	void (*dma_controller_destroy)(struct dma_controller *);
 	int (*simulate_babble_intr)(struct musb *musb);
+	void (*txfifoempty_intr_enable)(struct musb *musb, u8 ep_num);
+	void (*txfifoempty_intr_disable)(struct musb *musb, u8 ep_num);
 };
 
 /*
@@ -329,6 +331,7 @@ struct musb_hw_ep {
 	struct musb_ep		ep_in;			/* TX */
 	struct musb_ep		ep_out;			/* RX */
 #endif
+	u8			xfer_type;
 };
 
 static inline struct usb_request *next_in_request(struct musb_hw_ep *hw_ep)
@@ -615,6 +618,18 @@ extern void musb_hnp_stop(struct musb *musb);
 
 extern void musb_restore_context(struct musb *musb);
 extern void musb_save_context(struct musb *musb);
+
+static inline void txfifoempty_int_enable(struct musb *musb, u8 ep_num)
+{
+	if (musb->ops->txfifoempty_intr_enable)
+		musb->ops->txfifoempty_intr_enable(musb, ep_num);
+}
+
+static inline void txfifoempty_int_disable(struct musb *musb, u8 ep_num)
+{
+	if (musb->ops->txfifoempty_intr_disable)
+		musb->ops->txfifoempty_intr_disable(musb, ep_num);
+}
 
 static inline void musb_platform_set_vbus(struct musb *musb, int is_on)
 {

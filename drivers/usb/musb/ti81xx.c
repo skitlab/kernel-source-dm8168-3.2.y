@@ -523,7 +523,6 @@ int cppi41_enable_sched_rx(void)
 	cppi41_dma_sched_tbl_init(0, 0, dma_sched_table, 30);
 	return 0;
 }
-#endif /* CONFIG_USB_TI_CPPI41_DMA */
 
 /*
  * Because we don't set CTRL.UINT, it's "important" to:
@@ -531,6 +530,32 @@ int cppi41_enable_sched_rx(void)
  *	  initial setup, as a workaround);
  *	- use INTSET/INTCLR instead.
  */
+
+void txfifoempty_intr_enable(struct musb *musb, u8 ep_num)
+{
+	void __iomem *reg_base = musb->ctrl_base;
+	u32 coremask;
+
+	if (musb->txfifo_intr_enable) {
+		coremask = musb_readl(reg_base, USB_CORE_INTR_SET_REG);
+		coremask |= (1 << (ep_num + 16));
+		musb_writel(reg_base, USB_CORE_INTR_SET_REG, coremask);
+		DBG(1, "enable txF intr ep%d coremask %x\n", ep_num, coremask);
+	}
+}
+
+void txfifoempty_intr_disable(struct musb *musb, u8 ep_num)
+{
+	void __iomem *reg_base = musb->ctrl_base;
+	u32 coremask;
+
+	if (musb->txfifo_intr_enable) {
+		coremask = (1 << (ep_num + 16));
+		musb_writel(reg_base, USB_CORE_INTR_CLEAR_REG, coremask);
+	}
+}
+
+#endif /* CONFIG_USB_TI_CPPI41_DMA */
 
 /**
  * ti81xx_musb_enable - enable interrupts
@@ -544,10 +569,6 @@ void ti81xx_musb_enable(struct musb *musb)
 	epmask = ((musb->epmask & USB_TX_EP_MASK) << USB_INTR_TX_SHIFT) |
 	       ((musb->epmask & USB_RX_EP_MASK) << USB_INTR_RX_SHIFT);
 	coremask = (0x01ff << USB_INTR_USB_SHIFT);
-
-	/* TX endpoint Empty FIFO interrupts */
-	if (musb->txfifo_intr_enable)
-		coremask |= (0xffff << 16);
 
 	coremask &= ~MUSB_INTR_SOF;
 
@@ -854,11 +875,13 @@ static irqreturn_t ti81xx_interrupt(int irq, void *hci)
 
 	if (musb->txfifo_intr_enable && (usbintr & USB_INTR_TXFIFO_MASK)) {
 #ifdef CONFIG_USB_TI_CPPI41_DMA
-		cppi41_handle_txfifo_intr(musb);
+		DBG(1, "Isr:TxfifoIntr %x\n", usbintr >> USB_INTR_TXFIFO_EMPTY);
+		cppi41_handle_txfifo_intr(musb,
+				usbintr >> USB_INTR_TXFIFO_EMPTY);
 		ret = IRQ_HANDLED;
-		goto eoi;
 #endif
 	}
+	usbintr &= ~0xFFFF;
 	/*
 	 * DRVVBUS IRQs are the only proxy we have (a very poor one!) for
 	 * AM3517's missing ID change IRQ.  We need an ID change IRQ to
@@ -1102,7 +1125,7 @@ int ti81xx_musb_init(struct musb *musb)
 		/* Enabling txfifo intr features, is not working
 		 * reliablely, hence disable txfifo intr logic
 		 */
-		musb->txfifo_intr_enable = 0;
+		musb->txfifo_intr_enable = 1;
 
 	}
 	if (musb->txfifo_intr_enable)
@@ -1190,6 +1213,10 @@ static struct musb_platform_ops ti81xx_ops = {
 	.dma_controller_create	= cppi41_dma_controller_create,
 	.dma_controller_destroy	= cppi41_dma_controller_destroy,
 	.simulate_babble_intr	= musb_simulate_babble,
+#ifdef CONFIG_USB_TI_CPPI41_DMA
+	.txfifoempty_intr_enable = txfifoempty_intr_enable,
+	.txfifoempty_intr_disable = txfifoempty_intr_disable,
+#endif
 };
 
 static void __devexit ti81xx_delete_musb_pdev(struct ti81xx_glue *glue, u8 id)
