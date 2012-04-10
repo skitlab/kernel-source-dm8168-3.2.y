@@ -114,7 +114,7 @@ static void ti81xxvin_overflow_handler(unsigned long data)
 		buf = list_first_entry(&inst->dma_queue, struct videobuf_buffer,
 				queue);
 		buf->ts = timevalue;
-		buf->state = VIDEOBUF_ERROR;
+		buf->state = -VIDEOBUF_ERROR;
 		wake_up_interruptible(&buf->done);
 		/*remove this buffer from the queue*/
 		list_del(&buf->queue);
