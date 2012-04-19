@@ -955,7 +955,7 @@ static long hdmi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (hdmi.cec_state == HDMI_CEC_BYPASS) {
 			if (hdmi_lib_cec_activate() != 0) {
 				/* Cant power up CEC, but why? */
-				r = ENODEV;
+				r = -ENODEV;
 				break;
 			}
 			spin_lock_irqsave(&irqstatus_lock, flags);
@@ -968,19 +968,19 @@ static long hdmi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		THDMIDBG("ioctl TI81XXHDMI_CEC_REG_DEV\n");
 		/* Require to be in HDMI mode and sink detected, to be able to
 		 * register, check that */
-		r = EINVAL;
+		r = -EINVAL;
 		mutex_lock(&hdmi.lock);
 		while (arg) {
 			if (hdmi.cec_state != HDMI_CEC_UN_REGISTERED) {
-				r = EBUSY;
+				r = -EBUSY;
 				break;
 			}
 			if (!(hdmi.cfg.hdmi_dvi)) {
-				r = EPERM;
+				r = -EPERM;
 				break;
 			}
 			if (!hdmi_get_hpd_pin_state()) {
-				r = EPERM;
+				r = -EPERM;
 				break;
 			}
 			if (hdmi_tv_cec_get_pa(edid, cec_pa) != true)
@@ -998,7 +998,7 @@ static long hdmi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				(struct ti81xxhdmi_cec_register_dev *) arg,
 				cec_pa);
 			if (hdmi.cec_state != HDMI_CEC_REGISTERED) {
-				r = EIO;
+				r = -EIO;
 				break;
 			}
 			if (r != 0) {
@@ -1020,12 +1020,12 @@ static long hdmi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		mutex_unlock(&hdmi.lock);
 		break;
 	case TI81XXHDMI_CEC_TRANSMIT_MSG:
-		r = EINVAL;
+		r = -EINVAL;
 		mutex_lock(&hdmi.lock);
 		while (arg) {
 			struct ti81xxhdmi_cec_transmit_msg *msg =
 				(struct ti81xxhdmi_cec_transmit_msg *)arg;
-			r = EPERM;
+			r = -EPERM;
 			if (!(hdmi.cfg.hdmi_dvi)) {
 				THDMIDBG("Write failed - DVI mode\n");
 				break;
@@ -1036,7 +1036,7 @@ static long hdmi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			}
 			if (hdmi.cec_state != HDMI_CEC_REGISTERED) {
 				THDMIDBG("Write failed - CEC not reg\n");
-				r = EPERM;
+				r = -EPERM;
 				break;
 			}
 			if (msg->no_retransmits > 0x5u) {
@@ -1053,10 +1053,10 @@ static long hdmi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		mutex_unlock(&hdmi.lock);
 		break;
 	case TI81XXHDMI_CEC_RECEIVE_MSG:
-		r = EINVAL;
+		r = -EINVAL;
 		mutex_lock(&hdmi.lock);
 		while (arg) {
-			r = EPERM;
+			r = -EPERM;
 			if (!(hdmi.cfg.hdmi_dvi)) {
 				THDMIDBG("Read failed - DVI mode\n");
 				break;
@@ -1068,7 +1068,7 @@ static long hdmi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			}
 			if (hdmi.cec_state == HDMI_CEC_BYPASS) {
 				THDMIDBG("Read failed - Not Activated\n");
-				r = EPERM;
+				r = -EPERM;
 				break;
 			}
 			r = hdmi_lib_cec_read_msg(
