@@ -27,6 +27,8 @@
  *				May 2010 Added support for Hot Plug Detect.
  * Varada Bellary <varadab@ti.com>
  *				Retrofit the OMAP driver for DM81xx SOCs
+ * Sujith Shivalingappa <sujith.s@ti.com>
+ *				Added CEC support
  *
  */
 
@@ -54,25 +56,25 @@
 /* HDMI Wrapper */
 #define HDMI_WP_REVISION			0x0ul
 #define HDMI_WP_SYSCONFIG			0x10ul
-#define HDMI_WP_IRQSTATUS_RAW			0x24ul
+#define HDMI_WP_IRQSTATUS_RAW		0x24ul
 #define HDMI_WP_IRQSTATUS			0x28ul
 #define HDMI_WP_IRQWAKEEN			0x34ul
 #define HDMI_WP_PWR_CTRL			0x40ul
-#define HDMI_WP_IRQENABLE_SET			0x2Cul
+#define HDMI_WP_IRQENABLE_SET		0x2Cul
 #define HDMI_WP_VIDEO_CFG			0x50ul
 #define HDMI_WP_VIDEO_SIZE			0x60ul
-#define HDMI_WP_VIDEO_TIMING_H			0x68ul
-#define HDMI_WP_VIDEO_TIMING_V			0x6Cul
+#define HDMI_WP_VIDEO_TIMING_H		0x68ul
+#define HDMI_WP_VIDEO_TIMING_V		0x6Cul
 #define HDMI_WP_WP_CLK				0x70ul
 
 /* HDMI IP Core System */
-#define HDMI_CORE_SYS__VND_IDL			0x0ul
-#define HDMI_CORE_SYS__DEV_IDL			0x8ul
-#define HDMI_CORE_SYS__DEV_IDH			0xCul
-#define HDMI_CORE_SYS__DEV_REV			0x10ul
+#define HDMI_CORE_SYS__VND_IDL		0x0ul
+#define HDMI_CORE_SYS__DEV_IDL		0x8ul
+#define HDMI_CORE_SYS__DEV_IDH		0xCul
+#define HDMI_CORE_SYS__DEV_REV		0x10ul
 #define HDMI_CORE_SYS__SRST			0x14ul
 #define HDMI_CORE_CTRL1				0x20ul
-#define HDMI_CORE_SYS__SYS_STAT			0x24ul
+#define HDMI_CORE_SYS__SYS_STAT		0x24ul
 #define HDMI_CORE_SYS__VID_ACEN			0x124ul
 #define HDMI_CORE_SYS__VID_MODE			0x128ul
 #define HDMI_CORE_SYS__VID_CTRL			0x120ul
@@ -98,18 +100,18 @@
 
 #define HDMI_CORE_SYS__HBIT_2HSYNC1		0x100ul
 #define HDMI_CORE_SYS__HBIT_2HSYNC2		0x104ul
-#define HDMI_CORE_SYS__FLD2_HS_OFSTL		0x108ul
-#define HDMI_CORE_SYS__FLD2_HS_OFSTH		0x10cul
+#define HDMI_CORE_SYS__FLD2_HS_OFSTL	0x108ul
+#define HDMI_CORE_SYS__FLD2_HS_OFSTH	0x10cul
 #define HDMI_CORE_SYS__HWIDTH1			0x110ul
 #define HDMI_CORE_SYS__HWIDTH2			0x114ul
-#define HDMI_CORE_SYS__VBIT_TO_VSYNC		0x118ul
+#define HDMI_CORE_SYS__VBIT_TO_VSYNC	0x118ul
 #define HDMI_CORE_SYS__VWIDTH			0x11cul
 
 
 
 /* HDMI IP Core Audio Video */
 #define HDMI_CORE_AV_HDMI_CTRL			0xBCul
-#define HDMI_CORE_AV_DPD			0xF4ul
+#define HDMI_CORE_AV_DPD				0xF4ul
 #define HDMI_CORE_AV_PB_CTRL1			0xF8ul
 #define HDMI_CORE_AV_PB_CTRL2			0xFCul
 #define HDMI_CORE_AV_AVI_TYPE			0x100ul
@@ -117,39 +119,39 @@
 #define HDMI_CORE_AV_AVI_LEN			0x108ul
 #define HDMI_CORE_AV_AVI_CHSUM			0x10Cul
 #define HDMI_CORE_AV_AVI_DBYTE			0x110ul
-#define HDMI_CORE_AV_AVI_DBYTE__ELSIZE		0x4ul
+#define HDMI_CORE_AV_AVI_DBYTE__ELSIZE	0x4ul
 
 /* HDMI DDC E-DID */
-#define HDMI_CORE_DDC_CMD			0x3CCul
+#define HDMI_CORE_DDC_CMD				0x3CCul
 #define HDMI_CORE_DDC_STATUS			0x3C8ul
-#define HDMI_CORE_DDC_ADDR			0x3B4ul
+#define HDMI_CORE_DDC_ADDR				0x3B4ul
 #define HDMI_CORE_DDC_OFFSET			0x3BCul
 #define HDMI_CORE_DDC_COUNT1			0x3C0ul
 #define HDMI_CORE_DDC_COUNT2			0x3C4ul
-#define HDMI_CORE_DDC_DATA			0x3D0ul
-#define HDMI_CORE_DDC_SEGM			0x3B8ul
+#define HDMI_CORE_DDC_DATA				0x3D0ul
+#define HDMI_CORE_DDC_SEGM				0x3B8ul
 
 #define HDMI_WP_AUDIO_CFG			0x80ul
 #define HDMI_WP_AUDIO_CFG2			0x84ul
 #define HDMI_WP_AUDIO_CTRL			0x88ul
 #define HDMI_WP_AUDIO_DATA			0x8Cul
 
-#define HDMI_CORE_AV__AVI_DBYTE			0x110ul
+#define HDMI_CORE_AV__AVI_DBYTE				0x110ul
 #define HDMI_CORE_AV__AVI_DBYTE__ELSIZE		0x4ul
 #define HDMI_IP_CORE_AV__AVI_DBYTE__NELEMS	15
-#define HDMI_CORE_AV__SPD_DBYTE			0x190ul
+#define HDMI_CORE_AV__SPD_DBYTE				0x190ul
 #define HDMI_CORE_AV__SPD_DBYTE__ELSIZE		0x4ul
 #define HDMI_CORE_AV__SPD_DBYTE__NELEMS		27
-#define HDMI_CORE_AV__AUDIO_DBYTE		0x210ul
+#define HDMI_CORE_AV__AUDIO_DBYTE			0x210ul
 #define HDMI_CORE_AV__AUDIO_DBYTE__ELSIZE	0x4ul
 #define HDMI_CORE_AV__AUDIO_DBYTE__NELEMS	10
-#define HDMI_CORE_AV__MPEG_DBYTE		0x290ul
+#define HDMI_CORE_AV__MPEG_DBYTE			0x290ul
 #define HDMI_CORE_AV__MPEG_DBYTE__ELSIZE	0x4ul
 #define HDMI_CORE_AV__MPEG_DBYTE__NELEMS	27
-#define HDMI_CORE_AV__GEN_DBYTE			0x300ul
+#define HDMI_CORE_AV__GEN_DBYTE				0x300ul
 #define HDMI_CORE_AV__GEN_DBYTE__ELSIZE		0x4ul
 #define HDMI_CORE_AV__GEN_DBYTE__NELEMS		31
-#define HDMI_CORE_AV__GEN2_DBYTE		0x380ul
+#define HDMI_CORE_AV__GEN2_DBYTE			0x380ul
 #define HDMI_CORE_AV__GEN2_DBYTE__ELSIZE	0x4ul
 #define HDMI_CORE_AV__GEN2_DBYTE__NELEMS	31
 #define HDMI_CORE_AV__ACR_CTRL			0x4ul
@@ -175,15 +177,15 @@
 #define HDMI_CORE_AV__I2S_CHST2			0x80ul
 #define HDMI_CORE_AV__I2S_CHST4			0x84ul
 #define HDMI_CORE_AV__I2S_CHST5			0x88ul
-#define HDMI_CORE_AV__ASRC			0x8Cul
+#define HDMI_CORE_AV__ASRC				0x8Cul
 #define HDMI_CORE_AV__I2S_IN_LEN		0x90ul
 #define HDMI_CORE_AV__HDMI_CTRL			0xBCul
 #define HDMI_CORE_AV__AUDO_TXSTAT		0xC0ul
 #define HDMI_CORE_AV__AUD_PAR_BUSCLK_1		0xCCul
 #define HDMI_CORE_AV__AUD_PAR_BUSCLK_2		0xD0ul
 #define HDMI_CORE_AV__AUD_PAR_BUSCLK_3		0xD4ul
-#define HDMI_CORE_AV__TEST_TXCTRL		0xF0ul
-#define HDMI_CORE_AV__DPD			0xF4ul
+#define HDMI_CORE_AV__TEST_TXCTRL			0xF0ul
+#define HDMI_CORE_AV__DPD				0xF4ul
 #define HDMI_CORE_AV__PB_CTRL1			0xF8ul
 #define HDMI_CORE_AV__PB_CTRL2			0xFCul
 #define HDMI_CORE_AV__AVI_TYPE			0x100ul
@@ -207,10 +209,10 @@
 
 /* CEC */
 #define HDMI_CORE_CEC_DEV_ID			0x00ul
-#define HDMI_CORE_CEC_SPEC			0x04ul
-#define HDMI_CORE_CEC_SUFF			0x08ul
-#define HDMI_CORE_CEC_FW			0x0Cul
-#define HDMI_CORE_CEC_DBG_3			0x1Cul
+#define HDMI_CORE_CEC_SPEC				0x04ul
+#define HDMI_CORE_CEC_SUFF				0x08ul
+#define HDMI_CORE_CEC_FW				0x0Cul
+#define HDMI_CORE_CEC_DBG_3				0x1Cul
 #define HDMI_CORE_CEC_TX_INIT			0x20ul
 #define HDMI_CORE_CEC_TX_DEST			0x24ul
 #define HDMI_CORE_CEC_SET_UP			0x38ul
@@ -1674,12 +1676,10 @@ int hdmi_lib_init(void){
 
 	if(cpu_is_ti816x()){
 		/* OMAP first, then overwrite it */
-		/* FIX ME - Update the size, 512 is incorrect */
-		hdmi.base_wp =  ioremap(TI81xx_HDMI_WP, 512);
+		hdmi.base_wp =  ioremap(TI81xx_HDMI_WP, 4096);
 	}
 	if(cpu_is_ti814x()){
-		/* FIX ME - Update the size, 512 is incorrect */
-		hdmi.base_wp =  ioremap(TI81xx_HDMI_WP, 512);
+		hdmi.base_wp =  ioremap(TI81xx_HDMI_WP, 4096);
 	}
 
 	if (!hdmi.base_wp) {
@@ -2087,28 +2087,25 @@ int hdmi_lib_cec_reg_dev(struct ti81xxhdmi_cec_register_dev *dev, __u8 *pa)
 	skip the ping */
 	if (dev->dev_id == 0xF) {
 		wr_msg.acked_nacked = 1;
-		goto no_ping_required;
+	} else {
+		wr_msg.initiator = 0xF;
+		wr_msg.destination = dev->dev_id;
+		/* cmd and no of arguments are not used for ping command */
+		wr_msg.cmd = 0x0;
+		wr_msg.no_args = 0x0;
+
+		wr_msg.acked_nacked = 0xFF;
+		wr_msg.errors = 0xFFFFFFFF;
+		wr_msg.send_ping = 0x1;
+		wr_msg.no_retransmits = 5;
+
+		r = hdmi_lib_cec_write_msg(&wr_msg);
+
+		if (r != 0) {
+			printk(KERN_ERR "\nCould not Ping device\n");
+			return -1;
+		}
 	}
-
-	wr_msg.initiator = 0xF;
-	wr_msg.destination = dev->dev_id;
-	/* cmd and no of arguments are not used for ping command */
-	wr_msg.cmd = 0x0;
-	wr_msg.no_args = 0x0;
-
-	wr_msg.acked_nacked = 0xFF;
-	wr_msg.errors = 0xFFFFFFFF;
-	wr_msg.send_ping = 0x1;
-	wr_msg.no_retransmits = 5;
-
-	r = hdmi_lib_cec_write_msg(&wr_msg);
-
-	if (r != 0) {
-		printk(KERN_ERR "\nCould not Ping device\n");
-		return -1;
-	}
-
-no_ping_required:
 	old_ca_15_8 = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_CA_15_8);
 	old_ca_7_0 = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_CA_7_0);
 
@@ -2156,7 +2153,7 @@ no_ping_required:
 		}
 	} else {
 		/* Device present */
-		r = EEXIST;
+		r = -EEXIST;
 	}
 
 	return r;
@@ -2164,7 +2161,7 @@ no_ping_required:
 
 int hdmi_lib_cec_write_msg(struct ti81xxhdmi_cec_transmit_msg *msg)
 {
-	int r = EINVAL;
+	int r = -EINVAL;
 	u32 timeout = HDMI_CORE_CEC_TIMEOUT;
 	u32 temp, i = 0;
 
@@ -2189,6 +2186,8 @@ int hdmi_lib_cec_write_msg(struct ti81xxhdmi_cec_transmit_msg *msg)
 		temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_DBG_3);
 		if (FLD_GET(temp, 7, 7) == 0)
 			break;
+		/* FIX ME - use udelay instead, as this wait is not a constant for 
+			different platforms */
 		timeout--;
 	}
 	if (timeout == 0x0) {
@@ -2202,7 +2201,7 @@ int hdmi_lib_cec_write_msg(struct ti81xxhdmi_cec_transmit_msg *msg)
 	temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_INT_STATUS_0);
 	if (FLD_GET(temp, 5, 5) == 1) {
 		temp = FLD_MOD(0x0, 1, 5, 5);
-printk(KERN_INFO "HDMI CECDBG TX INT STAT0 value - %x\n", temp);
+		printk(KERN_INFO "HDMI CECDBG TX INT STAT0 value - %x\n", temp);
 		hdmi_write_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_INT_STATUS_0, temp);
 	}
 
@@ -2221,37 +2220,33 @@ printk(KERN_INFO "HDMI CECDBG TX INT STAT0 value - %x\n", temp);
 	hdmi_write_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_DBG_3, temp);
 
 	if (msg->send_ping)
-		goto send_ping;
+	{
+		temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_TX_DEST);
+		temp = FLD_MOD(temp, 1, 7, 7);
+		hdmi_write_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_TX_DEST, temp);
+	} else {
+		/* Setup command and arguments for the command */
+		temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_TX_COMMAND);
+		temp = FLD_MOD(temp, msg->cmd, 7, 0);
+		hdmi_write_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_TX_COMMAND, temp);
 
-	/* Setup command and arguments for the command */
-	temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_TX_COMMAND);
-	temp = FLD_MOD(temp, msg->cmd, 7, 0);
-	hdmi_write_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_TX_COMMAND, temp);
 
+		for (i = 0; i < msg->no_args; i++) {
+			temp = hdmi_read_reg(HDMI_CORE_CEC,
+				(HDMI_CORE_CEC_TX_OPERAND + (i * 4)));
+			temp = FLD_MOD(temp, msg->args[i], 7, 0);
+			hdmi_write_reg(HDMI_CORE_CEC,
+				(HDMI_CORE_CEC_TX_OPERAND + (i * 4)), temp);
+		}
 
-	for (i = 0; i < msg->no_args; i++) {
-		temp = hdmi_read_reg(HDMI_CORE_CEC,
-			(HDMI_CORE_CEC_TX_OPERAND + (i * 4)));
-		temp = FLD_MOD(temp, msg->args[i], 7, 0);
-		hdmi_write_reg(HDMI_CORE_CEC,
-			(HDMI_CORE_CEC_TX_OPERAND + (i * 4)), temp);
+		/* Operand count */
+		temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_TRANSMIT_DATA);
+		temp = FLD_MOD(temp, msg->no_args, 3, 0);
+		/* Transmit */
+		temp = FLD_MOD(temp, 0x1, 4, 4);
+		hdmi_write_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_TRANSMIT_DATA, temp);
 	}
 
-	/* Operand count */
-	temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_TRANSMIT_DATA);
-	temp = FLD_MOD(temp, msg->no_args, 3, 0);
-	/* Transmit */
-	temp = FLD_MOD(temp, 0x1, 4, 4);
-	hdmi_write_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_TRANSMIT_DATA, temp);
-
-	goto wait_for_ack_nack;
-
-send_ping:
-	temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_TX_DEST);
-	temp = FLD_MOD(temp, 1, 7, 7);
-	hdmi_write_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_TX_DEST, temp);
-
-wait_for_ack_nack:
 	timeout = HDMI_CORE_CEC_TIMEOUT + 200;
 	i = 0;
 	do {
@@ -2313,7 +2308,7 @@ int hdmi_lib_cec_read_msg(struct ti81xxhdmi_cec_received_msg *msg)
 	7. Check for RX FIFO overflow, if so let the app know
 	8. if RX_CMD_CNT is 0x0, clear the event status in INT_STATUS0
 	*/
-	r = EAGAIN;
+	r = -EAGAIN;
 	temp = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_INT_STATUS_0);
 	if (FLD_GET(temp, 1, 1)) {
 		cmd_cnt = hdmi_read_reg(HDMI_CORE_CEC, HDMI_CORE_CEC_RX_COUNT);
