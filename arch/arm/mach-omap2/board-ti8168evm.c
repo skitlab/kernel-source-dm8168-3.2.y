@@ -567,7 +567,45 @@ static int __devexit pcf8575_video_remove(struct i2c_client *client)
 	pcf8575_2_client = NULL;
 	return 0;
 }
+static const struct i2c_device_id pcf8575_cir_id[] = {
+	{ "IO Expander", 0 },
+	{ }
+};
+static struct i2c_client *pcf8575_cir_client;
+static unsigned char pcf8575_cir_port[2] = {0, 0xbf};
+static int pcf8575_cir_enable(void);
+static int pcf8575_cir_probe(struct i2c_client *client,
+				const struct i2c_device_id *id)
+{
+	pcf8575_cir_client = client;
+	pcf8575_cir_enable();
+	return 0;
+}
 
+static int __devexit pcf8575_cir_remove(struct i2c_client *client)
+{
+	pcf8575_cir_client = NULL;
+	return 0;
+}
+static struct i2c_driver pcf8575_cir_driver = {
+	.driver = {
+		.name	= "IO Expander",
+	},
+	.probe		= pcf8575_cir_probe,
+	.remove		= pcf8575_cir_remove,
+	.id_table		= pcf8575_cir_id,
+};
+int ti816x_pcf8575_cir_init(void)
+{
+	i2c_add_driver(&pcf8575_cir_driver);
+	return 0;
+}
+
+int ti816x_pcf8575_cir_exit(void)
+{
+	i2c_del_driver(&pcf8575_cir_driver);
+	return 0;
+}
 static const struct i2c_device_id pcf8575_video_id[] = {
 	{ "pcf8575_1", 0 },
 	{ }
@@ -597,9 +635,33 @@ int ti816x_pcf8575_exit(void)
 /* FIX ME: Check on the Bit Value */
 
 #define TI816X_EVM_CIR_UART BIT(5)
+#define pcf8575_IR_REMOTE_OFF (0x40)
 
 static struct i2c_client *cpld_reg0_client;
 
+int pcf8575_cir_enable(void)
+{
+	int ret = 0;
+	struct i2c_msg msg = {
+		.addr = pcf8575_cir_client->addr,
+		.flags = 1,
+		.len = 2,
+	};
+	msg.buf = pcf8575_cir_port;
+	ret = i2c_transfer(pcf8575_cir_client->adapter, &msg, 1);
+	msg.flags = 0;
+	if (ret < 0)
+		printk(KERN_ERR "I2C: Read failed at %s %d with error code: %d\n",
+			__func__, __LINE__, ret);
+	pcf8575_cir_port[0] = msg.buf[0];
+	pcf8575_cir_port[1] = (msg.buf[1] & ~(pcf8575_IR_REMOTE_OFF));
+	ret = i2c_transfer(pcf8575_cir_client->adapter, &msg, 1);
+	if (ret < 0)
+		printk(KERN_ERR "I2C: Transfer failed at %s %d with error code: %d\n",
+			__func__, __LINE__, ret);
+	return ret;
+
+}
 /* CPLD Register 0 Client: used for I/O Control */
 static int cpld_reg0_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
@@ -835,6 +897,7 @@ static void __init ti8168_evm_init(void)
 #endif
 	regulator_has_full_constraints();
 	regulator_use_dummy_regulator();
+	ti816x_pcf8575_cir_init();
 }
 
 static int __init ti8168_evm_gpio_setup(void)
