@@ -292,6 +292,48 @@ static struct i2c_board_info __initdata dm813x_i2c_boardinfo1[] = {
 
 };
 
+
+static const struct i2c_device_id ti813x_pcf8575_cir_id[] = {
+	{ "IO Expander", 0 },
+	{ }
+};
+static struct i2c_client *ti813x_pcf8575_cir_client;
+static unsigned char ti813x_pcf8575_cir_port[2] = {0, 0xbf};
+static int ti813x_pcf8575_cir_enable(void);
+static int ti813x_pcf8575_cir_probe(struct i2c_client *client,
+				const struct i2c_device_id *id)
+{
+	ti813x_pcf8575_cir_client = client;
+	ti813x_pcf8575_cir_enable();
+	return 0;
+}
+
+static int __devexit ti813x_pcf8575_cir_remove(struct i2c_client *client)
+{
+	ti813x_pcf8575_cir_client = NULL;
+	return 0;
+}
+static struct i2c_driver ti813x_pcf8575_cir_driver = {
+	.driver = {
+		.name	= "IO Expander",
+	},
+	.probe		= ti813x_pcf8575_cir_probe,
+	.remove		= ti813x_pcf8575_cir_remove,
+	.id_table		= ti813x_pcf8575_cir_id,
+};
+int ti813x_pcf8575_cir_init(void)
+{
+
+	i2c_add_driver(&ti813x_pcf8575_cir_driver);
+	return 0;
+}
+
+int ti813x_cir_exit(void)
+{
+	i2c_del_driver(&ti813x_pcf8575_cir_driver);
+	return 0;
+}
+
 static const struct i2c_device_id pcf8575_video_id[] = {
 	{ "pcf8575_1_dm813x", 0 },
 	{ }
@@ -308,6 +350,7 @@ static unsigned char pcf8575_1_port[2] = {0x4F, 0x7F};
 #define VPS_PCF8575_PIN6                (0x40)
 #define VPS_PCF8575_PIN7                (0x80)
 
+#define pcf8575_IR_REMOTE_OFF		(0x40)
 #define VPS_PCF8575_PIN10               (0x1)
 #define VPS_PCF8575_PIN11               (0x2)
 
@@ -345,6 +388,39 @@ int dm813x_pcf8575_ths7360_sd_enable(enum ti81xx_ths_filter_ctrl ctrl)
 	return i2c_transfer(pcf8575_1_client->adapter, &msg, 1);
 }
 
+static void ti813x_cir_pin_mux(void)
+{
+	char mux_name[100];
+	sprintf(mux_name, "uart0_rin.uart1_rxd_mux0");
+	omap_mux_init_signal(mux_name, OMAP_MUX_MODE0 |
+			TI814X_PULL_DIS | TI814X_INPUT_EN);
+	return;
+}
+
+int ti813x_pcf8575_cir_enable(void)
+{
+	int ret = 0;
+	struct i2c_msg msg = {
+		.addr = ti813x_pcf8575_cir_client->addr,
+		.flags = 1,
+		.len = 2,
+	};
+	msg.buf = ti813x_pcf8575_cir_port;
+	ret = i2c_transfer(ti813x_pcf8575_cir_client->adapter, &msg, 1);
+	msg.flags = 0;
+	if (ret < 0)
+		printk(KERN_ERR "I2C: Read failed at %s %d with error code: %d\n",
+			__func__, __LINE__, ret);
+	ti813x_pcf8575_cir_port[0] = msg.buf[0];
+	ti813x_pcf8575_cir_port[1] = (msg.buf[1] & ~(pcf8575_IR_REMOTE_OFF));
+	ret = i2c_transfer(ti813x_pcf8575_cir_client->adapter, &msg, 1);
+	ti813x_cir_pin_mux();
+	if (ret < 0)
+		printk(KERN_ERR "I2C: Transfer failed at %s %d with error code: %d\n",
+			__func__, __LINE__, ret);
+	return ret;
+
+}
 int dm813x_pcf8575_ths7360_hd_enable(enum ti81xx_ths7360_sf_ctrl ctrl)
 {
 	int ret_val;
@@ -683,6 +759,7 @@ static void __init dm385_evm_init(void)
 	regulator_use_dummy_regulator();
 	board_nor_init(ti814x_evm_norflash_partitions,
 		ARRAY_SIZE(ti814x_evm_norflash_partitions), 0);
+	ti813x_pcf8575_cir_init();
 }
 
 static void __init dm385_evm_map_io(void)
