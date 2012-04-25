@@ -41,6 +41,8 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Michal Nazarewicz");
 MODULE_LICENSE("GPL");
 
+static char manufacturer[50];
+static u16 vendorID;
 
 /***************************** All the files... *****************************/
 
