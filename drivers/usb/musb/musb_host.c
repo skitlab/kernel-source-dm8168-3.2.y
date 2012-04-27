@@ -2335,8 +2335,13 @@ static int musb_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 			list_del(&qh->ring);
 			kfree(qh);
 		}
-	} else
+	} else {
+		/* As this urb is dequeued by stack/application
+		 * we return this urb with ECANCELED status
+		 */
+		urb->status = -ECANCELED;
 		ret = musb_cleanup_urb(urb, qh);
+	}
 done:
 	spin_unlock_irqrestore(&musb->lock, flags);
 	return ret;
