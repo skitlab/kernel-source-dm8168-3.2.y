@@ -27,6 +27,19 @@
 
 #include <linux/ioctl.h>
 
+/* HDCP state
+	When application query status of HDCP using IOCTL 
+	TI81XXHDMI_HDCP_GET_STATUS, depending on state of HDCP, one of the 
+	following values would be returned to applications. */
+#define HDCP_STATE_DISABLED				0
+#define HDCP_STATE_INIT					1
+#define HDCP_STATE_AUTH_1ST_STEP		2
+#define HDCP_STATE_AUTH_2ND_STEP		3
+#define HDCP_STATE_AUTH_3RD_STEP		4
+#define HDCP_STATE_AUTH_FAIL_RESTARTING	5
+#define HDCP_STATE_AUTH_FAILURE			6
+
+
 /* IOCTL definitions */
 #define TI81XXHDMI_MAGIC            'N'
 #define TI81XXHDMI_IOW(num, dtype)  _IOW(TI81XXHDMI_MAGIC, num, dtype)
@@ -58,7 +71,7 @@
 
 /* Used to read the received messages, for both unicast or broadcast messages
  * Takes in an argument of type struct ti81xxhdmi_cec_received_msg.
- * An return value of EAGAIN, indicates that are no messages received, try
+ * An error value of EAGAIN, indicates that are no messages received, try
  * later
  */
 #define TI81XXHDMI_CEC_RECEIVE_MSG	TI81XXHDMI_IOR(7, unsigned char *)
@@ -66,9 +79,38 @@
 /* Used to transmit the message described by ti81xxhdmi_cec_transmit_msg
  * Takes in a argument of type struct ti81xxhdmi_cec_transmit_msg
  */
-#define TI81XXHDMI_CEC_TRANSMIT_MSG	TI81XXHDMI_IOWR(8, unsigned char *)
+#define TI81XXHDMI_CEC_TRANSMIT_MSG		TI81XXHDMI_IOWR(8, unsigned char *)
 
+/* Used to enable HDCP.
+ * Takes in a argument of type ti81xxhdmi_hdcp_ena_ctrl. Note that all devices
+ * need not support HDCP. In case HDCP is not supported, an error value of 
+ * ENODEV if returned.
+ */
+#define TI81XXHDMI_HDCP_ENABLE	  TI81XXHDMI_IOW(9, \
+										struct ti81xxhdmi_hdcp_ena_ctrl)
 /* Use this command only when hdmi is streaming video to a sink */
+
+/* Used to disable HDCP process.
+ * Applicable only when HDCP_ENABLE was called / HDCP autentication was in 
+ * progress.
+ */
+#define TI81XXHDMI_HDCP_DISABLE	  TI81XXHDMI_IOW(10, unsigned char *)
+
+/* Used to query the current step / status of HDCP process.
+ * Returns one of the values defined below under "HDCP State". Takes in a 
+ * argument of type __u32
+ */
+#define TI81XXHDMI_HDCP_GET_STATUS	TI81XXHDMI_IOWR(11, __u32)
+
+/* Blocking call TBD Sujith
+ */
+#define TI81XXHDMI_HDCP_WAIT_EVENT	TI81XXHDMI_IOWR(12, \
+										struct ti81xxhdmi_hdcp_wait_ctrl)
+
+/* TBD Sujith
+ */
+#define TI81XXHDMI_HDCP_EVENT_DONE	TI81XXHDMI_IOWR(14, __u32)
+
 /* TODO Not supported for now */
 #if 0
 #define TI81XX_HDMI_SET_MODE	TI81XX_HDMI_IOW(6, enum ti81xxhdmi_mode)
@@ -256,6 +298,28 @@ struct ti81xxhdmi_cec_transmit_msg {
 	 * command, 0x0 for normal operation
 	 */
 	__u32 errors;
+};
+
+/* HDCP Specifics */
+/* HDCP key size in 32-bit words */
+#define DESHDCP_KEY_SIZE 		160
+#define MAX_SHA_DATA_SIZE		645
+#define MAX_SHA_VPRIME_SIZE		20
+
+
+struct ti81xxhdmi_hdcp_ena_ctrl {
+	int nb_retry;
+};
+
+struct hdcp_sha_in {
+	__u8 data[MAX_SHA_DATA_SIZE];
+	__u32 byte_counter;
+	__u8 vprime[MAX_SHA_VPRIME_SIZE];
+};
+
+struct ti81xxhdmi_hdcp_wait_ctrl {
+	__u32 event;
+	struct hdcp_sha_in *data;
 };
 
 #endif /* End of #ifndef __TI81XX_HDMI_H__ */

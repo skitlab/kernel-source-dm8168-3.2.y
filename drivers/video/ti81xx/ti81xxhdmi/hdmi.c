@@ -51,6 +51,7 @@
 #include <linux/ti81xxhdmi.h>
 #include "../vpss/display_interface.h"
 #include "hdmi.h"
+#include "hdcp.h"
 #include <linux/edid.h>
 
 #define DEBUG 1 /* FIXME : this should come from menuconfig */
@@ -136,42 +137,11 @@ static int code_index[VIDEO_TIMINGS_NB] = {
 	0X2F, 0x3A, 0X51, 0X52, 0x16, 0x29, 0x39, 0x1B
 };
 
-/* distinguish power states when ACTIVE */
-enum hdmi_power_state {
-	HDMI_POWER_OFF,
-	HDMI_POWER_MIN,		/* minimum power for HPD detect */
-	HDMI_POWER_FULL,	/* full power */
-} hdmi_power;
+/* Power status of HDMI */
+enum hdmi_power_state hdmi_power;
 
-/* Different state of this device on the CEC n/w */
-enum hdmi_cec_state {
-	HDMI_CEC_BYPASS,
-	HDMI_CEC_REGISTERED,
-	HDMI_CEC_UN_REGISTERED
-};
-
-struct hdmi {
-	struct kobject kobj;
-	void __iomem *base_phy;
-	void __iomem *base_pll;
-	void __iomem *base_prcm;
-	void __iomem *base_wp;
-	struct mutex lock;
-	int code;
-	int mode;
-	int deep_color;
-	int lr_fr;
-	int force_set;
-	int freq;
-	enum hdmi_power_state power_state;
-	/* added for DM814x Power management */
-	enum ti81xx_display_status status;
-	/* added this for maintaining the status of the driver. */
-	struct hdmi_config cfg;
-	struct platform_device *pdev;
-	struct ti81xx_venc_info vencinfo;
-	enum hdmi_cec_state cec_state;
-} hdmi;
+/* Hdmi instance config */
+struct hdmi hdmi;
 
 /* Structures for chardevice move this to panel */
 static int hdmi_major;
@@ -1077,6 +1047,41 @@ static long hdmi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		mutex_unlock(&hdmi.lock);
 		break;
+	case TI81XXHDMI_HDCP_ENABLE:
+		mutex_lock(&hdmi.lock);
+		if (hdmi.enable_ctl != 0){
+			r = hdmi.enable_ctl((void __user *)arg);
+		}
+		mutex_unlock(&hdmi.lock);
+		break;
+	case TI81XXHDMI_HDCP_DISABLE:
+		mutex_lock(&hdmi.lock);
+		if (hdmi.disable_ctl != 0){
+			hdmi.disable_ctl();
+		}
+		mutex_unlock(&hdmi.lock);
+		break;
+	case TI81XXHDMI_HDCP_GET_STATUS:
+		mutex_lock(&hdmi.lock);
+		if (hdmi.query_status_ctl != 0){
+			hdmi.query_status_ctl((void __user *)arg);
+		}
+		mutex_unlock(&hdmi.lock);
+		break;
+	case TI81XXHDMI_HDCP_WAIT_EVENT:
+		mutex_lock(&hdmi.lock);
+		if (hdmi.wait_event_ctl != 0){
+			hdmi.wait_event_ctl((void __user *)arg);
+		}
+		mutex_unlock(&hdmi.lock);
+		break;
+	case TI81XXHDMI_HDCP_EVENT_DONE:
+		mutex_lock(&hdmi.lock);
+		if (hdmi.done_ctl != 0){
+			hdmi.done_ctl((void __user *)arg);
+		}
+		mutex_unlock(&hdmi.lock);
+		break;
 	default:
 		r = -EINVAL;
 		THDMIDBG("Un-recoganized command, cmd = %d", cmd);
@@ -1245,6 +1250,8 @@ static irqreturn_t hdmi_irq_handler(int irq, void *arg)
 
 	HDMI_W1_HPD_handler(&r);
 
+	if (hdmi.isr_cb != 0)
+		hdmi.isr_cb(r);
 
 	if (r & HDMI_CONNECT)
 		hdmi_connected = true;
@@ -1267,6 +1274,9 @@ static int hdmi_enable_display(void)
 	r = request_irq(TI81XX_IRQ_HDMIINT, hdmi_irq_handler, 0,
 			"HDMI", (void *)0);
 	hdmi.status = TI81xx_EXT_ENCODER_ENABLED;
+	if (hdmi.frame_start_event != 0){
+		hdmi.frame_start_event();
+	}
 	mutex_unlock(&hdmi.lock);
 	return r;
 }
@@ -1317,6 +1327,19 @@ int __init hdmi_init(void)
 	/* Devices CEC default state */
 	hdmi.cec_state = HDMI_CEC_BYPASS;
 
+	/* Initialize globals */
+	hdmi.base_pll = 0;
+	hdmi.base_phy = 0;
+	hdmi.base_prcm = 0;
+	
+	hdmi.isr_cb = 0;
+	hdmi.frame_start_event = 0;
+	hdmi.done_ctl = 0;
+	hdmi.wait_event_ctl = 0;
+	hdmi.query_status_ctl = 0;
+	hdmi.disable_ctl = 0;
+	hdmi.enable_ctl = 0;
+
 	if (cpu_is_ti814x()) {
 		hdmi.base_pll =  ioremap(TI814x_HDMI_PLL_BASE_ADDR, 0x80);
 		if (!hdmi.base_pll) {
@@ -1331,7 +1354,8 @@ int __init hdmi_init(void)
 		hdmi.base_phy = ioremap(TI814x_HDMI_PHY_0_REGS, 64);
 		if (!hdmi.base_phy) {
 			ERR("can't ioremap phy\n");
-			return -ENOMEM;
+			r = -ENOMEM;
+			goto err_unmap;
 		}
 	}
 
@@ -1339,14 +1363,16 @@ int __init hdmi_init(void)
 		hdmi.base_phy = ioremap(TI816x_HDMI_PHY_0_REGS, 64);
 		if (!hdmi.base_phy) {
 			ERR("can't ioremap phy\n");
-			return -ENOMEM;
+			r = -ENOMEM;
+			goto err_unmap;
 		}
 	}
 
 	hdmi.base_prcm =  ioremap(PRCM_0_REGS, 0x500);
 	if (!hdmi.base_prcm) {
 		ERR("can't ioremap PRCM 0\n");
-		return -ENOMEM;
+			r = -ENOMEM;
+			goto err_unmap;
 	}
 
 
@@ -1359,12 +1385,15 @@ int __init hdmi_init(void)
 
 	hdmi_lib_init();
 
+	hdcp_init();
+
 	hdmi_major = MAJOR(hdmi_dev_id);
 
 	r = alloc_chrdev_region(&hdmi_dev_id, 0, 1, "onchip_hdmi_device");
 	if (r) {
 		THDMIDBG(KERN_WARNING "HDMI: Cound not register char device\n");
-		return -ENOMEM;
+		r = -ENOMEM;
+		goto err_uninit_lib;
 	}
 	/* initialize character device */
 	cdev_init(&hdmi_cdev, &hdmi_fops);
@@ -1375,8 +1404,8 @@ int __init hdmi_init(void)
 	r = cdev_add(&hdmi_cdev, hdmi_dev_id, 1);
 	if (r) {
 		THDMIDBG(KERN_WARNING "HDMI: Could not add hdmi char driver\n");
+		r = -ENOMEM;
 		goto err_unregister_chrdev;
-		return -ENOMEM;
 	}
 	irq_wq = create_singlethread_workqueue("HDMI WQ");
 
@@ -1423,6 +1452,16 @@ err_remove_cdev:
 	cdev_del(&hdmi_cdev);
 err_unregister_chrdev:
 	unregister_chrdev_region(hdmi_dev_id, 1);
+err_uninit_lib:
+	hdmi_lib_exit();
+	hdcp_exit();
+err_unmap:
+	if (hdmi.base_pll)
+		iounmap(hdmi.base_pll);
+	if (hdmi.base_phy)
+		iounmap(hdmi.base_phy);
+	if (hdmi.base_prcm)
+		iounmap(hdmi.base_prcm);
 
 	return r;
 }

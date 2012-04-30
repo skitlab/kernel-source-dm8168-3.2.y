@@ -74,6 +74,49 @@
 #define TI814x_CM_HDMI_CLKCTRL_OFF			(0x0824)
 #define TI814x_CM_ALWON_SDIO_CLKCTRL			(0x15B0)
 
+/* distinguish power states when ACTIVE */
+enum hdmi_power_state {
+	HDMI_POWER_OFF,
+	HDMI_POWER_MIN,		/* minimum power for HPD detect */
+	HDMI_POWER_FULL,	/* full power */
+};
+
+/* Different state of this device on the CEC n/w */
+enum hdmi_cec_state {
+	HDMI_CEC_BYPASS,
+	HDMI_CEC_REGISTERED,
+	HDMI_CEC_UN_REGISTERED
+};
+
+struct hdmi {
+	struct kobject kobj;
+	void __iomem *base_phy;
+	void __iomem *base_pll;
+	void __iomem *base_prcm;
+	void __iomem *base_wp;
+	struct mutex lock;
+	int code;
+	int mode;
+	int deep_color;
+	int lr_fr;
+	int force_set;
+	int freq;
+	enum hdmi_power_state power_state;
+	/* added for DM814x Power management */
+	enum ti81xx_display_status status;
+	/* added this for maintaining the status of the driver. */
+	struct hdmi_config cfg;
+	struct platform_device *pdev;
+	struct ti81xx_venc_info vencinfo;
+	enum hdmi_cec_state cec_state;
+	void (*isr_cb) (int status);
+	void (*frame_start_event) (void);
+	long (*enable_ctl) (void __user *argp); 
+	long (*disable_ctl) (void);
+	long (*query_status_ctl) (void __user *argp);
+	long (*wait_event_ctl) (void __user *argp);
+	long (*done_ctl)(void __user *argp);
+};
 
 #endif
 
