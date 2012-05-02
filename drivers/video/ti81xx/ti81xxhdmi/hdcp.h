@@ -97,10 +97,10 @@ struct hdcp {
 		applications, when queried */
 	int auth_state;
 	
-	/* In progress - Sujith */
+	/* Wait state indicator - has been enabled - unable to enable due to HDMI
+		not streaming */
 	struct delayed_work *pending_start;
 	
-	/* In progress - Sujith */
 	/* Following variable should store works submitted from workqueue
 	 * context
 	 * WARNING: only ONE work at a time can be stored (no conflict
@@ -108,31 +108,24 @@ struct hdcp {
 	 * disabling HDCP
 	 */
 	struct delayed_work *pending_wq_event;
-	
-	/* Resolved - Sujith */
+	/* No of re-trys required before giving up autentication */
 	int retry_cnt;
-	
-	
 	/* Not used as of now */
 	int dss_state;
 	/* Not used as of now, would require to indicate HDMI to restart when AKSV
 		errors are encountered */
 	int hdmi_restart;
-	
-	/* Resolved - Sujith */
-	/* Indicates the sink was di-connected or SINK drove the HPD low */
+	/* Indicates the sink was di-connected or SINK drove the HPD low.
+		Not used as of now. */
 	int hpd_low;
-	
-	/* Resolved - Sujith */
 	/* Primary work queue, used to handle enable request, state transitions
 		etc... */
 	struct workqueue_struct *workqueue;
-	
-	
+
 	int hdcp_up_event;
 	int hdcp_down_event;
-	
-	
+
+
 	/* Remove the following */
 	void __iomem *hdmi_wp_base_addr;
 };

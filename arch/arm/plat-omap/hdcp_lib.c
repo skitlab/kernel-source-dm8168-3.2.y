@@ -742,7 +742,7 @@ int hdcp_lib_step1_r0_check(void)
 
 	if (hdcp_lib_check_repeater_bit_in_tx()) {
 
-#if 0 /* TBD Sujith - Why would we require this? */
+#ifdef NOT_YET /* TBD Sujith */
 		status = hdcp_user_space_task(HDCP_EVENT_STEP1);
 		/* Wait for user space */
 		if (status) {
@@ -855,7 +855,7 @@ int hdcp_lib_step2(void)
 	if (hdcp.pending_disable)
 		return -HDCP_CANCELLED_AUTH;
 
-#if 0 /* TBD Sujith - How do we handle this */
+#ifdef NOT_YET /* TBD Sujith */
 	status = hdcp_user_space_task(HDCP_EVENT_STEP2);
 	/* Wait for user space */
 	if (status) {

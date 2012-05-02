@@ -32,6 +32,12 @@
 	
 	Memory leak in hdmi_init - If mem alloc fails for second alloc
 		first allocated memory is not released - Done - fixed - raise an IR.
+	
+	When we have AKSV errors, we require to stop HDMI transmitter and re-start
+		autentication. Require to update the user guide for same.
+	
+	Move verification of AKSV to applications (walk the revocation list). 
+		Driver checks for syntax error of AKSV but not the revocation list.
 */
 #include <linux/module.h>
 #include <linux/uaccess.h>
@@ -87,21 +93,6 @@ static long hdcp_done_ctl(void __user *argp);
 static DECLARE_WAIT_QUEUE_HEAD(hdcp_up_wait_queue);
 static DECLARE_WAIT_QUEUE_HEAD(hdcp_down_wait_queue);
 
-#ifdef TBD_SUJITH
-/*-----------------------------------------------------------------------------
- * Function: hdcp_request_dss
- *-----------------------------------------------------------------------------
- */
-static void hdcp_request_dss(void)
-{
-	/* TBD Sujith - Figure this out, can we lock hdmi_lib from accessing
-		the hardware ? */
-#if 0
-	hdcp.dss_state = dss_runtime_get();
-#endif
-}
-#endif /* TBD_SUJITH */
-
 /*-----------------------------------------------------------------------------
  * Function: hdcp_user_space_task
  *-----------------------------------------------------------------------------
@@ -123,22 +114,6 @@ int hdcp_user_space_task(int flags)
 
 	return ret;
 }
-
-#ifdef TBD_SUJITH
-
-/*-----------------------------------------------------------------------------
- * Function: hdcp_release_dss
- *-----------------------------------------------------------------------------
- */
-static void hdcp_release_dss(void)
-{
-#if 0
-	if (hdcp.dss_state == 0)
-		dss_runtime_put();
-#endif
-}
-
-#endif /* TBD_SUJITH */
 
 /*-----------------------------------------------------------------------------
  * Function: hdcp_wq_disable
@@ -218,7 +193,7 @@ static void hdcp_wq_check_r0(void)
 			hdcp.auth_state = HDCP_STATE_AUTH_3RD_STEP;
 
 			/* Restore retry counter */
-			if (hdcp.en_ctrl.nb_retry == 0)
+			if (hdcp.en_ctrl.nb_retry == -1)
 				hdcp.retry_cnt = HDCP_INFINITE_REAUTH;
 			else
 				hdcp.retry_cnt = hdcp.en_ctrl.nb_retry;
@@ -253,7 +228,7 @@ static void hdcp_wq_step2_authentication(void)
 		hdcp.auth_state = HDCP_STATE_AUTH_3RD_STEP;
 
 		/* Restore retry counter */
-		if (hdcp.en_ctrl.nb_retry == 0)
+		if (hdcp.en_ctrl.nb_retry == -1)
 			hdcp.retry_cnt = HDCP_INFINITE_REAUTH;
 		else
 			hdcp.retry_cnt = hdcp.en_ctrl.nb_retry;
@@ -351,7 +326,7 @@ static void hdcp_work_queue(struct work_struct *work)
 	case HDCP_DISABLED:
 		/* HDCP enable control or re-authentication event */
 		if (event == HDCP_ENABLE_CTL) {
-			if (hdcp.en_ctrl.nb_retry == 0)
+			if (hdcp.en_ctrl.nb_retry == -1)
 				hdcp.retry_cnt = HDCP_INFINITE_REAUTH;
 			else
 				hdcp.retry_cnt = hdcp.en_ctrl.nb_retry;
@@ -360,6 +335,10 @@ static void hdcp_work_queue(struct work_struct *work)
 				hdcp_wq_start_authentication();
 			else
 				hdcp.hdcp_state = HDCP_ENABLE_PENDING;
+			printk(KERN_INFO "DEBUG-STATE-MC: hdcp_state - Disabled\n");
+			printk(KERN_INFO "DEBUG-STATE-MC: Event enabled\n");
+		} else {
+			printk(KERN_INFO "DEBUG-STATE-MC: hdcp_state - Disabled\n");
 		}
 
 		break;
@@ -368,18 +347,24 @@ static void hdcp_work_queue(struct work_struct *work)
 	/*********/
 	case HDCP_ENABLE_PENDING:
 		/* HDMI start frame event */
-		if (event == HDCP_START_FRAME_EVENT)
+		if (event == HDCP_START_FRAME_EVENT){
 			hdcp_wq_start_authentication();
-
+			printk(KERN_INFO "DEBUG-STATE-MC: hdcp_state - HDCP Enable Pending - F start\n");
+		} else {
+			printk(KERN_INFO "DEBUG-STATE-MC: hdcp_state - HDCP Enable Pending\n");
+		}
 		break;
 
 	/* State */
 	/*********/
 	case HDCP_AUTHENTICATION_START:
 		/* Re-authentication */
-		if (event == HDCP_AUTH_REATT_EVENT)
+		if (event == HDCP_AUTH_REATT_EVENT) {
 			hdcp_wq_start_authentication();
-
+			printk(KERN_INFO "DEBUG-STATE-MC: hdcp_state - Auth start - restart attempt\n");
+		} else {
+			printk(KERN_INFO "DEBUG-STATE-MC: hdcp_state - Auth start\n");
+		}
 		break;
 
 	/* State */
@@ -562,15 +547,8 @@ static void hdcp_irq_cb(int status)
 										 * work */
 		hdcp.hpd_low = 0;		/* Used to cancel HDCP works */
 		hdcp_lib_disable();
-		/* In case of HDCP_STOP_FRAME_EVENT, HDCP stop
-		 * frame callback is blocked and waiting for
-		 * HDCP driver to finish accessing the HW
-		 * before returning
-		 * Reason is to avoid HDMI driver to shutdown
-		 * DSS/HDMI power before HDCP work is finished
-		 */
 		hdcp.hdmi_state = HDMI_STOPPED;
-		hdcp.hdcp_state = HDCP_ENABLE_PENDING;
+		hdcp.hdcp_state = HDCP_DISABLED;
 		hdcp.auth_state = HDCP_STATE_DISABLED;
 	}
 }
