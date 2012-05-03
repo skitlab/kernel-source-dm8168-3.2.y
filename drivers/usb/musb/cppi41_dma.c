@@ -1345,7 +1345,6 @@ void txdma_completion_work(struct work_struct *data)
 	unsigned long flags;
 
 	while (1) {
-		spin_lock_irqsave(&musb->lock, flags);
 		for (index = 0; index < USB_CPPI41_NUM_CH; index++) {
 			void __iomem *epio;
 			u16 csr;
@@ -1380,13 +1379,14 @@ void txdma_completion_work(struct work_struct *data)
 					tx_ch->channel.status =
 						MUSB_DMA_STATUS_FREE;
 					tx_ch->tx_complete = 0;
+					spin_lock_irqsave(&musb->lock, flags);
 					musb_dma_completion(musb, index+1, 1);
+					spin_unlock_irqrestore(&musb->lock, flags);
 				}
 			}
 		}
-		spin_unlock_irqrestore(&musb->lock, flags);
 
-		if (!tx_ch->txfifo_intr_enable && resched) {
+		if (resched) {
 			resched = 0;
 			cond_resched();
 		} else {
