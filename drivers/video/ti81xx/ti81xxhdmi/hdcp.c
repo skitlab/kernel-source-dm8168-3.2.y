@@ -67,7 +67,7 @@
 #endif
 
 struct hdcp hdcp;
-struct hdcp_sha_in sha_input;
+extern struct hdcp_sha_in sha_input;
 
 /* State machine / workqueue */
 static void hdcp_wq_disable(void);
@@ -214,6 +214,21 @@ static void hdcp_wq_step2_authentication(void)
 	hdcp_cancel_work(&hdcp.pending_wq_event);
 
 	status = hdcp_lib_step2();
+	
+	if (status == HDCP_OK){
+		status = hdcp_user_space_task(HDCP_EVENT_STEP2);
+		/* Wait for user space */
+		if (status) {
+			printk(KERN_ERR "HDCP: omap4_secure_dispatcher CHECH_V error "
+					"%d\n", status);
+		}
+		if (status == HDCP_OK) {
+			/* Re-enable Ri check */
+#ifdef _9032_AUTO_RI_
+			hdcp_lib_auto_ri_check(true);
+#endif
+		}
+	}
 
 	if (status == -HDCP_CANCELLED_AUTH) {
 		HDCP_DBG("Authentication step 2 cancelled.");
@@ -775,4 +790,3 @@ void hdcp_exit(void)
 
 EXPORT_SYMBOL(hdcp_init);
 EXPORT_SYMBOL(hdcp_exit);
-

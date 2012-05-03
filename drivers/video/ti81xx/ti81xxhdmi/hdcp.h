@@ -133,4 +133,5 @@ struct hdcp {
 /* Functions */
 void hdcp_exit(void);
 int hdcp_init(void);
+
 #endif /* _HDCP_H_ */
