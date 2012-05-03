@@ -742,7 +742,8 @@ int hdcp_lib_step1_r0_check(void)
 
 	if (hdcp_lib_check_repeater_bit_in_tx()) {
 
-#ifdef NOT_YET /* TBD Sujith */
+#ifdef NOT_YET /* TBD Sujith 
+					Dont bother sending up to apps to read M0, read now */
 		status = hdcp_user_space_task(HDCP_EVENT_STEP1);
 		/* Wait for user space */
 		if (status) {
@@ -855,7 +856,7 @@ int hdcp_lib_step2(void)
 	if (hdcp.pending_disable)
 		return -HDCP_CANCELLED_AUTH;
 
-#ifdef NOT_YET /* TBD Sujith */
+#if 0 /* Moved to hdcp .c Sujith */
 	status = hdcp_user_space_task(HDCP_EVENT_STEP2);
 	/* Wait for user space */
 	if (status) {
@@ -865,12 +866,15 @@ int hdcp_lib_step2(void)
 	}
 #endif
 
+#if 0 /* Moved to HDCP.c */
 	if (status == HDCP_OK) {
 		/* Re-enable Ri check */
 #ifdef _9032_AUTO_RI_
 		hdcp_lib_auto_ri_check(true);
 #endif
 	}
+
+#endif 
 
 	return status;
 }
@@ -981,4 +985,4 @@ EXPORT_SYMBOL(hdcp_lib_init);
 EXPORT_SYMBOL(hdcp_lib_de_init);
 EXPORT_SYMBOL(hdcp_lib_set_pending_disable);
 EXPORT_SYMBOL(hdcp_lib_clear_pending_disable);
-
+EXPORT_SYMBOL(sha_input);
