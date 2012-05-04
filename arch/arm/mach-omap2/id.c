@@ -407,6 +407,18 @@ void __init ti81xx_check_revision(void)
 			omap_revision = TI8148_REV_ES1_0;
 			strcpy(cpu_rev, "1.0");
 			break;
+		case 2:
+			omap_revision = TI8148_REV_ES2_0;
+			strcpy(cpu_rev, "2.0");
+			break;
+		case 3:
+			omap_revision = TI8148_REV_ES2_1;
+			strcpy(cpu_rev, "2.1");
+			break;
+		case 4:
+			omap_revision = TI8148_REV_ES3_0;
+			strcpy(cpu_rev, "3.0");
+			break;
 		default:
 			omap_revision = TI8148_REV_ES2_0;
 			strcpy(cpu_rev, "2.0");
