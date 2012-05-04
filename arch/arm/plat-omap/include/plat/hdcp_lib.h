@@ -202,7 +202,7 @@ void hdcp_3des_encrypt_key(struct hdcp_encrypt_control *enc_ctrl,
 /* IP control */
 int hdcp_lib_disable(void);
 int hdcp_lib_step1_start(void);
-int hdcp_lib_step1_r0_check(void);
+int hdcp_lib_step1_r0_check(u8 *metadata);
 int hdcp_lib_step2(void);
 int hdcp_lib_irq(void);
 void hdcp_lib_auto_ri_check(bool state);

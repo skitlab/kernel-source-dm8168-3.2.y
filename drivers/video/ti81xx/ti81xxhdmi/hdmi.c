@@ -1069,11 +1069,9 @@ static long hdmi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		mutex_unlock(&hdmi.lock);
 		break;
 	case TI81XXHDMI_HDCP_WAIT_EVENT:
-		mutex_lock(&hdmi.lock);
 		if (hdmi.wait_event_ctl != 0){
 			hdmi.wait_event_ctl((void __user *)arg);
 		}
-		mutex_unlock(&hdmi.lock);
 		break;
 	case TI81XXHDMI_HDCP_EVENT_DONE:
 		mutex_lock(&hdmi.lock);

@@ -39,6 +39,7 @@ static int hdcp_lib_r0_check(void);
 static int hdcp_lib_sha_bstatus(struct hdcp_sha_in *sha);
 static void hdcp_lib_set_repeater_bit_in_tx(enum hdcp_repeater rx_mode);
 static void hdcp_lib_toggle_repeater_bit_in_tx(void);
+static void hdcp_lib_read_m0(u8 *mo_tx);
 static int hdcp_lib_initiate_step1(void);
 static int hdcp_lib_check_ksv(uint8_t ksv[5]);
 static int is_cpu_ti81xx(void);
@@ -205,6 +206,42 @@ static void hdcp_lib_toggle_repeater_bit_in_tx(void)
 		hdcp_lib_set_repeater_bit_in_tx(HDCP_RECEIVER);
 	else
 		hdcp_lib_set_repeater_bit_in_tx(HDCP_REPEATER);
+}
+
+/*-----------------------------------------------------------------------------
+ * Function: hdcp_lib_read_m0
+ *-----------------------------------------------------------------------------
+ */
+static void hdcp_lib_read_m0(u8 *mo_tx)
+{
+	int i;
+
+	/* Enable M0 reading */
+	WR_FIELD_32(hdcp.hdmi_wp_base_addr + HDMI_IP_CORE_SYSTEM,
+		    HDMI_IP_CORE_SYSTEM__SHA_CTRL, 3, 3, 1);
+
+        for(i = 0; i < 8; i++) {
+                mo_tx[i] = (RD_REG_32(hdcp.hdmi_wp_base_addr +
+				      HDMI_IP_CORE_SYSTEM,
+				      HDMI_IP_CORE_SYSTEM__AN0 +
+				      i * sizeof(uint32_t))) & 0xFF;
+        }
+
+	HDCP_DBG("MO: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+		mo_tx[0],
+		mo_tx[1],
+		mo_tx[2],
+		mo_tx[3],
+		mo_tx[4],
+		mo_tx[5],
+		mo_tx[6],
+		mo_tx[7]);
+
+	/* Disable M0 reading */
+	WR_FIELD_32(hdcp.hdmi_wp_base_addr + HDMI_IP_CORE_SYSTEM,
+		    HDMI_IP_CORE_SYSTEM__SHA_CTRL, 3, 3, 0);
+
+	return;
 }
 
 /*-----------------------------------------------------------------------------
@@ -710,7 +747,7 @@ int hdcp_lib_step1_start(void)
  * Function: hdcp_lib_step1_r0_check
  *-----------------------------------------------------------------------------
  */
-int hdcp_lib_step1_r0_check(void)
+int hdcp_lib_step1_r0_check(u8 *metadata)
 {
 	int status = HDCP_OK;
 
@@ -742,16 +779,7 @@ int hdcp_lib_step1_r0_check(void)
 
 	if (hdcp_lib_check_repeater_bit_in_tx()) {
 
-#ifdef NOT_YET /* TBD Sujith 
-					Dont bother sending up to apps to read M0, read now */
-		status = hdcp_user_space_task(HDCP_EVENT_STEP1);
-		/* Wait for user space */
-		if (status) {
-			printk(KERN_ERR "HDCP: omap4_secure_dispatcher M0 error "
-					"%d\n", status);
-			return -HDCP_AUTH_FAILURE;
-		}
-#endif
+		hdcp_lib_read_m0(metadata);
 
 		HDCP_DBG("hdcp_lib_set_encryption() %u", jiffies_to_msecs(jiffies));
 

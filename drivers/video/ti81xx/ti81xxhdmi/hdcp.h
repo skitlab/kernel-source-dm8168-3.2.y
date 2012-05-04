@@ -54,12 +54,6 @@
 #define HDCP_AUTH_REATT_EVENT	(HDCP_WORKQUEUE_SRC	| 9)
 
 
-/* HDCP events */
-#define HDCP_EVENT_STEP1	(1 << 0x0)
-#define HDCP_EVENT_STEP2	(1 << 0x1)
-#define HDCP_EVENT_EXIT		(1 << 0x2)
-
-
 enum hdcp_states {
 	HDCP_DISABLED,
 	HDCP_ENABLE_PENDING,
@@ -67,7 +61,7 @@ enum hdcp_states {
 	HDCP_WAIT_R0_DELAY,
 	HDCP_WAIT_KSV_LIST,
 	HDCP_LINK_INTEGRITY_CHECK,
-	HDCP_KEY_ENCRYPTION_ONGOING
+	HDCP_KEY_ENCRYPTION_ONGOING /* Sujith delet this */
 };
 
 enum hdmi_states {
@@ -125,6 +119,7 @@ struct hdcp {
 	int hdcp_up_event;
 	int hdcp_down_event;
 
+	u8 metadata[10];
 
 	/* Remove the following */
 	void __iomem *hdmi_wp_base_addr;

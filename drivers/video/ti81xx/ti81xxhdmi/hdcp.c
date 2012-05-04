@@ -36,8 +36,11 @@
 	When we have AKSV errors, we require to stop HDMI transmitter and re-start
 		autentication. Require to update the user guide for same.
 	
-	Move verification of AKSV to applications (walk the revocation list). 
-		Driver checks for syntax error of AKSV but not the revocation list.
+	Move verification of BKSV to applications (walk the revocation list). 
+		Driver checks for syntax error of BKSV but not the revocation list.
+	
+	When all references to HDMI driver is closed, ensure to disable / clearup
+	waitq, workq etc...
 */
 #include <linux/module.h>
 #include <linux/uaccess.h>
@@ -165,7 +168,10 @@ static void hdcp_wq_start_authentication(void)
  */
 static void hdcp_wq_check_r0(void)
 {
-	int status = hdcp_lib_step1_r0_check();
+	int status;
+	
+	memset(hdcp.metadata, 0, 8);
+	status = hdcp_lib_step1_r0_check(hdcp.metadata);
 
 	if (status == -HDCP_CANCELLED_AUTH) {
 		HDCP_DBG("Authentication step 1/R0 cancelled.");
@@ -209,15 +215,20 @@ static void hdcp_wq_check_r0(void)
 static void hdcp_wq_step2_authentication(void)
 {
 	int status = HDCP_OK;
-
+	int i;
+	
 	/* KSV list timeout is running and should be canceled */
 	hdcp_cancel_work(&hdcp.pending_wq_event);
 
 	status = hdcp_lib_step2();
 	
 	if (status == HDCP_OK){
+		/* Add the meta data */
+		for (i = 0; i < 8; i++)
+			sha_input.data[sha_input.byte_counter++] = hdcp.metadata[i];
+
+		/* Wait for user space, to confirm */
 		status = hdcp_user_space_task(HDCP_EVENT_STEP2);
-		/* Wait for user space */
 		if (status) {
 			printk(KERN_ERR "HDCP: omap4_secure_dispatcher CHECH_V error "
 					"%d\n", status);
@@ -565,6 +576,21 @@ static void hdcp_irq_cb(int status)
 		hdcp.hdmi_state = HDMI_STOPPED;
 		hdcp.hdcp_state = HDCP_DISABLED;
 		hdcp.auth_state = HDCP_STATE_DISABLED;
+		
+		if (hdcp.hdcp_up_event != 0x0){
+			hdcp.hdcp_up_event = HDCP_EVENT_EXIT;
+			wake_up_interruptible(&hdcp_up_wait_queue);
+		}
+		
+		if (hdcp.hdcp_down_event != 0x0){
+			hdcp.hdcp_down_event = 0x1100 | HDCP_EVENT_EXIT;
+			wake_up_interruptible(&hdcp_down_wait_queue);
+		}
+		/* Used to clear up any waits 
+		hdcp.hdcp_up_event = HDCP_EVENT_EXIT;
+		hdcp.hdcp_down_event = 0x1100 | HDCP_EVENT_EXIT;
+		wake_up_interruptible(&hdcp_up_wait_queue);
+		wake_up_interruptible(&hdcp_down_wait_queue);*/
 	}
 }
 
@@ -642,14 +668,13 @@ static long hdcp_wait_event_ctl(void __user *argp)
 	HDCP_DBG("hdcp_ioctl() - WAIT %u %d", jiffies_to_msecs(jiffies),
 					 hdcp.hdcp_up_event);
 
-	if (copy_from_user(&ctrl, argp,
-			   sizeof(struct ti81xxhdmi_hdcp_wait_ctrl))) {
-		printk(KERN_WARNING "HDCP: Error copying from user space"
-				    " - wait ioctl");
-		return -EFAULT;
-	}
-
 	if (hdcp_wait_re_entrance == 0) {
+		if (copy_from_user(&ctrl, argp,
+				   sizeof(struct ti81xxhdmi_hdcp_wait_ctrl))) {
+			printk(KERN_WARNING "HDCP: Error copying from user space"
+						" - wait ioctl");
+			return -EFAULT;
+		}
 		hdcp_wait_re_entrance = 1;
 		wait_event_interruptible(hdcp_up_wait_queue,
 					 (hdcp.hdcp_up_event & 0xFF) != 0);

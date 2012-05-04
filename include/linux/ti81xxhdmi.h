@@ -117,6 +117,11 @@
 #define TI81XX_HDMI_GET_MODE	TI81XX_HDMI_IOR(7, enum ti81xxhdmi_mode)
 #endif
 
+/* HDCP events */
+#define HDCP_EVENT_STEP1	(1 << 0x0)
+#define HDCP_EVENT_STEP2	(1 << 0x1)
+#define HDCP_EVENT_EXIT		(1 << 0x2)
+
 
 struct ti81xxhdmi_status {
 	unsigned int is_hpd_detected;
