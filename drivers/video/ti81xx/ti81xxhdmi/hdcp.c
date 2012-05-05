@@ -72,6 +72,7 @@
 struct hdcp hdcp;
 extern struct hdcp_sha_in sha_input;
 
+
 /* State machine / workqueue */
 static void hdcp_wq_disable(void);
 static void hdcp_wq_start_authentication(void);
@@ -230,8 +231,7 @@ static void hdcp_wq_step2_authentication(void)
 		/* Wait for user space, to confirm */
 		status = hdcp_user_space_task(HDCP_EVENT_STEP2);
 		if (status) {
-			printk(KERN_ERR "HDCP: omap4_secure_dispatcher CHECH_V error "
-					"%d\n", status);
+			printk(KERN_ERR "HDCP: CHECH_V error %d\n", status);
 		}
 		if (status == HDCP_OK) {
 			/* Re-enable Ri check */
@@ -361,10 +361,10 @@ static void hdcp_work_queue(struct work_struct *work)
 				hdcp_wq_start_authentication();
 			else
 				hdcp.hdcp_state = HDCP_ENABLE_PENDING;
-			printk(KERN_INFO "DEBUG-STATE-MC: hdcp_state - Disabled\n");
-			printk(KERN_INFO "DEBUG-STATE-MC: Event enabled\n");
+			HDCP_DBG(KERN_INFO "DEBUG-STATE-MC: hdcp_state - Disabled\n");
+			HDCP_DBG(KERN_INFO "DEBUG-STATE-MC: Event enabled\n");
 		} else {
-			printk(KERN_INFO "DEBUG-STATE-MC: hdcp_state - Disabled\n");
+			HDCP_DBG(KERN_INFO "DEBUG-STATE-MC: hdcp_state - Disabled\n");
 		}
 
 		break;
@@ -375,9 +375,9 @@ static void hdcp_work_queue(struct work_struct *work)
 		/* HDMI start frame event */
 		if (event == HDCP_START_FRAME_EVENT){
 			hdcp_wq_start_authentication();
-			printk(KERN_INFO "DEBUG-STATE-MC: hdcp_state - HDCP Enable Pending - F start\n");
+			HDCP_DBG(KERN_INFO "DEBUG-STATE-MC: hdcp_state - HDCP Enable Pending - F start\n");
 		} else {
-			printk(KERN_INFO "DEBUG-STATE-MC: hdcp_state - HDCP Enable Pending\n");
+			HDCP_DBG(KERN_INFO "DEBUG-STATE-MC: hdcp_state - HDCP Enable Pending\n");
 		}
 		break;
 
@@ -387,9 +387,9 @@ static void hdcp_work_queue(struct work_struct *work)
 		/* Re-authentication */
 		if (event == HDCP_AUTH_REATT_EVENT) {
 			hdcp_wq_start_authentication();
-			printk(KERN_INFO "DEBUG-STATE-MC: hdcp_state - Auth start - restart attempt\n");
+			HDCP_DBG(KERN_INFO "DEBUG-STATE-MC: hdcp_state - Auth start - restart attempt\n");
 		} else {
-			printk(KERN_INFO "DEBUG-STATE-MC: hdcp_state - Auth start\n");
+			HDCP_DBG(KERN_INFO "DEBUG-STATE-MC: hdcp_state - Auth start\n");
 		}
 		break;
 
@@ -534,6 +534,7 @@ static void hdcp_start_frame_cb(void)
  * Function: hdcp_irq_cb
  *-----------------------------------------------------------------------------
  */
+
 static void hdcp_irq_cb(int status)
 {
 	HDCP_DBG("hdcp_irq_cb() status=%x", status);
@@ -692,9 +693,10 @@ static long hdcp_wait_event_ctl(void __user *argp)
 
 		hdcp.hdcp_up_event = 0;
 		hdcp_wait_re_entrance = 0;
-	} else
+	} else {
+		printk(KERN_WARNING "HDCP Wait Q exited due to re-entrent\n");
 		ctrl.event = HDCP_EVENT_EXIT;
-
+	}
 	/* Store output data to output pointer */
 	if (copy_to_user(argp, &ctrl,
 			 sizeof(struct ti81xxhdmi_hdcp_wait_ctrl))) {
