@@ -28,9 +28,9 @@
 #include <plat/hdcp_lib.h>
 #include <plat/hdmi_lib.h>
 
-/* Sujith TBD - Remove this */
+/* Globla variable defined in hdcp_lib.c, defines the required iomapped
+	regions, to execute DDC commands */
 extern struct hdcp_lib_inst hdcp;
-extern struct hdcp_sha_in sha_input;
 
 /*-----------------------------------------------------------------------------
  * Function: hdcp_suspend_resume_auto_ri

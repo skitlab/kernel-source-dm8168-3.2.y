@@ -564,7 +564,7 @@ void hdcp_lib_set_encryption(enum encryption_state enc_state)
 
 	spin_unlock_irqrestore(&hdcp.spinlock, flags);
 
-	pr_info("HDCP: Encryption state changed: %s hdcp_ctrl: %02x",
+	HDCP_DBG("HDCP: Encryption state changed: %s hdcp_ctrl: %02x",
 				enc_state == HDCP_ENC_OFF ? "OFF" : "ON",
 				RD_REG_32(hdcp.hdmi_wp_base_addr +
 					  HDMI_IP_CORE_SYSTEM,
@@ -883,26 +883,6 @@ int hdcp_lib_step2(void)
 
 	if (hdcp.pending_disable)
 		return -HDCP_CANCELLED_AUTH;
-
-#if 0 /* Moved to hdcp .c Sujith */
-	status = hdcp_user_space_task(HDCP_EVENT_STEP2);
-	/* Wait for user space */
-	if (status) {
-		printk(KERN_ERR "HDCP: omap4_secure_dispatcher CHECH_V error "
-				"%d\n", status);
-		return -HDCP_AUTH_FAILURE;
-	}
-#endif
-
-#if 0 /* Moved to HDCP.c */
-	if (status == HDCP_OK) {
-		/* Re-enable Ri check */
-#ifdef _9032_AUTO_RI_
-		hdcp_lib_auto_ri_check(true);
-#endif
-	}
-
-#endif 
 
 	return status;
 }

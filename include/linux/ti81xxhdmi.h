@@ -18,7 +18,8 @@
  * Author: Sujith Shivalingappa <sujith.s@ti.com>
  *	: Varada Bellary <varadab@ti.com>, modified for new version (Mar 2011)
  *			of driver.
- *	: Sujith Shivalingappa <sujith.s@ti.com>, added CEC support
+ *	: Sujith Shivalingappa <sujith.s@ti.com>, added CEC support.
+ *	: Sujith Shivalingappa <sujith.s@ti.com>, added HDCP support.
  */
 
 #ifndef __TI81XXHDMI_H__
@@ -48,8 +49,8 @@
 #define TI81XXHDMI_IO(num)          _IO(TI81XXHDMI_MAGIC, num)
 
 /* IOCLT Supported by this driver */
-#define TI81XXHDMI_START		TI81XXHDMI_IO(0)
-#define TI81XXHDMI_STOP			TI81XXHDMI_IO(1)
+#define TI81XXHDMI_START			TI81XXHDMI_IO(0)
+#define TI81XXHDMI_STOP				TI81XXHDMI_IO(1)
 #define TI81XXHDMI_GET_STATUS		TI81XXHDMI_IOR(2, unsigned char *)
 #define TI81XXHDMI_READ_EDID		TI81XXHDMI_IOR(3, unsigned char *)
 /*#define
@@ -85,10 +86,12 @@
  * Takes in a argument of type ti81xxhdmi_hdcp_ena_ctrl. Note that all devices
  * need not support HDCP. In case HDCP is not supported, an error value of 
  * ENODEV if returned.
+ *
+ * Use this command only when hdmi is streaming video to a sink
  */
 #define TI81XXHDMI_HDCP_ENABLE	  TI81XXHDMI_IOW(9, \
 										struct ti81xxhdmi_hdcp_ena_ctrl)
-/* Use this command only when hdmi is streaming video to a sink */
+
 
 /* Used to disable HDCP process.
  * Applicable only when HDCP_ENABLE was called / HDCP autentication was in 
@@ -102,12 +105,27 @@
  */
 #define TI81XXHDMI_HDCP_GET_STATUS	TI81XXHDMI_IOWR(11, __u32)
 
-/* Blocking call TBD Sujith
+/* Used by application to wait for a state of HDCP process.
+ * 
+ * Currently used to wait until Step 2 is reached. The application are expected
+ * perform V` computation and let the driver know, if it can proceed with the
+ * autentication.
+ *
+ * This is a blocking call, the caller will be blocked until step 2 is reached.
+ *
  */
 #define TI81XXHDMI_HDCP_WAIT_EVENT	TI81XXHDMI_IOWR(12, \
 										struct ti81xxhdmi_hdcp_wait_ctrl)
 
-/* TBD Sujith
+/* Used by application to let the driver know if it can proceed with the
+ * autentication process.
+ *
+ * Currently, the application let the driver know, when V` has been computed
+ * and driver could proceed with autentication or not.
+ * 
+ * The argument should be 
+ * In case of success 0x0 | TI81XXHDMI_HDCP_EVENT_STEP2
+ * In case of failures -1 | TI81XXHDMI_HDCP_EVENT_STEP2
  */
 #define TI81XXHDMI_HDCP_EVENT_DONE	TI81XXHDMI_IOWR(14, __u32)
 
@@ -117,10 +135,13 @@
 #define TI81XX_HDMI_GET_MODE	TI81XX_HDMI_IOR(7, enum ti81xxhdmi_mode)
 #endif
 
-/* HDCP events */
-#define HDCP_EVENT_STEP1	(1 << 0x0)
-#define HDCP_EVENT_STEP2	(1 << 0x1)
-#define HDCP_EVENT_EXIT		(1 << 0x2)
+/* HDCP events
+ * Events that application could wait on and let the driver know if driver 
+ * could proceed to next step of autentication.
+ */
+#define TI81XXHDMI_HDCP_EVENT_STEP1		(1 << 0x0)
+#define TI81XXHDMI_HDCP_EVENT_STEP2		(1 << 0x1)
+#define TI81XXHDMI_HDCP_EVENT_EXIT		(1 << 0x2)
 
 
 struct ti81xxhdmi_status {
@@ -306,22 +327,29 @@ struct ti81xxhdmi_cec_transmit_msg {
 };
 
 /* HDCP Specifics */
+
 /* HDCP key size in 32-bit words */
 #define DESHDCP_KEY_SIZE 		160
 #define MAX_SHA_DATA_SIZE		645
 #define MAX_SHA_VPRIME_SIZE		20
 
-
+/* Passed as an argument when enabling HDCP (TI81XXHDMI_HDCP_ENABLE) */
 struct ti81xxhdmi_hdcp_ena_ctrl {
+	/* Specify the number of times autentication should be attempted, before
+		giving up autentication */
 	int nb_retry;
 };
 
+/* Used to receive data from driver, required for V` computation */
 struct hdcp_sha_in {
 	__u8 data[MAX_SHA_DATA_SIZE];
 	__u32 byte_counter;
 	__u8 vprime[MAX_SHA_VPRIME_SIZE];
 };
 
+/* Control strucutre that would be used by application to wait for events.
+	its expected that application initializes the event and member "data" would
+	point to valid memory */
 struct ti81xxhdmi_hdcp_wait_ctrl {
 	__u32 event;
 	struct hdcp_sha_in *data;

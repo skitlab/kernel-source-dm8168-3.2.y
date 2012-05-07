@@ -61,7 +61,6 @@ enum hdcp_states {
 	HDCP_WAIT_R0_DELAY,
 	HDCP_WAIT_KSV_LIST,
 	HDCP_LINK_INTEGRITY_CHECK,
-	HDCP_KEY_ENCRYPTION_ONGOING /* Sujith delet this */
 };
 
 enum hdmi_states {

@@ -24,6 +24,7 @@
  *											DM81xx
  *											As a part of HDMI character driver, 
  *											Was an independent character driver.
+ * Sujith Shivalingappa <sujith.s>@ti.com>	Customized to TI81XX platform.
  *
  */
 
@@ -60,7 +61,7 @@
 #include "hdcp.h"
 #include "hdmi.h"
 
-#if 0
+#ifdef PRINT_DEBUG_MSG
 #define HDCP_DBG(format, ...) \
 	printk(KERN_INFO "HDCP: " format, ## __VA_ARGS__)
 #else
@@ -69,12 +70,20 @@
 
 #endif
 
+#ifdef PRINT_STATE_TRANS_MSG
+#define HDCP_STT_DBG(format, ...) \
+	printk(KERN_INFO "HDCP: " format, ## __VA_ARGS__)
+#else
+
+#define HDCP_STT_DBG(format, ...)
+
+#endif
+
 struct hdcp hdcp;
 extern struct hdcp_sha_in sha_input;
 
 
 /* State machine / workqueue */
-static void hdcp_wq_disable(void);
 static void hdcp_wq_start_authentication(void);
 static void hdcp_wq_check_r0(void);
 static void hdcp_wq_step2_authentication(void);
@@ -123,15 +132,17 @@ int hdcp_user_space_task(int flags)
  * Function: hdcp_wq_disable
  *-----------------------------------------------------------------------------
  */
+#ifdef NOT_YET
 static void hdcp_wq_disable(void)
 {
-	printk(KERN_INFO "HDCP: disabled\n");
+	HDCP_STT_DBG( "HDCP: disabled\n");
 
 	hdcp_cancel_work(&hdcp.pending_wq_event);
 	hdcp_lib_disable();
 	hdcp_lib_clear_pending_disable();
 
 }
+#endif
 
 /*-----------------------------------------------------------------------------
  * Function: hdcp_wq_start_authentication
@@ -143,7 +154,7 @@ static void hdcp_wq_start_authentication(void)
 
 	hdcp.hdcp_state = HDCP_AUTHENTICATION_START;
 
-	printk(KERN_INFO "HDCP: authentication start\n");
+	HDCP_STT_DBG( "HDCP: authentication start\n");
 
 	/* Step 1 part 1 (until R0 calc delay) */
 	status = hdcp_lib_step1_start();
@@ -182,7 +193,7 @@ static void hdcp_wq_check_r0(void)
 	else {
 		if (hdcp_lib_check_repeater_bit_in_tx()) {
 			/* Repeater */
-			printk(KERN_INFO "HDCP: authentication step 1 "
+			HDCP_STT_DBG( "HDCP: authentication step 1 "
 					 "successful - Repeater\n");
 
 			hdcp.hdcp_state = HDCP_WAIT_KSV_LIST;
@@ -193,7 +204,7 @@ static void hdcp_wq_check_r0(void)
 						 HDCP_KSV_TIMEOUT_DELAY);
 		} else {
 			/* Receiver */
-			printk(KERN_INFO "HDCP: authentication step 1 "
+			HDCP_STT_DBG( "HDCP: authentication step 1 "
 					 "successful - Receiver\n");
 
 			hdcp.hdcp_state = HDCP_LINK_INTEGRITY_CHECK;
@@ -229,7 +240,7 @@ static void hdcp_wq_step2_authentication(void)
 			sha_input.data[sha_input.byte_counter++] = hdcp.metadata[i];
 
 		/* Wait for user space, to confirm */
-		status = hdcp_user_space_task(HDCP_EVENT_STEP2);
+		status = hdcp_user_space_task(TI81XXHDMI_HDCP_EVENT_STEP2);
 		if (status) {
 			printk(KERN_ERR "HDCP: CHECH_V error %d\n", status);
 		}
@@ -247,7 +258,7 @@ static void hdcp_wq_step2_authentication(void)
 	} else if (status < 0)
 		hdcp_wq_authentication_failure();
 	else {
-		printk(KERN_INFO "HDCP: (Repeater) authentication step 2 "
+		HDCP_STT_DBG( "HDCP: (Repeater) authentication step 2 "
 				 "successful\n");
 
 		hdcp.hdcp_state = HDCP_LINK_INTEGRITY_CHECK;
@@ -285,11 +296,11 @@ static void hdcp_wq_authentication_failure(void)
 	if (hdcp.retry_cnt && (hdcp.hdmi_state != HDMI_STOPPED)) {
 		if (hdcp.retry_cnt < HDCP_INFINITE_REAUTH) {
 			hdcp.retry_cnt--;
-			printk(KERN_INFO "HDCP: authentication failed - "
+			HDCP_STT_DBG( "HDCP: authentication failed - "
 					 "retrying, attempts=%d\n",
 							hdcp.retry_cnt);
 		} else
-			printk(KERN_INFO "HDCP: authentication failed - "
+			HDCP_STT_DBG( "HDCP: authentication failed - "
 					 "retrying\n");
 
 		hdcp.hdcp_state = HDCP_AUTHENTICATION_START;
@@ -298,7 +309,7 @@ static void hdcp_wq_authentication_failure(void)
 		hdcp.pending_wq_event = hdcp_submit_work(HDCP_AUTH_REATT_EVENT,
 							 HDCP_REAUTH_DELAY);
 	} else {
-		printk(KERN_INFO "HDCP: authentication failed - "
+		HDCP_STT_DBG( "HDCP: authentication failed - "
 				 "HDCP disabled\n");
 		hdcp.hdcp_state = HDCP_ENABLE_PENDING;
 		hdcp.auth_state = HDCP_STATE_AUTH_FAILURE;
@@ -387,7 +398,8 @@ static void hdcp_work_queue(struct work_struct *work)
 		/* Re-authentication */
 		if (event == HDCP_AUTH_REATT_EVENT) {
 			hdcp_wq_start_authentication();
-			HDCP_DBG(KERN_INFO "DEBUG-STATE-MC: hdcp_state - Auth start - restart attempt\n");
+			HDCP_DBG(KERN_INFO "DEBUG-STATE-MC: hdcp_state - Auth start - "
+				"restart attempt\n");
 		} else {
 			HDCP_DBG(KERN_INFO "DEBUG-STATE-MC: hdcp_state - Auth start\n");
 		}
@@ -407,7 +419,7 @@ static void hdcp_work_queue(struct work_struct *work)
 	case HDCP_WAIT_KSV_LIST:
 		/* Ri failure */
 		if (event == HDCP_RI_FAIL_EVENT) {
-			printk(KERN_INFO "HDCP: Ri check failure\n");
+			HDCP_STT_DBG( "HDCP: Ri check failure\n");
 
 			hdcp_wq_authentication_failure();
 		}
@@ -416,7 +428,7 @@ static void hdcp_work_queue(struct work_struct *work)
 			hdcp_wq_step2_authentication();
 		/* Timeout */
 		else if (event == HDCP_KSV_TIMEOUT_EVENT) {
-			printk(KERN_INFO "HDCP: BCAPS polling timeout\n");
+			HDCP_STT_DBG( "HDCP: BCAPS polling timeout\n");
 			hdcp_wq_authentication_failure();
 		}
 		break;
@@ -426,7 +438,7 @@ static void hdcp_work_queue(struct work_struct *work)
 	case HDCP_LINK_INTEGRITY_CHECK:
 		/* Ri failure */
 		if (event == HDCP_RI_FAIL_EVENT) {
-			printk(KERN_INFO "HDCP: Ri check failure\n");
+			HDCP_STT_DBG( "HDCP: Ri check failure\n");
 			hdcp_wq_authentication_failure();
 		}
 		break;
@@ -493,9 +505,8 @@ static void hdcp_cancel_work(struct delayed_work **work)
 	if (*work) {
 		ret = cancel_delayed_work(*work);
 		if (ret != 1) {
+			/* OK, the work was being executed wait for it to finish */
 			ret = cancel_work_sync(&((*work)->work));
-			printk(KERN_INFO "Canceling work failed - "
-					 "cancel_work_sync done %d\n", ret);
 		}
 		kfree(*work);
 		*work = 0;
@@ -556,7 +567,6 @@ static void hdcp_irq_cb(int status)
 	    (hdcp.hdcp_state != HDCP_ENABLE_PENDING)) {
 		if (status & HDMI_HPD_LOW) {
 			hdcp_lib_set_encryption(HDCP_ENC_OFF);
-			/* FIX ME - Compilation issues Sujith hdcp_ddc_abort(); */
 		}
 
 		if (status & HDMI_RI_ERR) {
@@ -577,21 +587,17 @@ static void hdcp_irq_cb(int status)
 		hdcp.hdmi_state = HDMI_STOPPED;
 		hdcp.hdcp_state = HDCP_DISABLED;
 		hdcp.auth_state = HDCP_STATE_DISABLED;
-		
+
+		/* Clear up any waits, if pending */
 		if (hdcp.hdcp_up_event != 0x0){
-			hdcp.hdcp_up_event = HDCP_EVENT_EXIT;
+			hdcp.hdcp_up_event = TI81XXHDMI_HDCP_EVENT_EXIT;
 			wake_up_interruptible(&hdcp_up_wait_queue);
 		}
 		
 		if (hdcp.hdcp_down_event != 0x0){
-			hdcp.hdcp_down_event = 0x1100 | HDCP_EVENT_EXIT;
+			hdcp.hdcp_down_event = 0x1100 | TI81XXHDMI_HDCP_EVENT_EXIT;
 			wake_up_interruptible(&hdcp_down_wait_queue);
 		}
-		/* Used to clear up any waits 
-		hdcp.hdcp_up_event = HDCP_EVENT_EXIT;
-		hdcp.hdcp_down_event = 0x1100 | HDCP_EVENT_EXIT;
-		wake_up_interruptible(&hdcp_up_wait_queue);
-		wake_up_interruptible(&hdcp_down_wait_queue);*/
 	}
 }
 
@@ -682,7 +688,7 @@ static long hdcp_wait_event_ctl(void __user *argp)
 
 		ctrl.event = hdcp.hdcp_up_event;
 
-		if ((ctrl.event & 0xFF) == HDCP_EVENT_STEP2) {
+		if ((ctrl.event & 0xFF) == TI81XXHDMI_HDCP_EVENT_STEP2) {
 			if (copy_to_user(ctrl.data, &sha_input,
 						sizeof(struct hdcp_sha_in))) {
 				printk(KERN_WARNING "HDCP: Error copying to "
@@ -695,7 +701,7 @@ static long hdcp_wait_event_ctl(void __user *argp)
 		hdcp_wait_re_entrance = 0;
 	} else {
 		printk(KERN_WARNING "HDCP Wait Q exited due to re-entrent\n");
-		ctrl.event = HDCP_EVENT_EXIT;
+		ctrl.event = TI81XXHDMI_HDCP_EVENT_EXIT;
 	}
 	/* Store output data to output pointer */
 	if (copy_to_user(argp, &ctrl,
