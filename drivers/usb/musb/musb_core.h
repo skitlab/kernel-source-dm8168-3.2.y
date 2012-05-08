@@ -332,6 +332,7 @@ struct musb_hw_ep {
 	struct musb_ep		ep_out;			/* RX */
 #endif
 	u8			xfer_type;
+	u8			prev_toggle;		/* Rx */
 };
 
 static inline struct usb_request *next_in_request(struct musb_hw_ep *hw_ep)
