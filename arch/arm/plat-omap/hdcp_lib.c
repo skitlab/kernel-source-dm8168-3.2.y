@@ -60,7 +60,7 @@ static int is_cpu_ti81xx(void);
  *-----------------------------------------------------------------------------
  */
 struct hdcp_lib_inst hdcp = {0x0, NULL, NULL, 0x0};
-struct hdcp_sha_in sha_input;
+static struct hdcp_sha_in sha_input;
 
 /*-----------------------------------------------------------------------------
  * Function: hdcp_lib_read_an
@@ -406,6 +406,19 @@ static int is_cpu_ti81xx(void)
 		return -1;
 }
 
+/*-----------------------------------------------------------------------------
+ * Function: hdcp_lib_read_bksv
+ *-----------------------------------------------------------------------------
+ */
+void hdcp_lib_read_bksv(u8 *ksv_data)
+{
+	u8 i;
+	for (i = 0; i < 5; i++) {
+		ksv_data[i] = RD_REG_32(hdcp.hdmi_wp_base_addr +
+						HDMI_IP_CORE_SYSTEM, HDMI_IP_CORE_SYSTEM__BKSV0 +
+						i * sizeof(uint32_t));
+	}
+}
 
 /*-----------------------------------------------------------------------------
  * Function: hdcp_3des_load_key
@@ -978,6 +991,23 @@ int hdcp_lib_clear_pending_disable(void)
 	return -1;
 }
 
+/*-----------------------------------------------------------------------------
+ * Function: hdcp_lib_get_sha_data
+ *-----------------------------------------------------------------------------
+ */
+int hdcp_lib_get_sha_data(struct hdcp_sha_in *sha)
+{
+	int r = -1;
+
+	if (sha){
+		/* TODO Check if sha data is ready */
+		r = HDCP_OK;
+		memcpy(sha, &sha_input, sizeof(struct hdcp_sha_in));
+	}
+	return r;
+}
+
+EXPORT_SYMBOL(hdcp_lib_read_bksv);
 EXPORT_SYMBOL(hdcp_3des_load_key);
 EXPORT_SYMBOL(hdcp_3des_encrypt_key);
 EXPORT_SYMBOL(hdcp_lib_disable);
@@ -993,4 +1023,4 @@ EXPORT_SYMBOL(hdcp_lib_init);
 EXPORT_SYMBOL(hdcp_lib_de_init);
 EXPORT_SYMBOL(hdcp_lib_set_pending_disable);
 EXPORT_SYMBOL(hdcp_lib_clear_pending_disable);
-EXPORT_SYMBOL(sha_input);
+EXPORT_SYMBOL(hdcp_lib_get_sha_data);

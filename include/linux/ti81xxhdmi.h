@@ -107,9 +107,9 @@
 
 /* Used by application to wait for a state of HDCP process.
  * 
- * Currently used to wait until Step 2 is reached. The application are expected
- * perform V` computation and let the driver know, if it can proceed with the
- * autentication.
+ * Used to wait until Step 1/2 is reached. The application are expected
+ * perform check BKSV / V` computation respectively and let the driver know, 
+ * if it can proceed with the autentication.
  *
  * This is a blocking call, the caller will be blocked until step 2 is reached.
  *
@@ -120,12 +120,16 @@
 /* Used by application to let the driver know if it can proceed with the
  * autentication process.
  *
- * Currently, the application let the driver know, when V` has been computed
- * and driver could proceed with autentication or not.
+ * The application let the driver know, when BKSV has been verified, as a 
+ * to event TI81XXHDMI_HDCP_EVENT_STEP1 and V` has been computed for 
+ * TI81XXHDMI_HDCP_EVENT_STEP2. This will enable the driver to proceed with 
+ * autentication or not.
  * 
  * The argument should be 
  * In case of success 0x0 | TI81XXHDMI_HDCP_EVENT_STEP2
  * In case of failures -1 | TI81XXHDMI_HDCP_EVENT_STEP2
+ * In case of success 0x0 | TI81XXHDMI_HDCP_EVENT_STEP1
+ * In case of failures -1 | TI81XXHDMI_HDCP_EVENT_STEP1
  */
 #define TI81XXHDMI_HDCP_EVENT_DONE	TI81XXHDMI_IOWR(14, __u32)
 

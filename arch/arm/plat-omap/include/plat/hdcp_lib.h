@@ -200,6 +200,7 @@ void hdcp_3des_encrypt_key(struct hdcp_encrypt_control *enc_ctrl,
 			   uint32_t out_key[DESHDCP_KEY_SIZE]);
 
 /* IP control */
+void hdcp_lib_read_bksv(u8 *ksv_data);
 int hdcp_lib_disable(void);
 int hdcp_lib_step1_start(void);
 int hdcp_lib_step1_r0_check(u8 *metadata);
@@ -212,6 +213,7 @@ void hdcp_lib_set_encryption(enum encryption_state enc_state);
 u8 hdcp_lib_check_repeater_bit_in_tx(void);
 int hdcp_lib_set_pending_disable(void);
 int hdcp_lib_clear_pending_disable(void);
+int hdcp_lib_get_sha_data(struct hdcp_sha_in *sha);
 
 /* Init library */
 int hdcp_lib_init(void);

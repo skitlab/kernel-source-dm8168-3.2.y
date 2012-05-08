@@ -80,8 +80,9 @@
 #endif
 
 struct hdcp hdcp;
-extern struct hdcp_sha_in sha_input;
 
+/* Stores data that would be used to autenticate a repeater */
+static struct hdcp_sha_in sha_input;
 
 /* State machine / workqueue */
 static void hdcp_wq_start_authentication(void);
@@ -181,7 +182,7 @@ static void hdcp_wq_start_authentication(void)
 static void hdcp_wq_check_r0(void)
 {
 	int status;
-	
+
 	memset(hdcp.metadata, 0, 8);
 	status = hdcp_lib_step1_r0_check(hdcp.metadata);
 
@@ -216,6 +217,16 @@ static void hdcp_wq_check_r0(void)
 			else
 				hdcp.retry_cnt = hdcp.en_ctrl.nb_retry;
 		}
+
+		memset(sha_input.data, 0, 5);
+		hdcp_lib_read_bksv(sha_input.data);
+		sha_input.byte_counter = 5;
+
+		status = hdcp_user_space_task(TI81XXHDMI_HDCP_EVENT_STEP1);
+		if (status) {
+			printk(KERN_ERR "HDCP: BKSV error %d\n", status);
+			hdcp_wq_authentication_failure();
+		}
 	}
 }
 
@@ -233,7 +244,11 @@ static void hdcp_wq_step2_authentication(void)
 	hdcp_cancel_work(&hdcp.pending_wq_event);
 
 	status = hdcp_lib_step2();
-	
+
+	if (status == HDCP_OK){
+		status = hdcp_lib_get_sha_data(&sha_input);
+	}
+
 	if (status == HDCP_OK){
 		/* Add the meta data */
 		for (i = 0; i < 8; i++)
@@ -676,6 +691,11 @@ static long hdcp_wait_event_ctl(void __user *argp)
 					 hdcp.hdcp_up_event);
 
 	if (hdcp_wait_re_entrance == 0) {
+		if (((struct ti81xxhdmi_hdcp_wait_ctrl *)argp)->data == 0){
+			printk(KERN_WARNING "HDCP: Error copying from user space"
+						" - wait ioctl");
+			return -EFAULT;
+		}
 		if (copy_from_user(&ctrl, argp,
 				   sizeof(struct ti81xxhdmi_hdcp_wait_ctrl))) {
 			printk(KERN_WARNING "HDCP: Error copying from user space"
@@ -688,7 +708,8 @@ static long hdcp_wait_event_ctl(void __user *argp)
 
 		ctrl.event = hdcp.hdcp_up_event;
 
-		if ((ctrl.event & 0xFF) == TI81XXHDMI_HDCP_EVENT_STEP2) {
+		if ((ctrl.event & 0xFF) == TI81XXHDMI_HDCP_EVENT_STEP2 ||
+			(ctrl.event & 0xFF) == TI81XXHDMI_HDCP_EVENT_STEP1){
 			if (copy_to_user(ctrl.data, &sha_input,
 						sizeof(struct hdcp_sha_in))) {
 				printk(KERN_WARNING "HDCP: Error copying to "
