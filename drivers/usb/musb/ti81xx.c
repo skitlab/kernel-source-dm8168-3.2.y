@@ -1177,20 +1177,17 @@ int ti81xx_musb_init(struct musb *musb)
 	musb_platform_set_mode(musb, mode);
 
 #ifdef CONFIG_USB_TI_CPPI41_DMA
-	if (cpu_is_ti81xx() && ((omap_rev() == TI8168_REV_ES2_0) ||
-		(omap_rev() == TI8148_REV_ES2_0))) {
+	/* TxFifo empty interrupt logic is supported
+	 * only for isochronous tranfers only
+	 */
+	musb->txfifo_intr_enable = data->txfifo_intr_enable;
 
-		/* Enabling txfifo intr features, is not working
-		 * reliablely, hence disable txfifo intr logic
-		 */
-		musb->txfifo_intr_enable = 1;
-
-	}
 	if (musb->txfifo_intr_enable)
 		printk(KERN_DEBUG "TxFifo Empty intr enabled\n");
 	else
 		printk(KERN_DEBUG "TxFifo Empty intr disabled\n");
 #endif
+
 	/* enable babble workaround */
 	INIT_WORK(&musb->work, evm_deferred_musb_restart);
 	musb->enable_babble_work = data->babble_ctrl;

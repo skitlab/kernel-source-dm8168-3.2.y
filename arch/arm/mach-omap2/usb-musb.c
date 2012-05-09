@@ -376,11 +376,16 @@ void __init usb_musb_init(struct omap_musb_board_data *board_data)
 	} else if (cpu_is_ti81xx()) {
 
 		musb_config.fifo_mode = 4;
+		board_data->txfifo_intr_enable = 1;
 
 		/* disable multipoint for ti816x for ES1_0/1_1 */
 		if (cpu_is_ti816x() && (omap_rev() != TI8168_REV_ES2_0)) {
 			musb_config.multipoint = 0;
 			board_data->babble_ctrl = 1;
+			board_data->txfifo_intr_enable = 0;
+		} else if (!cpu_is_dm385() && cpu_is_ti814x()
+			&& (omap_rev() != TI8148_REV_ES2_0)) {
+			board_data->txfifo_intr_enable = 0;
 		}
 
 		if (cpu_is_ti811x() && board_data->mode == MUSB_HOST)
