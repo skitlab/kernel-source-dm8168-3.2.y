@@ -1136,7 +1136,7 @@ int ti81xx_musb_init(struct musb *musb)
 	if (data->set_phy_power)
 		data->set_phy_power(musb->id, 1);
 
-	if (!cpu_is_ti816x())
+	if (data->usbphy_rxcalib_enable)
 		usb2phy_config(musb, USBPHY_RX_CALIB);
 
 	musb->a_wait_bcon = A_WAIT_BCON_TIMEOUT;
