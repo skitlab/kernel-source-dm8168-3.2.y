@@ -270,7 +270,7 @@ static void hdcp_wq_step2_authentication(void)
 	if (status == -HDCP_CANCELLED_AUTH) {
 		HDCP_DBG("Authentication step 2 cancelled.");
 		return;
-	} else if (status < 0)
+	} else if (status == 0xFF)
 		hdcp_wq_authentication_failure();
 	else {
 		HDCP_STT_DBG( "HDCP: (Repeater) authentication step 2 "

@@ -128,8 +128,13 @@
  * The argument should be 
  * In case of success 0x0 | TI81XXHDMI_HDCP_EVENT_STEP2
  * In case of failures -1 | TI81XXHDMI_HDCP_EVENT_STEP2
+ *	In the case of error, the driver would try to re-autenticate. If the number
+ *	of re-trys is exceeded. Autentication failure state would be entered.
+ *
  * In case of success 0x0 | TI81XXHDMI_HDCP_EVENT_STEP1
  * In case of failures -1 | TI81XXHDMI_HDCP_EVENT_STEP1
+ *	In the case of error, the driver would try to re-autenticate. If the number
+ *	of re-trys is exceeded. Autentication failure state would be entered.
  */
 #define TI81XXHDMI_HDCP_EVENT_DONE	TI81XXHDMI_IOWR(14, __u32)
 
