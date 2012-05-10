@@ -1383,7 +1383,9 @@ int __init hdmi_init(void)
 
 	hdmi_lib_init();
 
+#ifdef CONFIG_TI81XX_HDMI_HDCP
 	hdcp_init();
+#endif
 
 	hdmi_major = MAJOR(hdmi_dev_id);
 
