@@ -1673,9 +1673,11 @@ static void omap_hsmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	if (ios->clock) {
 		dsor = (clk_get_rate(host->fclk)) / ios->clock;
-		if (dsor < 1)
+		if (dsor < 1) {
 			dsor = 1;
-
+			OMAP_HSMMC_WRITE(host->base, HCTL,
+				OMAP_HSMMC_READ(host->base, HCTL) | (0x1 << 2));
+		}
 		if ((clk_get_rate(host->fclk)) / dsor > ios->clock)
 			dsor++;
 
