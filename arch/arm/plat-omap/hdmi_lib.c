@@ -1672,14 +1672,13 @@ int hdmi_lib_enable(struct hdmi_config *cfg)
 int hdmi_lib_init(void){
 	u32 rev;
 
-	hdmi.base_wp = ioremap(HDMI_WP, (HDMI_HDCP - HDMI_WP));
-
 	if(cpu_is_ti816x()){
 		/* OMAP first, then overwrite it */
 		hdmi.base_wp =  ioremap(TI81xx_HDMI_WP, 4096);
-	}
-	if(cpu_is_ti814x()){
+	}else if(cpu_is_ti814x()){
 		hdmi.base_wp =  ioremap(TI81xx_HDMI_WP, 4096);
+	} else {
+		hdmi.base_wp = ioremap(HDMI_WP, (HDMI_HDCP - HDMI_WP));
 	}
 
 	if (!hdmi.base_wp) {
