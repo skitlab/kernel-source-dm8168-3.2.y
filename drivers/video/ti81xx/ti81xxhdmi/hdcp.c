@@ -1,5 +1,5 @@
 /*
- * hdcp_top.c
+ * hdcp.c
  *
  * HDCP interface DSS driver setting for TI's OMAP4 family of processor.
  * Copyright (C) 2010-2011 Texas Instruments Incorporated - http://www.ti.com/
@@ -29,7 +29,7 @@
  */
 
 /* TODO FIX ME Sujith - memory leak in hdmi_lib.c hdmi_lib_init - mem allocated
-	for omap is not released - if silicon is ne/ce
+	for omap is not released - if silicon is ne/ce - Done - fixed - raise an IR.
 	
 	Memory leak in hdmi_init - If mem alloc fails for second alloc
 		first allocated memory is not released - Done - fixed - raise an IR.
@@ -40,8 +40,6 @@
 	Move verification of BKSV to applications (walk the revocation list). 
 		Driver checks for syntax error of BKSV but not the revocation list.
 	
-	When all references to HDMI driver is closed, ensure to disable / clearup
-	waitq, workq etc...
 */
 #include <linux/module.h>
 #include <linux/uaccess.h>
@@ -270,7 +268,7 @@ static void hdcp_wq_step2_authentication(void)
 	if (status == -HDCP_CANCELLED_AUTH) {
 		HDCP_DBG("Authentication step 2 cancelled.");
 		return;
-	} else if (status == 0xFF)
+	} else if ((status == 0xFF) || (status == -HDCP_AUTH_FAILURE))
 		hdcp_wq_authentication_failure();
 	else {
 		HDCP_STT_DBG( "HDCP: (Repeater) authentication step 2 "
@@ -803,6 +801,7 @@ int hdcp_init(void)
 	hdcp_lib_init();
 	
 	mutex_unlock(&hdcp.lock);
+	printk(KERN_INFO "HDCP initialized\n");
 	return 0;
 
 err_release_res:
