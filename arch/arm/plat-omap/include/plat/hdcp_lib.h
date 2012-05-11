@@ -34,6 +34,8 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 
+#include <linux/ti81xxhdmi.h>
+
 /* Configuration control for this library */
 /* Auto RI mode is to be supported */
 #define _9032_AUTO_RI_
