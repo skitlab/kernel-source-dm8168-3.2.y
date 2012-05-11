@@ -7,7 +7,7 @@ menuconfig TI81XX_HDMI
 
 config TI81XX_HDMI_HDCP
 	bool "Include HDCP support"
-	default y
+	default n
 	depends on TI81XX_HDMI
 	---help---
 		Support for HDCP block of HDMI to be included. Ensure a device
