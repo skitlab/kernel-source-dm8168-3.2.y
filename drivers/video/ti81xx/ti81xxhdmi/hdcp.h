@@ -42,14 +42,14 @@
 /* Note: HDCP_ENABLE_CTL, HDCP_R0_EXP_EVENT, HDCP_KSV_TIMEOUT_EVENT and
  * HDCP_AUTH_REATT_EVENT can be cancelled by HDCP disabling
  */
-#define HDCP_ENABLE_CTL			(HDCP_IOCTL_SRC		| 0)
-#define HDCP_DISABLE_CTL		(HDCP_IOCTL_SRC		| 1)
+#define HDCP_ENABLE_CTL		(HDCP_IOCTL_SRC		| 0)
+#define HDCP_DISABLE_CTL	(HDCP_IOCTL_SRC		| 1)
 #define HDCP_START_FRAME_EVENT	(HDCP_HDMI_SRC		| 2)
 #define HDCP_STOP_FRAME_EVENT	(HDCP_HDMI_SRC		| 3)
-#define HDCP_HPD_LOW_EVENT		(HDCP_IRQ_SRC		| 4)
-#define HDCP_RI_FAIL_EVENT		(HDCP_IRQ_SRC		| 5)
+#define HDCP_HPD_LOW_EVENT	(HDCP_IRQ_SRC		| 4)
+#define HDCP_RI_FAIL_EVENT	(HDCP_IRQ_SRC		| 5)
 #define HDCP_KSV_LIST_RDY_EVENT	(HDCP_IRQ_SRC		| 6)
-#define HDCP_R0_EXP_EVENT		(HDCP_WORKQUEUE_SRC	| 7)
+#define HDCP_R0_EXP_EVENT	(HDCP_WORKQUEUE_SRC	| 7)
 #define HDCP_KSV_TIMEOUT_EVENT	(HDCP_WORKQUEUE_SRC	| 8)
 #define HDCP_AUTH_REATT_EVENT	(HDCP_WORKQUEUE_SRC	| 9)
 
@@ -76,24 +76,24 @@ struct hdcp_delayed_work {
 struct hdcp {
 
 	struct mutex lock;
-	/* HDCP Enable configurations, supplied by apps. Currently takes in 
+	/* HDCP Enable configurations, supplied by apps. Currently takes in
 		argument to specify the number of re-trys to be attempted before
 		giving up autentication */
 	struct ti81xxhdmi_hdcp_ena_ctrl en_ctrl;
 	/* Specifies if HDMI is ON or OFF. HDMI requires to be ON before HDCP
 		can start autentication process */
 	enum hdmi_states hdmi_state;
-	/* Specifies curret state of HDCP autentication status, drives the state 
+	/* Specifies curret state of HDCP autentication status, drives the state
 		machine */
 	enum hdcp_states hdcp_state;
-	/* Specifies the status of HDCP autentication that would be returned to 
+	/* Specifies the status of HDCP autentication that would be returned to
 		applications, when queried */
 	int auth_state;
-	
-	/* Wait state indicator - has been enabled - unable to enable due to HDMI
-		not streaming */
+
+	/* Wait state indicator - has been enabled - unable to enable due to
+		HDMI not streaming */
 	struct delayed_work *pending_start;
-	
+
 	/* Following variable should store works submitted from workqueue
 	 * context
 	 * WARNING: only ONE work at a time can be stored (no conflict
@@ -105,8 +105,8 @@ struct hdcp {
 	int retry_cnt;
 	/* Not used as of now */
 	int dss_state;
-	/* Not used as of now, would require to indicate HDMI to restart when AKSV
-		errors are encountered */
+	/* Not used as of now, would require to indicate HDMI to restart when
+		AKSV errors are encountered */
 	int hdmi_restart;
 	/* Indicates the sink was di-connected or SINK drove the HPD low.
 		Not used as of now. */

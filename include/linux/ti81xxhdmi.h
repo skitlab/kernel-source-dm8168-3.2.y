@@ -29,15 +29,15 @@
 #include <linux/ioctl.h>
 
 /* HDCP state
-	When application query status of HDCP using IOCTL 
-	TI81XXHDMI_HDCP_GET_STATUS, depending on state of HDCP, one of the 
+	When application query status of HDCP using IOCTL
+	TI81XXHDMI_HDCP_GET_STATUS, depending on state of HDCP, one of the
 	following values would be returned to applications. */
-#define HDCP_STATE_DISABLED				0
-#define HDCP_STATE_INIT					1
+#define HDCP_STATE_DISABLED			0
+#define HDCP_STATE_INIT				1
 #define HDCP_STATE_AUTH_1ST_STEP		2
 #define HDCP_STATE_AUTH_2ND_STEP		3
 #define HDCP_STATE_AUTH_3RD_STEP		4
-#define HDCP_STATE_AUTH_FAIL_RESTARTING	5
+#define HDCP_STATE_AUTH_FAIL_RESTARTING		5
 #define HDCP_STATE_AUTH_FAILURE			6
 
 
@@ -49,8 +49,8 @@
 #define TI81XXHDMI_IO(num)          _IO(TI81XXHDMI_MAGIC, num)
 
 /* IOCLT Supported by this driver */
-#define TI81XXHDMI_START			TI81XXHDMI_IO(0)
-#define TI81XXHDMI_STOP				TI81XXHDMI_IO(1)
+#define TI81XXHDMI_START		TI81XXHDMI_IO(0)
+#define TI81XXHDMI_STOP			TI81XXHDMI_IO(1)
 #define TI81XXHDMI_GET_STATUS		TI81XXHDMI_IOR(2, unsigned char *)
 #define TI81XXHDMI_READ_EDID		TI81XXHDMI_IOR(3, unsigned char *)
 /*#define
@@ -80,61 +80,60 @@
 /* Used to transmit the message described by ti81xxhdmi_cec_transmit_msg
  * Takes in a argument of type struct ti81xxhdmi_cec_transmit_msg
  */
-#define TI81XXHDMI_CEC_TRANSMIT_MSG		TI81XXHDMI_IOWR(8, unsigned char *)
+#define TI81XXHDMI_CEC_TRANSMIT_MSG	TI81XXHDMI_IOWR(8, unsigned char *)
 
 /* Used to enable HDCP.
  * Takes in a argument of type ti81xxhdmi_hdcp_ena_ctrl. Note that all devices
- * need not support HDCP. In case HDCP is not supported, an error value of 
+ * need not support HDCP. In case HDCP is not supported, an error value of
  * ENODEV if returned.
  *
  * Use this command only when hdmi is streaming video to a sink
  */
-#define TI81XXHDMI_HDCP_ENABLE	  TI81XXHDMI_IOW(9, \
-										struct ti81xxhdmi_hdcp_ena_ctrl)
-
+#define TI81XXHDMI_HDCP_ENABLE		TI81XXHDMI_IOW(9, \
+					struct ti81xxhdmi_hdcp_ena_ctrl)
 
 /* Used to disable HDCP process.
- * Applicable only when HDCP_ENABLE was called / HDCP autentication was in 
+ * Applicable only when HDCP_ENABLE was called / HDCP autentication was in
  * progress.
  */
-#define TI81XXHDMI_HDCP_DISABLE	  TI81XXHDMI_IOW(10, unsigned char *)
+#define TI81XXHDMI_HDCP_DISABLE		TI81XXHDMI_IOW(10, unsigned char *)
 
 /* Used to query the current step / status of HDCP process.
- * Returns one of the values defined below under "HDCP State". Takes in a 
+ * Returns one of the values defined below under "HDCP State". Takes in a
  * argument of type __u32
  */
 #define TI81XXHDMI_HDCP_GET_STATUS	TI81XXHDMI_IOWR(11, __u32)
 
 /* Used by application to wait for a state of HDCP process.
- * 
+ *
  * Used to wait until Step 1/2 is reached. The application are expected
- * perform check BKSV / V` computation respectively and let the driver know, 
+ * perform check BKSV / V` computation respectively and let the driver know,
  * if it can proceed with the autentication.
  *
  * This is a blocking call, the caller will be blocked until step 2 is reached.
  *
  */
 #define TI81XXHDMI_HDCP_WAIT_EVENT	TI81XXHDMI_IOWR(12, \
-										struct ti81xxhdmi_hdcp_wait_ctrl)
+					struct ti81xxhdmi_hdcp_wait_ctrl)
 
 /* Used by application to let the driver know if it can proceed with the
  * autentication process.
  *
- * The application let the driver know, when BKSV has been verified, as a 
- * to event TI81XXHDMI_HDCP_EVENT_STEP1 and V` has been computed for 
- * TI81XXHDMI_HDCP_EVENT_STEP2. This will enable the driver to proceed with 
+ * The application let the driver know, when BKSV has been verified, as a
+ * to event TI81XXHDMI_HDCP_EVENT_STEP1 and V` has been computed for
+ * TI81XXHDMI_HDCP_EVENT_STEP2. This will enable the driver to proceed with
  * autentication or not.
- * 
- * The argument should be 
+ *
+ * The argument should be
  * In case of success 0x0 | TI81XXHDMI_HDCP_EVENT_STEP2
  * In case of failures -1 | TI81XXHDMI_HDCP_EVENT_STEP2
- *	In the case of error, the driver would try to re-autenticate. If the number
- *	of re-trys is exceeded. Autentication failure state would be entered.
+ * In the case of error, the driver would try to re-autenticate. If the number
+ * of re-trys is exceeded. Autentication failure state would be entered.
  *
  * In case of success 0x0 | TI81XXHDMI_HDCP_EVENT_STEP1
  * In case of failures -1 | TI81XXHDMI_HDCP_EVENT_STEP1
- *	In the case of error, the driver would try to re-autenticate. If the number
- *	of re-trys is exceeded. Autentication failure state would be entered.
+ * In the case of error, the driver would try to re-autenticate. If the number
+ * of re-trys is exceeded. Autentication failure state would be entered.
  */
 #define TI81XXHDMI_HDCP_EVENT_DONE	TI81XXHDMI_IOWR(14, __u32)
 
@@ -145,7 +144,7 @@
 #endif
 
 /* HDCP events
- * Events that application could wait on and let the driver know if driver 
+ * Events that application could wait on and let the driver know if driver
  * could proceed to next step of autentication.
  */
 #define TI81XXHDMI_HDCP_EVENT_STEP1		(1 << 0x0)
@@ -344,8 +343,8 @@ struct ti81xxhdmi_cec_transmit_msg {
 
 /* Passed as an argument when enabling HDCP (TI81XXHDMI_HDCP_ENABLE) */
 struct ti81xxhdmi_hdcp_ena_ctrl {
-	/* Specify the number of times autentication should be attempted, before
-		giving up autentication */
+	/* Specify the number of times autentication should be attempted,
+		before giving up autentication */
 	int nb_retry;
 };
 
@@ -357,8 +356,8 @@ struct hdcp_sha_in {
 };
 
 /* Control strucutre that would be used by application to wait for events.
-	its expected that application initializes the event and member "data" would
-	point to valid memory */
+	its expected that application initializes the event and
+	member "data" would point to valid memory */
 struct ti81xxhdmi_hdcp_wait_ctrl {
 	__u32 event;
 	struct hdcp_sha_in *data;

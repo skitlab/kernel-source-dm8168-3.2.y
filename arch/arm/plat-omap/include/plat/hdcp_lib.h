@@ -20,8 +20,8 @@
  */
 /* Rev history:
  * Sujith Shivalingappa <sujith.s@ti.com> Added init routines
- *				added to support TI814x and TI816x
- *				Clean up - removed unused / required strucutres / defines
+ *		added to support TI814x and TI816x
+ *		Clean up - removed unused / un-required strucutres / defines
  */
 #ifndef _HDCP_LIB_H_
 #define _HDCP_LIB_H_
@@ -54,7 +54,7 @@
 /***************************/
 
 /* Status / error codes */
-#define HDCP_OK					0
+#define HDCP_OK				0
 #define HDCP_DDC_ERROR			1
 #define HDCP_AUTH_FAILURE		2
 #define HDCP_AKSV_ERROR			3
@@ -63,7 +63,7 @@
 #define HDCP_DRIVER_ERROR		6
 #define HDCP_CANCELLED_AUTH		7
 
-#define HDCP_INFINITE_REAUTH	0x100
+#define HDCP_INFINITE_REAUTH		0x100
 #define HDCP_MAX_DDC_ERR		5
 
 /* FIXME: should be 300ms delay between HDMI start frame event and HDCP enable
@@ -71,12 +71,12 @@
  */
 #define HDCP_ENABLE_DELAY		300
 #define HDCP_R0_DELAY			110
-#define HDCP_KSV_TIMEOUT_DELAY	5000
+#define HDCP_KSV_TIMEOUT_DELAY		5000
 #define HDCP_REAUTH_DELAY		100
 
 /* DDC access timeout in ms */
-#define HDCP_DDC_TIMEOUT	500
-#define HDCP_STOP_FRAME_BLOCKING_TIMEOUT (2*HDCP_DDC_TIMEOUT)
+#define HDCP_DDC_TIMEOUT		500
+#define HDCP_STOP_FRAME_BLOCKING_TIMEOUT	(2*HDCP_DDC_TIMEOUT)
 
 /* Defined Twice - Fixme */
 #define DESHDCP_KEY_SIZE 		160
@@ -106,18 +106,18 @@ struct hdcp_encrypt_control {
 
 /* HDMI CORE SYSTEM base address */
 /*-------------------------------*/
-#define HDMI_IP_CORE_SYSTEM 				0x400
-#define HDMI_IP_CORE_SYSTEM__DCTL			0x034
+#define HDMI_IP_CORE_SYSTEM 			0x400
+#define HDMI_IP_CORE_SYSTEM__DCTL		0x034
 #define HDMI_IP_CORE_SYSTEM__HDCP_CTRL		0x03C
-#define HDMI_IP_CORE_SYSTEM__BKSV0			0x040
-#define HDMI_IP_CORE_SYSTEM__AN0			0x054
-#define HDMI_IP_CORE_SYSTEM__AKSV0			0x074
-#define HDMI_IP_CORE_SYSTEM__R1				0x088
-#define HDMI_IP_CORE_SYSTEM__R2				0x08C
-#define HDMI_IP_CORE_SYSTEM__RI_CMD			0x09C
+#define HDMI_IP_CORE_SYSTEM__BKSV0		0x040
+#define HDMI_IP_CORE_SYSTEM__AN0		0x054
+#define HDMI_IP_CORE_SYSTEM__AKSV0		0x074
+#define HDMI_IP_CORE_SYSTEM__R1			0x088
+#define HDMI_IP_CORE_SYSTEM__R2			0x08C
+#define HDMI_IP_CORE_SYSTEM__RI_CMD		0x09C
 #define HDMI_IP_CORE_SYSTEM__RI_STAT		0x098
-#define HDMI_IP_CORE_SYSTEM__INTR2			0x1C8
-#define HDMI_IP_CORE_SYSTEM__INTR3			0x1CC
+#define HDMI_IP_CORE_SYSTEM__INTR2		0x1C8
+#define HDMI_IP_CORE_SYSTEM__INTR3		0x1CC
 #define HDMI_IP_CORE_SYSTEM__INT_UNMASK2	0x1D8
 #define HDMI_IP_CORE_SYSTEM__INT_UNMASK3	0x1DC
 #define HDMI_IP_CORE_SYSTEM__SHA_CTRL		0x330
@@ -129,9 +129,9 @@ struct hdcp_encrypt_control {
 
 #define HDMI_CORE_AV_BASE		0x900
 #ifndef HDMI_CORE_AV_HDMI_CTRL
-#define HDMI_CORE_AV_HDMI_CTRL  0x0BC
-#define HDMI_CORE_AV_PB_CTRL2   0x0FC
-#define	HDMI_CORE_AV_CP_BYTE1	0x37C
+#define HDMI_CORE_AV_HDMI_CTRL		0x0BC
+#define HDMI_CORE_AV_PB_CTRL2		0x0FC
+#define	HDMI_CORE_AV_CP_BYTE1		0x37C
 #endif
 #define HDMI_CORE_AV_HDMI_CTRL__HDMI_MODE	0x01
 
@@ -140,19 +140,19 @@ struct hdcp_encrypt_control {
 /***********************/
 
 #define DDC_BKSV_ADDR		0x00
-#define DDC_Ri_ADDR			0x08
+#define DDC_Ri_ADDR		0x08
 #define DDC_AKSV_ADDR		0x10
-#define DDC_AN_ADDR			0x18
-#define DDC_V_ADDR			0x20
+#define DDC_AN_ADDR		0x18
+#define DDC_V_ADDR		0x20
 #define DDC_BCAPS_ADDR		0x40
 #define DDC_BSTATUS_ADDR	0x41
 #define DDC_KSV_FIFO_ADDR	0x43
 
 #define DDC_BKSV_LEN		5
-#define DDC_Ri_LEN			2
+#define DDC_Ri_LEN		2
 #define DDC_AKSV_LEN		5
-#define DDC_AN_LEN			8
-#define DDC_V_LEN			20
+#define DDC_AN_LEN		8
+#define DDC_V_LEN		20
 #define DDC_BCAPS_LEN		1
 #define DDC_BSTATUS_LEN		2
 

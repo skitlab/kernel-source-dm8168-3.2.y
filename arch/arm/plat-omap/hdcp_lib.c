@@ -272,9 +272,9 @@ static int hdcp_lib_initiate_step1(void)
 	if (hdcp.pending_disable)
 		return -HDCP_CANCELLED_AUTH;
 
-	HDCP_DBG("BKSV: %02x %02x %02x %02x %02x", an_ksv_data[0], an_ksv_data[1],
-					      an_ksv_data[2], an_ksv_data[3],
-					      an_ksv_data[4]);
+	HDCP_DBG("BKSV: %02x %02x %02x %02x %02x", an_ksv_data[0],
+					an_ksv_data[1], an_ksv_data[2],
+					an_ksv_data[3], an_ksv_data[4]);
 
 	if (hdcp_lib_check_ksv(an_ksv_data)) {
 		HDCP_DBG("BKSV error (number of 0 and 1)");
@@ -337,9 +337,9 @@ static int hdcp_lib_initiate_step1(void)
 	/* Read AKSV from IP: (HDCP AKSV register) */
 	hdcp_lib_read_aksv(an_ksv_data);
 
-	HDCP_DBG("AKSV: %02x %02x %02x %02x %02x", an_ksv_data[0], an_ksv_data[1],
-					      an_ksv_data[2], an_ksv_data[3],
-					      an_ksv_data[4]);
+	HDCP_DBG("AKSV: %02x %02x %02x %02x %02x", an_ksv_data[0],
+					an_ksv_data[1], an_ksv_data[2],
+					an_ksv_data[3], an_ksv_data[4]);
 
 	if (hdcp_lib_check_ksv(an_ksv_data)) {
 		printk(KERN_INFO "HDCP: AKSV error (number of 0 and 1)\n");
@@ -415,10 +415,12 @@ void hdcp_lib_read_bksv(u8 *ksv_data)
 	u8 i;
 	for (i = 0; i < 5; i++) {
 		ksv_data[i] = RD_REG_32(hdcp.hdmi_wp_base_addr +
-						HDMI_IP_CORE_SYSTEM, HDMI_IP_CORE_SYSTEM__BKSV0 +
-						i * sizeof(uint32_t));
+			HDMI_IP_CORE_SYSTEM, HDMI_IP_CORE_SYSTEM__BKSV0 +
+			i * sizeof(uint32_t));
 	}
 }
+
+EXPORT_SYMBOL(hdcp_lib_read_bksv);
 
 /*-----------------------------------------------------------------------------
  * Function: hdcp_3des_load_key
@@ -475,6 +477,8 @@ int hdcp_3des_load_key(uint32_t *deshdcp_encrypted_key)
 
 	return status;
 }
+
+EXPORT_SYMBOL(hdcp_3des_load_key);
 
 /*-----------------------------------------------------------------------------
  * Function: hdcp_3des_encrypt_key
@@ -539,6 +543,8 @@ void hdcp_3des_encrypt_key(struct hdcp_encrypt_control *enc_ctrl,
 	}
 }
 
+EXPORT_SYMBOL(hdcp_3des_encrypt_key);
+
 /*-----------------------------------------------------------------------------
  * Function: hdcp_lib_disable
  *-----------------------------------------------------------------------------
@@ -556,6 +562,8 @@ int hdcp_lib_disable()
 
 	return HDCP_OK;
 }
+
+EXPORT_SYMBOL(hdcp_lib_disable);
 
 /*-----------------------------------------------------------------------------
  * Function: hdcp_lib_set_encryption
@@ -584,6 +592,8 @@ void hdcp_lib_set_encryption(enum encryption_state enc_state)
 					  HDMI_IP_CORE_SYSTEM__HDCP_CTRL));
 
 }
+
+EXPORT_SYMBOL(hdcp_lib_set_encryption);
 
 /*-----------------------------------------------------------------------------
  * Function: hdcp_lib_set_av_mute
@@ -641,6 +651,8 @@ void hdcp_lib_set_av_mute(enum av_mute av_mute_state)
 	spin_unlock_irqrestore(&hdcp.spinlock, flags);
 }
 
+EXPORT_SYMBOL(hdcp_lib_set_av_mute);
+
 /*-----------------------------------------------------------------------------
  * Function: hdcp_lib_check_repeater_bit_in_tx
  *-----------------------------------------------------------------------------
@@ -650,6 +662,8 @@ u8 hdcp_lib_check_repeater_bit_in_tx(void)
 	return RD_FIELD_32(hdcp.hdmi_wp_base_addr + HDMI_IP_CORE_SYSTEM,
 			   HDMI_IP_CORE_SYSTEM__HDCP_CTRL, 4, 4);
 }
+
+EXPORT_SYMBOL(hdcp_lib_check_repeater_bit_in_tx);
 
 /*-----------------------------------------------------------------------------
  * Function: hdcp_lib_auto_ri_check
@@ -685,6 +699,8 @@ void hdcp_lib_auto_ri_check(bool state)
 
 	spin_unlock_irqrestore(&hdcp.spinlock, flags);
 }
+
+EXPORT_SYMBOL(hdcp_lib_auto_ri_check);
 
 /*-----------------------------------------------------------------------------
  * Function: hdcp_lib_auto_bcaps_rdy_check
@@ -724,6 +740,8 @@ void hdcp_lib_auto_bcaps_rdy_check(bool state)
 	HDCP_DBG("hdcp_lib_auto_bcaps_rdy_check() Done\n");
 }
 
+EXPORT_SYMBOL(hdcp_lib_auto_bcaps_rdy_check);
+
 /*-----------------------------------------------------------------------------
  * Function: hdcp_lib_step1_start
  *-----------------------------------------------------------------------------
@@ -755,6 +773,8 @@ int hdcp_lib_step1_start(void)
 	else
 		return status;
 }
+
+EXPORT_SYMBOL(hdcp_lib_step1_start);
 
 /*-----------------------------------------------------------------------------
  * Function: hdcp_lib_step1_r0_check
@@ -794,7 +814,8 @@ int hdcp_lib_step1_r0_check(u8 *metadata)
 
 		hdcp_lib_read_m0(metadata);
 
-		HDCP_DBG("hdcp_lib_set_encryption() %u", jiffies_to_msecs(jiffies));
+		HDCP_DBG("hdcp_lib_set_encryption() %u",
+			jiffies_to_msecs(jiffies));
 
 		/* Enable encryption */
 		hdcp_lib_set_encryption(HDCP_ENC_ON);
@@ -826,6 +847,8 @@ int hdcp_lib_step1_r0_check(u8 *metadata)
 
 	return HDCP_OK;
 }
+
+EXPORT_SYMBOL(hdcp_lib_step1_r0_check);
 
 /*-----------------------------------------------------------------------------
  * Function: hdcp_lib_step2
@@ -900,6 +923,8 @@ int hdcp_lib_step2(void)
 	return status;
 }
 
+EXPORT_SYMBOL(hdcp_lib_step2);
+
 /*-----------------------------------------------------------------------------
  * Function: hdcp_lib_init, initialize the library.
  *-----------------------------------------------------------------------------
@@ -910,11 +935,12 @@ int hdcp_lib_init(void)
 
 	if (hdcp.is_initialized == 0x0){
 
-		if(cpu_is_ti814x() || cpu_is_ti816x())
-			hdcp.hdmi_wp_base_addr =  ioremap(TI81xx_HDMI_WP, 0x1000);
-		else
+		if(cpu_is_ti814x() || cpu_is_ti816x()) {
+			hdcp.hdmi_wp_base_addr =
+				ioremap(TI81xx_HDMI_WP, 0x1000);
+		} else {
 			hdcp.hdmi_wp_base_addr = ioremap(HDMI_WP, 0x1000);
-
+		}
 
 		if (!hdcp.hdmi_wp_base_addr) {
 			printk("can't ioremap WP\n");
@@ -940,6 +966,8 @@ int hdcp_lib_init(void)
 	return r;
 }
 
+EXPORT_SYMBOL(hdcp_lib_init);
+
 /*-----------------------------------------------------------------------------
  * Function: hdcp_lib_de_init, De initialize the library.
  *-----------------------------------------------------------------------------
@@ -963,6 +991,8 @@ int hdcp_lib_de_init(void)
 	return r;
 }
 
+EXPORT_SYMBOL(hdcp_lib_de_init);
+
 /*-----------------------------------------------------------------------------
  * Function: hdcp_lib_set_pending_disable
  *-----------------------------------------------------------------------------
@@ -977,6 +1007,8 @@ int hdcp_lib_set_pending_disable(void)
 	return -1;
 }
 
+EXPORT_SYMBOL(hdcp_lib_set_pending_disable);
+
 /*-----------------------------------------------------------------------------
  * Function: hdcp_lib_clear_pending_disable
  *-----------------------------------------------------------------------------
@@ -990,6 +1022,8 @@ int hdcp_lib_clear_pending_disable(void)
 	}
 	return -1;
 }
+
+EXPORT_SYMBOL(hdcp_lib_clear_pending_disable);
 
 /*-----------------------------------------------------------------------------
  * Function: hdcp_lib_get_sha_data
@@ -1007,20 +1041,4 @@ int hdcp_lib_get_sha_data(struct hdcp_sha_in *sha)
 	return r;
 }
 
-EXPORT_SYMBOL(hdcp_lib_read_bksv);
-EXPORT_SYMBOL(hdcp_3des_load_key);
-EXPORT_SYMBOL(hdcp_3des_encrypt_key);
-EXPORT_SYMBOL(hdcp_lib_disable);
-EXPORT_SYMBOL(hdcp_lib_set_encryption);
-EXPORT_SYMBOL(hdcp_lib_set_av_mute);
-EXPORT_SYMBOL(hdcp_lib_check_repeater_bit_in_tx);
-EXPORT_SYMBOL(hdcp_lib_auto_ri_check);
-EXPORT_SYMBOL(hdcp_lib_auto_bcaps_rdy_check);
-EXPORT_SYMBOL(hdcp_lib_step1_start);
-EXPORT_SYMBOL(hdcp_lib_step1_r0_check);
-EXPORT_SYMBOL(hdcp_lib_step2);
-EXPORT_SYMBOL(hdcp_lib_init);
-EXPORT_SYMBOL(hdcp_lib_de_init);
-EXPORT_SYMBOL(hdcp_lib_set_pending_disable);
-EXPORT_SYMBOL(hdcp_lib_clear_pending_disable);
 EXPORT_SYMBOL(hdcp_lib_get_sha_data);

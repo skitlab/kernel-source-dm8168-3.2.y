@@ -22,7 +22,7 @@
  * Sujith Shivalingappa <sujith.s@ti.com> Added init routines
  *				added to support TI814x and TI816x
  */
- 
+
 #include <linux/delay.h>
 #include <plat/hdcp_ddc.h>
 #include <plat/hdcp_lib.h>

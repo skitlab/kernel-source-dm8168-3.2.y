@@ -23,7 +23,7 @@
  * Sujith Shivalingappa <sujith.s@ti.com> Added init routines
  *				added to support TI814x and TI816x
  */
- 
+
 #define HDCPRX_SLV 0x74
 
 #define MASTER_BASE		0xEC
