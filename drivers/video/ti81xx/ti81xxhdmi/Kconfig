@@ -11,5 +11,5 @@ config TI81XX_HDMI_HDCP
 	depends on TI81XX_HDMI
 	---help---
 		Support for HDCP block of HDMI to be included. Ensure a device
-		capable of HDCP is being used, failing which the behaviour of 
+		capable of HDCP is being used, failing which the behaviour of
 		the driver is un-defined.

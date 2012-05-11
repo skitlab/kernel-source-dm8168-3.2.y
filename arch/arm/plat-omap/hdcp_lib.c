@@ -935,7 +935,7 @@ int hdcp_lib_init(void)
 
 	if (hdcp.is_initialized == 0x0){
 
-		if(cpu_is_ti814x() || cpu_is_ti816x()) {
+		if (cpu_is_ti814x() || cpu_is_ti816x()) {
 			hdcp.hdmi_wp_base_addr =
 				ioremap(TI81xx_HDMI_WP, 0x1000);
 		} else {
