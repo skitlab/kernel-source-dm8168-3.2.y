@@ -389,8 +389,11 @@ void __init usb_musb_init(struct omap_musb_board_data *board_data)
 			board_data->txfifo_intr_enable = 0;
 		}
 
+		/* enable or disable the USB1 instance based on the
+		 * ti811x daughter card attched or not
+		 */
 		if (cpu_is_ti811x() && board_data->mode == MUSB_HOST)
-			board_data->instances = 0;
+			board_data->instances = 1;
 			
 		/* only usb0 port enabled in peripheral mode*/
 		if (board_data->mode == MUSB_PERIPHERAL) {
