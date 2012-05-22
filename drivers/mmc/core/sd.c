@@ -294,8 +294,12 @@ static int mmc_read_switch(struct mmc_card *card)
 		goto out;
 	}
 
-	if (status[13] & 0x02)
-		card->sw_caps.hs_max_dtr = 50000000;
+	if (status[13] & 0x02) {
+		if (cpu_is_ti811x())
+			card->sw_caps.hs_max_dtr = 15000000;
+		else
+			card->sw_caps.hs_max_dtr = 50000000;
+	}
 
 out:
 	kfree(status);
