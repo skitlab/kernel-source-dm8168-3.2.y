@@ -1214,8 +1214,14 @@ static int cppi41_channel_abort(struct dma_channel *channel)
 	} else { /* Rx */
 		dprintk("Rx channel teardown, cppi_ch = %p\n", cppi_ch);
 
+		/* For host, ensure ReqPkt is never set again */
+		cppi41_autoreq_update(cppi_ch, USB_NO_AUTOREQ);
+
 		/* disable the DMAreq and remove reqpkt */
 		csr  = musb_readw(epio, MUSB_RXCSR);
+		/* 250usec delay to drain to cppi dma
+		 * pipe line */
+		udelay(250);
 		DBG(4, "before rx-teardown: rxcsr %x rxcount %x\n", csr,
 			musb_readw(epio, MUSB_RXCOUNT));
 
@@ -1227,9 +1233,10 @@ static int cppi41_channel_abort(struct dma_channel *channel)
 		musb_writew(epio, MUSB_RXCSR, csr);
 
 		/* wait till xdma completes last 64 bytes transfer from
-		 * mentor fifo to internal cppi fifo
+		 * mentor fifo to internal cppi fifo and drain
+		 * cppi dma pipe line
 		 */
-		udelay(5);
+		udelay(250);
 
 		/* Flush FIFO of the endpoint */
 		csr  = musb_readw(epio, MUSB_RXCSR);
