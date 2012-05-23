@@ -71,6 +71,26 @@ const struct audio_timings audio_timings[] = {
 	{54000, 192000, 24576, 54000, IF_FS_192000},
 };
 
+/*
+ * select the ACR packet genetation method
+ * a bug in the TI8168 PG < 2.0 support only SW
+ * default is HW except the above case
+ * define the HDMI_FORCE_SW_ACR for SW testing
+ */
+static int hdmi_acr_mode(void)
+{
+#ifdef HDMI_FORCE_SW_ACR
+	return CTS_MODE_SW;
+#else
+	/* TI814x HW ACR supported is not added */
+	if ((cpu_is_ti816x() && TI8168_REV_ES2_0 > omap_rev())
+		|| cpu_is_ti814x())
+		return CTS_MODE_SW;
+	else
+		return CTS_MODE_HW;
+#endif
+}
+
 static int davinci_hdmi_dai_startup(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
@@ -161,12 +181,10 @@ static int davinci_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 	DBG("FS: %d N: %d CTS: %d\n", rate, audio_cfg.n, audio_cfg.cts);
 
 	/*
-	 * Auto CTS mode support only in ti8168 PG2.0
-	 * Auto CTS mode requires MCLK must be present
-	 * and the rate is MCLK = 128 *Fs = TMDS * (N/CTS)
-	 * McBSP clock is used as MCLK in PG2.0
+	 * configure MCLK for HW ACR generation
+	 * MCLK = 128 *Fs = TMDS * (N/CTS)
 	 */
-	if (cpu_is_ti816x() && TI8168_REV_ES2_0 == omap_rev()) {
+	if (CTS_MODE_HW == hdmi_acr_mode()) {
 		/* MCLK = 128 * Fs */
 		mclk_rate = rate * 128;
 
@@ -223,8 +241,7 @@ static int davinci_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 	/* TODO: Is this configuration correct? */
 	audio_cfg.aud_par_busclk = 0;
 
-	/* Auto CTS mode support only in ti8168 PG2.0 */
-	if (cpu_is_ti816x() && TI8168_REV_ES2_0 == omap_rev()) {
+	if (CTS_MODE_HW == hdmi_acr_mode()) {
 		audio_cfg.cts_mode = CTS_MODE_HW;
 		DBG("CTS mode is HW\n");
 	} else {
@@ -273,9 +290,9 @@ static __devinit int davinci_hdmi_probe(struct platform_device *pdev)
 	pdata = pdev->dev.platform_data;
 
 	/*
-	 * Auto CTS mode support only in ti8168 PG2.0
+	 * Configure MCLK for HW ACR packet generation
 	 */
-	if (cpu_is_ti816x() && TI8168_REV_ES2_0 == omap_rev()) {
+	if (CTS_MODE_HW == hdmi_acr_mode()) {
 		dev->clk = clk_get(&pdev->dev, NULL);
 		if (IS_ERR(dev->clk)) {
 			printk(KERN_ERR "%s Clock get Error\n", pdev->name);
@@ -308,9 +325,9 @@ static int __devexit davinci_hdmi_remove(struct platform_device *pdev)
 	snd_soc_unregister_dai(&pdev->dev);
 
 	/*
-	 * Auto CTS mode support only in ti8168 PG2.0
+	 * free MCLK for HW ACR packet generation
 	 */
-	if (cpu_is_ti816x() && TI8168_REV_ES2_0 == omap_rev()) {
+	if (CTS_MODE_HW == hdmi_acr_mode()) {
 		clk_disable(dev->clk);
 		clk_put(dev->clk);
 		dev->clk = NULL;
