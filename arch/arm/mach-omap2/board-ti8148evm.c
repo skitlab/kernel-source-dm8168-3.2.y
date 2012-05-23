@@ -29,6 +29,8 @@
 #include <linux/i2c/pcf857x.h>
 #include <linux/regulator/machine.h>
 #include <linux/mfd/tps65910.h>
+#include <linux/clk.h>
+#include <linux/err.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -52,6 +54,7 @@
 #include "mux.h"
 #include "hsmmc.h"
 #include "control.h"
+#include "cm81xx.h"
 
 #define GPIO_TSC               31
 
@@ -783,6 +786,36 @@ static struct platform_device *ti8148_devices[] __initdata = {
 	&ti8148_hdmi_audio_device,
 	&ti8148_hdmi_codec_device,
 };
+
+/*
+ * HDMI Audio Auto CTS MCLK configuration.
+ * sysclk20, sysclk21, sysclk21 and CLKS(external)
+ * setting sysclk20 as the parent of hdmi_i2s_ck
+ * ToDo:
+ */
+void __init ti8148_hdmi_clk_init(void)
+{
+	int ret = 0;
+	struct clk *parent, *child;
+
+	/* modify the clk name to choose diff clk*/
+	parent = clk_get(NULL, "sysclk20_ck");
+	if (IS_ERR(parent))
+		pr_err("Unable to get [sysclk20_ck] clk\n");
+
+	child = clk_get(NULL, "hdmi_i2s_ck");
+	if (IS_ERR(child))
+		pr_err("Unable to get [hdmi_i2s_ck] clk\n");
+
+	ret = clk_set_parent(child, parent);
+	if (ret < 0)
+		pr_err("Unable to set parent clk [hdmi_i2s_ck]\n");
+
+	clk_put(child);
+	clk_put(parent);
+	pr_debug("{{HDMI Audio MCLK setup completed}}\n");
+}
+
 #endif
 
 #define LSI_PHY_ID		0x0282F014
@@ -831,6 +864,9 @@ static void __init ti8148_evm_init(void)
 
 	ti8148_spi_init();
 #ifdef CONFIG_SND_SOC_TI81XX_HDMI
+	/*setup the clokc for HDMI MCLK*/
+	ti8148_hdmi_clk_init();
+	__raw_writel(0x0, DSS_HDMI_RESET);
 	platform_add_devices(ti8148_devices, ARRAY_SIZE(ti8148_devices));
 #endif
 	regulator_use_dummy_regulator();

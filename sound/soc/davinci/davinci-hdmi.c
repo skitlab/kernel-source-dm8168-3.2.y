@@ -82,9 +82,7 @@ static int hdmi_acr_mode(void)
 #ifdef HDMI_FORCE_SW_ACR
 	return CTS_MODE_SW;
 #else
-	/* TI814x HW ACR supported is not added */
-	if ((cpu_is_ti816x() && TI8168_REV_ES2_0 > omap_rev())
-		|| cpu_is_ti814x())
+	if (cpu_is_ti816x() && TI8168_REV_ES2_0 > omap_rev())
 		return CTS_MODE_SW;
 	else
 		return CTS_MODE_HW;

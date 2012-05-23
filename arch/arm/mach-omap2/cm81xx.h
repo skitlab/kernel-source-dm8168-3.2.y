@@ -39,6 +39,8 @@
 #define TI81XX_CM_DPLL_MOD			0x0300	/* 256B */
 #define TI81XX_CM_ALWON_MOD			0x1400	/* 1KB */
 
+#define DSS_HDMI_RESET				TI81XX_L4_SLOW_IO_ADDRESS(TI81XX_PRCM_BASE + 0xE10)
+
 /*
  * TI816X CM module offsets
  */

@@ -27,6 +27,8 @@
 #include <linux/i2c/qt602240_ts.h>
 #include <linux/regulator/machine.h>
 #include <linux/mfd/tps65910.h>
+#include <linux/clk.h>
+#include <linux/err.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -721,6 +723,34 @@ static struct platform_device *dm385_devices[] __initdata = {
 	&dm385_hdmi_audio_device,
 	&dm385_hdmi_codec_device,
 };
+/*
+ * HDMI Audio Auto CTS MCLK configuration.
+ * sysclk20, sysclk21, sysclk21 and CLKS(external)
+ * setting sysclk20 as the parent of hdmi_i2s_ck
+ * ToDo:
+ */
+void __init ti813x_hdmi_clk_init(void)
+{
+	int ret = 0;
+	struct clk *parent, *child;
+
+	/* modify the clk name to choose diff clk*/
+	parent = clk_get(NULL, "sysclk20_ck");
+	if (IS_ERR(parent))
+		pr_err("Unable to get [sysclk20_ck] clk\n");
+
+	child = clk_get(NULL, "hdmi_i2s_ck");
+	if (IS_ERR(child))
+		pr_err("Unable to get [hdmi_i2s_ck] clk\n");
+
+	ret = clk_set_parent(child, parent);
+	if (ret < 0)
+		pr_err("Unable to set parent clk [hdmi_i2s_ck]\n");
+
+	clk_put(child);
+	clk_put(parent);
+	pr_debug("{{HDMI Audio MCLK setup completed}}\n");
+}
 #endif
 
 static void __init dm385_evm_init(void)
@@ -754,6 +784,8 @@ static void __init dm385_evm_init(void)
 
 	dm385_spi_init();
 #ifdef CONFIG_SND_SOC_TI81XX_HDMI
+	/* hdmi mclk setup */
+	ti813x_hdmi_clk_init();
 	platform_add_devices(dm385_devices, ARRAY_SIZE(dm385_devices));
 #endif
 	regulator_use_dummy_regulator();

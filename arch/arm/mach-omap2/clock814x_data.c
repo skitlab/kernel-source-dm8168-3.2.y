@@ -4279,7 +4279,7 @@ static struct omap_clk ti814x_clks[] = {
 	CLK("davinci-mcasp.1",	NULL,				&mcasp2_fck,			CK_TI814X | CK_DM385 | CK_TI811X),
 	CLK("davinci-mcasp.2",	NULL,				&mcasp3_fck,			CK_TI814X | CK_TI811X),
 	CLK(NULL,		"hdmi_i2s_ck",			&hdmi_i2s_ck,			CK_TI814X | CK_DM385),
-	CLK(NULL,		"hdmi_i2s_fck",			&hdmi_i2s_fck,			CK_TI814X | CK_DM385),
+	CLK("hdmi-dai",		NULL,				&hdmi_i2s_fck,			CK_TI814X | CK_DM385),
 	CLK(NULL,		"tppss_tso_fck",		&tppss_tso_fck,			CK_TI814X),
 	CLK(NULL,		"atl_fck",			&atl_fck,			CK_TI814X | CK_DM385 | CK_TI811X),
 	CLK(NULL,		"gpio234_dbck",			&gpio234_dbck,			CK_TI814X | CK_DM385 | CK_TI811X),

@@ -311,7 +311,7 @@ u32 omap2_clksel_round_rate_div(struct clk *clk, unsigned long target_rate,
 	}
 
 	if (!clkr->div) {
-		if (!cpu_is_ti816x())
+		if (!cpu_is_ti816x() && !cpu_is_ti814x())
 			pr_err("clock: Could not find divisor for target "
 			       "rate %ld for clock %s parent %s\n",
 				target_rate, clk->name, clk->parent->name);
