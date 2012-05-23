@@ -1251,7 +1251,12 @@ static int cppi41_channel_abort(struct dma_channel *channel)
 		csr  = musb_readw(epio, MUSB_RXCSR);
 		DBG(4, "before rx-teardown: rxcsr %x rxcount %x\n", csr,
 			musb_readw(epio, MUSB_RXCOUNT));
-		csr &= ~(MUSB_RXCSR_H_REQPKT | MUSB_RXCSR_DMAENAB);
+
+		/* For host, clear (just) ReqPkt at end of current packet(s) */
+		if (is_host_active(cppi->musb))
+			csr &= ~MUSB_RXCSR_H_REQPKT;
+
+		csr &= ~MUSB_RXCSR_DMAENAB;
 		musb_writew(epio, MUSB_RXCSR, csr);
 
 		/* wait till xdma completes last 64 bytes transfer from
@@ -1261,7 +1266,11 @@ static int cppi41_channel_abort(struct dma_channel *channel)
 
 		/* Flush FIFO of the endpoint */
 		csr  = musb_readw(epio, MUSB_RXCSR);
-		csr = MUSB_RXCSR_FLUSHFIFO | MUSB_RXCSR_H_WZC_BITS;
+
+		if (csr & MUSB_RXCSR_RXPKTRDY)
+			csr |= MUSB_RXCSR_FLUSHFIFO;
+
+		csr |= MUSB_RXCSR_H_WZC_BITS;
 		musb_writew(epio, MUSB_RXCSR, csr);
 		musb_writew(epio, MUSB_RXCSR, csr);
 		csr  = musb_readw(epio, MUSB_RXCSR);
@@ -1283,22 +1292,6 @@ static int cppi41_channel_abort(struct dma_channel *channel)
 
 		/* For host, ensure ReqPkt is never set again */
 		cppi41_autoreq_update(cppi_ch, USB_NO_AUTOREQ);
-
-		/* For host, clear (just) ReqPkt at end of current packet(s) */
-		if (is_host_active(cppi->musb))
-			csr &= ~MUSB_RXCSR_H_REQPKT;
-		csr |= MUSB_RXCSR_H_WZC_BITS;
-
-		/* Clear DMA enable */
-		csr &= ~MUSB_RXCSR_DMAENAB;
-		musb_writew(epio, MUSB_RXCSR, csr);
-
-		/* Flush the FIFO of endpoint once again */
-		csr  = musb_readw(epio, MUSB_RXCSR);
-		csr |= MUSB_RXCSR_FLUSHFIFO | MUSB_RXCSR_H_WZC_BITS;
-		musb_writew(epio, MUSB_RXCSR, csr);
-
-		udelay(50);
 	}
 
 	/*
