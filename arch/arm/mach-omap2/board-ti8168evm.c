@@ -29,6 +29,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/gpio-regulator.h>
 #include <linux/sii9022a.h>
+#include <linux/clk.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -866,6 +867,36 @@ static struct platform_device *ti8168_devices[] __initdata = {
 	&ti8168_hdmi_audio_device,
 	&ti8168_hdmi_codec_device,
 };
+
+/*
+ * TI8168 PG2.0 support Auto CTS which needs MCLK .
+ * McBSP clk is used as MCLK in PG2.0 which have 4 parent clks
+ * sysclk20, sysclk21, sysclk21 and CLKS(external)
+ * Currently we are using sysclk22 as the parent for McBSP clk
+ * ToDo:
+*/
+void __init ti8168_hdmi_mclk_init(void)
+{
+	int ret = 0;
+	struct clk *parent, *child;
+
+	/* modify the clk name from list to use different clk source */
+	parent = clk_get(NULL, "sysclk22_ck");
+	if (IS_ERR(parent))
+		pr_err("Unable to get [sysclk22_ck] clk\n");
+
+	/* get HDMI dev clk*/
+	child = clk_get(NULL, "hdmi_i2s_ck");
+	if (IS_ERR(child))
+		pr_err("Unable to get [hdmi_i2s_ck] clk\n");
+
+	ret = clk_set_parent(child, parent);
+	if (ret < 0)
+		pr_err("Unable to set parent [hdmi_ck] clk\n");
+
+	pr_debug("HDMI: Audio MCLK setup complete!\n");
+
+}
 #endif
 
 
@@ -901,6 +932,7 @@ static void __init ti8168_evm_init(void)
 		ARRAY_SIZE(ti816x_evm_norflash_partitions), 0);
 	ti816x_gpio_vr_init();
 #ifdef CONFIG_SND_SOC_TI81XX_HDMI
+	ti8168_hdmi_mclk_init();
 	platform_add_devices(ti8168_devices, ARRAY_SIZE(ti8168_devices));
 #endif
 	regulator_has_full_constraints();

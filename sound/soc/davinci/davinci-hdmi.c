@@ -38,7 +38,6 @@
 #include "davinci-mcasp.h"
 #include <plat/hdmi_lib.h>
 
-#define HDMI_MCBSP_CLK_PARENT	"sysclk22_ck"
 #define DAVINCI_HDMI_RATES	(SNDRV_PCM_RATE_48000	\
 				| SNDRV_PCM_RATE_32000	\
 				| SNDRV_PCM_RATE_44100	\
@@ -266,7 +265,6 @@ static __devinit int davinci_hdmi_probe(struct platform_device *pdev)
 	struct snd_hdmi_platform_data *pdata;
 	struct davinci_audio_dev *dev;
 	int ret = 0;
-	struct clk *parent;
 
 	dev = kzalloc(sizeof(struct davinci_audio_dev), GFP_KERNEL);
 	if (!dev)
@@ -283,25 +281,6 @@ static __devinit int davinci_hdmi_probe(struct platform_device *pdev)
 			printk(KERN_ERR "%s Clock get Error\n", pdev->name);
 			ret = -ENODEV;
 		}
-
-		/*
-		 * TI8168 PG2.0 support Auto CTS which needs MCLK .
-		 * McBSP clk is used as MCLK in PG2.0 which have 4 parent clks
-		 * sysclk20, sysclk21, sysclk21 and CLKS(external)
-		 * Currently we are using sysclk22 as the parent for McBSP clk
-		 * ToDo: sysfs entry must be provider to set it frm user level
-		 */
-		parent = clk_get(NULL, HDMI_MCBSP_CLK_PARENT);
-		if (IS_ERR(parent)) {
-			printk(KERN_ERR "Unable to get parent clk\n");
-			ret = -ENODEV;
-		}
-		ret = clk_set_parent(dev->clk, parent);
-		if (ret < 0) {
-			printk(KERN_ERR "Unable to set parent clk\n");
-			ret = -ENODEV;
-		}
-
 		/* Enable the clock */
 		clk_enable(dev->clk);
 		dev->clk_active = 1;
