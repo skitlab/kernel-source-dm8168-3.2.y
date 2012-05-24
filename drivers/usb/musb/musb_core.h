@@ -607,7 +607,6 @@ extern const char musb_driver_name[];
 
 extern void musb_start(struct musb *musb);
 extern void musb_stop(struct musb *musb);
-extern int musb_ep_config_from_table(struct musb *musb);
 
 extern void musb_write_fifo(struct musb_hw_ep *ep, u16 len, const u8 *src);
 extern void musb_read_fifo(struct musb_hw_ep *ep, u16 len, u8 *dst);
@@ -723,7 +722,7 @@ static inline const char *get_dma_name(struct musb *musb)
 		return "?dma?";
 #endif
 }
-extern int __devinit ep_config_from_table(struct musb *musb);
+extern int ep_config_from_table(struct musb *musb);
 
 #ifdef CONFIG_USB_MUSB_HDRC_HCD
 extern void musb_gb_work(struct work_struct *data);

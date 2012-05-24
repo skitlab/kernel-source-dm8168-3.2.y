@@ -809,7 +809,7 @@ void musb_babble_workaround(struct musb *musb)
 	/* Reset the controller */
 	musb_writel(reg_base, USB_CTRL_REG, USB_SOFT_RESET_MASK);
 	while ((musb_readl(reg_base, USB_CTRL_REG) & 0x1))
-		udelay(1);
+		cpu_relax();
 
 	/* Shutdown the on-chip PHY and its PLL. */
 	if (data->set_phy_power)
