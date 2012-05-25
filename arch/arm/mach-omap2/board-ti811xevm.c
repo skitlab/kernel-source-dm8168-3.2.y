@@ -310,6 +310,7 @@ static unsigned char pcf8575_1_port[2] = {0x4F, 0x7F};
 #define VPS_PCF8575_PIN10               (0x1)
 #define VPS_PCF8575_PIN11               (0x2)
 
+#define VPS_PCF8575_LCD_PWR_DW          (0x20)
 #define VPS_THS7375_MASK                (VPS_PCF8575_PIN10 | VPS_PCF8575_PIN11)
 
 #define VPS_THS7360_SD_MASK             (VPS_PCF8575_PIN2 | VPS_PCF8575_PIN5)
@@ -384,6 +385,7 @@ int ti811x_pcf8575_ths7360_hd_enable(enum ti81xx_ths7360_sf_ctrl ctrl)
 }
 static int ti811x_pcf8575_enable_lcd(void)
 {
+	int ret = 0;
 	struct i2c_msg msg = {
 		.addr = pcf8575_1_client->addr,
 		.flags = 0,
@@ -391,11 +393,19 @@ static int ti811x_pcf8575_enable_lcd(void)
 	};
 
         i2c_master_recv(pcf8575_1_client, pcf8575_1_port, 2);
+	/* Selecting on board LCD */
 	pcf8575_1_port[1] |= 0x40;
+	/* Powering on the LCD */
+	pcf8575_1_port[1] &= ~(VPS_PCF8575_LCD_PWR_DW);
+
 	msg.buf = pcf8575_1_port;
 
-	i2c_transfer(pcf8575_1_client->adapter, &msg, 1);
-	return 0;
+	ret = i2c_transfer(pcf8575_1_client->adapter, &msg, 1);
+
+	if (ret < 0)
+		printk(KERN_ERR "I2C: Transfer failed at %s %d with error code: %d\n",
+			__func__, __LINE__, ret);
+	return ret;
 }
 static int pcf8575_video_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
