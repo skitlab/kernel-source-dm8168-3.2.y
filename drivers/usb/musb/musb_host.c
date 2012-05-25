@@ -135,7 +135,7 @@ static void musb_h_tx_flush_fifo(struct musb_hw_ep *ep)
 	int		retries = 1000;
 
 	csr = musb_readw(epio, MUSB_TXCSR);
-	if (csr & MUSB_TXCSR_TXPKTRDY) {
+	while (csr & MUSB_TXCSR_TXPKTRDY) {
 		if (!(csr & MUSB_TXCSR_FIFONOTEMPTY))
 			return ;
 		else
