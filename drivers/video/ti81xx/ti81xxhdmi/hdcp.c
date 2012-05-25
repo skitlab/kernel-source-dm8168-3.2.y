@@ -89,6 +89,7 @@ static void hdcp_wq_authentication_failure(void);
 static void hdcp_work_queue(struct work_struct *work);
 static struct delayed_work *hdcp_submit_work(int event, int delay);
 static void hdcp_cancel_work(struct delayed_work **work);
+static void hdcp_wq_disable(void);
 
 /* Callbacks */
 static void hdcp_start_frame_cb(void);
@@ -130,7 +131,6 @@ int hdcp_user_space_task(int flags)
  * Function: hdcp_wq_disable
  *-----------------------------------------------------------------------------
  */
-#ifdef NOT_YET
 static void hdcp_wq_disable(void)
 {
 	HDCP_STT_DBG( "HDCP: disabled\n");
@@ -140,7 +140,6 @@ static void hdcp_wq_disable(void)
 	hdcp_lib_clear_pending_disable();
 
 }
-#endif
 
 /*-----------------------------------------------------------------------------
  * Function: hdcp_wq_start_authentication
@@ -326,6 +325,8 @@ static void hdcp_wq_authentication_failure(void)
 				"HDCP disabled\n");
 		hdcp.hdcp_state = HDCP_ENABLE_PENDING;
 		hdcp.auth_state = HDCP_STATE_AUTH_FAILURE;
+		/* Notify user space exit */
+		hdcp_user_space_task(TI81XXHDMI_HDCP_EVENT_EXIT);
 	}
 
 }
@@ -366,6 +367,34 @@ static void hdcp_work_queue(struct work_struct *work)
 		hdcp.pending_start = 0;
 		hdcp.hdmi_state = HDMI_STARTED;
 	}
+
+	/* Handle HDCP disable (from any state) */
+	if ((event == HDCP_DISABLE_CTL) ||
+	    (event == HDCP_HPD_LOW_EVENT)) {
+		if (hdcp.hdcp_state != HDCP_DISABLED) {
+			if (hdcp.hdcp_state != HDCP_ENABLE_PENDING)
+				hdcp_wq_disable();
+
+			if (event == HDCP_DISABLE_CTL) {
+				hdcp.hdcp_state = HDCP_DISABLED;
+				/* Notify user space exit */
+				hdcp_user_space_task(TI81XXHDMI_HDCP_EVENT_EXIT);
+			}
+			else
+				hdcp.hdcp_state = HDCP_ENABLE_PENDING;
+
+			hdcp.auth_state = HDCP_STATE_DISABLED;
+		}
+
+		hdcp_lib_clear_pending_disable();
+	}
+
+	if (hdcp.hpd_low) {
+		hdcp.hpd_low = 0;
+		if (event & HDCP_WORKQUEUE_SRC)
+			goto exit_wq;
+	}
+
 	/**********************/
 	/* HDCP state machine */
 	/**********************/
@@ -465,6 +494,7 @@ static void hdcp_work_queue(struct work_struct *work)
 		break;
 	}
 
+exit_wq :
 	kfree(hdcp_w);
 	hdcp_w = 0;
 	if (event == HDCP_START_FRAME_EVENT){
