@@ -2719,6 +2719,8 @@ static inline void ti81xx_init_pcie(void)
 
 		/* MSI clearing is "write 0 to clear" */
 		ti81xx_pcie_data.msi_inv = 1;
+
+		ti81xx_pcie_data.device_id = 0xb800;
 	} else if (cpu_is_ti814x()) {
 
 		/* TODO: Add bitfield macros for following */
@@ -2731,11 +2733,18 @@ static inline void ti81xx_init_pcie(void)
 		omap_ctrl_writel(0x0000609C, TI814X_CONTROL_PCIE_PLLCFG4);
 
 		/* Configure SERDES misc bits - values as is from h/w */
-		if (omap_rev() > TI8148_REV_ES1_0)
-			omap_ctrl_writel(0x0000039E,
-					TI814X_CONTROL_PCIE_MISCCFG);
-		else
-			omap_ctrl_writel(0x00000E7B, TI814X_CONTROL_SMA0);
+		if (!cpu_is_dm385()) {
+			/*
+			 * TODO: MISCCFG write is not needed for PG2.x devices,
+			 * to be tested with if{} part removed
+			 */
+			if (omap_rev() > TI8148_REV_ES1_0)
+				omap_ctrl_writel(0x0000039E,
+						TI814X_CONTROL_PCIE_MISCCFG);
+			else
+				omap_ctrl_writel(0x00000E7B,
+						TI814X_CONTROL_SMA0);
+		}
 
 		udelay(50);
 		omap_ctrl_writel(0x00000004, TI814X_CONTROL_PCIE_PLLCFG0);
@@ -2767,6 +2776,11 @@ static inline void ti81xx_init_pcie(void)
 		 * PCIe configuration.
 		 */
 		ti81xx_pcie_data.force_x1 = 1;
+
+		if (cpu_is_dm385())
+			ti81xx_pcie_data.device_id = 0xb802;
+		else
+			ti81xx_pcie_data.device_id = 0xb801;
 	}
 
 	platform_device_register(&ti81xx_pcie_device);

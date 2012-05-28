@@ -51,6 +51,7 @@ static int msi_irq_base;
 static int msi_irq_num;
 static int force_x1;
 static int msi_inv;
+static unsigned short int device_id;
 
 /* Details for inbound access to RAM, passed from platform data */
 static u32 ram_base, ram_end;
@@ -710,6 +711,14 @@ static int ti81xx_pcie_setup(int nr, struct pci_sys_data *sys)
 	}
 
 	/*
+	 * Override the default device ID if required - TI81XX devices generally
+	 * come up with ID 0x8888.
+	 */
+	if (device_id)
+		__raw_writew(device_id, reg_virt + SPACE0_LOCAL_CFG_OFFSET +
+				PCI_DEVICE_ID);
+
+	/*
 	 * Initiate Link Training. We will delay for L0 as specified by
 	 * standard, but will still proceed and return success irrespective of
 	 * L0 status as this will be handled by explicit L0 state checks during
@@ -1133,6 +1142,7 @@ static int ti81xx_pcie_probe(struct platform_device *pdev)
 	msi_irq_num = pdata->msi_irq_num;
 	force_x1 = pdata->force_x1;
 	msi_inv = pdata->msi_inv;
+	device_id = pdata->device_id;
 
 	pr_info(DRIVER_NAME ": Invoking PCI BIOS...\n");
 	pci_common_init(&ti81xx_pci);
