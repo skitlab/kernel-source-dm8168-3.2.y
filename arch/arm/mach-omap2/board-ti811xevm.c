@@ -392,12 +392,11 @@ static int ti811x_pcf8575_enable_lcd(void)
 		.len = 2,
 	};
 
-        i2c_master_recv(pcf8575_1_client, pcf8575_1_port, 2);
 	/* Selecting on board LCD */
 	pcf8575_1_port[1] |= 0x40;
 	/* Powering on the LCD */
 	pcf8575_1_port[1] &= ~(VPS_PCF8575_LCD_PWR_DW);
-
+       
 	msg.buf = pcf8575_1_port;
 
 	ret = i2c_transfer(pcf8575_1_client->adapter, &msg, 1);
