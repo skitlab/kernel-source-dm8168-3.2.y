@@ -2864,25 +2864,46 @@ static int ti81xx_rtc_init(void)
 	__raw_writel(KICK0_REG_VAL, base + KICK0_REG);
 	__raw_writel(KICK1_REG_VAL, base + KICK1_REG);
 
-	/* Reset the RTC */
-	__raw_writel(RESET_VAL, base + OSC_REG);
+	if (cpu_is_ti811x()) {
+		/*
+		 * Enable the 32K OSc
+		 * TODO: Need a better way to handle this
+		 * Since we want the clock to be running before mmc init
+		 * we need to do it before the rtc probe happens
+		 */
+		__raw_writel(0x48, base + 0x54);
+	} else {
+		/* Reset the RTC */
+		__raw_writel(RESET_VAL, base + OSC_REG);
 
-	/*
-	 * After setting the SW_RESET bit, RTC registers must not be accessed
-	 * for 3 32kHz clock cycles (roughly 2200 OCP cycles).
-	 */
-	udelay(100);
+		/*
+		 * After setting the SW_RESET bit, RTC registers must
+		 * not be accessed for 3 32kHz clock cycles
+		 * (roughly 2200 OCP cycles).
+		 */
+		udelay(100);
 
-	/*
-	 * Unlock the rtc's registers again as the registers would have been
-	 * locked due to reset
-	 */
-	__raw_writel(KICK0_REG_VAL, base + KICK0_REG);
-	__raw_writel(KICK1_REG_VAL, base + KICK1_REG);
-
+		/*
+		 * Unlock the rtc's registers again as the registers
+		 * would have been locked due to reset
+		 */
+		__raw_writel(KICK0_REG_VAL, base + KICK0_REG);
+		__raw_writel(KICK1_REG_VAL, base + KICK1_REG);
+	}
 	iounmap(base);
 
 	return  platform_device_register(&ti81xx_rtc_device);
+}
+static void __init clkout2_enable(void)
+{
+	struct clk *ck_32;
+
+	ck_32 = clk_get(NULL, "osc_32k_ck");
+	if (IS_ERR(ck_32)) {
+		pr_err("Cannot clk_get ck_32\n");
+		return;
+	}
+	clk_enable(ck_32);
 }
 #endif
 
@@ -2924,6 +2945,7 @@ static int __init omap2_init_devices(void)
 	omap_init_ahci();
 #ifdef CONFIG_ARCH_TI81XX
 	ti81xx_rtc_init();
+	clkout2_enable();
 #endif
 	return 0;
 }
