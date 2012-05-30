@@ -881,7 +881,7 @@ static irqreturn_t ti81xx_interrupt(int irq, void *hci)
 		ret = IRQ_HANDLED;
 #endif
 	}
-	usbintr &= ~0xFFFF;
+	usbintr &= ~USB_INTR_TXFIFO_MASK;
 	/*
 	 * DRVVBUS IRQs are the only proxy we have (a very poor one!) for
 	 * AM3517's missing ID change IRQ.  We need an ID change IRQ to
