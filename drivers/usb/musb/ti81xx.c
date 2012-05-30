@@ -1039,26 +1039,59 @@ int ti81xx_musb_set_mode(struct musb *musb, u8 musb_mode)
 	return 0;
 }
 
-#define USBPHY_RX_CALIB		1
+#define USBPHY_RX_CALIB			1
+#define USB2PHY_RXCALIB_REG_OFFS	0x304
+#define USB2PHY_RXCALIB_DONE		(1 << 22)
+#define USB2PHY_SQ_CAL_DONE		(1 << 1)
+#define USB2PHY_DAC3_OFFS		3
+#define USB2PHY_DAC2_OFFS		9
+#define USB2PHY_DAC1_OFFS		15
+#define USB2PHY_DAC1_EN_OFFS		21
+#define USB2PHY_DAC2_EN_OFFS		14
+#define USB2PHY_DAC3_EN_OFFS		8
 void usb2phy_config(struct musb *musb, u8 config)
 {
-	u32 regs_offset, val, sign, rx_calib, timeout = 0x1000;
+	u32 regs_offset, val, sign, rx_calib, timeout = 0xfffff;
+	u8 dac1, dac2, dac3;
 
 	switch (config)	{
 	case USBPHY_RX_CALIB:
 
-		regs_offset = 0x304;
-		/* wait till rx_calib done become true */
+		regs_offset = USB2PHY_RXCALIB_REG_OFFS;
+		/* wait till rx_calib and squeltch calib done bit become true */
 		do {
 			val = musb_readl(musb->ctrl_base, regs_offset);
-		} while (timeout-- && !(val & (1 << 22)));
-		pr_info("%s: default rxcalib regval %08x\n", __func__, val);
+			udelay(5);
+		} while (timeout-- && !((val & USB2PHY_RXCALIB_DONE)
+			&& (val & USB2PHY_SQ_CAL_DONE)));
+
+		DBG(4, "default rxcalib regval %08x\n", val);
+
+		if (!((val & USB2PHY_RXCALIB_DONE) &&
+			(val & USB2PHY_SQ_CAL_DONE))) {
+			ERR("usb2phy rxcalibration failed\n");
+			return ;
+		}
 
 		sign = (val >> 29) & 1;
 		rx_calib = (val >> 24) & 0x1F;
-		pr_info("%s: musb(%d) sign %d current RXcalib %d\n", __func__,
-				musb->id, sign, rx_calib);
+		DBG(4, "musb(%d) sign %d current RXcalib %d\n", musb->id,
+				sign, rx_calib);
 
+		dac3 = (val >> USB2PHY_DAC3_OFFS) & 0x1F;
+		dac2 = (val >> USB2PHY_DAC2_OFFS) & 0x1F;
+		dac1 = (val >> USB2PHY_DAC1_OFFS) & 0x3F;
+		DBG(4, "initial value of DAC3 (%x) DAC2(%x) DAC1(%x)\n", dac3,
+				dac2, dac1);
+
+		/* add code of 2 for dac3/dac2 */
+		dac3 += 2;
+		if (dac3 > 0x1F)
+			dac3 = 0x1F;
+
+		dac2 += 2;
+		if (dac2 > 0x1F)
+			dac2 = 0x1F;
 		/* Always reduce the threshold by 15 codes (~15mV
 		 * If sign bit is .1., add 0xf to the magnitude bits
 		 * new_mag = old_mag + 0xf;
@@ -1083,9 +1116,26 @@ void usb2phy_config(struct musb *musb, u8 config)
 		}
 		val &= ~(0x3F << 24);
 		val |= ((rx_calib << 24) | (sign << 29) | (1 << 30));
-		pr_info("%s: musb(%d) sign %d computed RXcalib %d written"
-			" val %x\n", __func__, musb->id, sign, rx_calib, val);
+
+		/* override all DAC values */
+		val &= ~((0x1F << USB2PHY_DAC3_OFFS)
+			| (0x1F << USB2PHY_DAC2_OFFS)
+			| (0x3F << USB2PHY_DAC1_OFFS));
+		val |= ((dac3 << USB2PHY_DAC3_OFFS)
+			| (dac2 << USB2PHY_DAC2_OFFS)
+			| (dac1 << USB2PHY_DAC1_OFFS));
+		val |= ((1 << USB2PHY_DAC3_EN_OFFS)
+			| (1 << USB2PHY_DAC2_EN_OFFS)
+			| (1 << USB2PHY_DAC1_EN_OFFS));
+
+		DBG(4, "musb(%d) sign(%d) rxcalib(%d) dac3(%x) dac2(%x) "
+			"written val %x\n", musb->id, sign, rx_calib,
+			dac3, dac2, val);
 		musb_writel(musb->ctrl_base, regs_offset, val);
+		mdelay(1);
+		val = musb_readl(musb->ctrl_base, regs_offset);
+		pr_info("%s: musb(%d) rxcalib done, rxcalib read value %x\n",
+			__func__, musb->id, val);
 
 	break;
 
