@@ -4565,7 +4565,7 @@ static struct omap_clk ti814x_clks[] = {
 void _update_fixed_divisors(void)
 {
 	if (cpu_is_dm385() || (cpu_is_ti814x() &&
-			omap_rev() > TI8148_REV_ES1_0)) {
+			omap_rev() > TI8148_REV_ES1_0) || cpu_is_ti811x()) {
 		usb_dpll_div5_ck.fixed_div = 1;
 	} else {
 		usb_dpll_div5_ck.fixed_div = 5;
