@@ -36,6 +36,20 @@
 
 #include "ti81xx_pcie_bootdrv.h"
 
+/*
+ * Set this flag to indicate the EP being booted is TI813X and requires PCIe
+ * boot errata of re-init PCIe on EP needs to be applied.
+ *
+ * --> Note that, since the TI813X device come up with same ID as TI814X
+ *  devices, the s/w on RC has no way to distingush between them and only this
+ *  flag will tell so to this boot driver.
+ *
+ *  In short: eprst=1 for TI813X device, else keep 0 (default).
+ */
+static int eprst;
+module_param(eprst, int, 0);
+MODULE_PARM_DESC(eprst, "--> 1 = Trigger reset on TI813X EP and reconfigure as per errata.");
+
 /* PCIe application registers virtual address (mapped to PCI window) */
 #define PCI_REGV(reg)           (reg_virt + reg)
 
@@ -54,6 +68,10 @@ struct pci_dev *ti81xx_pci_dev;
 static unsigned long reg_phys, reg_virt, reg_len;
 static unsigned long ocmc1_phys, ocmc1_virt, ocmc1_len;
 static unsigned long ddr_phys, ddr_virt, ddr_len;
+
+static unsigned long  bar_start[6];
+static unsigned long  bar_len[6];
+static unsigned long  bar_flags[6];
 
 static int ti81xx_pci_major;
 static struct cdev ti81xx_pci_cdev;
@@ -133,7 +151,7 @@ static int ti81xx_ep_setup_bar(unsigned int bar_num, unsigned int addr)
 	__raw_writel((u32)(bar_val), PCI_REGV(IB_START_LO(ib_num)));
 
 	if (mode_64bit == 1)
-		__raw_writel((u32)(bar_val >> 32),
+		__raw_writel((u32)(bar_val >> 16 >> 16),
 				PCI_REGV(IB_START_HI(ib_num)));
 	else if (mode_64bit == 0)
 		__raw_writel(0, PCI_REGV(IB_START_HI(ib_num)));
@@ -154,9 +172,6 @@ static int ti81xx_pci_get_resources(void)
 	int i = 0;
 	int max_index = 0;
 	int index_inc = 0;
-	unsigned long  bar_start[3];
-	unsigned long  bar_len[3];
-	unsigned long  bar_flags[3];
 	unsigned long  flag_mode = 0;
 
 	flag_mode = (unsigned long) pci_resource_flags(ti81xx_pci_dev, 0);
@@ -543,6 +558,82 @@ static int __init ti81xx_ep_pci_init(void)
 	val = __raw_readl(PCI_REGV(CMD_STATUS));
 	val |= IB_XLAT_EN_VAL;
 	__raw_writel(val, PCI_REGV(CMD_STATUS));
+
+	/*
+	 * Actually, this should only be done for TI813X but due to a bug, the
+	 * device ID is same as TI814X so we force this even for TI814X.
+	 *
+	 * XXX: Some initialization is repeated below to account for reset and
+	 * it could look better by restructuring (moving to some functions) the
+	 * code above to avoid repeating blocks of code but it is for later as
+	 * this anyway is a hack only applicable for TI813X using PCIe ROM boot
+	 * method.
+	 */
+	if ((eprst == 1) && (pci_device_id == TI814X_PCI_DEVICE_ID)) {
+		int i;
+		unsigned short devid;
+		unsigned int usec_loops = 100;
+
+		/* Do writes as per TI813X errata */
+		__raw_writel(0x22C3d, ocmc1_virt + 0x1CF84);
+		__raw_writel(0x12345678, ocmc1_virt + 0x1B7FC);
+
+		mdelay(10);
+
+		/* Allow EP to come up again */
+		do {
+			pci_read_config_word(ti81xx_pci_dev, PCI_DEVICE_ID,
+					&devid);
+			if (!usec_loops) {
+				dev_err(&ti81xx_pci_dev->dev, "TI813X device "
+						"access timed out, quit\n");
+				goto err_post_cdev;
+			}
+			usec_loops--;
+			udelay(1);
+		} while (devid != TI814X_PCI_DEVICE_ID);
+
+		ret = pci_enable_device(ti81xx_pci_dev);
+		if (ret) {
+			dev_err(&ti81xx_pci_dev->dev,
+					"Failed to enable device.\n");
+			goto err_post_cdev;
+		}
+
+		for (i = 0; i < 6; i++) {
+			pci_write_config_dword(ti81xx_pci_dev,
+					PCI_BASE_ADDRESS_0 + (4 * i),
+					bar_start[i]);
+
+			if (mode_64bit) {
+				unsigned int val = bar_start[i] >> 16 >> 16;
+				i++;
+				pci_write_config_dword(ti81xx_pci_dev,
+						PCI_BASE_ADDRESS_0 + (4 * i),
+						val);
+			}
+		}
+
+		ti81xx_pci_set_master();
+
+		/*
+		 * Set up default inbound access windows - decided at run time
+		 * after query mode of operation 32/64 bit
+		 */
+		if (mode_64bit == 1) {
+			ti81xx_ep_setup_bar(2, bar1_ib_offset);
+			ti81xx_ep_setup_bar(4, TI81XX_EP_KERNEL_IB_OFFSET);
+		}
+		if (mode_64bit == 0) {
+			ti81xx_ep_setup_bar(1, bar1_ib_offset);
+			ti81xx_ep_setup_bar(2, TI81XX_EP_KERNEL_IB_OFFSET);
+		}
+
+		/* Enable inbound translation */
+		val = __raw_readl(PCI_REGV(CMD_STATUS));
+		val |= IB_XLAT_EN_VAL;
+		__raw_writel(val, PCI_REGV(CMD_STATUS));
+	}
 
 	return 0 ;
 
