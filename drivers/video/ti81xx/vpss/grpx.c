@@ -1392,7 +1392,7 @@ int __init vps_grpx_init(struct platform_device *pdev)
 	struct vps_payload_info *pinfo;
 	u32 size = 0;
 	u32 offset = 0;
-	u8 numends = 0;
+	int numends = 0, numgrpx;
 	VPSSDBG("grpx init\n");
 	INIT_LIST_HEAD(&gctrl_list);
 
@@ -1421,9 +1421,11 @@ int __init vps_grpx_init(struct platform_device *pdev)
 
 	pinfo->size = PAGE_ALIGN(size);
 	memset(pinfo->vaddr, 0, pinfo->size);
-
-	for (i = 0; i < VPS_DISP_GRPX_MAX_INST; i++) {
+	numgrpx = v_pdata->numgrpx > VPS_DISP_GRPX_MAX_INST ? \
+		VPS_DISP_GRPX_MAX_INST : v_pdata->numgrpx;
+	for (i = 0; i < numgrpx; i++) {
 		struct vps_grpx_ctrl *gctrl;
+		int j;
 		gctrl = kzalloc(sizeof(*gctrl), GFP_KERNEL);
 
 		if (gctrl == NULL) {
@@ -1440,37 +1442,12 @@ int __init vps_grpx_init(struct platform_device *pdev)
 		gctrl->grpx_num = i;
 		vps_grpx_add_ctrl(gctrl);
 		mutex_init(&gctrl->gmutex);
-		numends = 1;
+		numends = v_pdata->gdata[i].numends;
 		INIT_LIST_HEAD(&gctrl->cb_list);
-		switch (i) {
-		case 0:
+		gctrl->snode = v_pdata->gdata[i].snode;
+		for (j = 0; j < numends; j++)
+			gctrl->enodes[j] = v_pdata->gdata[i].enode[j];
 
-			gctrl->snode = VPS_DC_GRPX0_INPUT_PATH;
-			gctrl->enodes[0] = VPS_DC_HDMI_BLEND;
-			break;
-		case 1:
-			gctrl->snode = VPS_DC_GRPX1_INPUT_PATH;
-			if (v_pdata->cpu == CPU_DM816X)
-				gctrl->enodes[0] = VPS_DC_HDCOMP_BLEND;
-			else
-				gctrl->enodes[0] = VPS_DC_DVO2_BLEND;
-
-			break;
-		case 2:
-			gctrl->snode = VPS_DC_GRPX2_INPUT_PATH;
-			gctrl->enodes[0] = VPS_DC_SDVENC_BLEND;
-			break;
-		}
-#if 0
-		r = vps_dc_set_node(gctrl->enodes[0],
-				    gctrl->snode,
-				    1);
-		if (r) {
-			VPSSERR("failed to set grpx%d nodes\n",
-				i);
-			goto cleanup;
-		}
-#endif
 		gctrl->numends = numends;
 		r = vps_grpx_create_sysfs(gctrl);
 		if (r)

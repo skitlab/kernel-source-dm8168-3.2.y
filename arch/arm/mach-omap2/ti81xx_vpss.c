@@ -99,6 +99,64 @@ static int __init ti81xx_vpss_init(void)
 		vps_pdata.pcf_ths_sd_set = NULL;
 	}
 
+	/*set up the grpx connections*/
+	vps_pdata.numgrpx = VPS_DISP_GRPX_MAX_INST;
+	/*grpx0 out to hdmi*/
+	vps_pdata.gdata[0].snode = VPS_DC_GRPX0_INPUT_PATH;
+	vps_pdata.gdata[0].numends = 1;
+	vps_pdata.gdata[0].enode[0] = VPS_DC_HDMI_BLEND;
+
+	/*grpx1 out to HDCOMP(DM816X) or DVO2(other platform)*/
+	vps_pdata.gdata[1].snode = VPS_DC_GRPX1_INPUT_PATH;
+	vps_pdata.gdata[1].numends = 1;
+	if (cpu_is_ti816x())
+		vps_pdata.gdata[1].enode[0] = VPS_DC_HDCOMP_BLEND;
+	else
+		vps_pdata.gdata[1].enode[0] = VPS_DC_DVO2_BLEND;
+	/*grpx2 out to SD*/
+	vps_pdata.gdata[2].snode = VPS_DC_GRPX2_INPUT_PATH;
+	vps_pdata.gdata[2].numends = 1;
+	vps_pdata.gdata[2].enode[0] = VPS_DC_SDVENC_BLEND;
+
+
+	/*set up the v4l2 video display connections*/
+	vps_pdata.numvideo = 3;
+	/*/dev/video1 -> HDMI*/
+	vps_pdata.vdata[0].idx = 0;
+	vps_pdata.vdata[0].numedges = 2;
+	vps_pdata.vdata[0].snodes[0] = VPS_DC_VCOMP_MUX;
+	vps_pdata.vdata[0].snodes_inputid[0] = VPS_DC_BP0_INPUT_PATH;
+	vps_pdata.vdata[0].snodes[1] = VPS_DC_VCOMP;
+	vps_pdata.vdata[0].snodes_inputid[1] = VPS_DC_VCOMP_MUX;
+	vps_pdata.vdata[0].numoutput = 1;
+	vps_pdata.vdata[0].enodes[0] = VPS_DC_HDMI_BLEND;
+	vps_pdata.vdata[0].enodes_inputid[0] =
+			VPS_DC_CIG_NON_CONSTRAINED_OUTPUT;
+
+	/*/dev/video2 -> HDCOMP or DVO2*/
+	vps_pdata.vdata[1].idx = 1;
+	vps_pdata.vdata[1].numedges = 2;
+	vps_pdata.vdata[1].snodes[0] = VPS_DC_HDCOMP_MUX;
+	vps_pdata.vdata[1].snodes_inputid[0] = VPS_DC_BP1_INPUT_PATH;
+	vps_pdata.vdata[1].snodes[1] = VPS_DC_CIG_PIP_INPUT;
+	vps_pdata.vdata[1].snodes_inputid[1] = VPS_DC_HDCOMP_MUX;
+	vps_pdata.vdata[1].numoutput = 1;
+	if (cpu_is_ti816x())
+		vps_pdata.vdata[1].enodes[0] = VPS_DC_HDCOMP_BLEND;
+	else
+		vps_pdata.vdata[1].enodes[0] = VPS_DC_DVO2_BLEND;
+
+	vps_pdata.vdata[1].enodes_inputid[0] = VPS_DC_CIG_PIP_OUTPUT;
+
+	/*/dev/video3 is SD only*/
+	vps_pdata.vdata[2].idx = 2;
+	vps_pdata.vdata[2].numedges = 1;
+	vps_pdata.vdata[2].snodes_inputid[0] = VPS_DC_SEC1_INPUT_PATH;
+	vps_pdata.vdata[2].snodes[0] = VPS_DC_SDVENC_MUX;
+	vps_pdata.vdata[2].numoutput = 1;
+	vps_pdata.vdata[2].enodes[0] = VPS_DC_SDVENC_BLEND;
+	vps_pdata.vdata[2].enodes_inputid[0] = VPS_DC_SDVENC_MUX;
+
 	vpss_device.dev.platform_data = &vps_pdata;
 	r = platform_device_register(&vpss_device);
 	if (r)

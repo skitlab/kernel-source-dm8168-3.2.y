@@ -31,12 +31,33 @@
 #include <linux/vps_cfgdei.h>
 #include <linux/vps_display.h>
 
+#define VPS_DISPLAY_MAX_EDGES   2
+
 enum ti81xx_cpu {
 	CPU_DM816X = 0,
 	CPU_DM814X,
 	CPU_DM813X,
 	CPU_DM811X,
 	CPU_MAX = 0xFFFFFFFF
+};
+
+struct vps_platform_grpx {
+	int snode;
+	u32 numends;
+	int enode[VPS_DC_MAX_VENC];
+};
+
+struct vps_platform_video {
+	/*idx 0: /dev/video1, 1 /dev/video2, 2:/dev/video3(SD output only)*/
+	int idx;
+	/*display nodes(not including the final blend node)*/
+	int numedges;
+	int snodes[VPS_DISPLAY_MAX_EDGES];
+	int snodes_inputid[VPS_DISPLAY_MAX_EDGES];
+	/*num vencs connected to the input only blender is considered here*/
+	int numoutput;
+	int enodes[VPS_DC_MAX_VENC - 1];
+	int enodes_inputid[VPS_DC_MAX_VENC - 1];
 };
 
 enum ti81xx_ths_filter_ctrl {
@@ -59,6 +80,10 @@ struct vps_platform_data {
 	enum ti81xx_cpu cpu;
 	u32             numvencs;
 	u32             vencmask;
+	u32             numgrpx;
+	struct vps_platform_grpx  gdata[VPS_DISP_GRPX_MAX_INST];
+	u32             numvideo;
+	struct vps_platform_video vdata[VPS_DISPLAY_INST_MAX];
 	int (*pcf_ths_init)(void);
 	int (*pcf_ths_exit)(void);
 	int (*pcf_ths_hd_set)(u32 mode);
@@ -193,7 +218,6 @@ int vps_grpx_unregister_isr(vsync_callback_t cb, void *arg, int idx);
 #define VPSS_VID_CAPS_COLOR                 8
 
 
-#define VPS_DISPLAY_MAX_EDGES   2
 #define  MAX_BUFFER_NUM        32
 
 struct vps_video_ctrl {
