@@ -68,6 +68,8 @@ struct dc_blender_info {
 	char                     *name;
 	u32                      idx;
 	bool                     enabled;
+	/*if it is not mask, then this blender will not shown up*/
+	bool                     mask;
 	struct kobject           kobj;
 	u32                      actnodes;
 	struct vps_dispctrl      *dctrl;

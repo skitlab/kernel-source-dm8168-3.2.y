@@ -299,7 +299,9 @@ static int get_idx_from_vid(int vid, int *idx)
 {
 	int i;
 
-	for (i = 0; i < disp_ctrl->numvencs; i++) {
+	for (i = 0; i < VPS_DC_MAX_VENC; i++) {
+		if (!disp_ctrl->blenders[i].mask)
+			continue;
 		if (vid == venc_name[i].vid) {
 			*idx = venc_name[i].idx;
 			return 0;
@@ -315,8 +317,11 @@ static int dc_get_vencid(char *vname, int *vid)
 
 	int i;
 
-	for (i = 0; i < disp_ctrl->numvencs; i++) {
+	for (i = 0; i < VPS_DC_MAX_VENC; i++) {
 		const struct dc_vencname_info *vnid = &venc_name[i];
+		if (!disp_ctrl->blenders[i].mask)
+			continue;
+
 		if (sysfs_streq(vname, vnid->name)) {
 			*vid = vnid->vid;
 			return 0;
@@ -329,8 +334,10 @@ static int get_bid_from_idx(int idx, int *bid)
 {
 	int i;
 
-	for (i = 0; i < disp_ctrl->numvencs; i++) {
+	for (i = 0; i < VPS_DC_MAX_VENC; i++) {
 		const struct dc_vencname_info *vnid = &venc_name[i];
+		if (!disp_ctrl->blenders[i].mask)
+			continue;
 		if (vnid->idx == idx) {
 			*bid = vnid->bid;
 			return 0;
@@ -617,7 +624,9 @@ static int dc_get_format_from_bid(int bid,
 {
 	int i;
 	int r = -EINVAL;
-	for (i = 0; i < disp_ctrl->numvencs; i++) {
+	for (i = 0; i < VPS_DC_MAX_VENC; i++) {
+		if (!disp_ctrl->blenders[i].mask)
+			continue;
 		if (bid == venc_name[i].bid) {
 			r = dc_get_format_from_vid(venc_name[i].vid,
 						   width,
@@ -758,13 +767,11 @@ static int dc_set_vencmode(struct vps_dcvencinfo *vinfo)
 	if ((disp_ctrl == NULL) || (disp_ctrl->fvid2_handle == NULL))
 		return -EINVAL;
 
-
 	/*get the current setting based on the app inputs*/
 	for (i = 0; i < vinfo->numvencs; i++)
 		vi.modeinfo[i].vencid = vinfo->modeinfo[i].vencid;
 
 	vi.numvencs = vinfo->numvencs;
-
 	r = dc_get_vencinfo(&vi);
 
 	if (r) {
@@ -806,12 +813,14 @@ static int dc_set_vencmode(struct vps_dcvencinfo *vinfo)
 
 		} else {
 
-			memcpy(&disp_ctrl->vinfo->modeinfo \
-				    [disp_ctrl->vinfo->numvencs++],
-				&vinfo->modeinfo[i],
-				sizeof(struct vps_dcmodeinfo));
+			if (vinfo->modeinfo[i].vencid & disp_ctrl->vencmask) {
+				memcpy(&disp_ctrl->vinfo->modeinfo \
+					    [disp_ctrl->vinfo->numvencs++],
+					&vinfo->modeinfo[i],
+					sizeof(struct vps_dcmodeinfo));
 
-			vencs |= vinfo->modeinfo[i].vencid;
+				vencs |= vinfo->modeinfo[i].vencid;
+			}
 		}
 	}
 	if (vinfo->tiedvencs) {
@@ -2855,10 +2864,26 @@ int __init vps_dc_init(struct platform_device *pdev,
 		r = -ENOMEM;
 		goto cleanup;
 	}
-	disp_ctrl->numvencs = v_pdata->numvencs;
-	venc_info.numvencs = disp_ctrl->numvencs;
-	disp_ctrl->vencmask = v_pdata->vencmask;
 
+	disp_ctrl->vencmask = v_pdata->vencmask & 0xF;
+	/*get the id of VENC to be mask*/
+	i = 0;
+	while (disp_ctrl->vencmask >> i) {
+		if ((disp_ctrl->vencmask  >> i++) & 1) {
+			if (i == 2)
+				disp_ctrl->blenders[HDCOMP].mask = 1;
+			else if (i == 1)
+				disp_ctrl->blenders[HDMI].mask = 1;
+			else
+				disp_ctrl->blenders[i - 2].mask = 1;
+		}
+	}
+
+
+	if (i != v_pdata->numvencs)
+		v_pdata->numvencs = i;
+
+	disp_ctrl->numvencs = v_pdata->numvencs;
 	assign_payload_addr(disp_ctrl, dc_payload_info, &offset);
 
 	vps_dc_ctrl_init(disp_ctrl);
@@ -2888,9 +2913,10 @@ int __init vps_dc_init(struct platform_device *pdev,
 		VPSSERR("failed to create dctrl sysfs file.\n");
 
 	/*create sysfs*/
-	for (i = 0; i < disp_ctrl->numvencs; i++) {
+	for (i = 0; i < VPS_DC_MAX_VENC; i++) {
 		struct dc_blender_info *blend = &disp_ctrl->blenders[i];;
-
+		if (!blend->mask)
+			continue;
 		blend->idx = i;
 		blend->actnodes = 0;
 		blend->name = (char *)venc_name[i].name;
@@ -2907,9 +2933,11 @@ int __init vps_dc_init(struct platform_device *pdev,
 			continue;
 		}
 	}
-
-	disp_ctrl->tiedvenc = tied_vencs;
-	venc_info.tiedvencs = disp_ctrl->tiedvenc;
+	if ((tied_vencs & disp_ctrl->vencmask) == tied_vencs) {
+		disp_ctrl->tiedvenc = tied_vencs;
+		venc_info.tiedvencs = disp_ctrl->tiedvenc;
+	} else
+		VPSSERR("tied venc 0x%x is not supported\n", tied_vencs);
 
 
 	/*parse the mode*/
@@ -2919,11 +2947,12 @@ int __init vps_dc_init(struct platform_device *pdev,
 		goto cleanup;
 	}
 	/*set up the default clksrc and output format*/
-	for (i = 0; i < disp_ctrl->numvencs; i++) {
+	for (i = 0; i < VPS_DC_MAX_VENC; i++) {
 		struct vps_dcvencclksrc *clksrcp =
 				&disp_ctrl->blenders[i].clksrc;
 		struct vps_dcoutputinfo opinfo;
-
+		if (!disp_ctrl->blenders[i].mask)
+			continue;
 		clksrcp->venc = venc_name[i].vid;
 		/*set the venc output*/
 		opinfo.dvofidpolarity = VPS_DC_POLARITY_ACT_HIGH;
@@ -2997,7 +3026,7 @@ int __init vps_dc_init(struct platform_device *pdev,
 	/*for DM813X, HDCOMP share the frequency with either HDMI or DVO2
 	so if HDCOMP's pixel clock does not match either HDMI or DVO2,
 	we need force HDCOMP to one based on the clock mux*/
-	if (v_pdata->cpu == CPU_DM813X) {
+	if (v_pdata->cpu == CPU_DM813X && (disp_ctrl->blenders[HDCOMP].mask)) {
 		u8 hdcomp_clk;
 		hdcomp_clk = hdcomppll(HDCOMP);
 		switch (hdcomp_clk) {
@@ -3031,7 +3060,11 @@ int __init vps_dc_init(struct platform_device *pdev,
 		}
 	}
 	/*set the clock source*/
-	for (i = 0; i < venc_info.numvencs; i++) {
+	for (i = 0; i < VPS_DC_MAX_VENC; i++) {
+
+		if (!disp_ctrl->blenders[i].mask)
+			continue;
+
 		if (disp_ctrl->blenders[i].idx != SDVENC) {
 			r = dc_set_clksrc(
 				&disp_ctrl->blenders[i].clksrc);
@@ -3043,7 +3076,9 @@ int __init vps_dc_init(struct platform_device *pdev,
 		}
 	}
 	/*config the PLL*/
-	for (i = 0; i < venc_info.numvencs; i++) {
+	for (i = 0; i < VPS_DC_MAX_VENC; i++) {
+		if (!disp_ctrl->blenders[i].mask)
+			continue;
 		if ((SDVENC == i) && (v_pdata->cpu != CPU_DM816X))
 			venc_info.modeinfo[i].minfo.pixelclock = 54000;
 
@@ -3088,8 +3123,11 @@ int __exit vps_dc_deinit(struct platform_device *pdev)
 		kobject_del(&disp_ctrl->kobj);
 		kobject_put(&disp_ctrl->kobj);
 
-		for (i = 0; i < disp_ctrl->numvencs; i++) {
+		for (i = 0; i < VPS_DC_MAX_VENC; i++) {
 			struct ti81xx_external_encoder *extenc;
+			if (!disp_ctrl->blenders[i].mask)
+				continue;
+
 			kobject_del(&disp_ctrl->blenders[i].kobj);
 			kobject_put(&disp_ctrl->blenders[i].kobj);
 			/*remove all register devices, should not happen*/
@@ -3155,6 +3193,10 @@ int TI81xx_register_display_panel(struct TI81xx_display_driver *panel_driver,
 	}
 	display_num = panel_driver->display;
 	if (display_num >= disp_ctrl->numvencs) {
+		return -1;
+	}
+	if (!disp_ctrl->blenders[display_num].mask) {
+		VPSSERR("the VENC is not enabled in the platform level\n");
 		return -1;
 	}
 	dc_lock(disp_ctrl);
