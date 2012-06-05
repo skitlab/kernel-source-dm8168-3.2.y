@@ -905,7 +905,7 @@ static irqreturn_t ti81xx_interrupt(int irq, void *hci)
 		ERR("Please issue long reset to make usb functional !!\n");
 	}
 
-	if (usbintr & (USB_INTR_DRVVBUS << USB_INTR_USB_SHIFT)) {
+	if (musb->int_usb & (USB_INTR_DRVVBUS | MUSB_INTR_VBUSERROR)) {
 		int drvvbus = musb_readl(reg_base, USB_STAT_REG);
 		void __iomem *mregs = musb->mregs;
 		u8 devctl = musb_readb(mregs, MUSB_DEVCTL);
