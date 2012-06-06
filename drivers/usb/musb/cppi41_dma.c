@@ -99,10 +99,11 @@ struct cppi41_channel {
 	u8  zlp_queued;
 	u8  inf_mode;
 	u8  tx_complete;
-	u8  txf_complete;
+	u8  txdma_intr_first;
 	u8  txfifo_intr_enable;
 	u8  count;
 	u8  hb_mult;
+	u8  txfifo_intr_first;
 };
 
 /**
@@ -139,6 +140,7 @@ struct cppi41 {
 
 struct usb_cppi41_info usb_cppi41_info[2];
 EXPORT_SYMBOL(usb_cppi41_info);
+static void usb_process_tx_queue(struct cppi41 *cppi, unsigned index);
 
 #ifdef DEBUG_CPPI_TD
 static void print_pd_list(struct usb_pkt_desc *pd_pool_head)
@@ -568,9 +570,7 @@ static unsigned cppi41_next_tx_segment(struct cppi41_channel *tx_ch)
 	u16 q_mgr = cppi_info->q_mgr;
 	u16 tx_comp_q = cppi_info->tx_comp_q[tx_ch->ch_num];
 	u8 en_bd_intr = cppi->en_bd_intr;
-	u8 is_isoc = 0;
 	struct musb_hw_ep *hw_ep = cppi->musb->endpoints + tx_ch->end_pt->epnum;
-	int xfer_type = hw_ep->xfer_type;
 
 	/*
 	 * Tx can use the generic RNDIS mode where we can probably fit this
@@ -597,11 +597,18 @@ static unsigned cppi41_next_tx_segment(struct cppi41_channel *tx_ch)
 	    tx_ch->ch_num, tx_ch->dma_mode ? "accelerated" : "transparent",
 	    pkt_size, num_pds, tx_ch->start_addr + tx_ch->curr_offset, length);
 
-	if (xfer_type  == USB_ENDPOINT_XFER_ISOC)
-		is_isoc = 1;
-
-	if (is_isoc && cppi->txfifo_intr_enable && (length <= tx_ch->pkt_size))
-		tx_ch->txfifo_intr_enable = 1;
+	/* Enable txfifo empty interrupt logic for supported platform to make
+	 * sure last byte is transferred out of txfifo, this logic
+	 * enabled only for isochronous transfer types. There is HW bug
+	 * in TxFifoEmpty interrupt logic when multiple tx endpoints active
+	 * in parallel
+	 */
+	if (hw_ep->xfer_type == USB_ENDPOINT_XFER_ISOC
+		&& cppi->txfifo_intr_enable
+		&& length <= tx_ch->pkt_size) {
+			tx_ch->txfifo_intr_enable = 1;
+			tx_ch->txfifo_intr_first = 0;
+	}
 
 	for (n = 0; n < num_pds; n++) {
 		struct cppi41_host_pkt_desc *hw_desc;
@@ -1226,7 +1233,7 @@ static int cppi41_channel_abort(struct dma_channel *channel)
 		musb_writew(epio, MUSB_TXCSR, csr);
 
 		cppi_ch->tx_complete = 0;
-		cppi_ch->txf_complete = 0;
+		cppi_ch->txdma_intr_first = 0;
 		/* Tear down Tx DMA channel */
 		usb_tx_ch_teardown(cppi_ch);
 
@@ -1399,20 +1406,28 @@ void cppi41_handle_txfifo_intr(struct musb *musb, u16 usbintr)
 	for (index = 0; (index < USB_CPPI41_NUM_CH) && usbintr; index++) {
 		if (usbintr & 1) {
 			tx_ch = &cppi->tx_cppi_ch[index];
-			if (tx_ch->txf_complete) {
-				/* disable txfifo empty interupt */
-				txfifoempty_int_disable(musb, index+1);
-				tx_ch->txf_complete = 0;
-				if (!tx_ch->txfifo_intr_enable)
-					DBG(1, "Bug, wrong TxFintr ep%d\n",
-						index+1);
-				tx_ch->txfifo_intr_enable = 0;
+			/* disable txfifo empty interupt */
+			txfifoempty_int_disable(musb, index+1);
+			if (!tx_ch->txfifo_intr_enable)
+				DBG(4, "Bug, wrong TxFintr ep%d\n",
+					index+1);
+			tx_ch->txfifo_intr_enable = 0;
 
+			if (tx_ch->txdma_intr_first) {
+				tx_ch->txdma_intr_first = 0;
 				tx_ch->channel.status =
 					MUSB_DMA_STATUS_FREE;
 
-				DBG(1, "txc: givback ep%d\n", index+1);
+				DBG(4, "txc: givback ep%d\n", index+1);
 				musb_dma_completion(musb, index+1, 1);
+			} else {
+				/* sometime the TxFifoEmpty interupt comes
+				 * first followed by dma interrupt, hence
+				 * service dma interrupt.
+				 */
+				tx_ch->txfifo_intr_first = 1;
+				DBG(4, "Early TxFIntr ep%d\n", index+1);
+				usb_process_tx_queue(cppi, index);
 			}
 		}
 		usbintr = usbintr >> 1;
@@ -1549,8 +1564,12 @@ static void usb_process_tx_queue(struct cppi41 *cppi, unsigned index)
 			csr = musb_readw(epio, MUSB_TXCSR);
 
 			if (tx_ch->txfifo_intr_enable) {
-				tx_ch->txf_complete = 1;
-				DBG(1, "wait for TxF-EmptyIntr ep%d\n", ep_num);
+				tx_ch->txdma_intr_first = 1;
+				DBG(4, "wait for TxF-EmptyIntr ep%d\n", ep_num);
+			} else if (tx_ch->txfifo_intr_first) {
+				tx_ch->txfifo_intr_first = 0;
+				tx_ch->channel.status = MUSB_DMA_STATUS_FREE;
+				musb_dma_completion(cppi->musb, ep_num, 1);
 			} else {
 				int residue;
 
