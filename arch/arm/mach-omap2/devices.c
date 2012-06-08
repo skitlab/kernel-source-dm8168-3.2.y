@@ -2103,22 +2103,71 @@ static void ti814x_nor_init(void)
 {
 	int error = 0;
 
-	omap_mux_init_signal("gpmc_ad0", TI814X_PULL_DIS | TI814X_INPUT_EN);
-	omap_mux_init_signal("gpmc_ad1", TI814X_PULL_DIS | TI814X_INPUT_EN);
-	omap_mux_init_signal("gpmc_ad2", TI814X_PULL_DIS | TI814X_INPUT_EN);
-	omap_mux_init_signal("gpmc_ad3", TI814X_PULL_DIS | TI814X_INPUT_EN);
-	omap_mux_init_signal("gpmc_ad4", TI814X_PULL_DIS | TI814X_INPUT_EN);
-	omap_mux_init_signal("gpmc_ad5", TI814X_PULL_DIS | TI814X_INPUT_EN);
-	omap_mux_init_signal("gpmc_ad6", TI814X_PULL_DIS | TI814X_INPUT_EN);
-	omap_mux_init_signal("gpmc_ad7", TI814X_PULL_DIS | TI814X_INPUT_EN);
-	omap_mux_init_signal("gpmc_ad8", TI814X_PULL_DIS | TI814X_INPUT_EN);
-	omap_mux_init_signal("gpmc_ad9", TI814X_PULL_DIS | TI814X_INPUT_EN);
-	omap_mux_init_signal("gpmc_ad10", TI814X_PULL_DIS | TI814X_INPUT_EN);
-	omap_mux_init_signal("gpmc_ad11", TI814X_PULL_DIS | TI814X_INPUT_EN);
-	omap_mux_init_signal("gpmc_ad12", TI814X_PULL_DIS | TI814X_INPUT_EN);
-	omap_mux_init_signal("gpmc_ad13", TI814X_PULL_DIS | TI814X_INPUT_EN);
-	omap_mux_init_signal("gpmc_ad14", TI814X_PULL_DIS | TI814X_INPUT_EN);
-	omap_mux_init_signal("gpmc_ad15", TI814X_PULL_DIS | TI814X_INPUT_EN);
+	if (cpu_is_ti811x()) { /*TI811X */
+		omap_mux_init_signal("gmii0_rxd4.gpmc_a_1_mux0",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gmii0_rxd5.gpmc_a_2_mux0",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gmii0_rxd6.gpmc_a_3_mux0",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gmii0_rxd7.gpmc_a_4_mux0",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gmii0_rxdv.gpmc_a_5_mux0",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gmii0_gtxclk.gpmc_a_6_mux0",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gmii0_txd0.gpmc_a_7_mux0",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gmii0_txd1.gpmc_a_8_mux0",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gmii0_txd2.gpmc_a_9_mux0",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gmii0_txd3.gpmc_a_10_mux0",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gmii0_txd4.gpmc_a_11_mux0",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gmii0_txd5.gpmc_a_12_mux0",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gmii0_txd6.gpmc_a_13_mux0",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gmii0_txd7.gpmc_a_14_mux0",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gmii0_txen.gpmc_a_15_mux0",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+	} else { /*TI814X except J5Eco */
+		omap_mux_init_signal("gpmc_ad0",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gpmc_ad1",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gpmc_ad2",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gpmc_ad3",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gpmc_ad4",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gpmc_ad5",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gpmc_ad6",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gpmc_ad7",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gpmc_ad8",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gpmc_ad9",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gpmc_ad10",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gpmc_ad11",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gpmc_ad12",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gpmc_ad13",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gpmc_ad14",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+		omap_mux_init_signal("gpmc_ad15",
+					TI814X_PULL_DIS | TI814X_INPUT_EN);
+	}
 	omap_mux_init_signal("mmc2_dat3.gpmc_a_1_mux1", TI814X_PULL_UP);
 	omap_mux_init_signal("mmc2_dat2.gpmc_a_2_mux1", TI814X_PULL_UP);
 	omap_mux_init_signal("mmc2_dat1.gpmc_a_3_mux1", TI814X_PULL_UP);
