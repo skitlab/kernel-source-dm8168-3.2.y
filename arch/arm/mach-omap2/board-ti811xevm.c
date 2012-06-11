@@ -25,6 +25,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
 #include <linux/i2c/qt602240_ts.h>
+#include <linux/i2c/pcf857x.h>
 #include <linux/regulator/machine.h>
 #include <linux/mfd/tps65910.h>
 
@@ -258,6 +259,36 @@ static struct tps65910_board __refdata tps65911_pdata = {
 	.tps65910_pmic_init_data	= tps65911_reg_data,
 };
 
+
+
+
+#define GPIO_LCD_PWR_DOWN       13
+
+static int setup_gpio_ioexp(struct i2c_client *client, int gpio_base,
+	unsigned ngpio, void *context) {
+	int ret = 0;
+	int gpio = gpio_base + GPIO_LCD_PWR_DOWN;
+	ret = gpio_request(gpio, "lcd_power");
+
+	if (ret) {
+		printk(KERN_ERR "%s: failed to request GPIO for LCD Power"
+			": %d\n", __func__, ret);
+	return ret;
+	}
+	gpio_export(gpio, true);
+	gpio_direction_output(gpio, 0);
+
+	return 0;
+}
+
+static struct pcf857x_platform_data io_expander_data = {
+	.gpio_base      = 4 * 32,
+	.setup          = setup_gpio_ioexp,
+};
+
+
+
+
 static struct i2c_board_info __initdata ti814x_i2c_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("eeprom", 0x50),
@@ -270,7 +301,8 @@ static struct i2c_board_info __initdata ti814x_i2c_boardinfo[] = {
 		I2C_BOARD_INFO("tlv320aic3x", 0x18),
 	},
 	{
-		I2C_BOARD_INFO("pcf8575_1_ti811x", 0x20),
+		I2C_BOARD_INFO("pcf8575", 0x20),
+		.platform_data = &io_expander_data,
 	},
 	{
 		I2C_BOARD_INFO("tlc59108", 0x40),
@@ -396,7 +428,7 @@ static int ti811x_pcf8575_enable_lcd(void)
 	pcf8575_1_port[1] |= 0x40;
 	/* Powering on the LCD */
 	pcf8575_1_port[1] &= ~(VPS_PCF8575_LCD_PWR_DW);
-       
+
 	msg.buf = pcf8575_1_port;
 
 	ret = i2c_transfer(pcf8575_1_client->adapter, &msg, 1);
@@ -455,7 +487,7 @@ static void __init ti814x_tsc_init(void)
 	}
 
 	gpio_direction_input(GPIO_TSC);
-	ti814x_i2c_boardinfo[6].irq = gpio_to_irq(GPIO_TSC);
+	ti814x_i2c_boardinfo[5].irq = gpio_to_irq(GPIO_TSC);
 
 	gpio_export(31, true);
 }
