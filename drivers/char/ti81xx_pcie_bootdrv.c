@@ -83,6 +83,7 @@ static unsigned int mode_64bit;
 static unsigned int supported_dev_list[] = {
 	TI816X_PCI_DEVICE_ID,
 	TI814X_PCI_DEVICE_ID,
+	TI813X_PCI_DEVICE_ID,
 };
 
 /* These values change depending upon the actual TI81XX device detected */
@@ -477,6 +478,7 @@ static int __init ti81xx_ep_pci_init(void)
 	/* Set up device related parameters for actual TI81XX device */
 	switch (pci_device_id) {
 	case TI814X_PCI_DEVICE_ID:
+	case TI813X_PCI_DEVICE_ID:
 		bootflag_offset = TI814X_EP_BOOTFLAG_OFFSET;
 		bar1_ib_offset = TI814X_EP_UBOOT_STG1_IB_OFFSET;
 		break;
@@ -568,6 +570,10 @@ static int __init ti81xx_ep_pci_init(void)
 	 * code above to avoid repeating blocks of code but it is for later as
 	 * this anyway is a hack only applicable for TI813X using PCIe ROM boot
 	 * method.
+	 *
+	 * Note that this block will be skipped for TI813X devices using PCIe
+	 * boot through U-Boot since it sets the device ID correctly for TI813X
+	 * device and the check below will fail.
 	 */
 	if ((eprst == 1) && (pci_device_id == TI814X_PCI_DEVICE_ID)) {
 		int i;

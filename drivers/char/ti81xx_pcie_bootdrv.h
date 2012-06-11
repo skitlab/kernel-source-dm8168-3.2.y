@@ -27,11 +27,12 @@
 /*
  * These are the default PCI IDs for TI816X/TI814X device. Update these as
  * applicable or add Subsystem IDs and corresponding check in the code if you
- * have multiple TI816X/TI814X based PCIe cards.
+ * have multiple TI816X/TI814X/TI813X based PCIe cards.
  */
 #define TI81XX_PCI_VENDOR_ID               0x104c
 #define TI816X_PCI_DEVICE_ID               0xb800
 #define TI814X_PCI_DEVICE_ID               0xb801
+#define TI813X_PCI_DEVICE_ID               0xb802
 
 /*
  * NOTE: Most of the addresses/offsets listed in subsequent sections are not
