@@ -263,6 +263,7 @@ static struct tps65910_board __refdata tps65911_pdata = {
 
 
 #define GPIO_LCD_PWR_DOWN       13
+#define GPIO_LCD_SELECT         14
 
 static int setup_gpio_ioexp(struct i2c_client *client, int gpio_base,
 	unsigned ngpio, void *context) {
@@ -278,6 +279,16 @@ static int setup_gpio_ioexp(struct i2c_client *client, int gpio_base,
 	gpio_export(gpio, true);
 	gpio_direction_output(gpio, 0);
 
+	gpio = gpio_base + GPIO_LCD_SELECT;
+	ret = gpio_request(gpio, "lcd_select");
+
+	if (ret) {
+		printk(KERN_ERR "%s: failed to request GPIO for LCD Select"
+			": %d\n", __func__, ret);
+	return ret;
+	}
+	gpio_export(gpio, true);
+	gpio_direction_output(gpio, 1);
 	return 0;
 }
 
@@ -415,34 +426,10 @@ int ti811x_pcf8575_ths7360_hd_enable(enum ti81xx_ths7360_sf_ctrl ctrl)
 	return ret_val;
 
 }
-static int ti811x_pcf8575_enable_lcd(void)
-{
-	int ret = 0;
-	struct i2c_msg msg = {
-		.addr = pcf8575_1_client->addr,
-		.flags = 0,
-		.len = 2,
-	};
-
-	/* Selecting on board LCD */
-	pcf8575_1_port[1] |= 0x40;
-	/* Powering on the LCD */
-	pcf8575_1_port[1] &= ~(VPS_PCF8575_LCD_PWR_DW);
-
-	msg.buf = pcf8575_1_port;
-
-	ret = i2c_transfer(pcf8575_1_client->adapter, &msg, 1);
-
-	if (ret < 0)
-		printk(KERN_ERR "I2C: Transfer failed at %s %d with error code: %d\n",
-			__func__, __LINE__, ret);
-	return ret;
-}
 static int pcf8575_video_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	pcf8575_1_client = client;
-	ti811x_pcf8575_enable_lcd();
 	return 0;
 }
 
