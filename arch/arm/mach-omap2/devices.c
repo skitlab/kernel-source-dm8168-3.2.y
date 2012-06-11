@@ -2430,7 +2430,8 @@ static u64 omap_sata_dmamask = DMA_BIT_MASK(32);
 #define TI814X_SATA_PHY_CFGRX3_VAL		0x1F180B0F
 #define TI814X_SATA_PHY_CFGTX0_VAL		0x01001622
 #define TI814X_SATA_PHY_CFGTX1_VAL		0x40000002
-#define TI814X_SATA_PHY_CFGTX2_VAL		0x073CE39E
+#define TI814X_SATA_PHY_CFGTX2_VAL		0x00000000
+#define TI814X_SATA_PHY_CFGTX3_VAL		0x073CE39E
 
 static int ti81xx_ahci_plat_init(struct device *dev, void __iomem *base)
 {
@@ -2490,6 +2491,8 @@ static int ti81xx_ahci_plat_init(struct device *dev, void __iomem *base)
 			base + TI814X_SATA_PHY_CFGTX1_OFFSET);
 		writel(TI814X_SATA_PHY_CFGTX2_VAL,
 			base + TI814X_SATA_PHY_CFGTX2_OFFSET);
+		writel(TI814X_SATA_PHY_CFGTX3_VAL,
+			base + TI814X_SATA_PHY_CFGTX3_OFFSET);
 	}
 
 	return 0;
