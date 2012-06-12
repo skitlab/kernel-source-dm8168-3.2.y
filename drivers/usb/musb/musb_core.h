@@ -525,6 +525,7 @@ struct musb {
 #endif
 	short			fifo_mode;
 	u8			txfifo_intr_enable;
+	u8			is_overcurrent;
 };
 
 #ifdef CONFIG_USB_GADGET_MUSB_HDRC
