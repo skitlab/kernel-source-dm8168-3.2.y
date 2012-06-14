@@ -252,6 +252,7 @@ static struct {
 	void __iomem *base_wp;		/* 2 */
 	void __iomem *base_core_cec;	/* 3 */
 	struct hdmi_core_infoframe_avi avi_param;
+	struct hdmi_config hdmi_cfg;
 	struct mutex mutex;
 	struct list_head notifier_head;
 } hdmi;
@@ -1664,6 +1665,7 @@ int hdmi_lib_enable(struct hdmi_config *cfg)
 	r = hdmi_core_av_packet_config(av_name, repeat_param);
 
 	REG_FLD_MOD(av_name, HDMI_CORE_AV__HDMI_CTRL, cfg->hdmi_dvi, 0, 0);
+	memcpy(&hdmi.hdmi_cfg, cfg, sizeof(struct hdmi_config));
 	return r;
 }
 
@@ -2024,27 +2026,33 @@ void hdmi_core_software_reset(void)
 }
 
 /* TODO : This func will return the current video clock  */
-int hdmi_get_video_timing()
+int hdmi_lib_get_pixel_clock()
 {
-	int ret = 0;
+	return hdmi.hdmi_cfg.pixel_clock;
 
-	DBG("TDMS: %s %d\n", __func__, hdmi.avi_param.db4vic_videocode);
-
-	switch (hdmi.avi_param.db4vic_videocode) {
-	case 16:	/* 1080P-60 */
-		ret = 148500;
-		break;
-	case 5:		/* 1080I-60 */
-	case 4:		/* 720P-60  */
-	case 34:	/* 1080P-30 */
-		ret = 74250;
-		break;
-	default:
-		ret = -1;
-	}
-
-	return ret;
 }
+int hdmi_get_video_timing()
+ {
+       int ret = 0;
+
+       DBG("TDMS: %s %d\n", __func__, hdmi.avi_param.db4vic_videocode);
+
+       switch (hdmi.avi_param.db4vic_videocode) {
+       case 16:        /* 1080P-60 */
+               ret = 148500;
+               break;
+       case 5:         /* 1080I-60 */
+       case 4:         /* 720P-60  */
+       case 34:        /* 1080P-30 */
+               ret = 74250;
+               break;
+       default:
+               ret = -1;
+       }
+
+       return ret;
+}
+
 
 /*******************************************************************************
  *	CEC Specifics
@@ -2389,6 +2397,7 @@ EXPORT_SYMBOL(hdmi_w1_video_start);
 EXPORT_SYMBOL(hdmi_w1_video_status);
 EXPORT_SYMBOL(hdmi_core_audio_config);
 EXPORT_SYMBOL(hdmi_core_audio_mode_enable);
+EXPORT_SYMBOL(hdmi_lib_get_pixel_clock);
 EXPORT_SYMBOL(hdmi_get_video_timing);
 EXPORT_SYMBOL(hdmi_w1_audio_config_format);
 EXPORT_SYMBOL(hdmi_core_powerdown_disable);

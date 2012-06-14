@@ -534,6 +534,7 @@ int hdmi_core_audio_mode_enable(u32  instanceName);
 int hdmi_core_audio_config(u32 name,
 		struct hdmi_core_audio_config *audio_cfg);
 int hdmi_get_video_timing(void);
+int hdmi_lib_get_pixel_clock(void);
 int hdmi_w1_audio_config_format(u32 name,
 		struct hdmi_audio_format *audio_fmt);
 int hdmi_w1_audio_config_dma(u32 name, struct hdmi_audio_dma *audio_dma);
