@@ -855,7 +855,7 @@ static irqreturn_t ti81xx_ep_pcie_handle(int irq, void *dev)
 	int i = 0;
 	while (i <= 1500) {
 		if (__raw_readl(reg_vir + MSI0_IRQ_STATUS) != 0) {
-			if (device_id == 0xb801)
+			if (device_id >= 0xb801)
 				__raw_writel(0xFFFFFFFF,
 					reg_vir + MSI0_IRQ_STATUS);
 			if (device_id == 0xb800)
