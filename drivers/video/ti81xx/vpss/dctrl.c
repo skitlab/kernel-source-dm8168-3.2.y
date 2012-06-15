@@ -762,38 +762,45 @@ static int dc_set_vencmode(struct vps_dcvencinfo *vinfo)
 {
 	int i, r = 0;
 	int vencs = 0;
-	int bidx = 0;
+	int bidx = 0, idx;
 	struct vps_dcvencinfo vi;
 	if ((disp_ctrl == NULL) || (disp_ctrl->fvid2_handle == NULL))
 		return -EINVAL;
-
+	if (!vinfo->numvencs)
+		return 0;
+	vi.numvencs = 0;
 	/*get the current setting based on the app inputs*/
-	for (i = 0; i < vinfo->numvencs; i++)
-		vi.modeinfo[i].vencid = vinfo->modeinfo[i].vencid;
+	for (i = 0; i < vinfo->numvencs; i++) {
+		if (vinfo->modeinfo[i].vencid & disp_ctrl->vencmask)
+			vi.modeinfo[vi.numvencs++].vencid =
+				vinfo->modeinfo[i].vencid;
+	}
 
-	vi.numvencs = vinfo->numvencs;
 	r = dc_get_vencinfo(&vi);
-
 	if (r) {
 		VPSSERR("failed to get venc info.\n");
 		goto exit;
 	}
-
 	/*make sure current venc status is matching */
 	disp_ctrl->vinfo->numvencs = 0;
 	disp_ctrl->vinfo->tiedvencs = 0;
+	idx = 0;
 	for (i = 0; i < vinfo->numvencs; i++) {
-		if (vi.modeinfo[i].isvencrunning) {
-			if (vi.modeinfo[i].minfo.standard !=
+		if (!(vinfo->modeinfo[i].vencid & disp_ctrl->vencmask))
+			continue;
+
+		if (vi.modeinfo[idx].isvencrunning) {
+			if (vi.modeinfo[idx].minfo.standard !=
 			    vinfo->modeinfo[i].minfo.standard) {
 				VPSSERR("venc %d already running with \
-						different mode %d\n",
-						vi.modeinfo[i].vencid,
-						vi.modeinfo[i].minfo.standard);
+					different mode %d\n",
+					vi.modeinfo[idx].vencid,
+					vi.modeinfo[idx].minfo.standard);
 				/*update the local infor*/
-				get_idx_from_vid(vi.modeinfo[i].vencid, &bidx);
+				get_idx_from_vid(vi.modeinfo[idx].vencid,
+						&bidx);
 				memcpy(&venc_info.modeinfo[bidx],
-				       &vi.modeinfo[i],
+				       &vi.modeinfo[idx],
 				       sizeof(struct vps_dcmodeinfo));
 				/*Update the SDVENC Clock */
 				if (bidx == SDVENC) {
@@ -808,20 +815,18 @@ static int dc_set_vencmode(struct vps_dcvencinfo *vinfo)
 
 			} else
 				VPSSDBG("venc %d already running\n",
-					vi.modeinfo[i].vencid);
+					vi.modeinfo[idx].vencid);
 
 
 		} else {
 
-			if (vinfo->modeinfo[i].vencid & disp_ctrl->vencmask) {
-				memcpy(&disp_ctrl->vinfo->modeinfo \
-					    [disp_ctrl->vinfo->numvencs++],
-					&vinfo->modeinfo[i],
-					sizeof(struct vps_dcmodeinfo));
-
-				vencs |= vinfo->modeinfo[i].vencid;
-			}
+			memcpy(&disp_ctrl->vinfo->modeinfo \
+				    [disp_ctrl->vinfo->numvencs++],
+				&vinfo->modeinfo[i],
+				sizeof(struct vps_dcmodeinfo));
+			vencs |= vinfo->modeinfo[i].vencid;
 		}
+		idx++;
 	}
 	if (vinfo->tiedvencs) {
 		if ((vencs & vinfo->tiedvencs) != vinfo->tiedvencs) {
@@ -847,7 +852,6 @@ static int dc_set_vencmode(struct vps_dcvencinfo *vinfo)
 		}
 		disp_ctrl->enabled_venc_ids |= vencs;
 		disp_ctrl->tiedvenc = disp_ctrl->vinfo->tiedvencs;
-
 	}
 	if (!def_i2cmode) {
 		int ret = 0;
@@ -2831,9 +2835,10 @@ int __init vps_dc_init(struct platform_device *pdev,
 			  int tied_vencs,
 			  const char *clksrc)
 {
-	int r = 0;
-	int i;
+	int r = 0, i, idx;
 	int size = 0, offset = 0;
+	struct vps_dcvencinfo vinfo;
+
 	VPSSDBG("dctrl init\n");
 
 	if ((!def_i2cmode) && (v_pdata->pcf_ths_init))
@@ -2868,6 +2873,7 @@ int __init vps_dc_init(struct platform_device *pdev,
 	disp_ctrl->vencmask = v_pdata->vencmask & 0xF;
 	/*get the id of VENC to be mask*/
 	i = 0;
+	vinfo.numvencs = 0;
 	while (disp_ctrl->vencmask >> i) {
 		if ((disp_ctrl->vencmask  >> i++) & 1) {
 			if (i == 2)
@@ -2876,16 +2882,14 @@ int __init vps_dc_init(struct platform_device *pdev,
 				disp_ctrl->blenders[HDMI].mask = 1;
 			else
 				disp_ctrl->blenders[i - 2].mask = 1;
+			vinfo.numvencs++;
 		}
 	}
-
-
-	if (i != v_pdata->numvencs)
-		v_pdata->numvencs = i;
+	if (vinfo.numvencs != v_pdata->numvencs)
+		v_pdata->numvencs = vinfo.numvencs;
 
 	disp_ctrl->numvencs = v_pdata->numvencs;
 	assign_payload_addr(disp_ctrl, dc_payload_info, &offset);
-
 	vps_dc_ctrl_init(disp_ctrl);
 	/*get dc handle*/
 	dc_handle = vps_fvid2_create(FVID2_VPS_DCTRL_DRV,
@@ -2936,6 +2940,7 @@ int __init vps_dc_init(struct platform_device *pdev,
 	if ((tied_vencs & disp_ctrl->vencmask) == tied_vencs) {
 		disp_ctrl->tiedvenc = tied_vencs;
 		venc_info.tiedvencs = disp_ctrl->tiedvenc;
+		vinfo.tiedvencs = venc_info.tiedvencs;
 	} else
 		VPSSERR("tied venc 0x%x is not supported\n", tied_vencs);
 
@@ -2959,7 +2964,6 @@ int __init vps_dc_init(struct platform_device *pdev,
 		opinfo.dvohspolarity = VPS_DC_POLARITY_ACT_HIGH;
 		opinfo.dvovspolarity = VPS_DC_POLARITY_ACT_HIGH;
 		opinfo.dvoactvidpolarity = VPS_DC_POLARITY_ACT_HIGH;
-
 		switch (i) {
 		case HDMI:
 			opinfo.vencnodenum = VPS_DC_VENC_HDMI;
@@ -3089,14 +3093,24 @@ int __init vps_dc_init(struct platform_device *pdev,
 			goto cleanup;
 		}
 	}
-
-	/*set the venc mode*/
-	r = dc_set_vencmode(&venc_info);
-	if (r) {
-		VPSSERR("Failed to set venc mode.\n");
-		goto cleanup;
+	/*only enable the required VENCs, now these are based
+	 on the mask information, but it can expand in the future*/
+	idx = 0;
+	if (vinfo.numvencs) {
+		for (i = 0; i < VPS_DC_MAX_VENC; i++) {
+			if (!disp_ctrl->blenders[i].mask)
+				continue;
+			memcpy(&vinfo.modeinfo[idx++],
+				&venc_info.modeinfo[i],
+				sizeof(struct vps_dcmodeinfo));
+		}
+		/*set the venc mode*/
+		r = dc_set_vencmode(&vinfo);
+		if (r) {
+			VPSSERR("Failed to set venc mode.\n");
+			goto cleanup;
+		}
 	}
-
 	return 0;
 cleanup:
 	vps_dc_deinit(pdev);
