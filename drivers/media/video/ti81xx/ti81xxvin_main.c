@@ -2506,13 +2506,6 @@ static int ti81xxvin_probe(struct platform_device *pdev)
 
 	}
 
-	/* TODO Get the proper adapter id */
-	if (cpu_is_ti814x())
-		i2c_adap = i2c_get_adapter(3);
-	else if (cpu_is_ti816x())
-		i2c_adap = i2c_get_adapter(2);
-	else
-		i2c_adap = i2c_get_adapter(2);
 
 	config = pdev->dev.platform_data;
 	subdev_count = config->subdev_count;
@@ -2533,6 +2526,7 @@ static int ti81xxvin_probe(struct platform_device *pdev)
 	}
 	for (i = 0; i < 1; i++) {
 		subdevdata = &config->subdev_info[i];
+		i2c_adap = i2c_get_adapter(subdevdata->i2c_adapter_id);
 		ti81xxvin_obj.sd[i] =
 			v4l2_i2c_new_subdev_board(&ti81xxvin_obj.v4l2_dev,
 						  i2c_adap,

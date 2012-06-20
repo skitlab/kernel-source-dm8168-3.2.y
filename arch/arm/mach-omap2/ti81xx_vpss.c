@@ -408,22 +408,26 @@ static int __init ti81xx_vin_init(void)
 		hdvpss_capture_sdev_info[0].ti81xxvin_set_mode =
 			vps_ti814x_set_tvp7002_filter;
 		hdvpss_capture_sdev_info[0].decoder_id = 0;
+		hdvpss_capture_sdev_info[0].i2c_adapter_id = 3;
 		hdvpss_capture_sdev_info[1].ti81xxvin_select_decoder =
 			NULL;
 		hdvpss_capture_sdev_info[1].ti81xxvin_set_mode =
 			NULL;
 		hdvpss_capture_sdev_info[1].decoder_id = 0;
+		hdvpss_capture_sdev_info[1].i2c_adapter_id = 3;
 	} else {
 		hdvpss_capture_sdev_info[0].ti81xxvin_select_decoder =
 			vps_ti816x_select_video_decoder;
 		hdvpss_capture_sdev_info[0].ti81xxvin_set_mode =
 			vps_ti816x_set_tvp7002_filter;
 		hdvpss_capture_sdev_info[0].decoder_id = 0;
+		hdvpss_capture_sdev_info[0].i2c_adapter_id = 2;
 		hdvpss_capture_sdev_info[1].ti81xxvin_select_decoder =
 			NULL;
 		hdvpss_capture_sdev_info[1].ti81xxvin_set_mode =
 			NULL;
 		hdvpss_capture_sdev_info[1].decoder_id = 0;
+		hdvpss_capture_sdev_info[1].i2c_adapter_id = 2;
 	}
 	r = platform_device_register(&hdvpss_capture_dev);
 	if (r)

@@ -56,6 +56,8 @@ struct ti81xxvin_subdev_info {
 	 */
 	int decoder_id;
 	/* ID of the decoder to be passed to select this decoder */
+	int i2c_adapter_id;
+	/* I2C adapter on which the subdevice needs to be connected */
 };
 
 
