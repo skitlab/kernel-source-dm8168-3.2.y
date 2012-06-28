@@ -190,14 +190,11 @@ struct dpll_data {
 	u8		flags;
 	/* data fields required by TI814X ADPLLs */
 	u8		dpll_id;
-	void __iomem	*div_m2n_reg;
+	void __iomem	*base;
 	u8		pre_div_n;
 	u8		post_div_m2;
-	void __iomem	*frac_mult_reg;
 	u32		last_rounded_frac_m;
 	u8		last_rounded_m2;
-	void __iomem	*load_mn_reg;
-	void __iomem	*load_m2n2_reg;
 	u8		dco_freq_sel;
 #  endif
 };

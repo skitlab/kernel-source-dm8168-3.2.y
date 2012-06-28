@@ -118,6 +118,7 @@
 #define TI814X_CM_ISP_CLKDM			0x0000
 
 /* ADPLLJ control and config register offsets */
+#define ADPLLJ_BASE				0x0
 #define ADPLLJ_CLKCTRL				0x4
 #define ADPLLJ_TENABLE				0x8
 #define ADPLLJ_TENDIV				0xC

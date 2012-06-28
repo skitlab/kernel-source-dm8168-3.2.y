@@ -29,6 +29,7 @@
 #include <linux/math64.h>
 #include "clock.h"
 #include "cm-regbits-81xx.h"
+#include "cm81xx.h"
 
 /* Macros */
 /* Internal ref clock frequency range in (Hz) */
@@ -97,7 +98,7 @@ static int _ti814x_wait_dpll_status(struct clk *clk, u32 state)
 
 	state <<= __ffs(TI814X_ST_ADPLL_MASK);
 
-	while (((__raw_readl(dd->idlest_reg) & TI814X_ST_ADPLL_MASK) != state) &&
+	while (((__raw_readl(dd->base + ADPLLJ_STATUS) & TI814X_ST_ADPLL_MASK) != state) &&
 		i < MAX_DPLL_WAIT_TRIES) {
 		i++;
 		udelay(1);
@@ -240,7 +241,7 @@ static int _ti814x_wait_dpll_ret_ack(struct clk *clk, u8 val)
 	do {
 		udelay(1);
 		i++;
-		v = (__raw_readl(dd->idlest_reg) &
+		v = (__raw_readl(dd->base + ADPLLJ_STATUS) &
 			TI814X_ADPLL_STBYRET_ACK_MASK);
 		v >>= __ffs(TI814X_ADPLL_STBYRET_ACK_MASK);
 	} while ((v != val) && i < MAX_DPLL_WAIT_TRIES);
@@ -584,17 +585,17 @@ u32 ti814x_get_dpll_rate(struct clk *clk)
 	if (v)
 		return dd->clk_bypass->rate;
 
-	v = __raw_readl(dd->mult_div1_reg);
+	v = __raw_readl(dd->base + ADPLLJ_MN2DIV);
 	m = v & TI814X_ADPLL_M_MULT_MASK;
 	m >>= __ffs(TI814X_ADPLL_M_MULT_MASK);
 
-	v = __raw_readl(dd->frac_mult_reg);
+	v = __raw_readl(dd->base + ADPLLJ_FRACDIV);
 	frac_m = v & TI814X_ADPLL_FRACT_MULT_MASK;
 	frac_m >>= __ffs(TI814X_ADPLL_FRACT_MULT_MASK);
 
 	num = (unsigned long long)((m << 18) + frac_m);
 
-	v = __raw_readl(dd->div_m2n_reg);
+	v = __raw_readl(dd->base + ADPLLJ_M2NDIV);
 
 	if (dd->flags & TI814X_ADPLL_LJ_TYPE)
 		div_n_mask = TI814X_ADPLL_N_DIV_MASK;
@@ -640,7 +641,7 @@ unsigned long ti814x_dpll_dco_recalc(struct clk *clk)
 	if (omap_rev() == TI8148_REV_ES1_0) {
 		return ti814x_get_dpll_rate(clk);
 	} else {
-		v = __raw_readl(dd->div_m2n_reg);
+		v = __raw_readl(dd->base + ADPLLJ_M2NDIV);
 		m2 = v & TI814X_ADPLL_M2_DIV_MASK;
 		m2 >>= __ffs(TI814X_ADPLL_M2_DIV_MASK);
 
@@ -668,7 +669,7 @@ int ti814x_dpll_enable(struct clk *clk)
 
 	/* Check if DPLL is disabled before
 	 * If yes, DPLL will be in  LOW POWERMODE, bringout of LP */
-	v = (__raw_readl(dd->idlest_reg) &
+	v = (__raw_readl(dd->base + ADPLLJ_STATUS) &
 			TI814X_ADPLL_STBYRET_ACK_MASK);
 	v >>= __ffs(TI814X_ADPLL_STBYRET_ACK_MASK);
 	if(v) {
@@ -750,16 +751,16 @@ static int ti814x_dpll_program(struct clk *clk, u16 m, u32 frac_m, u8 n,
 	}
 
 	/* Set DPLL multiplier (m)*/
-	v = __raw_readl(dd->mult_div1_reg);
+	v = __raw_readl(dd->base + ADPLLJ_MN2DIV);
 	v &= ~(TI814X_ADPLL_M_MULT_MASK);
 	v |= m << __ffs(TI814X_ADPLL_M_MULT_MASK);
-	__raw_writel(v, dd->mult_div1_reg);
+	__raw_writel(v, dd->base + ADPLLJ_MN2DIV);
 
 	/* Set DPLL Fractional multiplier (f) */
-	v = __raw_readl(dd->frac_mult_reg);
+	v = __raw_readl(dd->base + ADPLLJ_FRACDIV);
 	v &= ~(TI814X_ADPLL_FRACT_MULT_MASK);
 	v |= frac_m << __ffs(TI814X_ADPLL_FRACT_MULT_MASK);
-	__raw_writel(v, dd->frac_mult_reg);
+	__raw_writel(v, dd->base + ADPLLJ_FRACDIV);
 
 	/* Set DPLL pre-divider (n) and post-divider (m2)*/
 
@@ -768,18 +769,18 @@ static int ti814x_dpll_program(struct clk *clk, u16 m, u32 frac_m, u8 n,
 	else
 		div_n_mask = TI814X_ADPLLS_N_DIV_MASK;
 
-	v = __raw_readl(dd->div_m2n_reg);
+	v = __raw_readl(dd->base + ADPLLJ_M2NDIV);
 	v &= ~(TI814X_ADPLL_M2_DIV_MASK | div_n_mask);
 	v |= m2 << __ffs(TI814X_ADPLL_M2_DIV_MASK);
 	v |= n << __ffs(div_n_mask);
-	__raw_writel(v, dd->div_m2n_reg);
+	__raw_writel(v, dd->base + ADPLLJ_M2NDIV);
 
 	if (dd->flags & TI814X_ADPLL_LJ_TYPE) {
 		_lookup_sddiv(clk, &sd_div, m, n+1);
-		v = __raw_readl(dd->frac_mult_reg);
+		v = __raw_readl(dd->base + ADPLLJ_FRACDIV);
 		v &= ~(TI814X_ADPLLJ_SDDIV_MASK);
 		v |= sd_div << __ffs(TI814X_ADPLLJ_SDDIV_MASK);
-		__raw_writel(v, dd->frac_mult_reg);
+		__raw_writel(v, dd->base + ADPLLJ_FRACDIV);
 	}
 
 	/* configure SELECTFREQDCO HS2/HS1 */
@@ -793,26 +794,26 @@ static int ti814x_dpll_program(struct clk *clk, u16 m, u32 frac_m, u8 n,
 	}
 
 	/* Assert and de-assert TENABLE to load M and N values */
-	v = __raw_readl(dd->load_mn_reg);
+	v = __raw_readl(dd->base + ADPLLJ_TENABLE);
 	v |= (1 << TI814X_ADPLL_LOAD_MN_SHIFT);
-	__raw_writel(v, dd->load_mn_reg);
+	__raw_writel(v, dd->base + ADPLLJ_TENABLE);
 
 	ndelay(1);
 
-	v = __raw_readl(dd->load_mn_reg);
+	v = __raw_readl(dd->base + ADPLLJ_TENABLE);
 	v &= ~(1 << TI814X_ADPLL_LOAD_MN_SHIFT);
-	__raw_writel(v, dd->load_mn_reg);
+	__raw_writel(v, dd->base + ADPLLJ_TENABLE);
 
 	/* Assert and de-assert  TENABLEDIV to load M2 and N2 values */
-	v = __raw_readl(dd->load_m2n2_reg);
+	v = __raw_readl(dd->base + ADPLLJ_TENDIV);
 	v |= (1 << TI814X_ADPLL_LOAD_M2N2_SHIFT);
-	__raw_writel(v, dd->load_m2n2_reg);
+	__raw_writel(v, dd->base + ADPLLJ_TENDIV);
 
 	ndelay(1);
 
-	v = __raw_readl(dd->load_m2n2_reg);
+	v = __raw_readl(dd->base + ADPLLJ_TENDIV);
 	v &= ~(1 << TI814X_ADPLL_LOAD_M2N2_SHIFT);
-	__raw_writel(v, dd->load_m2n2_reg);
+	__raw_writel(v, dd->base + ADPLLJ_TENDIV);
 
 	v = __raw_readl(dd->control_reg);
 	v |= (1 << TI814X_ADPLL_CLKOUTLDOEN_SHIFT);

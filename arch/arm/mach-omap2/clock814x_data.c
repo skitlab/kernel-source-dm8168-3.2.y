@@ -379,19 +379,14 @@ static struct clk arm_dpll_clkin_ck = {
 static struct dpll_data arm_dpll_dd = {
 	.dpll_id	= TI814X_ARM_DPLL_ID,
 	.flags		= TI814X_ADPLL_LS_TYPE,
-	.mult_div1_reg	= TI814X_ADPLL_REGADDR(MODENA_PLL_BASE, ADPLLJ_MN2DIV),
 	.clk_bypass	= &arm_dpll_clkin_ck,
 	.clk_ref	= &arm_dpll_clkin_ck,
+	.pre_div_n	= TI814X_MODENA_ADPLLS_FIX_N,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
+	.base		= TI814X_ADPLL_REGADDR(MODENA_PLL_BASE, ADPLLJ_BASE),
 	.control_reg	= TI814X_ADPLL_REGADDR(MODENA_PLL_BASE, ADPLLJ_CLKCTRL),
 	.modes		= (1 << ADPLL_LOW_POWER_BYPASS) | (1 << ADPLL_LOCKED) |
 			(1 << ADPLL_LOW_POWER_STOP),
-	.idlest_reg	= TI814X_ADPLL_REGADDR(MODENA_PLL_BASE, ADPLLJ_STATUS),
-	.div_m2n_reg	= TI814X_ADPLL_REGADDR(MODENA_PLL_BASE, ADPLLJ_M2NDIV),
-	.pre_div_n	= TI814X_MODENA_ADPLLS_FIX_N,
-	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
-	.frac_mult_reg	= TI814X_ADPLL_REGADDR(MODENA_PLL_BASE, ADPLLJ_FRACDIV),
-	.load_mn_reg	= TI814X_ADPLL_REGADDR(MODENA_PLL_BASE, ADPLLJ_TENABLE),
-	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(MODENA_PLL_BASE, ADPLLJ_TENDIV),
 };
 
 /* ARM_DPLL clock out(DPLL out) */
@@ -419,19 +414,14 @@ static struct clk mpu_ck = {
 /* DSP_PLL ADPLLLJ data */
 static struct dpll_data dsp_dpll_dd  = {
 	.flags		= TI814X_ADPLL_LJ_TYPE,
-	.mult_div1_reg	= TI814X_ADPLL_REGADDR(DSP_PLL_BASE, ADPLLJ_MN2DIV),
 	.clk_bypass	= &osc0_clkin_ck,
 	.clk_ref	= &osc0_clkin_ck,
+	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
+	.base		= TI814X_ADPLL_REGADDR(DSP_PLL_BASE, ADPLLJ_BASE),
 	.control_reg	= TI814X_ADPLL_REGADDR(DSP_PLL_BASE, ADPLLJ_CLKCTRL),
 	.modes		= (1 << ADPLL_LOW_POWER_BYPASS) | (1 << ADPLL_LOCKED) |
 			(1 << ADPLL_LOW_POWER_STOP),
-	.idlest_reg	= TI814X_ADPLL_REGADDR(DSP_PLL_BASE, ADPLLJ_STATUS),
-	.div_m2n_reg	= TI814X_ADPLL_REGADDR(DSP_PLL_BASE, ADPLLJ_M2NDIV),
-	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
-	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
-	.frac_mult_reg	= TI814X_ADPLL_REGADDR(DSP_PLL_BASE, ADPLLJ_FRACDIV),
-	.load_mn_reg	= TI814X_ADPLL_REGADDR(DSP_PLL_BASE, ADPLLJ_TENABLE),
-	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(DSP_PLL_BASE, ADPLLJ_TENDIV),
 };
 
 /* DSP_DPLL for clock1(in)*/
@@ -459,19 +449,14 @@ static struct clk gem_fck = {
 /* DPLL_SGX ADPLLLJ data */
 static struct dpll_data sgx_dpll_dd = {
 	.flags		= TI814X_ADPLL_LJ_TYPE,
-	.mult_div1_reg	= TI814X_ADPLL_REGADDR(SGX_PLL_BASE, ADPLLJ_MN2DIV),
 	.clk_bypass	= &osc0_clkin_ck,
 	.clk_ref	= &osc0_clkin_ck,
+	.pre_div_n      = TI814X_ADPLLJ_FIX_N,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
+	.base		= TI814X_ADPLL_REGADDR(SGX_PLL_BASE, ADPLLJ_BASE),
 	.control_reg	= TI814X_ADPLL_REGADDR(SGX_PLL_BASE, ADPLLJ_CLKCTRL),
 	.modes		= (1 << ADPLL_LOW_POWER_BYPASS) | (1 << ADPLL_LOCKED) |
 			(1 << ADPLL_LOW_POWER_STOP),
-	.idlest_reg	= TI814X_ADPLL_REGADDR(SGX_PLL_BASE, ADPLLJ_STATUS),
-	.div_m2n_reg	= TI814X_ADPLL_REGADDR(SGX_PLL_BASE, ADPLLJ_M2NDIV),
-	.pre_div_n      = TI814X_ADPLLJ_FIX_N,
-	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
-	.frac_mult_reg	= TI814X_ADPLL_REGADDR(SGX_PLL_BASE, ADPLLJ_FRACDIV),
-	.load_mn_reg	= TI814X_ADPLL_REGADDR(SGX_PLL_BASE, ADPLLJ_TENABLE),
-	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(SGX_PLL_BASE, ADPLLJ_TENDIV),
 };
 
 /* GFX_DPLL for clock3(PRCM in) */
@@ -539,19 +524,14 @@ static struct clk sgx_mem_ck = {
 /* DPLL_IVA (HDVICP) ADPLLLJ data */
 static struct dpll_data hdvicp_dpll_dd = {
 	.flags		= TI814X_ADPLL_LJ_TYPE,
-	.mult_div1_reg	= TI814X_ADPLL_REGADDR(IVA_PLL_BASE, ADPLLJ_MN2DIV),
 	.clk_bypass	= &osc0_clkin_ck,
 	.clk_ref	= &osc0_clkin_ck,
+	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2_2,
+	.base		= TI814X_ADPLL_REGADDR(IVA_PLL_BASE, ADPLLJ_BASE),
 	.control_reg	= TI814X_ADPLL_REGADDR(IVA_PLL_BASE, ADPLLJ_CLKCTRL),
 	.modes		= (1 << ADPLL_LOW_POWER_BYPASS) | (1 << ADPLL_LOCKED) |
 			(1 << ADPLL_LOW_POWER_STOP),
-	.idlest_reg	= TI814X_ADPLL_REGADDR(IVA_PLL_BASE, ADPLLJ_STATUS),
-	.div_m2n_reg	= TI814X_ADPLL_REGADDR(IVA_PLL_BASE, ADPLLJ_M2NDIV),
-	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
-	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2_2,
-	.frac_mult_reg	= TI814X_ADPLL_REGADDR(IVA_PLL_BASE, ADPLLJ_FRACDIV),
-	.load_mn_reg	= TI814X_ADPLL_REGADDR(IVA_PLL_BASE, ADPLLJ_TENABLE),
-	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(IVA_PLL_BASE, ADPLLJ_TENDIV),
 };
 
 /* HDVICP_DPLL for clock3(PRCM in) */
@@ -615,19 +595,14 @@ static struct clk l3_dpll_clkin_ck = {
 
 static struct dpll_data l3_dpll_dd = {
 	.flags		= TI814X_ADPLL_LJ_TYPE,
-	.mult_div1_reg	= TI814X_ADPLL_REGADDR(L3_PLL_BASE, ADPLLJ_MN2DIV),
 	.clk_bypass	= &l3_dpll_clkin_ck,
 	.clk_ref	= &l3_dpll_clkin_ck,
+	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2_4,
+	.base		= TI814X_ADPLL_REGADDR(L3_PLL_BASE, ADPLLJ_BASE),
 	.control_reg	= TI814X_ADPLL_REGADDR(L3_PLL_BASE, ADPLLJ_CLKCTRL),
 	.modes		= (1 << ADPLL_LOW_POWER_BYPASS) | (1 << ADPLL_LOCKED) |
 			(1 << ADPLL_LOW_POWER_STOP),
-	.idlest_reg	= TI814X_ADPLL_REGADDR(L3_PLL_BASE, ADPLLJ_STATUS),
-	.div_m2n_reg	= TI814X_ADPLL_REGADDR(L3_PLL_BASE, ADPLLJ_M2NDIV),
-	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
-	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2_4,
-	.frac_mult_reg	= TI814X_ADPLL_REGADDR(L3_PLL_BASE, ADPLLJ_FRACDIV),
-	.load_mn_reg	= TI814X_ADPLL_REGADDR(L3_PLL_BASE, ADPLLJ_TENABLE),
-	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(L3_PLL_BASE, ADPLLJ_TENDIV),
 };
 
 /* L3 DPLL for clock4(PRCM in) */
@@ -1606,19 +1581,14 @@ static struct clk dcan1_ick = {
 /* DPLL_ISS ADPLLLJ data */
 static struct dpll_data iss_dpll_dd = {
 	.flags		= TI814X_ADPLL_LJ_TYPE,
-	.mult_div1_reg	= TI814X_ADPLL_REGADDR(ISS_PLL_BASE, ADPLLJ_MN2DIV),
 	.clk_bypass	= &osc0_clkin_ck,
 	.clk_ref	= &osc0_clkin_ck,
+	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2_2,
+	.base		= TI814X_ADPLL_REGADDR(ISS_PLL_BASE, ADPLLJ_BASE),
 	.control_reg	= TI814X_ADPLL_REGADDR(ISS_PLL_BASE, ADPLLJ_CLKCTRL),
 	.modes		= (1 << ADPLL_LOW_POWER_BYPASS) | (1 << ADPLL_LOCKED) |
 			(1 << ADPLL_LOW_POWER_STOP),
-	.idlest_reg	= TI814X_ADPLL_REGADDR(ISS_PLL_BASE, ADPLLJ_STATUS),
-	.div_m2n_reg	= TI814X_ADPLL_REGADDR(ISS_PLL_BASE, ADPLLJ_M2NDIV),
-	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
-	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2_2,
-	.frac_mult_reg	= TI814X_ADPLL_REGADDR(ISS_PLL_BASE, ADPLLJ_FRACDIV),
-	.load_mn_reg	= TI814X_ADPLL_REGADDR(ISS_PLL_BASE, ADPLLJ_TENABLE),
-	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(ISS_PLL_BASE, ADPLLJ_TENDIV),
 };
 
 /* ISP_DPLL for clock1(in)*/
@@ -1690,19 +1660,14 @@ static struct clk ducati_ick = {
 /* DPLL_DSS (HDVPSS) ADPLLLJ data */
 static struct dpll_data hdvpss_dpll_dd = {
 	.flags		= TI814X_ADPLL_LJ_TYPE,
-	.mult_div1_reg	= TI814X_ADPLL_REGADDR(DSS_PLL_BASE, ADPLLJ_MN2DIV),
 	.clk_bypass	= &osc0_clkin_ck,
 	.clk_ref	= &osc0_clkin_ck,
+	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2_4,
+	.base		= TI814X_ADPLL_REGADDR(DSS_PLL_BASE, ADPLLJ_BASE),
 	.control_reg	= TI814X_ADPLL_REGADDR(DSS_PLL_BASE, ADPLLJ_CLKCTRL),
 	.modes		= (1 << ADPLL_LOW_POWER_BYPASS) | (1 << ADPLL_LOCKED) |
 			(1 << ADPLL_LOW_POWER_STOP),
-	.idlest_reg	= TI814X_ADPLL_REGADDR(DSS_PLL_BASE, ADPLLJ_STATUS),
-	.div_m2n_reg	= TI814X_ADPLL_REGADDR(DSS_PLL_BASE, ADPLLJ_M2NDIV),
-	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2_4,
-	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
-	.frac_mult_reg	= TI814X_ADPLL_REGADDR(DSS_PLL_BASE, ADPLLJ_FRACDIV),
-	.load_mn_reg	= TI814X_ADPLL_REGADDR(DSS_PLL_BASE, ADPLLJ_TENABLE),
-	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(DSS_PLL_BASE, ADPLLJ_TENDIV),
 };
 
 /* HDVPSS_DPLL for clock1(in)*/
@@ -1797,19 +1762,14 @@ static struct clk usb_dpll_clkin_ck = {
 /* DPLL_USB ADPLLLJ data */
 static struct dpll_data usb_dpll_dd = {
 	.flags		= TI814X_ADPLL_LJ_TYPE,
-	.mult_div1_reg	= TI814X_ADPLL_REGADDR(USB_PLL_BASE, ADPLLJ_MN2DIV),
 	.clk_bypass	= &usb_dpll_clkin_ck,
 	.clk_ref	= &usb_dpll_clkin_ck,
+	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
+	.base		= TI814X_ADPLL_REGADDR(USB_PLL_BASE, ADPLLJ_BASE),
 	.control_reg	= TI814X_ADPLL_REGADDR(USB_PLL_BASE, ADPLLJ_CLKCTRL),
 	.modes		= (1 << ADPLL_LOW_POWER_BYPASS) | (1 << ADPLL_LOCKED) |
 			(1 << ADPLL_LOW_POWER_STOP),
-	.idlest_reg	= TI814X_ADPLL_REGADDR(USB_PLL_BASE, ADPLLJ_STATUS),
-	.div_m2n_reg	= TI814X_ADPLL_REGADDR(USB_PLL_BASE, ADPLLJ_M2NDIV),
-	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
-	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
-	.frac_mult_reg	= TI814X_ADPLL_REGADDR(USB_PLL_BASE, ADPLLJ_FRACDIV),
-	.load_mn_reg	= TI814X_ADPLL_REGADDR(USB_PLL_BASE, ADPLLJ_TENABLE),
-	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(USB_PLL_BASE, ADPLLJ_TENDIV),
 };
 
 /* USB DPLL Clock */
@@ -2181,19 +2141,14 @@ static struct clk ddr_dpll_clkin_ck = {
 static struct dpll_data ddr_dpll_dd = {
 	.dpll_id	= TI814X_DDR_DPLL_ID,
 	.flags		= TI814X_ADPLL_LJ_TYPE,
-	.mult_div1_reg	= TI814X_ADPLL_REGADDR(DDR_PLL_BASE, ADPLLJ_MN2DIV),
 	.clk_bypass	= &ddr_dpll_clkin_ck,
 	.clk_ref	= &ddr_dpll_clkin_ck,
+	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2_2,
+	.base		= TI814X_ADPLL_REGADDR(DDR_PLL_BASE, ADPLLJ_BASE),
 	.control_reg	= TI814X_ADPLL_REGADDR(DDR_PLL_BASE, ADPLLJ_CLKCTRL),
 	.modes		= (1 << ADPLL_LOW_POWER_BYPASS) | (1 << ADPLL_LOCKED) |
 			(1 << ADPLL_LOW_POWER_STOP),
-	.idlest_reg	= TI814X_ADPLL_REGADDR(DDR_PLL_BASE, ADPLLJ_STATUS),
-	.div_m2n_reg	= TI814X_ADPLL_REGADDR(DDR_PLL_BASE, ADPLLJ_M2NDIV),
-	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
-	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2_2,
-	.frac_mult_reg	= TI814X_ADPLL_REGADDR(DDR_PLL_BASE, ADPLLJ_FRACDIV),
-	.load_mn_reg	= TI814X_ADPLL_REGADDR(DDR_PLL_BASE, ADPLLJ_TENABLE),
-	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(DDR_PLL_BASE, ADPLLJ_TENDIV),
 };
 
 /* DDR DPLL Clock */
@@ -2318,19 +2273,14 @@ static struct clk video0_dpll_clkin_ck = {
 /* DPLL_VIDEO0 ADPLLLJ data */
 static struct dpll_data video0_dpll_dd = {
 	.flags		= TI814X_ADPLL_LJ_TYPE,
-	.mult_div1_reg	= TI814X_ADPLL_REGADDR(VIDEO0_PLL_BASE, ADPLLJ_MN2DIV),
 	.clk_bypass	= &video0_dpll_clkin_ck,
 	.clk_ref	= &video0_dpll_clkin_ck,
+	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
+	.base		= TI814X_ADPLL_REGADDR(VIDEO0_PLL_BASE, ADPLLJ_BASE),
 	.control_reg	= TI814X_ADPLL_REGADDR(VIDEO0_PLL_BASE, ADPLLJ_CLKCTRL),
 	.modes		= (1 << ADPLL_LOW_POWER_BYPASS) | (1 << ADPLL_LOCKED) |
 			(1 << ADPLL_LOW_POWER_STOP),
-	.idlest_reg	= TI814X_ADPLL_REGADDR(VIDEO0_PLL_BASE, ADPLLJ_STATUS),
-	.div_m2n_reg	= TI814X_ADPLL_REGADDR(VIDEO0_PLL_BASE, ADPLLJ_M2NDIV),
-	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
-	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
-	.frac_mult_reg	= TI814X_ADPLL_REGADDR(VIDEO0_PLL_BASE, ADPLLJ_FRACDIV),
-	.load_mn_reg	= TI814X_ADPLL_REGADDR(VIDEO0_PLL_BASE, ADPLLJ_TENABLE),
-	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(VIDEO0_PLL_BASE, ADPLLJ_TENDIV),
 };
 
 /* Video0 DPLL clock(DPLL out) */
@@ -2366,19 +2316,14 @@ static struct clk video1_dpll_clkin_ck = {
 /* DPLL_VIDEO1 ADPLLLJ data */
 static struct dpll_data video1_dpll_dd = {
 	.flags		= TI814X_ADPLL_LJ_TYPE,
-	.mult_div1_reg	= TI814X_ADPLL_REGADDR(VIDEO1_PLL_BASE, ADPLLJ_MN2DIV),
 	.clk_bypass	= &video1_dpll_clkin_ck,
 	.clk_ref	= &video1_dpll_clkin_ck,
+	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
+	.base		= TI814X_ADPLL_REGADDR(VIDEO1_PLL_BASE, ADPLLJ_BASE),
 	.control_reg	= TI814X_ADPLL_REGADDR(VIDEO1_PLL_BASE, ADPLLJ_CLKCTRL),
 	.modes		= (1 << ADPLL_LOW_POWER_BYPASS) | (1 << ADPLL_LOCKED) |
 			(1 << ADPLL_LOW_POWER_STOP),
-	.idlest_reg	= TI814X_ADPLL_REGADDR(VIDEO1_PLL_BASE, ADPLLJ_STATUS),
-	.div_m2n_reg	= TI814X_ADPLL_REGADDR(VIDEO1_PLL_BASE, ADPLLJ_M2NDIV),
-	.pre_div_n	= TI814X_ADPLLJ_FIX_N,
-	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
-	.frac_mult_reg	= TI814X_ADPLL_REGADDR(VIDEO1_PLL_BASE, ADPLLJ_FRACDIV),
-	.load_mn_reg	= TI814X_ADPLL_REGADDR(VIDEO1_PLL_BASE, ADPLLJ_TENABLE),
-	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(VIDEO1_PLL_BASE, ADPLLJ_TENDIV),
 };
 
 /* Video1 DPLL clock (DPLL out) */
@@ -2414,19 +2359,14 @@ static struct clk hdmi_dpll_clkin_ck = {
 /* DPLL_HDMI ADPLLLJ data */
 static struct dpll_data hdmi_dpll_dd = {
 	.flags		= TI814X_ADPLL_LJ_TYPE,
-	.mult_div1_reg	= TI814X_ADPLL_REGADDR(HDMI_PLL_BASE, ADPLLJ_MN2DIV),
 	.clk_bypass	= &hdmi_dpll_clkin_ck,
 	.clk_ref	= &hdmi_dpll_clkin_ck,
+	.pre_div_n      = TI814X_ADPLLJ_FIX_N,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
+	.base		= TI814X_ADPLL_REGADDR(HDMI_PLL_BASE, ADPLLJ_BASE),
 	.control_reg	= TI814X_ADPLL_REGADDR(HDMI_PLL_BASE, ADPLLJ_CLKCTRL),
 	.modes		= (1 << ADPLL_LOW_POWER_BYPASS) | (1 << ADPLL_LOCKED) |
 				(1 << ADPLL_LOW_POWER_STOP),
-	.idlest_reg	= TI814X_ADPLL_REGADDR(HDMI_PLL_BASE, ADPLLJ_STATUS),
-	.div_m2n_reg	= TI814X_ADPLL_REGADDR(HDMI_PLL_BASE, ADPLLJ_M2NDIV),
-	.pre_div_n      = TI814X_ADPLLJ_FIX_N,
-	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2,
-	.frac_mult_reg	= TI814X_ADPLL_REGADDR(HDMI_PLL_BASE, ADPLLJ_FRACDIV),
-	.load_mn_reg	= TI814X_ADPLL_REGADDR(HDMI_PLL_BASE, ADPLLJ_TENABLE),
-	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(HDMI_PLL_BASE, ADPLLJ_TENDIV),
 };
 
 /* HDMI DPLL for clock2 (mux in) */
@@ -2747,19 +2687,14 @@ static struct clk audio_dpll_clkin_ck = {
 /* DPLL_AUDIO ADPLLLJ data */
 static struct dpll_data audio_dpll_dd = {
 	.flags		= TI814X_ADPLL_LJ_TYPE,
-	.mult_div1_reg	= TI814X_ADPLL_REGADDR(AUDIO_PLL_BASE, ADPLLJ_MN2DIV),
 	.clk_bypass	= &audio_dpll_clkin_ck,
 	.clk_ref	= &audio_dpll_clkin_ck,
+	.pre_div_n      = TI814X_ADPLLJ_FIX_N,
+	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2_2,
+	.base		= TI814X_ADPLL_REGADDR(AUDIO_PLL_BASE, ADPLLJ_BASE),
 	.control_reg	= TI814X_ADPLL_REGADDR(AUDIO_PLL_BASE, ADPLLJ_CLKCTRL),
 	.modes		= (1 << ADPLL_LOW_POWER_BYPASS) | (1 << ADPLL_LOCKED) |
 				(1 << ADPLL_LOW_POWER_STOP),
-	.idlest_reg	= TI814X_ADPLL_REGADDR(AUDIO_PLL_BASE, ADPLLJ_STATUS),
-	.div_m2n_reg	= TI814X_ADPLL_REGADDR(AUDIO_PLL_BASE, ADPLLJ_M2NDIV),
-	.pre_div_n      = TI814X_ADPLLJ_FIX_N,
-	.post_div_m2	= TI814X_ADPLL_POST_DIV_M2_2,
-	.frac_mult_reg	= TI814X_ADPLL_REGADDR(AUDIO_PLL_BASE, ADPLLJ_FRACDIV),
-	.load_mn_reg	= TI814X_ADPLL_REGADDR(AUDIO_PLL_BASE, ADPLLJ_TENABLE),
-	.load_m2n2_reg	= TI814X_ADPLL_REGADDR(AUDIO_PLL_BASE, ADPLLJ_TENDIV),
 };
 
 /* Audio DPLL for clock3(PRCM in) */
