@@ -95,9 +95,9 @@ static int _ti814x_wait_dpll_status(struct clk *clk, u32 state)
 
 	dd = clk->dpll_data;
 
-	state <<= __ffs(dd->idlest_mask);
+	state <<= __ffs(TI814X_ST_ADPLL_MASK);
 
-	while (((__raw_readl(dd->idlest_reg) & dd->idlest_mask) != state) &&
+	while (((__raw_readl(dd->idlest_reg) & TI814X_ST_ADPLL_MASK) != state) &&
 		i < MAX_DPLL_WAIT_TRIES) {
 		i++;
 		udelay(1);
@@ -136,7 +136,7 @@ static int _ti814x_dpll_bypass(struct clk *clk)
 
 	/* Instruct ADPLL to enter Bypass mode 1 - bypass 0 - Active&Locked */
 	v = __raw_readl(dd->control_reg);
-	v |= (1 << dd->bypass_bit);
+	v |= (1 << TI814X_EN_ADPLL_BYPASS_SHIFT);
 	__raw_writel(v, dd->control_reg);
 
 	r = _ti814x_wait_dpll_status(clk, ST_ADPLL_BYPASSED);
@@ -159,7 +159,7 @@ static int _ti814x_rel_dpll_bypass(struct clk *clk)
 
 	/* Instruct ADPLL to exit Bypass mode 1 - bypass 0 - Active&Locked */
 	v = __raw_readl(dd->control_reg);
-	v &= ~(1 << dd->bypass_bit);
+	v &= ~(1 << TI814X_EN_ADPLL_BYPASS_SHIFT);
 	__raw_writel(v, dd->control_reg);
 
 	return 0;
@@ -275,7 +275,7 @@ static int _ti814_dpll_stop(struct clk *clk)
 
 	/* DPLL must be in retention before entering stop mode */
 	v = __raw_readl(dd->control_reg);
-	v |= (1 << dd->stby_ret_bit);
+	v |= (1 << TI814X_EN_ADPLL_STBYRET_SHIFT);
 	__raw_writel(v, dd->control_reg);
 
 
@@ -287,7 +287,7 @@ static int _ti814_dpll_stop(struct clk *clk)
 
 		/* Return from retention as Ack not received */
 		v = __raw_readl(dd->control_reg);
-		v &= ~(1 << dd->stby_ret_bit);
+		v &= ~(1 << TI814X_EN_ADPLL_STBYRET_SHIFT);
 		__raw_writel(v, dd->control_reg);
 		return -EINVAL;
 	}
@@ -295,7 +295,7 @@ static int _ti814_dpll_stop(struct clk *clk)
 
 		/* Enter DPLL stop mode, not supported on ADPLLLJ */
 		v = __raw_readl(dd->control_reg);
-		v |= (1 << dd->stop_mode_bit);
+		v |= (1 << TI814X_EN_MODENA_ADPLL_STOPMODE_SHIFT);
 		__raw_writel(v, dd->control_reg);
 	}
 	return 0;
@@ -478,6 +478,7 @@ static int _dpll_get_rounded_vals(struct clk *clk, unsigned long target_rate)
 	u32 inp_rate, scaled_inp_rate, scaled_targ_rate;
 	s64 quotient, rfraction, dividend;
 	u32 remainder, rremainder;
+	u32 max_multiplier;
 	unsigned long frac_overflow;
 	dd = clk->dpll_data;
 	if (!dd)
@@ -502,7 +503,14 @@ static int _dpll_get_rounded_vals(struct clk *clk, unsigned long target_rate)
 	/* rounding remainder */
 	rremainder = target_rate % ADPLL_ROUNDING_DIVIDER;
 	m = quotient;
-	if ((m < TI814X_ADPLL_MIN_MULT) || (m > dd->max_multiplier))
+
+	if(dd->flags & TI814X_ADPLL_LJ_TYPE)
+		max_multiplier = TI814X_ADPLLJ_MAX_MULT;
+	else
+		max_multiplier = TI814X_ADPLLS_MAX_MULT;
+
+
+	if ((m < TI814X_ADPLL_MIN_MULT) || (m > max_multiplier))
 		return -EINVAL;
 	dd->last_rounded_m = m;
 
@@ -543,8 +551,8 @@ void ti814x_init_dpll_parent(struct clk *clk)
 		return;
 	/* Check dpll status */
 	v = __raw_readl(dd->control_reg);
-	v &= (1 << dd->bypass_bit);
-	v >>= dd->bypass_bit;
+	v &= (1 << TI814X_EN_ADPLL_BYPASS_SHIFT);
+	v >>= TI814X_EN_ADPLL_BYPASS_SHIFT;
 
 	/* Reparent in case the dpll is in bypass */
 	if (v == 1)
@@ -563,7 +571,7 @@ u32 ti814x_get_dpll_rate(struct clk *clk)
 {
 	unsigned long long dpll_rate;
 	unsigned long long num, den;
-	u32 m, frac_m, n, m2, v, ctrl;
+	u32 m, frac_m, n, m2, v, ctrl, div_n_mask;
 	struct dpll_data *dd = clk->dpll_data;
 
 	if (!dd)
@@ -571,26 +579,32 @@ u32 ti814x_get_dpll_rate(struct clk *clk)
 
 	/* Return bypass rate if DPLL is bypassed or stbyret/stopmode */
 	ctrl = __raw_readl(dd->control_reg);
-	v = (ctrl & (1 << dd->bypass_bit)) | (ctrl & (1 << dd->stby_ret_bit));
+	v = (ctrl & (1 << TI814X_EN_ADPLL_BYPASS_SHIFT)) | (ctrl & (1 << TI814X_EN_ADPLL_STBYRET_SHIFT));
 
 	if (v)
 		return dd->clk_bypass->rate;
 
 	v = __raw_readl(dd->mult_div1_reg);
-	m = v & dd->mult_mask;
-	m >>= __ffs(dd->mult_mask);
+	m = v & TI814X_ADPLL_M_MULT_MASK;
+	m >>= __ffs(TI814X_ADPLL_M_MULT_MASK);
 
 	v = __raw_readl(dd->frac_mult_reg);
-	frac_m = v & dd->frac_mult_mask;
-	frac_m >>= __ffs(dd->frac_mult_mask);
+	frac_m = v & TI814X_ADPLL_FRACT_MULT_MASK;
+	frac_m >>= __ffs(TI814X_ADPLL_FRACT_MULT_MASK);
 
 	num = (unsigned long long)((m << 18) + frac_m);
 
 	v = __raw_readl(dd->div_m2n_reg);
-	n = v & dd->div_n_mask;
-	n >>= __ffs(dd->div_n_mask);
-	m2 = v & dd->div_m2_mask;
-	m2 >>= __ffs(dd->div_m2_mask);
+
+	if (dd->flags & TI814X_ADPLL_LJ_TYPE)
+		div_n_mask = TI814X_ADPLL_N_DIV_MASK;
+	else
+		div_n_mask = TI814X_ADPLLS_N_DIV_MASK;
+
+	n = v & div_n_mask;
+	n >>= __ffs(div_n_mask);
+	m2 = v & TI814X_ADPLL_M2_DIV_MASK;
+	m2 >>= __ffs(TI814X_ADPLL_M2_DIV_MASK);
 
 	den = (unsigned long long)(((n+1) << 18)*m2);
 	dpll_rate = (unsigned long long)(dd->clk_ref->rate * num);
@@ -627,8 +641,8 @@ unsigned long ti814x_dpll_dco_recalc(struct clk *clk)
 		return ti814x_get_dpll_rate(clk);
 	} else {
 		v = __raw_readl(dd->div_m2n_reg);
-		m2 = v & dd->div_m2_mask;
-		m2 >>= __ffs(dd->div_m2_mask);
+		m2 = v & TI814X_ADPLL_M2_DIV_MASK;
+		m2 >>= __ffs(TI814X_ADPLL_M2_DIV_MASK);
 
 		return ti814x_get_dpll_rate(clk)*m2;
 	}
@@ -649,7 +663,7 @@ int ti814x_dpll_enable(struct clk *clk)
 
 	/* Enable CLKOUT */
 	v = __raw_readl(dd->control_reg);
-	v |= (dd->enable_mask);
+	v |= (TI814X_EN_ADPLL_CLKOUT_MASK);
 	__raw_writel(v, dd->control_reg);
 
 	/* Check if DPLL is disabled before
@@ -659,7 +673,7 @@ int ti814x_dpll_enable(struct clk *clk)
 	v >>= __ffs(TI814X_ADPLL_STBYRET_ACK_MASK);
 	if(v) {
 		v = __raw_readl(dd->control_reg);
-		v &= ~(1 << dd->stby_ret_bit);
+		v &= ~(1 << TI814X_EN_ADPLL_STBYRET_SHIFT);
 		__raw_writel(v, dd->control_reg);
 
 		r = _ti814x_wait_dpll_ret_ack(clk, ST_ADPLL_ACTIVE);
@@ -696,7 +710,7 @@ void ti814x_dpll_disable(struct clk *clk)
 
 	/* Disable CLKOUT, synchronous */
 	v = __raw_readl(dd->control_reg);
-	v &= ~(dd->enable_mask);
+	v &= ~(TI814X_EN_ADPLL_CLKOUT_MASK);
 	__raw_writel(v, dd->control_reg);
 
 	/* Drive DPLL in to retention/Low power stop */
@@ -717,7 +731,7 @@ static int ti814x_dpll_program(struct clk *clk, u16 m, u32 frac_m, u8 n,
 				u8 m2, u8 dco, bool enterbypass)
 {
 	struct dpll_data *dd = clk->dpll_data;
-	u32 v;
+	u32 v, div_n_mask;
 	u8 sd_div = 0;
 	int ret = 0;
 
@@ -737,28 +751,34 @@ static int ti814x_dpll_program(struct clk *clk, u16 m, u32 frac_m, u8 n,
 
 	/* Set DPLL multiplier (m)*/
 	v = __raw_readl(dd->mult_div1_reg);
-	v &= ~(dd->mult_mask);
-	v |= m << __ffs(dd->mult_mask);
+	v &= ~(TI814X_ADPLL_M_MULT_MASK);
+	v |= m << __ffs(TI814X_ADPLL_M_MULT_MASK);
 	__raw_writel(v, dd->mult_div1_reg);
 
 	/* Set DPLL Fractional multiplier (f) */
 	v = __raw_readl(dd->frac_mult_reg);
-	v &= ~(dd->frac_mult_mask);
-	v |= frac_m << __ffs(dd->frac_mult_mask);
+	v &= ~(TI814X_ADPLL_FRACT_MULT_MASK);
+	v |= frac_m << __ffs(TI814X_ADPLL_FRACT_MULT_MASK);
 	__raw_writel(v, dd->frac_mult_reg);
 
 	/* Set DPLL pre-divider (n) and post-divider (m2)*/
+
+	if (dd->flags & TI814X_ADPLL_LJ_TYPE)
+		div_n_mask = TI814X_ADPLL_N_DIV_MASK;
+	else
+		div_n_mask = TI814X_ADPLLS_N_DIV_MASK;
+
 	v = __raw_readl(dd->div_m2n_reg);
-	v &= ~(dd->div_m2_mask | dd->div_n_mask);
-	v |= m2 << __ffs(dd->div_m2_mask);
-	v |= n << __ffs(dd->div_n_mask);
+	v &= ~(TI814X_ADPLL_M2_DIV_MASK | div_n_mask);
+	v |= m2 << __ffs(TI814X_ADPLL_M2_DIV_MASK);
+	v |= n << __ffs(div_n_mask);
 	__raw_writel(v, dd->div_m2n_reg);
 
-	if (dd->sddiv_mask) {
+	if (dd->flags & TI814X_ADPLL_LJ_TYPE) {
 		_lookup_sddiv(clk, &sd_div, m, n+1);
 		v = __raw_readl(dd->frac_mult_reg);
-		v &= ~(dd->sddiv_mask);
-		v |= sd_div << __ffs(dd->sddiv_mask);
+		v &= ~(TI814X_ADPLLJ_SDDIV_MASK);
+		v |= sd_div << __ffs(TI814X_ADPLLJ_SDDIV_MASK);
 		__raw_writel(v, dd->frac_mult_reg);
 	}
 

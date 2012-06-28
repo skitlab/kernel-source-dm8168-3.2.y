@@ -191,18 +191,11 @@ struct dpll_data {
 	/* data fields required by TI814X ADPLLs */
 	u8		dpll_id;
 	void __iomem	*div_m2n_reg;
-	u32		div_m2_mask;
-	u32		div_n_mask;
 	u8		pre_div_n;
 	u8		post_div_m2;
 	void __iomem	*frac_mult_reg;
-	u32		frac_mult_mask;
 	u32		last_rounded_frac_m;
 	u8		last_rounded_m2;
-	u32		bypass_bit;
-	u8		byp_clk_src_bit;
-	u8		stby_ret_bit;
-	u8		stop_mode_bit;
 	void __iomem	*load_mn_reg;
 	void __iomem	*load_m2n2_reg;
 	u8		dco_freq_sel;
