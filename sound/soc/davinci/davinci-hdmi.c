@@ -37,6 +37,7 @@
 #include "davinci-pcm.h"
 #include "davinci-mcasp.h"
 #include <plat/hdmi_lib.h>
+#include <asm/div64.h>
 
 #define DAVINCI_HDMI_RATES	(SNDRV_PCM_RATE_48000	\
 				| SNDRV_PCM_RATE_32000	\
@@ -47,29 +48,26 @@
 /* Currently, we support only 16b & 24b samples at HDMI */
 #define DAVINCI_HDMI_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE)
 
-/* Audio N / CTS values based on TMDS clks */
-const struct audio_timings audio_timings[] = {
-	/* TMDS 148.4 KHz */
-	{148500, 32000, 4096, 148500, IF_FS_32000},
-	{148500, 44100, 6272, 165000, IF_FS_44100},
-	{148500, 48000, 6144, 148500, IF_FS_48000},
-	{148500, 96000, 12288, 148500, IF_FS_96000},
-	{148500, 192000, 24576, 148500, IF_FS_192000},
-
-	/* TMDS 74.25 KHz */
-	{74250, 32000, 4096, 74250, IF_FS_32000},
-	{74250, 44100, 6272, 82500, IF_FS_44100},
-	{74250, 48000, 6144, 74250, IF_FS_48000},
-	{74250, 96000, 12288, 74250, IF_FS_96000},
-	{74250, 192000, 24576, 74250, IF_FS_192000} ,
-
-	/* TMDS 54 KHz */
-	{54000, 32000, 4096, 54000, IF_FS_32000},
-	{54000, 44100, 6272, 60000, IF_FS_44100},
-	{54000, 48000, 6144, 54000, IF_FS_48000},
-	{54000, 96000, 12288, 54000, IF_FS_96000},
-	{54000, 192000, 24576, 54000, IF_FS_192000},
+/* Fs - N lookup table for CTS calculation for S/W mode*/
+const struct audio_fs_n audio_fs_n_list[] = {
+	{32000, 4096, IF_FS_32000},
+	{44100, 6272, IF_FS_44100},
+	{48000, 6144, IF_FS_48000},
+	{96000, 12288, IF_FS_96000},
+	{192000, 24576, IF_FS_192000},
 };
+
+/* Fs-N values lookup */
+static const struct audio_fs_n *get_audio_fs_n_val(u32 rate)
+{
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(audio_fs_n_list); i++) {
+		if (rate == audio_fs_n_list[i].audio_fs)
+			return &audio_fs_n_list[i];
+	}
+	return NULL;
+}
 
 /*
  * select the ACR packet genetation method
@@ -134,19 +132,6 @@ static int davinci_hdmi_dai_trigger(struct snd_pcm_substream *substream, int cmd
 	return err;
 }
 
-static const struct audio_timings *get_audio_timings(u32 tmds, u32 rate)
-{
-	int i = 0;
-
-	for (i = 0; i < ARRAY_SIZE(audio_timings); i++) {
-		if (tmds == audio_timings[i].tmds &&
-			rate == audio_timings[i].audio_fs)
-			return &audio_timings[i];
-	}
-
-	return NULL;
-}
-
 static int davinci_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *params,
 				    struct snd_soc_dai *dai)
@@ -154,28 +139,39 @@ static int davinci_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 	int err = 0;
 	u32 av_name = HDMI_CORE_AV;
 	int ret = 0;
-	int tdms = 0, rate = 0;
+	int tmds = 0, rate = 0;
 	struct hdmi_core_audio_config audio_cfg;
 	struct hdmi_audio_format audio_fmt;
 	struct hdmi_audio_dma audio_dma;
-	const struct audio_timings *timing;
+	const struct audio_fs_n *fs_n_val;
 	struct davinci_audio_dev *dev = snd_soc_dai_get_drvdata(dai);
 	long mclk_rate = 0;
+	u64 tmp_cts = 0;
+	u32 tmp_fs = 0 ;
 
 	/* TODO Modify the N/CTS value selection based on the Video clkc */
-	tdms = hdmi_get_video_timing();
+	tmds = hdmi_lib_get_pixel_clock();
 	rate = params_rate(params);
 
-	DBG(" TMDS: %d RATE: %d\n", tdms, rate);
-	timing = get_audio_timings(tdms, rate);
+	DBG(" TMDS: %d RATE: %d\n", tmds, rate);
+	fs_n_val = get_audio_fs_n_val(rate);
 
-	if (NULL == timing) {
+	if (NULL == fs_n_val) {
 		printk(KERN_ERR "sampling rate is not supported!\n");
 		return -EINVAL;
 	}
-	audio_cfg.n = timing->audio_n;
-	audio_cfg.cts = timing->audio_cts;
+	audio_cfg.n = fs_n_val->audio_n;
 
+	/* Calculate CTS value for S/W mode */
+	if (CTS_MODE_SW == hdmi_acr_mode()) {
+		/*
+		 * CTS = (TDMS * N * 1000) / (Fs * 128)
+		 */
+		tmp_fs =  fs_n_val->audio_fs / 100;
+		tmp_cts = tmds * fs_n_val->audio_n;
+		tmp_cts = div_u64(tmp_cts, tmp_fs * 128);
+		audio_cfg.cts = tmp_cts * 10 ;
+	}
 	DBG("FS: %d N: %d CTS: %d\n", rate, audio_cfg.n, audio_cfg.cts);
 
 	/*
@@ -230,7 +226,7 @@ static int davinci_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 	ret = hdmi_w1_audio_config_dma(HDMI_WP, &audio_dma);
 
 	/* HDMI Core config */
-	audio_cfg.if_fs = timing->audio_if_fs;
+	audio_cfg.if_fs = fs_n_val->audio_if_fs;
 	/*Currently we are supporting only 2CH*/
 	audio_cfg.layout = LAYOUT_2CH;
 	audio_cfg.if_channel_number = HDMI_STEREO_TWOCHANNELS;

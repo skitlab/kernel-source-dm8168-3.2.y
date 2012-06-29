@@ -471,12 +471,10 @@ struct hdmi_notifier {
 	struct list_head list;
 };
 
-/* Audio N/CTS values */
-struct audio_timings {
-	u32 tmds;
+/* Audio FS - N lookup */
+struct audio_fs_n {
 	u32 audio_fs;
 	u32 audio_n;
-	u32 audio_cts;
 	enum hdmi_core_if_fs audio_if_fs;
 };
 
