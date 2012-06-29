@@ -39,6 +39,11 @@
 #include "musb_core.h"
 #include "cppi41_dma.h"
 
+#define BABBLE_WORKAROUND_1 0
+#define BABBLE_WORKAROUND_2 1
+
+#define BABBLE_WORKAROUND (BABBLE_WORKAROUND_2)
+
 struct ti81xx_glue {
 	struct device *dev;
 	struct clk *ick;		/* common usbss interface clk */
@@ -1249,6 +1254,7 @@ int ti81xx_musb_init(struct musb *musb)
 		musb->enable_babble_work = 0;
 	}
 
+	musb->enable_babble_work = BABBLE_WORKAROUND;
 	musb_writel(reg_base, USB_IRQ_EOI, 0);
 
 	return 0;
