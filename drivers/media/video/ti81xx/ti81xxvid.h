@@ -71,6 +71,10 @@ struct ti81xx_vidout_dev {
 	enum v4l2_buf_type type;
 	struct videobuf_queue vbq;
 
+	/*Scalar parameters*/
+	struct ti81xxvid_scalarparam scalar_prms;
+	unsigned long scoutbuf; /* temporary buffer for scalar o/p*/
+
 };
 
 struct ti81xxvideo_device {

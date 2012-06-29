@@ -77,8 +77,6 @@ static u32 video2_bufsize = TI81XX_VIDOUT_HD_MAX_BUF_SIZE;
 static u32 video3_bufsize = TI81XX_VIDOUT_SD_MAX_BUF_SIZE;
 static u32 video3_memtype = VPS_VPDMA_MT_NONTILEDMEM;
 static int debug;
-static struct ti81xxvid_scalarparam scalar_prms;
-static unsigned long scoutbuf;
 
 /* Module parameters */
 module_param(video1_numbuffers, uint, S_IRUGO);
@@ -170,16 +168,18 @@ static inline enum vps_vpdmamemorytype get_mtype(struct ti81xx_vidout_dev *vout)
 
 }
 
-static void ti81xx_vidout_setscparams(struct ti81xxvid_scalarparam *scprm)
+static void ti81xx_vidout_setscparams(struct ti81xx_vidout_dev *vout,
+				struct ti81xxvid_scalarparam *scprm)
 {
-	scalar_prms.scalar_enable = scprm->scalar_enable;
-	scalar_prms.inframe_width = scprm->inframe_width;
-	scalar_prms.inframe_height = scprm->inframe_height;
-	scalar_prms.yframe_offset = scprm->yframe_offset;
-	scalar_prms.yframe_size = scprm->yframe_size;
-	scalar_prms.yoffset_flag = scprm->yoffset_flag;
-	scalar_prms.chroma_offset = scprm->chroma_offset;
-	scalar_prms.scoutbuf = NULL;
+struct ti81xxvid_scalarparam *scalar_prms = &vout->scalar_prms;
+	scalar_prms->scalar_enable = scprm->scalar_enable;
+	scalar_prms->inframe_width = scprm->inframe_width;
+	scalar_prms->inframe_height = scprm->inframe_height;
+	scalar_prms->yframe_offset = scprm->yframe_offset;
+	scalar_prms->yframe_size = scprm->yframe_size;
+	scalar_prms->yoffset_flag = scprm->yoffset_flag;
+	scalar_prms->chroma_offset = scprm->chroma_offset;
+	scalar_prms->scoutbuf = NULL;
 }
 
 /* Return the default cropping dimension in crop by the image
@@ -536,6 +536,7 @@ static int ti81xx_vidout_calculate_offset(struct ti81xx_vidout_dev *vout)
 static int video_mode_to_vpss_mode(struct ti81xx_vidout_dev *vout, u32 *dfmt)
 {
 	struct v4l2_pix_format *pix = &vout->pix;
+	struct ti81xxvid_scalarparam *scalar_prms = &vout->scalar_prms;
 	int r = 0;
 
 
@@ -545,7 +546,7 @@ static int video_mode_to_vpss_mode(struct ti81xx_vidout_dev *vout, u32 *dfmt)
 		break;
 	case V4L2_PIX_FMT_NV12:
 		if ((vout->vctrl->caps & VPSS_VID_CAPS_SCALING) &&
-				scalar_prms.scalar_enable) {
+				scalar_prms->scalar_enable) {
 			*dfmt = FVID2_DF_YUV420SP_UV;
 		} else {
 			if (vout->vid == TI81XX_VIDEO3)
@@ -578,6 +579,7 @@ int ti81xxvid_setup_video(struct ti81xx_vidout_dev *vout,
 {
 	int ret = 0;
 	struct vps_video_ctrl  *vctrl = vout->vctrl;
+	struct ti81xxvid_scalarparam *scalar_prms = &vout->scalar_prms;
 	struct fvid2_format ffmt;
 	u32 dfmt, scbufphy;
 	int height, width;
@@ -609,21 +611,21 @@ int ti81xxvid_setup_video(struct ti81xx_vidout_dev *vout,
 	fidmeg = vout->pix.field == V4L2_FIELD_SEQ_TB ? 0 : 1;
 
 	if ((vout->vctrl->caps & VPSS_VID_CAPS_SCALING) &&
-		scalar_prms.scalar_enable) {
-		scoutbuf = ti81xx_vidout_alloc_buffer(vout->buffer_size,
+		scalar_prms->scalar_enable) {
+		vout->scoutbuf = ti81xx_vidout_alloc_buffer(vout->buffer_size,
 				&scbufphy);
-		 if (!scoutbuf) {
-			ret = -EINVAL;
+		 if (!vout->scoutbuf) {
+			ret = -ENOMEM;
 			goto error;
 		}
-		scalar_prms.scoutbuf = (u8 *)scbufphy ;
-		if (vctrl->set_scparams(&scalar_prms)) {
+		scalar_prms->scoutbuf = (u8 *)scbufphy ;
+		if (vctrl->set_scparams(scalar_prms)) {
 			ret = -EINVAL;
 			goto error;
 		}
 	}
 	if ((vout->vctrl->caps & VPSS_VID_CAPS_SCALING) &&
-		scalar_prms.scalar_enable) {
+		scalar_prms->scalar_enable) {
 		ffmt.height = outh;
 		ffmt.width  = outw;
 		vctrl->try_format(vctrl, outw, outh, dfmt,
@@ -646,10 +648,6 @@ int ti81xxvid_setup_video(struct ti81xx_vidout_dev *vout,
 		ret = -EINVAL;
 		goto error;
 	}
-	if (vctrl->set_format(vctrl, &ffmt)) {
-		ret = -EINVAL;
-		goto error;
-	}
 	if (crop && (vctrl->caps & VPSS_VID_CAPS_CROPING)) {
 		if (vctrl->set_crop(vctrl, vout->crop.left,
 		    vout->crop.top, vout->pix.bytesperline,
@@ -659,9 +657,9 @@ int ti81xxvid_setup_video(struct ti81xx_vidout_dev *vout,
 		}
 	}
 	if ((vout->vctrl->caps & VPSS_VID_CAPS_SCALING) &&
-					scalar_prms.scalar_enable) {
+					scalar_prms->scalar_enable) {
 		/*Setting Dei/scalar params. Currently used for scalar config*/
-		deiprms.scenable = scalar_prms.scalar_enable;
+		deiprms.scenable = scalar_prms->scalar_enable;
 		deiprms.startx = vout->crop.left;
 		deiprms.starty = vout->crop.top;
 		if (vctrl->set_deiparams(vctrl, &deiprms, outw, outh)) {
@@ -691,6 +689,10 @@ int ti81xxvid_setup_video(struct ti81xx_vidout_dev *vout,
 				}
 			}
 		}
+	}
+	if (vctrl->set_format(vctrl, &ffmt)) {
+		ret = -EINVAL;
+		goto error;
 	}
 
 	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev,
@@ -815,6 +817,7 @@ static int ti81xx_vidout_buffer_setup(struct videobuf_queue *q,
 	int startindex = 0, i;
 	u32 phy_addr = 0, virt_addr = 0;
 	struct ti81xx_vidout_dev *vout = q->priv_data;
+	struct ti81xxvid_scalarparam *scalar_prms = &vout->scalar_prms;
 
 	if (!vout)
 		return -EINVAL;
@@ -837,7 +840,7 @@ static int ti81xx_vidout_buffer_setup(struct videobuf_queue *q,
 	/* Now allocated the V4L2 buffers */
 	if ((vout->pix.pixelformat == V4L2_PIX_FMT_NV12)
 		&& (vout->vid != TI81XX_VIDEO3)) {
-		*size = PAGE_ALIGN(scalar_prms.yframe_size * vout->sbpp >> 3);
+		*size = PAGE_ALIGN(scalar_prms->yframe_size * vout->sbpp >> 3);
 	} else {
 		*size = PAGE_ALIGN(vout->pix.width * vout->pix.height
 						* vout->sbpp >> 3);
@@ -1073,6 +1076,7 @@ static int ti81xx_vidout_vrelease(struct file *file)
 	struct videobuf_queue *q;
 	struct ti81xxvideo_fh *fh = file->private_data;
 	struct ti81xx_vidout_dev *vout = fh->voutdev;
+	struct ti81xxvid_scalarparam *scalar_prms = &vout->scalar_prms;
 	struct vps_video_ctrl *vctrl;
 
 	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "Entering %s for"
@@ -1104,9 +1108,9 @@ static int ti81xx_vidout_vrelease(struct file *file)
 	/* Free all buffers */
 	ti81xx_vidout_free_allbuffers(vout);
 	if ((vout->vctrl->caps & VPSS_VID_CAPS_SCALING) &&
-			scalar_prms.scalar_enable) {
-		ti81xx_vidout_free_buffer(scoutbuf, vout->buffer_size);
-		scalar_prms.scalar_enable = 0;
+			scalar_prms->scalar_enable) {
+		ti81xx_vidout_free_buffer(vout->scoutbuf, vout->buffer_size);
+		scalar_prms->scalar_enable = 0;
 	}
 	videobuf_mmap_free(q);
 
@@ -1821,6 +1825,7 @@ static int vidioc_qbuf(struct file *file, void *priv,
 	struct ti81xx_vidout_dev *vout = fh->voutdev;
 	struct videobuf_queue *q = &vout->vbq;
 	struct vps_video_ctrl *vctrl = vout->vctrl;
+	struct ti81xxvid_scalarparam *scalar_prms = &vout->scalar_prms;
 	u32 addr;
 
 	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev,
@@ -1847,7 +1852,7 @@ static int vidioc_qbuf(struct file *file, void *priv,
 		buf = list_entry(vout->dma_queue.prev,
 				struct videobuf_buffer, queue);
 		if ((vout->vctrl->caps & VPSS_VID_CAPS_SCALING) &&
-						scalar_prms.scalar_enable) {
+						scalar_prms->scalar_enable) {
 			addr = (unsigned long) vout->queued_buf_addr[buf->i];
 		} else {
 			if (ti81xx_vidout_calculate_offset(vout)) {
@@ -1916,6 +1921,7 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	struct videobuf_queue *q = &vout->vbq;
 	struct vps_video_ctrl *vctrl = vout->vctrl;
 	struct videobuf_buffer *buf;
+	struct ti81xxvid_scalarparam *scalar_prms = &vout->scalar_prms;
 
 	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev,
 		"VIDOUT%d: stream on\n",
@@ -1960,7 +1966,7 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 		/* Initialize field_id and started member */
 
 		if ((vout->vctrl->caps & VPSS_VID_CAPS_SCALING) &&
-						scalar_prms.scalar_enable) {
+						scalar_prms->scalar_enable) {
 			addr = (unsigned long) vout->queued_buf_addr[buf->i];
 		} else {
 			if (ti81xx_vidout_calculate_offset(vout)) {
@@ -2122,16 +2128,17 @@ static long vidioc_default(struct file *file, void *priv, int cmd, void *arg)
 {
 	struct ti81xxvideo_fh *fh = priv;
 	struct ti81xx_vidout_dev *vout = fh->voutdev;
+	struct ti81xxvid_scalarparam *scalar_prms = &vout->scalar_prms;
 
 	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev,
 		"VIDOUT%d: vidioc Default\n", vout->vid);
 	switch (cmd) {
 	case TISET_SCALAR_PARAMS:
-		if (scalar_prms.scalar_enable) {
+		if (scalar_prms->scalar_enable) {
 			return -EINVAL;
 		} else {
-			ti81xx_vidout_setscparams(
-			(struct ti81xxvid_scalarparam *)arg);
+			ti81xx_vidout_setscparams(vout,
+				(struct ti81xxvid_scalarparam *)arg);
 			return 0;
 		}
 		break;
