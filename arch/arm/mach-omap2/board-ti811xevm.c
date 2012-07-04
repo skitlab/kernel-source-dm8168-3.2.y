@@ -54,6 +54,8 @@
 #include "control.h"
 
 #define GPIO_TSC               31
+/* Convert GPIO signal to GPIO pin number */
+#define GPIO_TO_PIN(bank, gpio) (32 * (bank) + (gpio))
 
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
@@ -67,7 +69,7 @@ static struct omap2_hsmmc_info mmc[] = {
 	{
 		.mmc		= 1,
 		.caps		= MMC_CAP_4_BIT_DATA,
-		.gpio_cd	= -EINVAL, /* Dedicated pins for CD and WP */
+		.gpio_cd	= GPIO_TO_PIN(1, 6), /* Dedicated pins for CD and WP */
 		.gpio_wp	= -EINVAL,
 		.ocr_mask	= MMC_VDD_33_34,
 	},
