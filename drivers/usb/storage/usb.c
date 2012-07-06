@@ -797,6 +797,8 @@ static void quiesce_and_remove_host(struct us_data *us)
 	 */
 	scsi_lock(host);
 	set_bit(US_FLIDX_DISCONNECTING, &us->dflags);
+	/* stop the current urbs when the device got disconnected */
+	usb_stor_stop_transport(us);
 	scsi_unlock(host);
 	wake_up(&us->delay_wait);
 }
