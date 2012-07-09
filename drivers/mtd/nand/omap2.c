@@ -838,10 +838,8 @@ static int omap_read_page_bch(struct mtd_info *mtd, struct nand_chip *chip,
 
 		/* read respective ecc from oob area */
 		chip->cmdfunc(mtd, NAND_CMD_RNDOUT, oob_pos, page);
-		if (info->ecc_opt == OMAP_ECC_BCH8_CODE_HW)
-			chip->read_buf(mtd, oob, 13);
-		else
-			chip->read_buf(mtd, oob, eccbytes);
+		chip->read_buf(mtd, oob, eccbytes);
+
 		/* read syndrome */
 		chip->ecc.calculate(mtd, p, &ecc_calc[i]);
 
