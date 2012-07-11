@@ -4362,6 +4362,14 @@ void _update_fixed_divisors(void)
 	} else {
 		usb_dpll_div5_ck.fixed_div = 5;
 	}
+	/* EMIF CLK GATE register addr changed between PG1.0 and 2.0 for TI814X */
+	if(!(cpu_is_ti814x() &&
+		omap_rev() == TI8148_REV_ES1_0)) {
+		ddr0_phy_fck.enable_reg = TI814X_PLL_CMGC_EMIF_CLK_GATE_PG2;
+		ddr0_half_fck.enable_reg = TI814X_PLL_CMGC_EMIF_CLK_GATE_PG2;
+		ddr1_phy_fck.enable_reg = TI814X_PLL_CMGC_EMIF_CLK_GATE_PG2;
+		ddr1_half_fck.enable_reg = TI814X_PLL_CMGC_EMIF_CLK_GATE_PG2;
+	}
 }
 
 void _update_data_for_dm385(void)
