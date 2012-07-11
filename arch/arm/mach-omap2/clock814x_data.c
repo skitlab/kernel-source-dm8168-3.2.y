@@ -74,6 +74,7 @@
  */
 
 /************************** Dummy Clocks *********************************/
+/* On chip 32K RC Oscillator */
 static struct clk rcosc_32k_ck = {
 	.name		= "rcosc_32k_ck",
 	.ops		= &clkops_null,
@@ -81,6 +82,7 @@ static struct clk rcosc_32k_ck = {
 	.flags		= RATE_IN_TI814X | RATE_IN_DM385 | RATE_IN_TI811X,
 };
 
+/* TI811X has an onchip 32K oscillator */
 static struct clk osc_32k_ck = {
 	.name		= "osc_32k_ck",
 	.ops		= &clkops_null,
@@ -88,20 +90,24 @@ static struct clk osc_32k_ck = {
 	.flags		= RATE_IN_TI811X,
 };
 
+/* External 32K input for RTC, gpio, etc */
 static struct clk sys_32k_clkin_ck = {
 	.name		= "sys_32k_clkin_ck",
+	.ops		= &clkops_null,
+	.rate		= 32768,
+	.flags		= RATE_IN_TI814X | RATE_IN_DM385,
+};
+
+/* External tclk input for TIMERS, rate must be updated
+based on what is connected to input pin (TCLKIN) */
+static struct clk tclkin_ck = {
+	.name		= "tclkin_ck",
 	.ops		= &clkops_null,
 	.rate		= 32768,
 	.flags		= RATE_IN_TI814X | RATE_IN_DM385 | RATE_IN_TI811X,
 };
 
-static struct clk tclkin_ck = {
-	.name		= "tclkin_ck",
-	.ops		= &clkops_null,
-	.rate		= 32768,	/* TODO: Check */
-	.flags		= RATE_IN_TI814X | RATE_IN_DM385 | RATE_IN_TI811X,
-};
-
+/* Main clock source: 20 MHz */
 static struct clk osc0_clkin_ck = {
 	.name		= "osc0_clkin_ck",
 	.ops		= &clkops_null,
@@ -109,6 +115,7 @@ static struct clk osc0_clkin_ck = {
 	.flags		= RATE_IN_TI814X | RATE_IN_DM385 | RATE_IN_TI811X,
 };
 
+/* Additional clock source */
 static struct clk osc1_clkin_ck = {
 	.name		= "osc1_clkin_ck",
 	.ops		= &clkops_null,
@@ -116,20 +123,24 @@ static struct clk osc1_clkin_ck = {
 	.flags		= RATE_IN_TI814X | RATE_IN_DM385 | RATE_IN_TI811X,
 };
 
+/* Fixed divider brings down rate from 20 MHz to 32K */
 static struct clk rtc_divider_ck = {
 	.name		= "rtc_divider_ck",
+	.parent		= &osc0_clkin_ck,
 	.ops		= &clkops_null,
 	.rate		= 32768,
 	.flags		= RATE_IN_TI814X | RATE_IN_DM385 | RATE_IN_TI811X,
 };
 
-static struct clk osc1_x1_ck = {
-	.name		= "osc1_x1_ck",
+/* OSC1 External Input clock, rate must be updated based on brd schematics */
+static struct clk osc1_xi_ck = {
+	.name		= "osc1_xi_ck",
 	.ops		= &clkops_null,
-	.rate		= 20000000, /* ?? */
+	.rate		= 20000000,
 	.flags		= RATE_IN_TI814X | RATE_IN_DM385 | RATE_IN_TI811X,
 };
 
+/* External Ref Input clocks, rate must be updated based on brd schematics */
 static struct clk xref0_ck = {
 	.name		= "xref0_ck",
 	.ops		= &clkops_null,
@@ -151,6 +162,7 @@ static struct clk xref2_ck = {
 	.flags		= RATE_IN_TI814X | RATE_IN_DM385 | RATE_IN_TI811X,
 };
 
+/* Transport Input clocks, rate must be updated based on brd schematics */
 static struct clk tsi0_dck_ck = {
 	.name		= "tsi0_dck_ck",
 	.ops		= &clkops_null,
@@ -165,6 +177,7 @@ static struct clk tsi1_dck_ck = {
 	.flags		= RATE_IN_TI814X,
 };
 
+/* External Input for RMII, rate must be updated based on actual connetcion */
 static struct clk external_ck = {
 	.name		= "external_ck",
 	.ops		= &clkops_null,
@@ -172,11 +185,11 @@ static struct clk external_ck = {
 	.flags		= RATE_IN_TI814X | RATE_IN_DM385 | RATE_IN_TI811X,
 };
 
-/* ATL dummy output clocks  */
+/* ATL dummy output clocks, rate must be updated based on actual connetcion */
 static struct clk atl0_clk_ck = {
 	.name		= "atl0_clk_ck",
 	.ops		= &clkops_null,
-	.rate		= 22579000, /* ?? */
+	.rate		= 22579000,
 	.flags		= RATE_IN_TI814X | RATE_IN_DM385 | RATE_IN_TI811X,
 };
 
@@ -287,11 +300,14 @@ static const struct clksel_rate div2_sysclk6_rates[] = {
 	{ .div = 0 },
 };
 
+/* value selection for b3 and c1 dividers of PLL_VIDEO1
+ * reset value of the register is 0x3 which is unused so re-program it to div 1
+ */
 static const struct clksel_rate div4_b3c1_rates[] = {
 	{ .div = 1, .val = 0, .flags = RATE_IN_TI814X | RATE_IN_DM385 | RATE_IN_TI811X },
 	{ .div = 2, .val = 1, .flags = RATE_IN_TI814X | RATE_IN_DM385 | RATE_IN_TI811X },
 	{ .div = 22, .val = 2, .flags = RATE_IN_TI814X | RATE_IN_DM385 | RATE_IN_TI811X },
-	{ .div = 1, .val = 3, .flags = RATE_IN_TI814X | RATE_IN_DM385 | RATE_IN_TI811X }, /* Hack for default val in reg */
+	{ .div = 1, .val = 3, .flags = RATE_IN_TI814X | RATE_IN_DM385 | RATE_IN_TI811X },
 	{ .div = 0 },
 };
 /************************** Clocking Started *********************************/
@@ -465,8 +481,6 @@ static struct clk sgx_dpll_ck = {
 	.ops		= &clkops_ti814x_dpll_ops,
 	.parent		= &osc0_clkin_ck,
 	.dpll_data	= &sgx_dpll_dd,
-	.round_rate	= &ti814x_dpll_round_rate,
-	.set_rate	= &ti814x_dpll_set_rate,
 	.clkdm_name	= "sgx_clkdm",
 	.recalc		= &ti814x_dpll_recalc,
 	.round_rate	= &ti814x_dpll_round_rate,
@@ -2785,6 +2799,7 @@ static const struct clksel rtc_clkin32_mux_sel[] = {
 	{ .parent = NULL}
 };
 
+/* TI811X has an on chip 32K osc, that drives RTC */
 static const struct clksel rtc_clkin32_mux_811x_sel[] = {
 	{ .parent = &rtc_divider_ck, .rates = div_1_0_rates },
 	{ .parent = &osc_32k_ck, .rates = div_1_1_rates },
@@ -2939,7 +2954,7 @@ static const struct clksel mcbsp_clks_mux_sel[] = {
 	{ .parent = &xref0_ck, .rates = div_1_1_rates },
 	{ .parent = &xref1_ck, .rates = div_1_2_rates },
 	{ .parent = &xref2_ck, .rates = div_1_3_rates },
-	{ .parent = &osc1_x1_ck, .rates = div_1_4_rates },
+	{ .parent = &osc1_xi_ck, .rates = div_1_4_rates },
 	{ .parent = NULL}
 };
 
@@ -3021,7 +3036,7 @@ static const struct clksel hdmi_i2s_mclk_mux_sel[] = {
 	{ .parent = &xref0_ck, .rates = div_1_1_rates },
 	{ .parent = &xref1_ck, .rates = div_1_2_rates },
 	{ .parent = &xref2_ck, .rates = div_1_3_rates },
-	{ .parent = &osc1_x1_ck, .rates = div_1_4_rates },
+	{ .parent = &osc1_xi_ck, .rates = div_1_4_rates },
 	{ .parent = NULL}
 };
 
@@ -3189,7 +3204,7 @@ static const struct clksel gpt0to7_fclk_mux_sel[] = {
 	{ .parent = &xref1_ck, .rates = div_1_2_rates },
 	{ .parent = &xref2_ck, .rates = div_1_3_rates },
 	{ .parent = &osc0_clkin_ck, .rates = div_1_4_rates },
-	{ .parent = &osc1_x1_ck, .rates = div_1_5_rates },
+	{ .parent = &osc1_xi_ck, .rates = div_1_5_rates },
 	{ .parent = &tclkin_ck, .rates = div_1_6_rates },
 	{ .parent = NULL}
 };
@@ -3200,7 +3215,7 @@ static const struct clksel gpt0to7_fclk_mux_811x_sel[] = {
 	{ .parent = &xref1_ck, .rates = div_1_2_rates },
 	{ .parent = &xref2_ck, .rates = div_1_3_rates },
 	{ .parent = &osc0_clkin_ck, .rates = div_1_4_rates },
-	{ .parent = &osc1_x1_ck, .rates = div_1_5_rates },
+	{ .parent = &osc1_xi_ck, .rates = div_1_5_rates },
 	{ .parent = &tclkin_ck, .rates = div_1_6_rates },
 	{ .parent = &sysclk16_ck, .rates = div_1_7_rates },
 	{ .parent = &sysclk14_ck, .rates = div_1_8_rates },
@@ -3320,7 +3335,7 @@ static const struct clksel mcasp0to6_auxclk_mux_sel[] = {
 	{ .parent = &xref0_ck, .rates = div_1_3_rates },
 	{ .parent = &xref1_ck, .rates = div_1_4_rates },
 	{ .parent = &xref2_ck, .rates = div_1_5_rates },
-	{ .parent = &osc1_x1_ck, .rates = div_1_6_rates },
+	{ .parent = &osc1_xi_ck, .rates = div_1_6_rates },
 	{ .parent = NULL}
 };
 
@@ -3364,7 +3379,7 @@ static const struct clksel mcasp0to7_ahclk_mux_sel[] = {
 	{ .parent = &xref0_ck, .rates = div_1_0_rates },
 	{ .parent = &xref1_ck, .rates = div_1_1_rates },
 	{ .parent = &xref2_ck, .rates = div_1_2_rates },
-	{ .parent = &osc1_x1_ck, .rates = div_1_3_rates },
+	{ .parent = &osc1_xi_ck, .rates = div_1_3_rates },
 	{ .parent = &atl0_clk_ck, .rates = div_1_4_rates },
 	{ .parent = &atl1_clk_ck, .rates = div_1_5_rates },
 	{ .parent = &atl2_clk_ck, .rates = div_1_6_rates },
@@ -4025,12 +4040,12 @@ static struct clk sys_clkout2 = {
 static struct omap_clk ti814x_clks[] = {
 	CLK(NULL,		"rcosc_32k_ck",			&rcosc_32k_ck,			CK_TI814X | CK_DM385 | CK_TI811X),
 	CLK(NULL,		"osc_32k_ck",			&osc_32k_ck,			CK_TI811X),
-	CLK(NULL,		"sys_32k_clkin_ck",		&sys_32k_clkin_ck,		CK_TI814X | CK_DM385 | CK_TI811X),
+	CLK(NULL,		"sys_32k_clkin_ck",		&sys_32k_clkin_ck,		CK_TI814X | CK_DM385),
 	CLK(NULL,		"tclkin_ck",			&tclkin_ck,			CK_TI814X | CK_DM385 | CK_TI811X),
 	CLK(NULL,		"osc0_clkin_ck",		&osc0_clkin_ck,			CK_TI814X | CK_DM385 | CK_TI811X),
 	CLK(NULL,		"osc1_clkin_ck",		&osc1_clkin_ck,			CK_TI814X | CK_DM385 | CK_TI811X),
 	CLK(NULL,		"rtc_divider_ck",		&rtc_divider_ck,		CK_TI814X | CK_DM385 | CK_TI811X),
-	CLK(NULL,		"osc1_x1_ck",			&osc1_x1_ck,			CK_TI814X | CK_DM385 | CK_TI811X),
+	CLK(NULL,		"osc1_xi_ck",			&osc1_xi_ck,			CK_TI814X | CK_DM385 | CK_TI811X),
 	CLK(NULL,		"xref0_ck",			&xref0_ck,			CK_TI814X | CK_DM385 | CK_TI811X),
 	CLK(NULL,		"xref1_ck",			&xref1_ck,			CK_TI814X | CK_DM385 | CK_TI811X),
 	CLK(NULL,		"xref2_ck",			&xref2_ck,			CK_TI814X | CK_DM385 | CK_TI811X),
