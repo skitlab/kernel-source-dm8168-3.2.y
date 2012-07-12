@@ -28,6 +28,7 @@
 #include <linux/i2c/pcf857x.h>
 #include <linux/regulator/machine.h>
 #include <linux/mfd/tps65910.h>
+#include <linux/sii9022a.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -298,6 +299,11 @@ static struct pcf857x_platform_data io_expander_data = {
 };
 
 
+static struct sii9022a_platform_data sii9022a_pdata = {
+	.hdmi_hot_plug_gpio_intr_line	= 0,
+	.sync_mode			= 0,
+	.clk_edge			= 1,
+};
 
 
 static struct i2c_board_info __initdata ti814x_i2c_boardinfo[] = {
@@ -331,6 +337,7 @@ static struct i2c_board_info __initdata ti814x_i2c_boardinfo[] = {
 static struct i2c_board_info __initdata ti811x_i2c_boardinfo1[] = {
 	{
 		I2C_BOARD_INFO("sii9022a", 0x39),
+		.platform_data = &sii9022a_pdata,
 	},
 };
 

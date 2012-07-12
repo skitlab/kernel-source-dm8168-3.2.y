@@ -26,6 +26,7 @@
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/sii9022a.h>
 #include "../vpss/display_interface.h"
 #include "sii9022a_drv.h"
 
@@ -836,14 +837,17 @@ static int sii9022a_set_power(void)
 	int r = 0;
 
 	struct hdmi_video_encoder_create_params  input_encoder_create_params;
+	struct sii9022a_platform_data *pdata;
 	u32 input_standard;
 
-	input_encoder_create_params.device_i2c_inst_id = 3;
-	input_encoder_create_params.device_i2c_addr = 0x39;
-	input_encoder_create_params.inp_clk = 0;
-	input_encoder_create_params.hdmi_hot_plug_gpio_intr_line = 0;
-	input_encoder_create_params.sync_mode = ENCODER_EXTERNAL_SYNC;
-	input_encoder_create_params.clk_edge = 0;
+	pdata = dev_get_platdata(&client->dev);
+	if (!pdata)
+		printk(KERN_ERR "Platform data not found\n");
+
+	input_encoder_create_params.hdmi_hot_plug_gpio_intr_line =
+				pdata->hdmi_hot_plug_gpio_intr_line;
+	input_encoder_create_params.sync_mode = pdata->sync_mode;
+	input_encoder_create_params.clk_edge = pdata->clk_edge;
 
 	input_standard = gsii9022a_obj.standard;
 

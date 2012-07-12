@@ -28,6 +28,7 @@
 #include <linux/gpio.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/gpio-regulator.h>
+#include <linux/sii9022a.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -247,6 +248,12 @@ static void __init ti816x_gpio_vr_init(void)
 static inline void ti816x_gpio_vr_init(void) {}
 #endif
 
+static struct sii9022a_platform_data sii9022a_pdata = {
+	.hdmi_hot_plug_gpio_intr_line   = 0,
+	.sync_mode                      = 0,
+	.clk_edge                       = 0,
+};
+
 static struct i2c_board_info __initdata ti816x_i2c_boardinfo0[] = {
 	{
 		I2C_BOARD_INFO("eeprom", 0x50),
@@ -270,6 +277,7 @@ static struct i2c_board_info __initdata ti816x_i2c_boardinfo1[] = {
 	},
 	{
 		I2C_BOARD_INFO("sii9022a", 0x39),
+		.platform_data	= &sii9022a_pdata,
 	},
 	{
 		I2C_BOARD_INFO("pcf8575_1", 0x21),
