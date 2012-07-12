@@ -817,7 +817,10 @@ void musb_babble_workaround(struct musb *musb)
 		cpu_relax();
 
 	/* Shutdown the on-chip PHY and its PLL. */
-	if (data->set_phy_power)
+	/* do not shut down the phy if rxcalib is enabled
+	 * performing rxcalibration second time does not work
+	 */
+	if (!data->usbphy_rxcalib_enable && data->set_phy_power)
 		data->set_phy_power(musb->id, 0);
 	udelay(100);
 
@@ -828,7 +831,7 @@ void musb_babble_workaround(struct musb *musb)
 	mdelay(100);
 
 	/* enable the usbphy */
-	if (data->set_phy_power)
+	if (!data->usbphy_rxcalib_enable && data->set_phy_power)
 		data->set_phy_power(musb->id, 1);
 	mdelay(100);
 
