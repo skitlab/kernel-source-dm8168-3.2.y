@@ -697,7 +697,7 @@ static struct clk tptc0_ick = {
 	.ops		= &clkops_ti81xx_dflt_wait,
 	.enable_reg	= TI81XX_CM_ALWON_TPTC0_CLKCTRL,
 	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
-	.clkdm_name	= "alwon_l3_med_clkdm",
+	.clkdm_name	= "alwon_l3_fast_clkdm",
 	.recalc		= &followparent_recalc,
 };
 
@@ -811,7 +811,7 @@ static struct clk securess_ick = {
 	.ops		= &clkops_omap2_dflt,
 	.enable_reg	= TI81XX_CM_ALWON_SECSS_CLKCTRL,
 	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
-	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.clkdm_name	= "alwon_l3_med_clkdm",
 	.recalc		= &followparent_recalc,
 };
 
@@ -863,7 +863,7 @@ static struct clk vcp2_fck = {
 	.ops		= &clkops_ti81xx_dflt_wait,
 	.enable_reg	= TI814X_CM_ALWON_VCP_CLKCTRL,
 	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
-	.clkdm_name	= "alwon_l3_med_clkdm",
+	.clkdm_name	= "alwon_l3_fast_clkdm",
 	.recalc		= &followparent_recalc,
 };
 
@@ -1645,7 +1645,7 @@ static struct clk tppss_tso_ick = {
 	.name		= "tppss_tso_ick",
 	.parent		= &iss_dpll_ck,
 	.ops		= &clkops_null,
-	.clkdm_name	= "iss_clkdm",
+	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &followparent_recalc,
 	.set_rate	= &ti814x_clksel_set_rate,
 };
@@ -1655,7 +1655,7 @@ static struct clk iss_dpll_d2_ck = {
 	.name		= "iss_dpll_d2_ck",
 	.parent		= &iss_dpll_ck,
 	.ops		= &clkops_null,
-	.clkdm_name	= "iss_clkdm",
+	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.fixed_div	= 2,
 	.recalc		= &omap_fixed_divisor_recalc,
 };

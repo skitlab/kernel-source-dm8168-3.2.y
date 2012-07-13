@@ -51,6 +51,36 @@ static struct clockdomain alwon_l3_slow_81xx_clkdm = {
 					 CHIP_IS_DM385 | CHIP_IS_TI811X),
 };
 
+static struct clockdomain alwon_l3_med_81xx_clkdm = {
+	.name		= "alwon_l3_med_clkdm",
+	.pwrdm		= { .name = "alwon_pwrdm" },
+	.cm_inst	= TI81XX_CM_ALWON_MOD,
+	.clkdm_offs	= TI81XX_CM_ALWON_L3_MED_CLKDM,
+	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,
+#if defined(CONFIG_ARCH_TI814X)
+	.flags		= CLKDM_CAN_SWSUP,
+#else
+	.flags		= CLKDM_CAN_HWSUP_SWSUP,
+#endif
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X |
+					 CHIP_IS_DM385 | CHIP_IS_TI811X),
+};
+
+static struct clockdomain alwon_l3_fast_81xx_clkdm = {
+	.name		= "alwon_l3_fast_clkdm",
+	.pwrdm		= { .name = "alwon_pwrdm" },
+	.cm_inst	= TI81XX_CM_ALWON_MOD,
+	.clkdm_offs	= TI81XX_CM_ALWON_L3_FAST_CLKDM,
+	.clktrctrl_mask	= TI81XX_CLKTRCTRL_MASK,
+#if defined(CONFIG_ARCH_TI814X)
+	.flags		= CLKDM_CAN_SWSUP,
+#else
+	.flags		= CLKDM_CAN_HWSUP_SWSUP,
+#endif
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI816X | CHIP_IS_TI814X |
+					 CHIP_IS_DM385 | CHIP_IS_TI811X),
+};
+
 static struct clockdomain alwon_ethernet_81xx_clkdm = {
 	.name		= "alwon_ethernet_clkdm",
 	.pwrdm		= { .name = "alwon_pwrdm" },

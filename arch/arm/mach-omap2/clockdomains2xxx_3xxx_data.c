@@ -862,6 +862,8 @@ static struct clockdomain *clockdomains_omap2[] __initdata = {
 #ifdef CONFIG_ARCH_TI81XX
 	&alwon_mpu_816x_clkdm,
 	&alwon_l3_slow_81xx_clkdm,
+	&alwon_l3_med_81xx_clkdm,
+	&alwon_l3_fast_81xx_clkdm,
 	&alwon_ethernet_81xx_clkdm,
 	&alwon_ocmc_814x_clkdm,
 	&mmu_81xx_clkdm,
