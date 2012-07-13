@@ -2939,14 +2939,11 @@ static const struct clksel audio_prcm_mux_sel[] = {
 static struct clk audio_prcm1_out_ck = {
 	.name		= "audio_prcm1_out_ck",
 	.init		= &omap2_init_clksel_parent,
-	.ops		= &clkops_ti81xx_dflt_wait,
-	.enable_reg	= TI81XX_CM_ALWON_MCBSP_CLKCTRL,
-	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
+	.ops		= &clkops_null,
 	.clksel		= audio_prcm_mux_sel,
 	.clksel_reg	= TI81XX_CM_DPLL_AUDIOCLK_MCBSP_CLKSEL,
 	.clksel_mask	= TI81XX_CLKSEL_0_1_MASK,
 	.recalc		= &omap2_clksel_recalc,
-	.set_rate	= &ti814x_clksel_set_rate,
 };
 
 static const struct clksel mcbsp_clks_mux_sel[] = {
@@ -2962,7 +2959,9 @@ static const struct clksel mcbsp_clks_mux_sel[] = {
 static struct clk mcbsp_fck = {
 	.name		= "mcbsp_fck",
 	.init		= &omap2_init_clksel_parent,
-	.ops		= &clkops_null,
+	.ops		= &clkops_ti81xx_dflt_wait,
+	.enable_reg	= TI81XX_CM_ALWON_MCBSP_CLKCTRL,
+	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
 	.clksel		= mcbsp_clks_mux_sel,
 	.clksel_reg	= TI814X_PLL_CMGC_MCBSP_UART_CLKSRC,
 	.clksel_mask	= TI814X_MCBSP_MASK,
@@ -3020,10 +3019,8 @@ static struct clk mcasp3_fck = {
 static struct clk hdmi_i2s_ck = {
 	.name		= "hdmi_i2s_ck",
 	.init		= &omap2_init_clksel_parent,
+	.ops		= &clkops_null,
 	.clksel		= audio_prcm_mux_sel,
-	.ops		= &clkops_ti81xx_dflt_wait,
-	.enable_reg	= TI814X_CM_HDVPSS_HDMI_CLKCTRL,
-	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
 	.clksel_reg	= TI81XX_CM_DPLL_HDMI_CLKSEL,
 	.clksel_mask	= TI81XX_CLKSEL_0_1_MASK,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
@@ -3044,7 +3041,9 @@ static const struct clksel hdmi_i2s_mclk_mux_sel[] = {
 static struct clk hdmi_i2s_fck = {
 	.name		= "hdmi_i2s_fck",
 	.init		= &omap2_init_clksel_parent,
-	.ops		= &clkops_null,
+	.ops		= &clkops_ti81xx_dflt_wait,
+	.enable_reg	= TI814X_CM_HDVPSS_HDMI_CLKCTRL,
+	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
 	.clksel		= hdmi_i2s_mclk_mux_sel,
 	.clksel_reg	= TI814X_PLL_CMGC_HDMI_I2S_CLKSRC,
 	.clksel_mask	= TI814X_HDMI_I2S_CLKSRC_MASK,
@@ -3079,8 +3078,8 @@ static struct clk atl_fck = {
 	.enable_reg	= TI814X_CM_ALWON_ATL_CLKCTRL,
 	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
 	.clksel		= atlp_clk_mux_sel,
-	.clksel_reg	= TI814X_PLL_CMGC_HDMI_I2S_CLKSRC,
-	.clksel_mask	= TI814X_HDMI_I2S_CLKSRC_MASK,
+	.clksel_reg	= TI814X_PLL_CMGC_MLB_ATL_CLKSRC,
+	.clksel_mask	= TI814X_MLB_ATL_ATL_MASK,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &omap2_clksel_recalc,
 };
@@ -3189,10 +3188,10 @@ static struct clk bandgaps_fck = {
 	.recalc		= &followparent_recalc,
 };
 
-/* arm operational Func clk (MUX out) */
-static struct clk arm_oper_fck = {
-	.name		= "arm_oper_fck",
-	.parent		= &sysclk18_ck,
+/* arm optional Func clk (MUX out) */
+static struct clk arm_opt_fck = {
+	.name		= "arm_opt_fck",
+	.parent		= &rtc_divider_ck,
 	.ops		= &clkops_null,
 	.clkdm_name	= "alwon_l3_slow_clkdm",
 	.recalc		= &followparent_recalc,
@@ -3209,7 +3208,8 @@ static const struct clksel gpt0to7_fclk_mux_sel[] = {
 	{ .parent = NULL}
 };
 
-static const struct clksel gpt0to7_fclk_mux_811x_sel[] = {
+/* On TI811X, an extra input was added */
+static const struct clksel gpt0to8_fclk_mux_811x_sel[] = {
 	{ .parent = &sysclk18_ck, .rates = div_1_0_rates },
 	{ .parent = &xref0_ck, .rates = div_1_1_rates },
 	{ .parent = &xref1_ck, .rates = div_1_2_rates },
@@ -3493,6 +3493,7 @@ static const struct clksel cpts0to4_rft_clk_mux_sel[] = {
 	{ .parent = NULL}
 };
 
+/* On TI811X, input from l3_dpll was replaced by l3_fast clock */
 static const struct clksel cpts0to4_rft_clk_mux_811x_sel[] = {
 	{ .parent = &video0_dpll_ck, .rates = div_1_0_rates },
 	{ .parent = &video1_dpll_ck, .rates = div_1_1_rates },
@@ -4292,7 +4293,7 @@ static struct omap_clk ti814x_clks[] = {
 	CLK("mmci-omap-hs.2",	"mmchs3_dbck",			&mmchs3_dbck,			CK_TI814X | CK_DM385 | CK_TI811X),
 	CLK(NULL,		"sync_timer_fck",		&sync_timer_fck,		CK_TI814X | CK_DM385 | CK_TI811X),
 	CLK(NULL,		"bandgaps_fck",			&bandgaps_fck,			CK_TI814X | CK_DM385 | CK_TI811X),
-	CLK(NULL,		"arm_oper_fck",			&arm_oper_fck,			CK_TI814X),
+	CLK(NULL,		"arm_opt_fck",			&arm_opt_fck,			CK_TI814X),
 	CLK(NULL,		"gpt1_fck",			&gpt1_fck,			CK_TI814X | CK_DM385 | CK_TI811X),
 	CLK(NULL,		"gpt2_fck",			&gpt2_fck,			CK_TI814X | CK_DM385 | CK_TI811X),
 	CLK(NULL,		"gpt3_fck",			&gpt3_fck,			CK_TI814X | CK_DM385 | CK_TI811X),
@@ -4398,21 +4399,21 @@ void _update_data_for_ti811x(void)
 	audio_prcm_clkin_ck.clksel	= rtc_clkin32_mux_811x_sel;
 
 	/* gptimer no of inputs and sources changed */
-	gpt1_fck.clksel		= gpt0to7_fclk_mux_811x_sel;
+	gpt1_fck.clksel		= gpt0to8_fclk_mux_811x_sel;
 	gpt1_fck.clksel_mask	= TI811X_DMTIMER1_CLKS_MASK;
-	gpt2_fck.clksel		= gpt0to7_fclk_mux_811x_sel;
+	gpt2_fck.clksel		= gpt0to8_fclk_mux_811x_sel;
 	gpt2_fck.clksel_mask	= TI811X_DMTIMER2_CLKS_MASK;
-	gpt3_fck.clksel		= gpt0to7_fclk_mux_811x_sel;
+	gpt3_fck.clksel		= gpt0to8_fclk_mux_811x_sel;
 	gpt3_fck.clksel_mask	= TI811X_DMTIMER3_CLKS_MASK;
-	gpt4_fck.clksel		= gpt0to7_fclk_mux_811x_sel;
+	gpt4_fck.clksel		= gpt0to8_fclk_mux_811x_sel;
 	gpt4_fck.clksel_mask	= TI811X_DMTIMER4_CLKS_MASK;
-	gpt5_fck.clksel		= gpt0to7_fclk_mux_811x_sel;
+	gpt5_fck.clksel		= gpt0to8_fclk_mux_811x_sel;
 	gpt5_fck.clksel_mask	= TI811X_DMTIMER5_CLKS_MASK;
-	gpt6_fck.clksel		= gpt0to7_fclk_mux_811x_sel;
+	gpt6_fck.clksel		= gpt0to8_fclk_mux_811x_sel;
 	gpt6_fck.clksel_mask	= TI811X_DMTIMER6_CLKS_MASK;
-	gpt7_fck.clksel		= gpt0to7_fclk_mux_811x_sel;
+	gpt7_fck.clksel		= gpt0to8_fclk_mux_811x_sel;
 	gpt7_fck.clksel_mask	= TI811X_DMTIMER7_CLKS_MASK;
-	gpt8_fck.clksel		= gpt0to7_fclk_mux_811x_sel;
+	gpt8_fck.clksel		= gpt0to8_fclk_mux_811x_sel;
 	gpt8_fck.clksel_mask	= TI811X_DMTIMER8_CLKS_MASK;
 
 	clkout_prcm_mux_ck.clksel	= clkout0to3_811x_mux_sel;
