@@ -70,7 +70,7 @@ static struct omap2_hsmmc_info mmc[] = {
 		.mmc		= 1,
 		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_cd	= GPIO_TO_PIN(1, 6), /* Dedicated pins for CD and WP */
-		.gpio_wp	= -EINVAL,
+		.gpio_wp	= GPIO_TO_PIN(1, 3),
 		.ocr_mask	= MMC_VDD_33_34,
 	},
 	{}	/* Terminator */
