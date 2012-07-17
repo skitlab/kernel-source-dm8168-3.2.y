@@ -2739,7 +2739,7 @@ static struct platform_device omap_ahci1_device = {
 
 static inline void omap_init_ahci(void)
 {
-	if (cpu_is_ti81xx()) {
+	if ((cpu_is_ti81xx()) && (!cpu_is_ti811x())) {
 		platform_device_register(&omap_ahci0_device);
 		if (cpu_is_dm385())
 			platform_device_register(&omap_ahci1_device);
