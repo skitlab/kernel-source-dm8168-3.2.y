@@ -822,9 +822,6 @@ static int omap_read_page_bch(struct mtd_info *mtd, struct nand_chip *chip,
 	uint32_t data_pos;
 	uint32_t oob_pos;
 
-	struct omap_nand_info *info = container_of(mtd, struct omap_nand_info,
-						mtd);
-
 	data_pos = 0;
 	/* oob area start */
 	oob_pos = (eccsize * eccsteps) + chip->ecc.layout->eccpos[0];
