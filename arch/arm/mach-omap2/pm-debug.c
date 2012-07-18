@@ -623,8 +623,15 @@ static int __init pm_dbg_init(void)
 	if (cpu_is_omap34xx())
 		pm_dbg_reg_modules = omap3_pm_reg_modules;
 	else if (cpu_is_ti814x()) {
-		pr_info("Debugfs: Only enabling/disabling deep sleep "
-			"and wakeup timer is supported now\n");
+
+		if(cpu_is_ti811x()) {
+			pr_debug("%s: PM debugfs entries not available"
+				"for this platform\n", __func__);
+			return -ENODEV;
+		}
+		else
+			pr_info("Debugfs: Only enabling/disabling deep sleep "
+				"and wakeup timer is supported now\n");
 	} else {
 		printk(KERN_ERR "%s: only OMAP3 supported\n", __func__);
 		return -ENODEV;
