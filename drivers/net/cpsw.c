@@ -119,6 +119,12 @@ do {								\
 #define portcmd(__cmd__)	((__cmd__)->cmd_data.portcmd)
 #define priocmd(__cmd__)	((__cmd__)->cmd_data.priocmd)
 
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+#define cpsw_slave_phy_index(priv)	((priv)->emac_port)
+#else
+#define cpsw_slave_phy_index(priv)	0
+#endif
+
 static int debug_level;
 module_param(debug_level, int, 0);
 MODULE_PARM_DESC(debug_level, "cpsw debug level (NETIF_MSG bits)");
@@ -2566,8 +2572,10 @@ static int cpsw_get_settings(struct net_device *ndev,
 			     struct ethtool_cmd *ecmd)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
-	if (priv->slaves->phy)
-		return phy_ethtool_gset(priv->slaves->phy, ecmd);
+	int slave_no = cpsw_slave_phy_index(priv);
+
+	if (priv->slaves[slave_no].phy)
+		return phy_ethtool_gset(priv->slaves[slave_no].phy, ecmd);
 	else
 		return -EOPNOTSUPP;
 
@@ -2584,9 +2592,10 @@ static int cpsw_get_settings(struct net_device *ndev,
 static int cpsw_set_settings(struct net_device *ndev, struct ethtool_cmd *ecmd)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
+	int slave_no = cpsw_slave_phy_index(priv);
 
-	if (priv->slaves->phy)
-		return phy_ethtool_sset(priv->slaves->phy, ecmd);
+	if (priv->slaves[slave_no].phy)
+		return phy_ethtool_sset(priv->slaves[slave_no].phy, ecmd);
 	else
 		return -EOPNOTSUPP;
 
