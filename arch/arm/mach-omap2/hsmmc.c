@@ -259,6 +259,10 @@ void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 			pr_err("Cannot allocate memory for mmc device!\n");
 			goto done;
 		}
+
+		if (cpu_is_ti816x())
+			mmc->version = MMC_CTRL_VERSION_2;
+
 		if (c->name)
 			strncpy(hc->name, c->name, HSMMC_NAME_LEN);
 		else
