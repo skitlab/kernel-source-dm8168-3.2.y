@@ -529,7 +529,7 @@ static struct omap_mux __initdata ti814x_muxmodes[] = {
 			NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 			NULL),/* DM385 only */
 	_TI814X_MUXENTRY(UART0_RTSN, 0,
-			"uart0_rtsn_ti811x", "sata_act1_led_mux", NULL, NULL,
+			"uart0_rtsn_ti811x", NULL, NULL, NULL,
 			NULL, NULL, NULL, "gpio4_17", NULL, NULL, NULL,
 			NULL),/* for TI811X only */
 
