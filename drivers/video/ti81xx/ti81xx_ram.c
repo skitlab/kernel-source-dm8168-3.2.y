@@ -431,7 +431,7 @@ void __init ti81xxfb_reserve_sdram_memblock(void)
 	if (!size)
 		return;
 
-	size = PAGE_ALIGN(size);
+	size = ALIGN(size, SZ_2M);
 
 	if (paddr) {
 
@@ -458,7 +458,7 @@ void __init ti81xxfb_reserve_sdram_memblock(void)
 		}
 
 	} else
-		paddr = memblock_alloc(size, PAGE_SIZE);
+		paddr = memblock_alloc(size, SZ_2M);
 
 	memblock_free(paddr, size);
 	memblock_remove(paddr, size);
