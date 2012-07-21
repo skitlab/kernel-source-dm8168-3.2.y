@@ -904,7 +904,7 @@ static irqreturn_t ti81xx_interrupt(int irq, void *hci)
 
 	if (is_babble) {
 		if (musb->enable_babble_work)
-			musb->int_usb |= MUSB_INTR_DISCONNECT;
+			musb->int_usb = MUSB_INTR_DISCONNECT;
 
 		ERR("CAUTION: musb%d: Babble Interrupt Occured\n", musb->id);
 		ERR("Please issue long reset to make usb functional !!\n");
