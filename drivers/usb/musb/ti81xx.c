@@ -1061,7 +1061,7 @@ int ti81xx_musb_set_mode(struct musb *musb, u8 musb_mode)
 #define USB2PHY_DAC1_EN_OFFS		21
 #define USB2PHY_DAC2_EN_OFFS		14
 #define USB2PHY_DAC3_EN_OFFS		8
-void usb2phy_config(struct musb *musb, u8 config)
+void usb2phy_config(struct musb *musb, u8 config, u8 config_option)
 {
 	u32 regs_offset, val, sign, rx_calib, timeout = 0xfffff;
 	u8 dac1, dac2, dac3;
@@ -1126,6 +1126,37 @@ void usb2phy_config(struct musb *musb, u8 config)
 				rx_calib = 15 - rx_calib;
 			}
 		}
+
+		pr_info("usb2phy: computed values rxcalib(%d)"
+			"DACs(%d %d %d)\n", rx_calib, dac1, dac2, dac3);
+
+		switch (config_option) {
+
+		case 1:
+			/* the new computed values are not working
+			 * causing interop issues with specifc mouse
+			 * hence over-riding the new computed
+			 * values of rxcalib register.
+			 */
+			rx_calib = 7;
+			dac1 = 14;
+			dac2 = 12;
+			dac3 = 15;
+			break;
+
+		case 2:
+			dac1 = 14;
+			dac2 = dac2 - 1;
+			dac3++;
+			break;
+			/* use new computed values */
+		default:
+			break;
+		}
+
+		pr_info("usb2phy: override computed values rxcalib(%d)"
+				"DACs(%d %d %d)\n", rx_calib, dac1, dac2, dac3);
+
 		val &= ~(0x3F << 24);
 		val |= ((rx_calib << 24) | (sign << 29) | (1 << 30));
 
@@ -1199,7 +1230,7 @@ int ti81xx_musb_init(struct musb *musb)
 		data->set_phy_power(musb->id, 1);
 
 	if (data->usbphy_rxcalib_enable)
-		usb2phy_config(musb, USBPHY_RX_CALIB);
+		usb2phy_config(musb, USBPHY_RX_CALIB, 0);
 
 	musb->a_wait_bcon = A_WAIT_BCON_TIMEOUT;
 	musb->isr = ti81xx_interrupt;
