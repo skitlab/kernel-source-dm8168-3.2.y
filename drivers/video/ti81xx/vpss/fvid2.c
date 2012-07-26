@@ -82,7 +82,7 @@ struct mutex                 fmutex;
 #define VPS_FVID2_RESERVED_NOTIFY	0x09
 #define VPS_FVID2_M3_INIT_VALUE      (0xAAAAAAAA)
 #define VPS_FVID2_PS_LINEID          0
-#define CURRENT_VPS_FIRMWARE_VERSION        (0x01000139)
+#define CURRENT_VPS_FIRMWARE_VERSION        (0x01000143)
 
 static inline int get_payload_size(void);
 static inline void assign_payload_addr(struct vps_fvid2_ctrl *fctrl,
