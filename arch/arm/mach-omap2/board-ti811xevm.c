@@ -469,6 +469,27 @@ int ti811x_pcf8575_exit(void)
 	return 0;
 }
 
+/* The following four functions are stubs - Added to avoid compilation
+ error, refer CQ SDOCM00094243 for more details, Need to remove this code once the
+ CQ is fixed */
+int ti814x_pcf8575_init(void)
+{
+	return 0;
+}
+int ti814x_pcf8575_exit(void)
+{
+	return 0;
+}
+int vps_ti814x_select_video_decoder(int vid_decoder_id)
+{
+	return 0;
+}
+int vps_ti814x_set_tvp7002_filter(enum fvid2_standard standard)
+{
+	return 0;
+}
+/* Stubs Ends*/
+
 static void __init ti814x_tsc_init(void)
 {
 	int error;
