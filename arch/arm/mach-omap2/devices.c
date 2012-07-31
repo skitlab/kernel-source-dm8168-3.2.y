@@ -3058,8 +3058,9 @@ static int __init omap2_init_devices(void)
 	if (cpu_is_ti814x()) {
 		/* Init PCIe,SATA PLL here, before invoking respective init*/
 		ti814x_pcie_pllcfg();
-		ti814x_sata_pllcfg();
-	 }
+		if(!cpu_is_ti811x())
+			ti814x_sata_pllcfg();
+	}
 
 	ti81xx_ethernet_init();
 	ti81xx_init_pcie();
