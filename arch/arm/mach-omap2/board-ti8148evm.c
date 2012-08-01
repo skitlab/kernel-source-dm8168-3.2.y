@@ -204,6 +204,19 @@ int ti814x_pcf8575_exit(void)
 	return 0;
 }
 EXPORT_SYMBOL(ti814x_pcf8575_exit);
+
+/* The following two functions are stubs - Added to avoid compilation
+ error, refer CQ SDOCM00094243 for more details, Need to remove this code once the
+ CQ is fixed */
+int ti811x_pcf8575_init(void)
+{
+        return 0;
+}
+int ti811x_pcf8575_exit(void)
+{
+        return 0;
+}
+
 #define VPS_VC_IO_EXP_RESET_DEV_MASK        (0x0Fu)
 #define VPS_VC_IO_EXP_SEL_VIN0_S1_MASK      (0x04u)
 #define VPS_VC_IO_EXP_THS7368_DISABLE_MASK  (0x10u)
