@@ -333,7 +333,7 @@ config MACH_DM385EVM
 
 config MACH_TI811XEVM
 	bool "TI811X Evaluation Module"
-	default y
+	default n
 	depends on ARCH_TI814X
 
 config MACH_TI8168EVM
