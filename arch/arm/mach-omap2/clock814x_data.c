@@ -1275,6 +1275,24 @@ static struct clk gpio4_ick = {
 	.recalc		= &followparent_recalc,
 };
 
+/* GPIO4 Clock(final) - same as GPIO1 */
+static struct clk gpio5_ick = {
+	.name		= "gpio5_ick",
+	.parent		= &gpio234_ick,
+	.ops		= &clkops_null,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
+/* GPIO5 Clock(final) - same as GPIO1 */
+static struct clk gpio6_ick = {
+	.name		= "gpio6_ick",
+	.parent		= &gpio234_ick,
+	.ops		= &clkops_null,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
 /* PRCM Clock(final) */
 static struct clk prcm_ick = {
 	.name		= "prcm_ick",
@@ -3134,6 +3152,24 @@ static struct clk gpio4_dbck = {
 	.recalc		= &followparent_recalc,
 };
 
+/* gpio4 debounce clk - same as gpio1 */
+static struct clk gpio5_dbck = {
+	.name		= "gpio5_dbck",
+	.parent		= &gpio234_dbck,
+	.ops		= &clkops_null,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
+/* gpio5 debounce clk - same as gpio1 */
+static struct clk gpio6_dbck = {
+	.name		= "gpio6_dbck",
+	.parent		= &gpio234_dbck,
+	.ops		= &clkops_null,
+	.clkdm_name	= "alwon_l3_slow_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
 /* RTC Func clk (MUX out) */
 static struct clk rtc_fck = {
 	.name		= "rtc_fck",
@@ -4144,6 +4180,8 @@ static struct omap_clk ti814x_clks[] = {
 	CLK(NULL,		"gpio2_ick",			&gpio2_ick,			CK_TI814X | CK_DM385 | CK_TI811X),
 	CLK(NULL,		"gpio3_ick",			&gpio3_ick,			CK_TI814X | CK_DM385 | CK_TI811X),
 	CLK(NULL,		"gpio4_ick",			&gpio4_ick,			CK_TI814X | CK_DM385 | CK_TI811X),
+	CLK(NULL,		"gpio5_ick",			&gpio5_ick,			CK_TI811X),
+	CLK(NULL,		"gpio6_ick",			&gpio6_ick,			CK_TI811X),
 	CLK(NULL,		"prcm_ick",			&prcm_ick,			CK_TI814X | CK_DM385 | CK_TI811X),
 	CLK(NULL,		"smartcard1_ick",		&smartcard1_ick,		CK_TI814X),
 	CLK(NULL,		"smartcard2_ick",		&smartcard2_ick,		CK_TI814X),
@@ -4287,6 +4325,8 @@ static struct omap_clk ti814x_clks[] = {
 	CLK(NULL,		"gpio2_dbck",			&gpio2_dbck,			CK_TI814X | CK_DM385 | CK_TI811X),
 	CLK(NULL,		"gpio3_dbck",			&gpio3_dbck,			CK_TI814X | CK_DM385 | CK_TI811X),
 	CLK(NULL,		"gpio4_dbck",			&gpio4_dbck,			CK_TI814X | CK_DM385 | CK_TI811X),
+	CLK(NULL,		"gpio5_dbck",			&gpio5_dbck,			CK_TI811X),
+	CLK(NULL,		"gpio6_dbck",			&gpio6_dbck,			CK_TI811X),
 	CLK(NULL,		"rtc_fck",			&rtc_fck,			CK_TI814X | CK_DM385 | CK_TI811X),
 	CLK("mmci-omap-hs.0",	"mmchs1_dbck",			&mmchs1_dbck,			CK_TI814X | CK_DM385 | CK_TI811X),
 	CLK("mmci-omap-hs.1",	"mmchs2_dbck",			&mmchs2_dbck,			CK_TI814X | CK_DM385 | CK_TI811X),
