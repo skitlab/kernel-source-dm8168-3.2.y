@@ -377,6 +377,9 @@
 #define TI816X_CM_ALWON_MCBSP_FSX_EN		TI81XX_L4_SLOW_IO_ADDRESS(TI81XX_SCM_BASE + 0xA50)
 #define TI816X_CM_ALWON_MCBSP_CLKS_EN		TI81XX_L4_SLOW_IO_ADDRESS(TI81XX_SCM_BASE + 0xA60)
 
+/* A8 Interrupt MUX 95_92(timer4-7) for configuring GPIO 4/5 interrupts */
+#define TI811X_A8_INT_MUX_95_92			TI81XX_L4_SLOW_IO_ADDRESS(TI81XX_SCM_BASE + 0x1654)
+
 /*
  * TI814X "PLL Clock Muxing and Gating Control" is located separately from CM
  * but for now we are keeping its register here.

@@ -52,6 +52,7 @@
 #include "mux.h"
 #include "hsmmc.h"
 #include "control.h"
+#include "cm81xx.h"
 
 #define GPIO_TSC               31
 /* Convert GPIO signal to GPIO pin number */
@@ -722,6 +723,17 @@ static struct platform_device *ti811x_devices[] __initdata = {
 };
 #endif
 
+static void ti811x_interrupt_xbar_config(void)
+{
+	u32 tmp;
+
+	/* Configure A8 interrupt mux 95_92 to receive GPIO4/5 interrupts */
+	tmp = __raw_readl(TI811X_A8_INT_MUX_95_92);
+	__raw_writel(0x1F1E1D1C, TI811X_A8_INT_MUX_95_92);
+	tmp = __raw_readl(TI811X_A8_INT_MUX_95_92);
+
+}
+
 static void __init ti811x_evm_init(void)
 {
 	int bw; /* bus-width */
@@ -758,6 +770,9 @@ static void __init ti811x_evm_init(void)
 	regulator_use_dummy_regulator();
 	board_nor_init(ti814x_evm_norflash_partitions,
 		ARRAY_SIZE(ti814x_evm_norflash_partitions), 0);
+
+	ti811x_interrupt_xbar_config();
+
 }
 
 static void __init ti811x_evm_map_io(void)

@@ -94,6 +94,8 @@ static struct omap_hwmod ti81xx_gpio1_hwmod;
 static struct omap_hwmod ti81xx_gpio2_hwmod;
 static struct omap_hwmod ti814x_gpio3_hwmod;
 static struct omap_hwmod ti814x_gpio4_hwmod;
+static struct omap_hwmod ti814x_gpio5_hwmod;
+static struct omap_hwmod ti814x_gpio6_hwmod;
 static struct omap_hwmod ti81xx_usbss_hwmod;
 static struct omap_hwmod ti81xx_elm_hwmod;
 struct omap_hwmod_ocp_if ti81xx_l4_slow__elm;
@@ -381,10 +383,46 @@ static struct omap_hwmod_ocp_if ti814x_l4_slow__gpio4 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
+/* L4 SLOW -> GPIO5 */
+static struct omap_hwmod_addr_space ti814x_gpio5_addrs[] = {
+	{
+		.pa_start	= TI811X_GPIO4_BASE,
+		.pa_end		= TI811X_GPIO4_BASE + SZ_4K - 1,
+		.flags		= ADDR_MAP_ON_INIT | ADDR_TYPE_RT,
+	},
+};
+
+static struct omap_hwmod_ocp_if ti814x_l4_slow__gpio5 = {
+	.master		= &ti816x_l4_slow_hwmod,
+	.slave		= &ti814x_gpio5_hwmod,
+	.addr		= ti814x_gpio5_addrs,
+	.addr_cnt	= ARRAY_SIZE(ti814x_gpio5_addrs),
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/* L4 SLOW -> GPIO6 */
+static struct omap_hwmod_addr_space ti814x_gpio6_addrs[] = {
+	{
+		.pa_start	= TI811X_GPIO5_BASE,
+		.pa_end		= TI811X_GPIO5_BASE + SZ_4K - 1,
+		.flags		= ADDR_MAP_ON_INIT | ADDR_TYPE_RT,
+	},
+};
+
+static struct omap_hwmod_ocp_if ti814x_l4_slow__gpio6 = {
+	.master		= &ti816x_l4_slow_hwmod,
+	.slave		= &ti814x_gpio6_hwmod,
+	.addr		= ti814x_gpio6_addrs,
+	.addr_cnt	= ARRAY_SIZE(ti814x_gpio6_addrs),
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
 /* Slave interfaces on the L4_SLOW interconnect */
 static struct omap_hwmod_ocp_if *ti816x_l4_slow_slaves[] = {
 	&ti816x_l3_slow__l4_slow,
 };
+
+
 
 /* Master interfaces on the L4_SLOW interconnect */
 static struct omap_hwmod_ocp_if *ti816x_l4_slow_masters[] = {
@@ -1094,6 +1132,76 @@ static struct omap_hwmod ti814x_gpio4_hwmod = {
 					CHIP_IS_TI811X),
 };
 
+/* GPIO5 TI811X*/
+
+static struct omap_hwmod_irq_info ti814x_gpio5_irqs[] = {
+	{ .irq = TI811X_IRQ_GPIO_4A },
+	{ .irq = TI811X_IRQ_GPIO_4B },
+};
+
+/* gpio4 slave ports */
+static struct omap_hwmod_ocp_if *ti814x_gpio5_slaves[] = {
+	&ti814x_l4_slow__gpio5,
+};
+
+static struct omap_hwmod_opt_clk gpio5_opt_clks[] = {
+	{ .role = "dbclk", .clk = "gpio5_dbck" },
+};
+
+static struct omap_hwmod ti814x_gpio5_hwmod = {
+	.name		= "gpio5",
+	.class		= &ti81xx_gpio_hwmod_class,
+	.mpu_irqs	= ti814x_gpio5_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(ti814x_gpio4_irqs),
+	.main_clk	= "gpio5_ick",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_reg = TI81XX_CM_ALWON_GPIO_1_CLKCTRL,
+		},
+	},
+	.opt_clks	= gpio5_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(gpio4_opt_clks),
+	.dev_attr	= &gpio_dev_attr,
+	.slaves		= ti814x_gpio5_slaves,
+	.slaves_cnt	= ARRAY_SIZE(ti814x_gpio5_slaves),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI811X),
+};
+
+/* GPIO6 TI811X*/
+
+static struct omap_hwmod_irq_info ti814x_gpio6_irqs[] = {
+	{ .irq = TI811X_IRQ_GPIO_5A },
+	{ .irq = TI811X_IRQ_GPIO_5B },
+};
+
+/* gpio4 slave ports */
+static struct omap_hwmod_ocp_if *ti814x_gpio6_slaves[] = {
+	&ti814x_l4_slow__gpio6,
+};
+
+static struct omap_hwmod_opt_clk gpio6_opt_clks[] = {
+	{ .role = "dbclk", .clk = "gpio6_dbck" },
+};
+
+static struct omap_hwmod ti814x_gpio6_hwmod = {
+	.name		= "gpio6",
+	.class		= &ti81xx_gpio_hwmod_class,
+	.mpu_irqs	= ti814x_gpio6_irqs,
+	.mpu_irqs_cnt	= ARRAY_SIZE(ti814x_gpio6_irqs),
+	.main_clk	= "gpio6_ick",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_reg = TI81XX_CM_ALWON_GPIO_1_CLKCTRL,
+		},
+	},
+	.opt_clks	= gpio6_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(gpio6_opt_clks),
+	.dev_attr	= &gpio_dev_attr,
+	.slaves		= ti814x_gpio6_slaves,
+	.slaves_cnt	= ARRAY_SIZE(ti814x_gpio6_slaves),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_TI811X),
+};
+
 /* L3 SLOW -> USBSS interface */
 static struct omap_hwmod_addr_space ti81xx_usbss_addr_space[] = {
 	{
@@ -1181,6 +1289,8 @@ static __initdata struct omap_hwmod *ti81xx_hwmods[] = {
 	&ti81xx_gpio2_hwmod,
 	&ti814x_gpio3_hwmod,
 	&ti814x_gpio4_hwmod,
+	&ti814x_gpio5_hwmod,
+	&ti814x_gpio6_hwmod,
 	&ti81xx_usbss_hwmod,
 	&ti81xx_elm_hwmod,
 	NULL,
