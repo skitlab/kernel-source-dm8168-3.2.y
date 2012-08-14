@@ -13,18 +13,6 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
-/*
- * General TODO:
- * - All of the register accesses are through raw_read/writes which eat up lines
- *   especially when needed to mask bits before writing. Better to add
- *   read-mask-write kind of wrappers.
- * - Lots of private data to maintain - group together inside a structure and
- *   provide accessor functions?
- * - Possibility of adding hw de-initialization sequence (also, re-enumeration /
- *   PM impact)
- */
-
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/platform_device.h>
@@ -148,17 +136,17 @@ static DEFINE_SPINLOCK(ti81xx_pci_io_lock);
 
 static int get_and_clear_err(void)
 {
-	int status = __raw_readl(reg_virt + ERR_IRQ_STATUS_RAW);
+	int status = readl(reg_virt + ERR_IRQ_STATUS_RAW);
 
 	if (status) {
 		/* The PCIESS interrupt status buts are "write 0 to clear" */
-		__raw_writel(~status, reg_virt + ERR_IRQ_STATUS);
+		writel(~status, reg_virt + ERR_IRQ_STATUS);
 
 		/*
 		 * Clear all errors. We are not worried here about individual
 		 * status as no specific handling is required.
 		 */
-		__raw_writew(0xffff, reg_virt + SPACE0_LOCAL_CFG_OFFSET +
+		writew(0xffff, reg_virt + SPACE0_LOCAL_CFG_OFFSET +
 				PCI_STATUS);
 	}
 
@@ -249,21 +237,19 @@ static void set_outbound_trans(u32 start, u32 end)
 			start, end);
 
 	/* Set outbound translation size per window division */
-	__raw_writel(CFG_PCIM_WIN_SZ_IDX & 0x7, reg_virt + OB_SIZE);
+	writel(CFG_PCIM_WIN_SZ_IDX & 0x7, reg_virt + OB_SIZE);
 
 	tr_size = (1 << (CFG_PCIM_WIN_SZ_IDX & 0x7)) * SZ_1M;
 
 	/* Using Direct 1:1 mapping of RC <-> PCI memory space */
 	for (i = 0; (i < CFG_PCIM_WIN_CNT) && (start < end); i++) {
-		__raw_writel(start | 1, reg_virt + OB_OFFSET_INDEX(i));
-		__raw_writel(0,	reg_virt + OB_OFFSET_HI(i));
+		writel(start | 1, reg_virt + OB_OFFSET_INDEX(i));
+		writel(0,	reg_virt + OB_OFFSET_HI(i));
 		start += tr_size;
 	}
 
-	/* TODO: ensure unused translation regions are disabled */
-
 	/* Enable OB translation */
-	 __raw_writel(OB_XLAT_EN_VAL | __raw_readl(reg_virt + CMD_STATUS),
+	 writel(OB_XLAT_EN_VAL | readl(reg_virt + CMD_STATUS),
 			 reg_virt + CMD_STATUS);
 }
 
@@ -275,11 +261,10 @@ static void set_outbound_trans(u32 start, u32 end)
  */
 static inline void set_dbi_mode(void)
 {
-	 __raw_writel(DBI_CS2_EN_VAL | __raw_readl(reg_virt + CMD_STATUS),
+	 writel(DBI_CS2_EN_VAL | readl(reg_virt + CMD_STATUS),
 			 reg_virt + CMD_STATUS);
 
-	  /* FIXME: Need loop to check bit5 = 1? */
-	__raw_readl(reg_virt + CMD_STATUS);
+	readl(reg_virt + CMD_STATUS);
 }
 
 /**
@@ -290,20 +275,20 @@ static inline void set_dbi_mode(void)
  */
 static inline void clear_dbi_mode(void)
 {
-	__raw_writel(~DBI_CS2_EN_VAL & __raw_readl(reg_virt + CMD_STATUS),
+	writel(~DBI_CS2_EN_VAL & readl(reg_virt + CMD_STATUS),
 			reg_virt + CMD_STATUS);
 
 	  /* FIXME: Need loop to check bit5 = 1? */
-	__raw_readl(reg_virt + CMD_STATUS);
+	readl(reg_virt + CMD_STATUS);
 }
 
 static void disable_bars(void)
 {
 	set_dbi_mode();
 
-	__raw_writel(0, reg_virt + SPACE0_LOCAL_CFG_OFFSET +
+	writel(0, reg_virt + SPACE0_LOCAL_CFG_OFFSET +
 			PCI_BASE_ADDRESS_0);
-	__raw_writel(0, reg_virt + SPACE0_LOCAL_CFG_OFFSET +
+	writel(0, reg_virt + SPACE0_LOCAL_CFG_OFFSET +
 			PCI_BASE_ADDRESS_1);
 
 	clear_dbi_mode();
@@ -318,8 +303,6 @@ static void disable_bars(void)
  * into specified (SoC/Board level) internal address space.
  *
  * Note: 1:1 mapping for internal addresses is used.
- *
- * TODO: Add 64-bit support
  */
 static void set_inbound_trans(void)
 {
@@ -327,10 +310,10 @@ static void set_inbound_trans(void)
 	set_dbi_mode();
 
 	/* Enable BAR0 */
-	__raw_writel(1, reg_virt + SPACE0_LOCAL_CFG_OFFSET +
+	writel(1, reg_virt + SPACE0_LOCAL_CFG_OFFSET +
 			PCI_BASE_ADDRESS_0);
 
-	__raw_writel(SZ_4K - 1, reg_virt +
+	writel(SZ_4K - 1, reg_virt +
 			SPACE0_LOCAL_CFG_OFFSET + PCI_BASE_ADDRESS_0);
 
 	clear_dbi_mode();
@@ -339,7 +322,7 @@ static void set_inbound_trans(void)
 	  * For BAR0, just setting bus address for inbound writes (MSI) should
 	  * be sufficient. Use physical address to avoid any conflicts.
 	  */
-	__raw_writel(reg_phys, reg_virt + SPACE0_LOCAL_CFG_OFFSET
+	writel(reg_phys, reg_virt + SPACE0_LOCAL_CFG_OFFSET
 				+ PCI_BASE_ADDRESS_0);
 
 	/* Configure BAR1 only if inbound window is specified */
@@ -356,10 +339,10 @@ static void set_inbound_trans(void)
 		 * address. This also ensures no overlapping with base/limit
 		 * regions (outbound).
 		 */
-		__raw_writel(ram_base, reg_virt + IB_START0_LO);
-		__raw_writel(0, reg_virt + IB_START0_HI);
-		__raw_writel(1, reg_virt + IB_BAR0);
-		__raw_writel(ram_base, reg_virt + IB_OFFSET0);
+		writel(ram_base, reg_virt + IB_START0_LO);
+		writel(0, reg_virt + IB_START0_HI);
+		writel(1, reg_virt + IB_BAR0);
+		writel(ram_base, reg_virt + IB_OFFSET0);
 
 		/*
 		 * Set BAR1 mask to accomodate inbound window
@@ -367,16 +350,16 @@ static void set_inbound_trans(void)
 
 		set_dbi_mode();
 
-		__raw_writel(1, reg_virt + SPACE0_LOCAL_CFG_OFFSET +
+		writel(1, reg_virt + SPACE0_LOCAL_CFG_OFFSET +
 				PCI_BASE_ADDRESS_1);
 
-		__raw_writel(ram_end - ram_base, reg_virt +
+		writel(ram_end - ram_base, reg_virt +
 			SPACE0_LOCAL_CFG_OFFSET + PCI_BASE_ADDRESS_1);
 
 		clear_dbi_mode();
 
 		/* Set BAR1 attributes and value in config space */
-		__raw_writel(ram_base | PCI_BASE_ADDRESS_MEM_PREFETCH,
+		writel(ram_base | PCI_BASE_ADDRESS_MEM_PREFETCH,
 				reg_virt + SPACE0_LOCAL_CFG_OFFSET
 				+ PCI_BASE_ADDRESS_1);
 
@@ -384,7 +367,7 @@ static void set_inbound_trans(void)
 		 * Enable IB translation only if BAR1 is set. BAR0 doesn't
 		 * require enabling IB translation as it is set up in h/w
 		 */
-		__raw_writel(IB_XLAT_EN_VAL | __raw_readl(reg_virt +
+		writel(IB_XLAT_EN_VAL | readl(reg_virt +
 					CMD_STATUS), reg_virt + CMD_STATUS);
 	}
 }
@@ -410,18 +393,23 @@ static void ti81xx_msi_handler(unsigned int irq, struct irq_desc *desc)
 	 * The chained irq handler installation would have replaced normal
 	 * interrupt driver handler so we need to take care of mask/unmask and
 	 * ack operation.
+	 *
+	 * Note: OMAP IRQ handler doesn't have mask_ack but the ack does both.
 	 */
-	desc->chip->mask(irq);
-	if (desc->chip->ack)
+	if (likely(desc->chip->ack))
 		desc->chip->ack(irq);
+	else if (desc->chip->mask_ack)
+		desc->chip->mask_ack(irq);
+	else
+		desc->chip->mask(irq);
 
-	status = __raw_readl(reg_virt + MSI0_IRQ_STATUS);
+	status = readl(reg_virt + MSI0_IRQ_STATUS);
 
 	/* FIXME: Use max loops count? */
 	while (status) {
 		bit = find_first_bit((unsigned long *)&status, 32);
 		generic_handle_irq(msi_irq_base + bit);
-		status = __raw_readl(reg_virt + MSI0_IRQ_STATUS);
+		status = readl(reg_virt + MSI0_IRQ_STATUS);
 	}
 
 	desc->chip->unmask(irq);
@@ -430,7 +418,7 @@ static void ti81xx_msi_handler(unsigned int irq, struct irq_desc *desc)
 static void ack_msi(unsigned int irq)
 {
 	unsigned int msi_num = irq - msi_irq_base;
-	__raw_writel((1 << (msi_num & 0x1f)), reg_virt + MSI0_IRQ_STATUS);
+	writel((1 << (msi_num & 0x1f)), reg_virt + MSI0_IRQ_STATUS);
 }
 
 /*
@@ -440,25 +428,24 @@ static void ack_msi(unsigned int irq)
 static void ack_msi_inv(unsigned int irq)
 {
 	unsigned int msi_num = irq - msi_irq_base;
-	__raw_writel(~(1 << (msi_num & 0x1f)), reg_virt + MSI0_IRQ_STATUS);
+	writel(~(1 << (msi_num & 0x1f)), reg_virt + MSI0_IRQ_STATUS);
 }
 
 static void mask_msi(unsigned int irq)
 {
 	unsigned int msi_num = irq - msi_irq_base;
-	__raw_writel(1 << (msi_num & 0x1f), reg_virt + MSI0_IRQ_ENABLE_CLR);
+	writel(1 << (msi_num & 0x1f), reg_virt + MSI0_IRQ_ENABLE_CLR);
 }
 
 static void unmask_msi(unsigned int irq)
 {
 	unsigned int msi_num = irq - msi_irq_base;
-	__raw_writel(1 << (msi_num & 0x1f), reg_virt + MSI0_IRQ_ENABLE_SET);
+	writel(1 << (msi_num & 0x1f), reg_virt + MSI0_IRQ_ENABLE_SET);
 }
 
 /*
- * TODO: Add support for mask/unmask on remote devices (mask_msi_irq and
- * unmask_msi_irq). Note that, this may not work always - requires endpoints to
- * support mask bits capability.
+ * Note: mask/unmask on remote devices is NOT supported (mask_msi_irq and
+ * unmask_msi_irq through mask bits capability on endpoints.
  */
 
 static struct irq_chip ti81xx_msi_chip = {
@@ -502,8 +489,6 @@ void write_msi_msg(unsigned int irq, struct msi_msg *msg) {}
  *
  * Assigns an MSI to endpoint and sets up corresponding irq. Also passes the MSI
  * information to the endpont.
- *
- * TODO: Add 64-bit addressing support
  */
 int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 {
@@ -572,11 +557,6 @@ void arch_teardown_msi_irq(unsigned int irq)
  * - 32-bit IO
  * - Legacy interrupt
  * - MSI (if enabled)
- *
- * TODO: Add
- * - Prefetchable memory
- * - 64-bit addressing support
- * - Additional delay/handshaking for EPs indulging in CRRS
  */
 static int ti81xx_pcie_setup(int nr, struct pci_sys_data *sys)
 {
@@ -677,7 +657,7 @@ static int ti81xx_pcie_setup(int nr, struct pci_sys_data *sys)
 	 * form GEN1 in either EP/RC modes. The software needs to initiate speed
 	 * change.
 	 */
-	__raw_writel(DIR_SPD | __raw_readl(
+	writel(DIR_SPD | readl(
 				reg_virt + SPACE0_LOCAL_CFG_OFFSET + PL_GEN2),
 			reg_virt + SPACE0_LOCAL_CFG_OFFSET + PL_GEN2);
 
@@ -693,20 +673,22 @@ static int ti81xx_pcie_setup(int nr, struct pci_sys_data *sys)
 	if (force_x1) {
 		u32 val;
 
-		val = __raw_readl(reg_virt + SPACE0_LOCAL_CFG_OFFSET +
+		pr_info(DRIVER_NAME ": forcing link width - x1\n");
+
+		val = readl(reg_virt + SPACE0_LOCAL_CFG_OFFSET +
 				LINK_CAP);
 		val = (val & ~(0x3f << 4)) | (1 << 4);
-		__raw_writel(val, reg_virt + SPACE0_LOCAL_CFG_OFFSET +
+		writel(val, reg_virt + SPACE0_LOCAL_CFG_OFFSET +
 				LINK_CAP);
 
-		val = __raw_readl(reg_virt + SPACE0_LOCAL_CFG_OFFSET + PL_GEN2);
+		val = readl(reg_virt + SPACE0_LOCAL_CFG_OFFSET + PL_GEN2);
 		val = (val & ~(0xff << 8)) | (1 << 8);
-		__raw_writel(val, reg_virt + SPACE0_LOCAL_CFG_OFFSET + PL_GEN2);
+		writel(val, reg_virt + SPACE0_LOCAL_CFG_OFFSET + PL_GEN2);
 
-		val = __raw_readl(reg_virt + SPACE0_LOCAL_CFG_OFFSET +
+		val = readl(reg_virt + SPACE0_LOCAL_CFG_OFFSET +
 				PL_LINK_CTRL);
 		val = (val & ~(0x3F << 16)) | (1 << 16);
-		__raw_writel(val, reg_virt + SPACE0_LOCAL_CFG_OFFSET +
+		writel(val, reg_virt + SPACE0_LOCAL_CFG_OFFSET +
 				PL_LINK_CTRL);
 	}
 
@@ -715,7 +697,7 @@ static int ti81xx_pcie_setup(int nr, struct pci_sys_data *sys)
 	 * come up with ID 0x8888.
 	 */
 	if (device_id)
-		__raw_writew(device_id, reg_virt + SPACE0_LOCAL_CFG_OFFSET +
+		writew(device_id, reg_virt + SPACE0_LOCAL_CFG_OFFSET +
 				PCI_DEVICE_ID);
 
 	/*
@@ -724,7 +706,7 @@ static int ti81xx_pcie_setup(int nr, struct pci_sys_data *sys)
 	 * L0 status as this will be handled by explicit L0 state checks during
 	 * enumeration.
 	 */
-	 __raw_writel(LTSSM_EN_VAL | __raw_readl(reg_virt + CMD_STATUS),
+	 writel(LTSSM_EN_VAL | readl(reg_virt + CMD_STATUS),
 			 reg_virt + CMD_STATUS);
 
 	 /* 100ms */
@@ -737,7 +719,7 @@ static int ti81xx_pcie_setup(int nr, struct pci_sys_data *sys)
 	 * If at all we want to restore the default class-subclass values, the
 	 * best place would be after returning from pci_common_init ().
 	 */
-	__raw_writew(PCI_CLASS_BRIDGE_PCI,
+	writew(PCI_CLASS_BRIDGE_PCI,
 			reg_virt + SPACE0_LOCAL_CFG_OFFSET + PCI_CLASS_DEVICE);
 
 	/*
@@ -749,15 +731,15 @@ static int ti81xx_pcie_setup(int nr, struct pci_sys_data *sys)
 	set_outbound_trans(res[1].start, res[1].end);
 
 	/* Enable 32-bit IO addressing support */
-	__raw_writew(PCI_IO_RANGE_TYPE_32 | (PCI_IO_RANGE_TYPE_32 << 8),
+	writew(PCI_IO_RANGE_TYPE_32 | (PCI_IO_RANGE_TYPE_32 << 8),
 			reg_virt + SPACE0_LOCAL_CFG_OFFSET + PCI_IO_BASE);
 
 	legacy_irq = platform_get_irq_byname(pcie_pdev, "legacy_int");
 
 	if (legacy_irq >= 0) {
-		__raw_writel(0xf, reg_virt + IRQ_ENABLE_SET);
+		writel(0xf, reg_virt + IRQ_ENABLE_SET);
 	} else {
-		__raw_writel(0xf, reg_virt + IRQ_ENABLE_CLR);
+		writel(0xf, reg_virt + IRQ_ENABLE_CLR);
 		pr_warning(DRIVER_NAME ": INTx disabled since no legacy IRQ\n");
 	}
 
@@ -816,7 +798,7 @@ err_memres:
  */
 static int check_device(struct pci_bus *bus, int dev)
 {
-	if ((__raw_readl(reg_virt + SPACE0_LOCAL_CFG_OFFSET + DEBUG0) &
+	if ((readl(reg_virt + SPACE0_LOCAL_CFG_OFFSET + DEBUG0) &
 				LTSSM_STATE_MASK) != LTSSM_STATE_L0)
 		return 0;
 
@@ -867,7 +849,7 @@ static inline u32 setup_config_addr(u8 bus, u8 device, u8 function)
 		if (bus != 1)
 			regval |= BIT(24);
 
-		__raw_writel(regval, reg_virt + CFG_SETUP);
+		writel(regval, reg_virt + CFG_SETUP);
 
 		addr = reg_virt + SPACE0_REMOTE_CFG_OFFSET;
 	}
@@ -892,21 +874,21 @@ int ti81xx_pci_io_read(u32 addr, int size, u32 *value)
 
 	spin_lock_irqsave(&ti81xx_pci_io_lock, flags);
 
-	__raw_writel(addr & 0xfffff000, reg_virt + IOBASE);
+	writel(addr & 0xfffff000, reg_virt + IOBASE);
 
 	/* Get the actual address in I/O space */
 	addr = reg_virt + SPACE0_IO_OFFSET + (addr & 0xfff);
 
 	switch (size) {
 	case 1:
-		*value = (u8)__raw_readb(addr);
+		*value = (u8)readb(addr);
 		break;
 	case 2:
-		*value = (u16)__raw_readw(addr);
+		*value = (u16)readw(addr);
 		break;
 	case 4:
 	default:
-		*value = __raw_readl(addr);
+		*value = readl(addr);
 		break;
 	}
 
@@ -935,21 +917,21 @@ int ti81xx_pci_io_write(u32 addr, int size, u32 value)
 
 	spin_lock_irqsave(&ti81xx_pci_io_lock, flags);
 
-	__raw_writel(addr & 0xfffff000, reg_virt + IOBASE);
+	writel(addr & 0xfffff000, reg_virt + IOBASE);
 
 	/* Get the actual address in I/O space */
 	addr = reg_virt + SPACE0_IO_OFFSET + (addr & 0xfff);
 
 	switch (size) {
 	case 1:
-		__raw_writeb((u8)value, addr);
+		writeb((u8)value, addr);
 		break;
 	case 2:
-		__raw_writew((u16)value, addr);
+		writew((u16)value, addr);
 		break;
 	case 4:
 	default:
-		__raw_writel((u32)value, addr);
+		writel((u32)value, addr);
 		break;
 	}
 
@@ -984,7 +966,7 @@ static int ti81xx_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	}
 
-	*value = __raw_readl(setup_config_addr(bus_num, PCI_SLOT(devfn),
+	*value = readl(setup_config_addr(bus_num, PCI_SLOT(devfn),
 				PCI_FUNC(devfn)) + (where & ~3));
 
 	if (size == 1)
@@ -1025,11 +1007,11 @@ static int ti81xx_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 	addr = setup_config_addr(bus_num, PCI_SLOT(devfn), PCI_FUNC(devfn));
 
 	if (size == 4)
-		__raw_writel(value, addr + where);
+		writel(value, addr + where);
 	else if (size == 2)
-		__raw_writew(value, addr + where);
+		writew(value, addr + where);
 	else
-		__raw_writeb(value, addr + where);
+		writeb(value, addr + where);
 
 	/*
 	 * The h/w has a limitation where Config Writes don't signal aborts to
@@ -1083,7 +1065,7 @@ static struct pci_bus *ti81xx_pcie_scan(int nr, struct pci_sys_data *sys)
 		 * I/O behind bridge: 40000000-40000fff
 		 */
 
-		__raw_writew(__raw_readw(reg_virt + SPACE0_LOCAL_CFG_OFFSET +
+		writew(readw(reg_virt + SPACE0_LOCAL_CFG_OFFSET +
 					PCI_IO_BASE) | PCI_IO_RANGE_TYPE_32 |
 					(PCI_IO_RANGE_TYPE_32 << 8),
 					reg_virt + SPACE0_LOCAL_CFG_OFFSET +
