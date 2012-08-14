@@ -19,7 +19,8 @@
 struct ti81xx_pcie_data {
 	int msi_irq_base;
 	int msi_irq_num;
-	int force_x1;
+	int force_x1;		/* 1 = Force  x1 link width */
+	int force_gen1;		/* 1 = Force GEN1 speeds */
 	int msi_inv;		/* 1 = MSI ack requires "write 0 to clear" */
 	unsigned short int device_id;
 };

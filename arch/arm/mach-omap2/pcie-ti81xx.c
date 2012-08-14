@@ -38,6 +38,7 @@ static struct platform_device *pcie_pdev;
 static int msi_irq_base;
 static int msi_irq_num;
 static int force_x1;
+static int force_gen1;
 static int msi_inv;
 static unsigned short int device_id;
 
@@ -693,6 +694,28 @@ static int ti81xx_pcie_setup(int nr, struct pci_sys_data *sys)
 	}
 
 	/*
+	 * Force GEN1 speeds - this may be required mainly in case of interop
+	 * issues if the other end is GEN1.
+	 */
+	if (force_gen1) {
+		u32 val;
+
+		pr_info(DRIVER_NAME ": forcing link speed - GEN1\n");
+
+		val = readl(reg_virt + SPACE0_LOCAL_CFG_OFFSET +
+				LINK_CAP);
+		val = (val & ~0xf) | 1;
+		writel(val, reg_virt + SPACE0_LOCAL_CFG_OFFSET +
+				LINK_CAP);
+
+		val = readl(reg_virt + SPACE0_LOCAL_CFG_OFFSET +
+				PL_LINK_CTRL);
+		val = (val & ~(0xF << 8)) | (1 << 8);
+		writel(val, reg_virt + SPACE0_LOCAL_CFG_OFFSET +
+				PL_LINK_CTRL);
+	}
+
+	/*
 	 * Override the default device ID if required - TI81XX devices generally
 	 * come up with ID 0x8888.
 	 */
@@ -1122,7 +1145,13 @@ static int ti81xx_pcie_probe(struct platform_device *pdev)
 
 	msi_irq_base = pdata->msi_irq_base;
 	msi_irq_num = pdata->msi_irq_num;
-	force_x1 = pdata->force_x1;
+
+	/* Use from platform data only if not set throug params */
+	if (!force_x1)
+		force_x1 = pdata->force_x1;
+	if (!force_gen1)
+		force_gen1 = pdata->force_gen1;
+
 	msi_inv = pdata->msi_inv;
 	device_id = pdata->device_id;
 
@@ -1154,3 +1183,24 @@ static int __init ti81xx_pcie_rc_init(void)
 	return 0;
 }
 subsys_initcall(ti81xx_pcie_rc_init);
+
+static int __init pcie_setup(char *str)
+{
+	while (str) {
+		char *k = strchr(str, ',');
+
+		if (k)
+			*k++ = 0;
+
+		if (!strcmp(str, "x1"))
+			force_x1 = 1;
+		else if (!strcmp(str, "gen1"))
+			force_gen1 = 1;
+		else
+			pr_err("ti81xx-pcie: Unknown option `%s'\n", str);
+
+		str = k;
+	}
+	return 0;
+}
+early_param("pcie", pcie_setup);
