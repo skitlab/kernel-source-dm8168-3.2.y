@@ -28,12 +28,6 @@
 #include "musb_dma.h"
 #include "cppi41_dma.h"
 
-/* Configuration */
-#define USB_CPPI41_DESC_SIZE_SHIFT 6
-#define USB_CPPI41_DESC_ALIGN	(1 << USB_CPPI41_DESC_SIZE_SHIFT)
-#define USB_CPPI41_CH_NUM_PD	128	/* 4K bulk data at full speed */
-#define USB_CPPI41_MAX_PD	(USB_CPPI41_CH_NUM_PD * (USB_CPPI41_NUM_CH+1))
-
 #undef DEBUG_CPPI_TD
 #undef USBDRV_DEBUG
 
@@ -47,23 +41,6 @@
  * Data structure definitions
  */
 
-/*
- * USB Packet Descriptor
- */
-struct usb_pkt_desc;
-
-struct usb_pkt_desc {
-	/* Hardware descriptor fields from this point */
-	struct cppi41_host_pkt_desc hw_desc;	/* 40 bytes */
-	/* Protocol specific data */
-	dma_addr_t dma_addr;			/* offs:44 byte */
-	struct usb_pkt_desc *next_pd_ptr;	/* offs:48 byte*/
-	u8 ch_num;
-	u8 ep_num;
-	u8 eop;
-	u8 res1;				/* offs:52 */
-	u8 res2[12];				/* offs:64 */
-};
 
 /**
  * struct cppi41_channel - DMA Channel Control Structure
@@ -214,23 +191,13 @@ static int __devinit cppi41_controller_start(struct dma_controller *controller)
 	 * dma_alloc_coherent()  will return a page aligned address, so our
 	 * alignment requirement will be honored.
 	 */
-	cppi->bd_size = USB_CPPI41_MAX_PD * sizeof(struct usb_pkt_desc);
-	cppi->pd_mem = dma_alloc_coherent(cppi->musb->controller,
-					  cppi->bd_size,
-					  &cppi->pd_mem_phys,
-					  GFP_KERNEL | GFP_DMA);
-	if (cppi->pd_mem == NULL) {
+	cppi->bd_size = cppi_info->numdesc * sizeof(struct usb_pkt_desc);
+	cppi->pd_mem = (void *)cppi_info->desc_vaddr;
+	cppi->pd_mem_phys = cppi_info->desc_paddr;
+
+	if (!cppi->pd_mem || !cppi->pd_mem_phys) {
 		DBG(1, "ERROR: packet descriptor memory allocation failed\n");
 		return 0;
-	}
-
-	if (cppi41_mem_rgn_alloc(cppi_info->q_mgr, cppi->pd_mem_phys,
-				 USB_CPPI41_DESC_SIZE_SHIFT,
-				 get_count_order(USB_CPPI41_MAX_PD),
-				 &cppi->pd_mem_rgn)) {
-		DBG(1, "ERROR: queue manager memory region allocation "
-		    "failed\n");
-		goto free_pds;
 	}
 
 	/* Allocate the teardown completion queue */
@@ -320,11 +287,6 @@ static int __devinit cppi41_controller_start(struct dma_controller *controller)
 	if (cppi41_mem_rgn_free(cppi_info->q_mgr, cppi->pd_mem_rgn))
 		DBG(1, "ERROR: failed to free queue manager memory region\n");
 
- free_pds:
-	dma_free_coherent(cppi->musb->controller,
-			  cppi->bd_size,
-			  cppi->pd_mem, cppi->pd_mem_phys);
-
 	return 0;
 }
 
@@ -346,16 +308,6 @@ static int cppi41_controller_stop(struct dma_controller *controller)
 	/* Free the teardown completion queue */
 	if (cppi41_queue_free(cppi_info->q_mgr, cppi->teardownQNum))
 		DBG(1, "ERROR: failed to free teardown completion queue\n");
-
-	/*
-	 * Free the packet descriptor region allocated
-	 * for all Tx/Rx channels.
-	 */
-	if (cppi41_mem_rgn_free(cppi_info->q_mgr, cppi->pd_mem_rgn))
-		DBG(1, "ERROR: failed to free queue manager memory region\n");
-
-	dma_free_coherent(cppi->musb->controller, cppi->bd_size,
-			  cppi->pd_mem, cppi->pd_mem_phys);
 
 	cppi->pd_mem = 0;
 	cppi->pd_mem_phys = 0;

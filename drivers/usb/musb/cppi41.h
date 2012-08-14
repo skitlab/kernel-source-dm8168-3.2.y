@@ -483,6 +483,11 @@ struct cppi41_dma_block {
 	u8 num_rx_ch;		/* Number of the Rx channels. */
 	u8 num_max_ch;		/* maximum dma channels */
 	const struct cppi41_tx_ch *tx_ch_info;
+	void *desc_vaddr;
+	dma_addr_t desc_paddr;
+	u32 numdesc;
+	u32 desc_totsize;
+	u8 mem_rgn;
 };
 
 extern struct cppi41_queue_mgr cppi41_queue_mgr[];

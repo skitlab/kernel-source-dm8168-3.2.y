@@ -25,6 +25,29 @@
 #define USBSS_RTL_VERSION_MASK	0xF
 #define USBSS_RTL_VERSION_D	0xD
 
+/* Configuration */
+#define USB_CPPI41_DESC_SIZE_SHIFT 6
+#define USB_CPPI41_DESC_ALIGN	(1 << USB_CPPI41_DESC_SIZE_SHIFT)
+#define USB_CPPI41_CH_NUM_PD	128	/* 4K bulk data at full speed */
+#define USB_CPPI41_MAX_PD	(USB_CPPI41_CH_NUM_PD * (USB_CPPI41_NUM_CH+1))
+
+/*
+ * USB Packet Descriptor
+ */
+struct usb_pkt_desc;
+
+struct usb_pkt_desc {
+	/* Hardware descriptor fields from this point */
+	struct cppi41_host_pkt_desc hw_desc;	/* 40 bytes */
+	/* Protocol specific data */
+	dma_addr_t dma_addr;			/* offs:44 byte */
+	struct usb_pkt_desc *next_pd_ptr;	/* offs:48 byte*/
+	u8 ch_num;
+	u8 ep_num;
+	u8 eop;
+	u8 res1;				/* offs:52 */
+	u8 res2[12];				/* offs:64 */
+};
 /**
  * struct usb_cppi41_info - CPPI 4.1 USB implementation details
  * @dma_block:	DMA block number
@@ -46,6 +69,9 @@ struct usb_cppi41_info {
 	u8 bd_intr_ctrl;
 	u8 grndis_for_host_rx;
 	u32 version;
+	u32 numdesc;
+	dma_addr_t desc_vaddr;
+	dma_addr_t desc_paddr;
 };
 
 extern struct usb_cppi41_info usb_cppi41_info[];

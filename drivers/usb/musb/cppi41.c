@@ -48,8 +48,7 @@ static struct {
 
 static u32 *allocated_queues[CPPI41_NUM_QUEUE_MGR];
 
-/* First 32 packet descriptors are reserved for unallocated memory regions. */
-static u32 next_desc_index[CPPI41_NUM_QUEUE_MGR] = { 1 << 5 };
+static u32 next_desc_index[CPPI41_NUM_QUEUE_MGR] = { 0 };
 static u8  next_mem_rgn[CPPI41_NUM_QUEUE_MGR];
 
 static struct {

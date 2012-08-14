@@ -416,6 +416,7 @@ int __devinit cppi41_init(u8 id, u8 irq, int num_instances)
 	struct usb_cppi41_info *cppi_info = &usb_cppi41_info[id];
 	u16 numch, blknum, order;
 	u32 i;
+	void *ptr;
 
 	/* init cppi info structure  */
 	cppi_info->dma_block = 0;
@@ -475,6 +476,42 @@ int __devinit cppi41_init(u8 id, u8 irq, int num_instances)
 	cppi41_dma_block_init(blknum, cppi_info->q_mgr, order,
 			dma_sched_table, numch);
 
+	cppi41_dma_block[0].numdesc = USB_CPPI41_MAX_PD * num_instances;
+	cppi41_dma_block[0].desc_totsize = cppi41_dma_block[0].numdesc
+						* sizeof(struct usb_pkt_desc);
+	ptr = dma_alloc_coherent(NULL, cppi41_dma_block[0].desc_totsize,
+				&cppi41_dma_block[0].desc_paddr,
+				GFP_KERNEL | GFP_DMA);
+
+	if (!ptr) {
+		ERR("cppi41 init failed: unable to alloc desc memory\n");
+		return -ENOMEM;
+	}
+	cppi41_dma_block[0].desc_vaddr = ptr;
+
+	if (cppi41_mem_rgn_alloc(cppi_info->q_mgr,
+				 cppi41_dma_block[0].desc_paddr,
+				 USB_CPPI41_DESC_SIZE_SHIFT,
+				 get_count_order(cppi41_dma_block[0].numdesc),
+				 &cppi41_dma_block[0].mem_rgn)) {
+		DBG(1, "ERROR: queue manager memory region allocation "
+		    "failed\n");
+		dma_free_coherent(NULL,
+				cppi41_dma_block[0].desc_totsize,
+				cppi41_dma_block[0].desc_vaddr,
+				cppi41_dma_block[0].desc_paddr);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < num_instances; ++i) {
+		cppi_info = &usb_cppi41_info[i];
+		cppi_info->numdesc = USB_CPPI41_MAX_PD;
+		cppi_info->desc_vaddr = (u32)cppi41_dma_block[0].desc_vaddr +
+			i * USB_CPPI41_MAX_PD * sizeof(struct usb_pkt_desc);
+		cppi_info->desc_paddr = cppi41_dma_block[0].desc_paddr +
+			i * USB_CPPI41_MAX_PD * sizeof(struct usb_pkt_desc);
+	}
+
 	/* attach to the IRQ */
 	if (request_irq(irq, cppi41dma_Interrupt, 0, "cppi41_dma", 0))
 		printk(KERN_INFO "request_irq %d failed!\n", irq);
@@ -509,6 +546,11 @@ void cppi41_free(void)
 	order = get_count_order(numch);
 	blknum = cppi_info->dma_block;
 
+	dma_free_coherent(NULL,
+			cppi41_dma_block[0].desc_totsize,
+			cppi41_dma_block[0].desc_vaddr,
+			cppi41_dma_block[0].desc_paddr);
+	cppi41_mem_rgn_free(0, cppi41_dma_block[0].mem_rgn);
 	cppi41_dma_block_uninit(blknum, cppi_info->q_mgr, order,
 			dma_sched_table, numch);
 	cppi41_queue_mgr_uninit(cppi_info->q_mgr);
