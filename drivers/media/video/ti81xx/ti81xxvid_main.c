@@ -1806,6 +1806,7 @@ error:
 static int vidioc_querybuf(struct file *file, void *priv,
 			struct v4l2_buffer *b)
 {
+	int ret = 0;
 	struct ti81xxvideo_fh *fh = priv;
 	struct ti81xx_vidout_dev *vout = fh->voutdev;
 
@@ -1813,8 +1814,9 @@ static int vidioc_querybuf(struct file *file, void *priv,
 		"VIDOUT%d: query buffer\n",
 		vout->vid);
 	mutex_lock(&vout->lock);
-	return videobuf_querybuf(&vout->vbq, b);
+	ret = videobuf_querybuf(&vout->vbq, b);
 	mutex_unlock(&vout->lock);
+	return ret;
 }
 
 static int vidioc_qbuf(struct file *file, void *priv,
