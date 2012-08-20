@@ -1625,7 +1625,7 @@ static int ti81xx_suspend(struct device *dev)
 	/* Shutdown the on-chip PHY and its PLL. */
 	for (i = 0; i <= data->instances; ++i) {
 		if (data->set_phy_power)
-			data->set_phy_power(0, i);
+			data->set_phy_power(i, 0);
 	}
 
 	/* disable the common usbss interface clock */
@@ -1643,7 +1643,7 @@ static int ti81xx_resume(struct device *dev)
 	/* Start the on-chip PHY and its PLL. */
 	for (i = 0; i <= data->instances; ++i) {
 		if (data->set_phy_power)
-			data->set_phy_power(1, i);
+			data->set_phy_power(i, 1);
 	}
 
 	/* enable the common usbss interface clock */
