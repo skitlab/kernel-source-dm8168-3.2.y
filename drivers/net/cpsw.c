@@ -115,9 +115,9 @@ do {								\
 #define CPSW_CMINTMAX_INTVL	(1000 / CPSW_CMINTMIN_CNT)
 #define CPSW_CMINTMIN_INTVL	((1000 / CPSW_CMINTMAX_CNT) + 1)
 
-#define switchcmd(__xx__)	__xx__.cmd_data.switchcmd
-#define portcmd(__xx__)		__xx__.cmd_data.portcmd
-#define priocmd(__xx__)		__xx__.cmd_data.priocmd
+#define switchcmd(__cmd__)	((__cmd__)->cmd_data.switchcmd)
+#define portcmd(__cmd__)	((__cmd__)->cmd_data.portcmd)
+#define priocmd(__cmd__)	((__cmd__)->cmd_data.priocmd)
 
 static int debug_level;
 module_param(debug_level, int, 0);
@@ -1886,7 +1886,7 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 		struct ifreq *ifrq, int cmd)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
-	struct net_switch_config switch_config;
+	struct net_switch_config *switch_config;
 	int ret = -EFAULT;
 
 	/*
@@ -1897,12 +1897,12 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 	if (cmd != SIOCDEVPRIVATE)
 		return ret;
 
-	if (copy_from_user(&switch_config,
-			(struct net_switch_config *)(ifrq->ifr_data),
+	switch_config = kzalloc(sizeof(struct net_switch_config), GFP_KERNEL);
+	if (copy_from_user(switch_config, (ifrq->ifr_data),
 			sizeof(struct net_switch_config)))
 		return ret;
 
-	switch (switch_config.cmd) {
+	switch (switch_config->cmd) {
 	case CONFIG_SWITCH_ADD_MULTICAST:
 		if ((switchcmd(switch_config).untag_port <= 3) &&
 				(switchcmd(switch_config).vid <= 4095) &&
@@ -1926,7 +1926,7 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 					switchcmd(switch_config).flag,
 					switchcmd(switch_config).untag_port);
 		} else {
-			printk(KERN_ERR "Invalid Switch config arguments\n");
+			dev_err(priv->dev, "Invalid Switch config arguments\n");
 			ret = -EFAULT;
 		}
 		break;
@@ -1946,7 +1946,7 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 					priv->host_port, 0,
 					switchcmd(switch_config).vid);
 		} else {
-			printk(KERN_ERR "Invalid Switch config arguments\n");
+			dev_err(priv->dev, "Invalid Switch config arguments\n");
 			ret = -EFAULT;
 		}
 		break;
@@ -1956,7 +1956,7 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 			ret = cpsw_ale_add_oui(priv->ale,
 				switchcmd(switch_config).addr);
 		} else {
-			printk(KERN_ERR "Invalid Switch config arguments\n");
+			dev_err(priv->dev, "Invalid Switch config arguments\n");
 			ret = -EFAULT;
 		}
 		break;
@@ -1968,13 +1968,14 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 				switchcmd(switch_config).addr,
 				switchcmd(switch_config).vid);
 			if (ret >= 0) {
-				switch_config.ret_type = ret;
+				switch_config->ret_type = ret;
 				ret = copy_to_user(ifrq->ifr_data,
-					&switch_config,
-					sizeof(switch_config)) ? -EFAULT : 0;
+					switch_config,
+					sizeof(struct net_switch_config)) ?
+					-EFAULT : 0;
 			}
 		} else {
-			printk(KERN_ERR "Invalid Arguments\n");
+			dev_err(priv->dev, "Invalid Arguments\n");
 			ret = -EFAULT;
 		}
 		break;
@@ -1995,7 +1996,7 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 						<< priv->host_port,
 					switchcmd(switch_config).vid);
 		} else {
-			printk(KERN_ERR "Invalid Arguments\n");
+			dev_err(priv->dev, "Invalid Arguments\n");
 			ret = -EFAULT;
 		}
 		break;
@@ -2016,7 +2017,7 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 					switchcmd(switch_config).addr,
 					switchcmd(switch_config).vid);
 		} else {
-			printk(KERN_ERR "Invalid Arguments\n");
+			dev_err(priv->dev, "Invalid Arguments\n");
 			ret = -EFAULT;
 		}
 		break;
@@ -2033,19 +2034,20 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 				switchcmd(switch_config).reg_multi,
 				switchcmd(switch_config).unreg_multi);
 		} else {
-			printk(KERN_ERR "Invalid Arguments\n");
+			dev_err(priv->dev, "Invalid Arguments\n");
 			ret = -EFAULT;
 		}
 		break;
 
 	case CONFIG_SWITCH_FIND_VLAN:
 		if (switchcmd(switch_config).vid <= 4095) {
-			switch_config.ret_type = cpsw_ale_match_vlan(priv->ale,
+			switch_config->ret_type = cpsw_ale_match_vlan(priv->ale,
 				switchcmd(switch_config).vid);
-			ret = copy_to_user(ifrq->ifr_data, &switch_config,
-				sizeof(switch_config)) ? -EFAULT : 0;
+			ret = copy_to_user(ifrq->ifr_data, switch_config,
+				sizeof(struct net_switch_config)) ?
+				-EFAULT : 0;
 		} else {
-			printk(KERN_ERR "Invalid Arguments\n");
+			dev_err(priv->dev, "Invalid Arguments\n");
 			ret = -EFAULT;
 		}
 		break;
@@ -2058,7 +2060,7 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 				switchcmd(switch_config).mem_port
 				<< priv->host_port);
 		} else {
-			printk(KERN_ERR "Invalid Arguments\n");
+			dev_err(priv->dev, "Invalid Arguments\n");
 			ret = -EFAULT;
 		}
 		break;
@@ -2075,17 +2077,17 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 				port_vlan |= (1 << 12);
 
 			if (switchcmd(switch_config).port == 0)
-				__raw_writel(port_vlan,
+				writel(port_vlan,
 					&priv->host_port_regs->port_vlan);
 			else if (switchcmd(switch_config).port == 1)
-				__raw_writel(port_vlan,
+				writel(port_vlan,
 					&(priv->slaves[0].regs->port_vlan));
 			else
-				__raw_writel(port_vlan,
+				writel(port_vlan,
 					&(priv->slaves[1].regs->port_vlan));
 			ret = 0;
 		} else {
-			printk(KERN_ERR "Invalid Arguments\n");
+			dev_err(priv->dev, "Invalid Arguments\n");
 			ret = -EFAULT;
 		}
 		break;
@@ -2099,18 +2101,19 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 	case CONFIG_SWITCH_DUMP:
 		ret = cpsw_ale_dump(priv->ale,
 			switchcmd(switch_config).aledump,
-			switch_config.cmd_data.buf, 4095);
+			switch_config->cmd_data.buf, 4095);
 		if (ret)
-			ret = copy_to_user(ifrq->ifr_data, &switch_config,
-				sizeof(switch_config)) ? -EFAULT : 0;
+			ret = copy_to_user(ifrq->ifr_data, switch_config,
+				sizeof(struct net_switch_config)) ?
+				-EFAULT : 0;
 		break;
 
 	case CONFIG_SWITCH_SET_FLOW_CONTROL:
 		if (portcmd(switch_config).port <= 7) {
-			__raw_writel(portcmd(switch_config).port,
+			writel(portcmd(switch_config).port,
 				&priv->regs->flow_control);
 		} else {
-			printk(KERN_ERR "Invalid Arguments\n");
+			dev_err(priv->dev, "Invalid Arguments\n");
 			ret = -EFAULT;
 		}
 		break;
@@ -2126,26 +2129,27 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 				priocmd(switch_config).prio_tx,
 				priocmd(switch_config).prio_switch);
 		} else {
-			printk(KERN_ERR "Invalid Arguments\n");
+			dev_err(priv->dev, "Invalid Arguments\n");
 			ret = -EFAULT;
 		}
 		break;
 
 	case CONFIG_SWITCH_PORT_STATISTICS_ENABLE:
 		if (portcmd(switch_config).port <= 7) {
-			__raw_writel(portcmd(switch_config).port,
+			writel(portcmd(switch_config).port,
 				&priv->regs->stat_port_en);
 			ret = 0;
 		} else {
-			printk(KERN_ERR "Invalid Arguments\n");
+			dev_err(priv->dev, "Invalid Arguments\n");
 			ret = -EFAULT;
 		}
 		break;
 
 	case CONFIG_SWITCH_CONFIG_DUMP:
-		cpsw_config_dump(priv, switch_config.cmd_data.buf, 4096);
-		ret = copy_to_user(ifrq->ifr_data, &switch_config,
-			sizeof(switch_config)) ? -EFAULT : 0;
+		cpsw_config_dump(priv, switch_config->cmd_data.buf, 4096);
+		ret = copy_to_user(ifrq->ifr_data, switch_config,
+			sizeof(struct net_switch_config)) ?
+			-EFAULT : 0;
 		break;
 
 	case CONFIG_SWITCH_RATELIMIT:
@@ -2167,7 +2171,7 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 				portcmd(switch_config).addr_type,
 				portcmd(switch_config).limit);
 		} else {
-			printk(KERN_ERR "Invalid Arguments\n");
+			dev_err(priv->dev, "Invalid Arguments\n");
 			ret = -EFAULT;
 		}
 		break;
@@ -2182,7 +2186,7 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 				ALE_PORT_DROP_UNKNOWN_VLAN, 1);
 			ret = 0;
 		} else {
-			printk(KERN_ERR "Invalid Arguments\n");
+			dev_err(priv->dev, "Invalid Arguments\n");
 			ret = -EFAULT;
 		}
 		break;
@@ -2210,7 +2214,7 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 				portcmd(switch_config).unknown_vlan_member);
 			ret = 0;
 		} else {
-			printk(KERN_ERR "Invalid Arguments\n");
+			dev_err(priv->dev, "Invalid Arguments\n");
 			ret = -EFAULT;
 		}
 		break;
@@ -2242,7 +2246,7 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 				ret = phy_ethtool_gset(priv->slaves[0].phy,
 						&ecmd);
 			} else {
-				printk(KERN_ERR "Phy not Found\n");
+				dev_err(priv->dev, "Phy not Found\n");
 				ret = -EFAULT;
 				break;
 			}
@@ -2252,12 +2256,12 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 				ret = phy_ethtool_gset(priv->slaves[1].phy,
 						&ecmd);
 			} else {
-				printk(KERN_ERR "Phy not Found\n");
+				dev_err(priv->dev, "Phy not Found\n");
 				ret = -EFAULT;
 				break;
 			}
 		else {
-			printk(KERN_ERR "Invalid Arguments\n");
+			dev_err(priv->dev, "Invalid Arguments\n");
 			ret = -EFAULT;
 			break;
 		}
@@ -2287,7 +2291,7 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 				ret = phy_ethtool_sset(priv->slaves[1].phy,
 					&ecmd);
 		} else {
-			printk(KERN_ERR "Invalid Arguments\n");
+			dev_err(priv->dev, "Invalid Arguments\n");
 			ret = -EFAULT;
 		}
 		break;
@@ -2303,7 +2307,7 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 				ret = phy_ethtool_gset(priv->slaves[0].phy,
 						&ecmd);
 			} else {
-				printk(KERN_ERR "Phy not Found\n");
+				dev_err(priv->dev, "Phy not Found\n");
 				ret = -EFAULT;
 				break;
 			}
@@ -2313,12 +2317,12 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 				ret = phy_ethtool_gset(priv->slaves[1].phy,
 						&ecmd);
 			} else {
-				printk(KERN_ERR "Phy not Found\n");
+				dev_err(priv->dev, "Phy not Found\n");
 				ret = -EFAULT;
 				break;
 			}
 		else {
-			printk(KERN_ERR "Invalid Arguments\n");
+			dev_err(priv->dev, "Invalid Arguments\n");
 			ret = -EFAULT;
 			break;
 		}
@@ -2329,8 +2333,9 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 				portcmd(switch_config).direction = 1;
 			else
 				portcmd(switch_config).direction = 0;
-			ret = copy_to_user(ifrq->ifr_data, &switch_config,
-				sizeof(switch_config)) ? -EFAULT : 0;
+			ret = copy_to_user(ifrq->ifr_data, switch_config,
+				sizeof(struct net_switch_config)) ?
+				-EFAULT : 0;
 		}
 
 		break;
@@ -2342,7 +2347,7 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 				portcmd(switch_config).port,
 				portcmd(switch_config).port_state);
 		} else {
-			printk(KERN_ERR "Invalid Arguments\n");
+			dev_err(priv->dev, "Invalid Arguments\n");
 			ret = -EFAULT;
 		}
 		break;
@@ -2357,6 +2362,7 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 		ret = -EOPNOTSUPP;
 	}
 
+	kfree(switch_config);
 	return ret;
 }
 #endif /* CONFIG_TI_CPSW_DUAL_EMAC */
