@@ -2698,6 +2698,20 @@ static void cpsw_slave_init(struct cpsw_slave *slave, struct cpsw_priv *priv)
 #endif /* CONFIG_TI_CPSW_DUAL_EMAC */
 }
 
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+
+static inline void cpsw_deinit_slave_emac(struct cpsw_priv *priv)
+{
+	struct net_device *ndev = priv->slaves[1].ndev;
+
+	unregister_netdev(ndev);
+	free_netdev(ndev);
+}
+
+#else
+#define cpsw_deinit_slave_emac(priv)
+#endif
+
 static int __devinit cpsw_probe(struct platform_device *pdev)
 {
 	struct cpsw_platform_data	*data = pdev->dev.platform_data;
@@ -2896,12 +2910,12 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 		for (i = res->start; i <= res->end; i++) {
 			if (request_irq(i, cpsw_interrupt, IRQF_DISABLED,
 					dev_name(&pdev->dev), priv)) {
-				dev_err(priv->dev, "error attaching irq\n");
+				pr_err("error attaching irq\n");
 				goto clean_ale_ret;
 			}
 			#ifdef CPSW_IRQ_QUIRK
 			priv->irqs_table[k] = i;
-			priv->num_irqs = k;
+			priv->num_irqs = k+1;
 			#endif
 		}
 		k++;
@@ -2939,7 +2953,6 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	platform_set_drvdata(pdev, ndev);
 	priv_sl2 = netdev_priv(ndev);
 	spin_lock_init(&priv_sl2->lock);
 	priv_sl2->data = *data;
@@ -3051,11 +3064,14 @@ static int __devexit cpsw_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct cpsw_priv *priv = netdev_priv(ndev);
+	int i;
 
 	msg(notice, probe, "removing device\n");
 	platform_set_drvdata(pdev, NULL);
 
-	free_irq(ndev->irq, priv);
+	cpsw_deinit_slave_emac(priv);
+	for (i = 0; i < priv->num_irqs; i++)
+		free_irq(priv->irqs_table[i], priv);
 	cpsw_ale_destroy(priv->ale);
 	cpdma_chan_destroy(priv->txch);
 	cpdma_chan_destroy(priv->rxch);
@@ -3068,6 +3084,7 @@ static int __devexit cpsw_remove(struct platform_device *pdev)
 	clk_put(priv->clk);
 	kfree(priv->cpts_time);
 	kfree(priv->slaves);
+	unregister_netdev(ndev);
 	free_netdev(ndev);
 
 	return 0;
