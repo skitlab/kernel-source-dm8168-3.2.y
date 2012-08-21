@@ -76,11 +76,13 @@ struct cppi41_channel {
 	u8  zlp_queued;
 	u8  inf_mode;
 	u8  tx_complete;
+	u8  rx_complete;
 	u8  txdma_intr_first;
 	u8  txfifo_intr_enable;
 	u8  count;
 	u8  hb_mult;
 	u8  txfifo_intr_first;
+	struct usb_pkt_desc *curr_pd;
 };
 
 /**
@@ -96,6 +98,7 @@ struct cppi41 {
 	struct cppi41_channel tx_cppi_ch[USB_CPPI41_NUM_CH];
 	struct cppi41_channel rx_cppi_ch[USB_CPPI41_NUM_CH];
 	struct work_struct      txdma_work;
+	struct work_struct      rxdma_work;
 
 	struct usb_pkt_desc *pd_pool_head; /* Free PD pool head */
 	dma_addr_t pd_mem_phys;		/* PD memory physical address */
@@ -118,6 +121,7 @@ struct cppi41 {
 struct usb_cppi41_info usb_cppi41_info[2];
 EXPORT_SYMBOL(usb_cppi41_info);
 static void usb_process_tx_queue(struct cppi41 *cppi, unsigned index);
+static void rxdma_completion_work(struct work_struct *data);
 
 #ifdef DEBUG_CPPI_TD
 static void print_pd_list(struct usb_pkt_desc *pd_pool_head)
@@ -1412,6 +1416,7 @@ cppi41_dma_controller_create(struct musb  *musb, void __iomem *mregs)
 	cppi->en_bd_intr = cppi->cppi_info->bd_intr_ctrl;
 	cppi->txfifo_intr_enable = musb->txfifo_intr_enable;
 	INIT_WORK(&cppi->txdma_work, txdma_completion_work);
+	INIT_WORK(&cppi->rxdma_work, rxdma_completion_work);
 
 	/*
 	 * Extra IN token has been seen when a file is transferred from one MSC
@@ -1542,13 +1547,143 @@ static void usb_process_tx_queue(struct cppi41 *cppi, unsigned index)
 		}
 	}
 }
+static void usb_process_rx_bd(struct cppi41 *cppi,
+		struct usb_pkt_desc *curr_pd)
+{
+	u8 en_bd_intr = cppi->en_bd_intr;
+	struct cppi41_channel *rx_ch;
+	u8 ch_num, ep_num;
+	u32 length = 0, orig_buf_len;
+
+	/* Extract the data from received packet descriptor */
+	length = curr_pd->hw_desc.desc_info & CPPI41_PKT_LEN_MASK;
+	ch_num = curr_pd->ch_num;
+	ep_num = curr_pd->ep_num;
+	rx_ch = &cppi->rx_cppi_ch[ch_num];
+	DBG(4, "Rx complete: dma channel(%d) ep%d len %d\n",
+		ch_num, ep_num, length);
+
+	rx_ch->channel.actual_len += length;
+
+	if (curr_pd->eop) {
+		curr_pd->eop = 0;
+		/* disable the rx dma schedular */
+		if (is_peripheral_active(cppi->musb) && !cppi->inf_mode)
+			cppi41_schedtbl_remove_dma_ch(0, 0, ch_num, 0);
+	}
+
+	/*
+	 * Return Rx PD to the software list --
+	 * this is protected by critical section
+	 */
+	usb_put_free_pd(cppi, curr_pd);
+
+	orig_buf_len = curr_pd->hw_desc.orig_buf_len;
+	if (en_bd_intr)
+		orig_buf_len &= ~CPPI41_PKT_INTR_FLAG;
+
+	DBG(4, "curr_pd=%p, len=%d, origlen=%d,rxch(alen/len)=%d/%d\n",
+		curr_pd, length, orig_buf_len,
+		rx_ch->channel.actual_len, rx_ch->length);
+
+	if (unlikely(rx_ch->channel.actual_len >= rx_ch->length ||
+		     length < orig_buf_len)) {
+
+#ifdef CONFIG_ARCH_TI81XX
+		struct musb_hw_ep *ep;
+		u8 isoc, next_seg = 0;
+
+		/* Workaround for early rx completion of
+		 * cppi41 dma in Generic RNDIS mode for ti81xx
+		 */
+		if (cpu_is_ti81xx() && is_host_enabled(cppi->musb)) {
+			u32 pkt_size = rx_ch->pkt_size;
+			ep = cppi->musb->endpoints + ep_num;
+			isoc = musb_readb(ep->regs, MUSB_RXTYPE);
+			isoc = (isoc >> 4) & 0x1;
+
+			if (!isoc
+				&& (rx_ch->dma_mode == USB_GENERIC_RNDIS_MODE)
+				&& (rx_ch->channel.actual_len < rx_ch->length)
+				&& !(rx_ch->channel.actual_len % pkt_size))
+					next_seg = 1;
+		}
+		if (next_seg) {
+			rx_ch->curr_offset = rx_ch->channel.actual_len;
+			cppi41_next_rx_segment(rx_ch);
+		} else
+#endif
+		{
+			rx_ch->channel.status = MUSB_DMA_STATUS_FREE;
+
+			if (rx_ch->inf_mode) {
+				cppi41_rx_ch_set_maxbufcnt(
+				&rx_ch->dma_ch_obj, 0);
+				rx_ch->inf_mode = 0;
+			}
+
+			/* Rx completion routine callback */
+			musb_dma_completion(cppi->musb, ep_num, 0);
+		}
+	} else {
+			if ((is_peripheral_active(cppi->musb) ||
+				!cppi->cppi_info->grndis_for_host_rx) &&
+				(rx_ch->length - rx_ch->curr_offset) > 0)
+				cppi41_next_rx_segment(rx_ch);
+	}
+}
+
+static void rxdma_completion_work(struct work_struct *data)
+{
+	struct cppi41 *cppi = container_of(data, struct cppi41, rxdma_work);
+	struct musb *musb = cppi->musb;
+	unsigned index;
+	u8 resched = 0;
+	unsigned long flags, length;
+	struct cppi41_channel *rx_ch;
+
+	while (1) {
+		for (index = 0; index < USB_CPPI41_NUM_CH; index++) {
+			rx_ch = &cppi->rx_cppi_ch[index];
+			if (rx_ch->rx_complete) {
+				/* Sometimes a EP can unregister from a DMA
+				 * channel while the data is still in the FIFO.
+				 * Probable reason a proper abort was not
+				 * called before taking such a step.
+				 */
+				if (!rx_ch->curr_pd) {
+					ERR("invalid curr_pd chnum%d\n", index);
+					continue;
+				}
+
+				length = rx_ch->curr_pd->hw_desc.desc_info &
+						CPPI41_PKT_LEN_MASK;
+				if (length == 0) {
+					resched = 1;
+					continue;
+				}
+				spin_lock_irqsave(&musb->lock, flags);
+				usb_process_rx_bd(cppi, rx_ch->curr_pd);
+				rx_ch->rx_complete = 0;
+				rx_ch->count = 0;
+				rx_ch->curr_pd = 0;
+				spin_unlock_irqrestore(&musb->lock, flags);
+			}
+		}
+
+		if (resched) {
+			resched = 0;
+			cond_resched();
+		} else
+			return ;
+	}
+}
 
 static void usb_process_rx_queue(struct cppi41 *cppi, unsigned index)
 {
 	struct cppi41_queue_obj rx_queue_obj;
 	unsigned long pd_addr;
 	struct usb_cppi41_info *cppi_info = cppi->cppi_info;
-	u8 en_bd_intr = cppi->en_bd_intr;
 
 	if (cppi41_queue_init(&rx_queue_obj, cppi_info->q_mgr,
 			      cppi_info->rx_comp_q[index])) {
@@ -1560,7 +1695,7 @@ static void usb_process_rx_queue(struct cppi41 *cppi, unsigned index)
 		struct usb_pkt_desc *curr_pd;
 		struct cppi41_channel *rx_ch;
 		u8 ch_num, ep_num;
-		u32 length = 0, orig_buf_len, timeout = 50;
+		u32 length = 0, timeout = 50;
 
 		curr_pd = usb_get_pd_ptr(cppi, pd_addr);
 		if (curr_pd == NULL) {
@@ -1581,84 +1716,22 @@ static void usb_process_rx_queue(struct cppi41 *cppi, unsigned index)
 			udelay(1);
 		}
 
-		if (length == 0)
-			ERR("!Race condtion: rxBD read before updated by dma");
-
 		/* Extract the data from received packet descriptor */
 		ch_num = curr_pd->ch_num;
 		ep_num = curr_pd->ep_num;
-
-		DBG(4, "Rx complete: dma channel(%d) ep%d len %d timeout %d\n",
-			ch_num, ep_num, length, (50-timeout));
-
 		rx_ch = &cppi->rx_cppi_ch[ch_num];
-		rx_ch->channel.actual_len += length;
 
-		if (curr_pd->eop) {
-			curr_pd->eop = 0;
-			/* disable the rx dma schedular */
-			if (is_peripheral_active(cppi->musb) && !cppi->inf_mode)
-				cppi41_schedtbl_remove_dma_ch(0, 0, ch_num, 0);
+		if (length == 0) {
+			DBG(4, "!Race condtion: rxBD still not updated, poll"
+				"rxBD update ch%d ep%d\n", ch_num, ep_num);
+			rx_ch->rx_complete = 1;
+			rx_ch->count = 1;
+			rx_ch->curr_pd = curr_pd;
+			schedule_work(&cppi->rxdma_work);
+			continue;
 		}
 
-		/*
-		 * Return Rx PD to the software list --
-		 * this is protected by critical section
-		 */
-		usb_put_free_pd(cppi, curr_pd);
-
-		orig_buf_len = curr_pd->hw_desc.orig_buf_len;
-		if (en_bd_intr)
-			orig_buf_len &= ~CPPI41_PKT_INTR_FLAG;
-
-		DBG(4, "curr_pd=%p, len=%d, origlen=%d,rxch(alen/len)=%d/%d\n",
-			curr_pd, length, orig_buf_len,
-			rx_ch->channel.actual_len, rx_ch->length);
-
-		if (unlikely(rx_ch->channel.actual_len >= rx_ch->length ||
-			     length < orig_buf_len)) {
-
-#ifdef CONFIG_ARCH_TI81XX
-			struct musb_hw_ep *ep;
-			u8 isoc, next_seg = 0;
-
-			/* Workaround for early rx completion of
-			 * cppi41 dma in Generic RNDIS mode for ti81xx
-			 */
-			if (cpu_is_ti81xx() && is_host_enabled(cppi->musb)) {
-				u32 pkt_size = rx_ch->pkt_size;
-				ep = cppi->musb->endpoints + ep_num;
-				isoc = musb_readb(ep->regs, MUSB_RXTYPE);
-				isoc = (isoc >> 4) & 0x1;
-
-				if (!isoc
-				&& (rx_ch->dma_mode == USB_GENERIC_RNDIS_MODE)
-				&& (rx_ch->channel.actual_len < rx_ch->length)
-				&& !(rx_ch->channel.actual_len % pkt_size))
-					next_seg = 1;
-			}
-			if (next_seg) {
-				rx_ch->curr_offset = rx_ch->channel.actual_len;
-				cppi41_next_rx_segment(rx_ch);
-			} else
-#endif
-			{
-				rx_ch->channel.status = MUSB_DMA_STATUS_FREE;
-
-				if (rx_ch->inf_mode) {
-					cppi41_rx_ch_set_maxbufcnt(
-					&rx_ch->dma_ch_obj, 0);
-					rx_ch->inf_mode = 0;
-				}
-				/* Rx completion routine callback */
-				musb_dma_completion(cppi->musb, ep_num, 0);
-			}
-		} else {
-			if ((is_peripheral_active(cppi->musb) ||
-				!cppi->cppi_info->grndis_for_host_rx) &&
-				(rx_ch->length - rx_ch->curr_offset) > 0)
-				cppi41_next_rx_segment(rx_ch);
-		}
+		usb_process_rx_bd(cppi, curr_pd);
 	}
 }
 
