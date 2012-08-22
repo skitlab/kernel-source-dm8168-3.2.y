@@ -2078,7 +2078,7 @@ config TI_DAVINCI_MDIO
 	  will be called davinci_mdio.  This is recommended.
 
 config TI_DAVINCI_CPDMA
-	bool "TI DaVinci CPDMA Support"
+	tristate "TI DaVinci CPDMA Support"
 	depends on TI_DAVINCI_EMAC || TI_CPSW
 	help
 	  This driver supports TI's DaVinci CPDMA dma engine.
