@@ -114,7 +114,6 @@ struct cppi41 {
 	u32 automode_reg_offs;		/* USB_AUTOREQ_REG offset */
 	u32 teardown_reg_offs;		/* USB_TEARDOWN_REG offset */
 	u32 bd_size;
-	u8  inf_mode;
 	u8  txfifo_intr_enable;		/* txfifo empty interrupt logic */
 };
 
@@ -727,59 +726,59 @@ static unsigned cppi41_next_rx_segment(struct cppi41_channel *rx_ch)
 	struct cppi41_host_pkt_desc *hw_desc;
 	u32 length = rx_ch->length - rx_ch->curr_offset;
 	u32 pkt_size = rx_ch->pkt_size;
-	u32 max_rx_transfer_size = 64 * 1024;
+	u32 max_rx_transfer_size = MAX_GRNDIS_PKTSIZE;
 	u32 i, n_bd , pkt_len;
-	struct usb_gadget_driver *gadget_driver;
-	u8 en_bd_intr = cppi->en_bd_intr, mode;
+	u8 en_bd_intr = cppi->en_bd_intr;
+	u8 dma_mode, autoreq;
 
-	if (is_peripheral_active(cppi->musb)) {
-		/* TODO: temporary fix for CDC/RNDIS which needs to be in
-		 * GENERIC_RNDIS mode. Without this RNDIS gadget taking
-		 * more then 2K ms for a 64 byte pings.
-		 */
-#ifdef CONFIG_USB_GADGET_MUSB_HDRC
-		gadget_driver = cppi->musb->gadget_driver;
-#endif
-		pkt_len = rx_ch->pkt_size;
-		mode = USB_GENERIC_RNDIS_MODE;
-		if (!strcmp(gadget_driver->driver.name, "g_file_storage")) {
-			if (cppi->inf_mode && length > pkt_len) {
-				pkt_len = 0;
-				length = length - rx_ch->pkt_size;
-				cppi41_rx_ch_set_maxbufcnt(&rx_ch->dma_ch_obj,
-					DMA_CH_RX_MAX_BUF_CNT_1);
-				rx_ch->inf_mode = 1;
-			} else {
-				max_rx_transfer_size = rx_ch->pkt_size;
-				mode = USB_TRANSPARENT_MODE;
-			}
-		} else
-			if (rx_ch->length < max_rx_transfer_size)
-				pkt_len = rx_ch->length;
+	pkt_len = rx_ch->length;
+	/*
+	 * Rx can use the generic RNDIS mode where we can
+	 * probably fit this transfer in one PD and one IRQ
+	 * (or two with a short packet).
+	 */
+	dma_mode = USB_TRANSPARENT_MODE;
+	autoreq = USB_AUTOREQ_ALL_BUT_EOP;
+	if (((pkt_size & 0x3f) == 0) &&
+		cppi->cppi_info->rx_dma_mode == USB_GENERIC_RNDIS_MODE) {
+			dma_mode = USB_GENERIC_RNDIS_MODE;
+	}
 
-		if (mode != USB_TRANSPARENT_MODE)
-			cppi41_set_ep_size(rx_ch, pkt_len);
-		cppi41_mode_update(rx_ch, mode);
-	} else {
-		/*
-		 * Rx can use the generic RNDIS mode where we can
-		 * probably fit this transfer in one PD and one IRQ
-		 * (or two with a short packet).
-		 */
-		if (cppi->cppi_info->grndis_for_host_rx &&
-					(pkt_size & 0x3f) == 0) {
-			cppi41_mode_update(rx_ch, USB_GENERIC_RNDIS_MODE);
-			cppi41_autoreq_update(rx_ch, USB_AUTOREQ_ALL_BUT_EOP);
-
-			pkt_size = (length > 0x10000) ? 0x10000 : length;
-			cppi41_set_ep_size(rx_ch, pkt_size);
-			mode = USB_GENERIC_RNDIS_MODE;
-		} else {
-			cppi41_mode_update(rx_ch, USB_TRANSPARENT_MODE);
-			cppi41_autoreq_update(rx_ch, USB_NO_AUTOREQ);
-			max_rx_transfer_size = rx_ch->hb_mult * rx_ch->pkt_size;
-			mode = USB_TRANSPARENT_MODE;
+	if (dma_mode == USB_GENERIC_RNDIS_MODE) {
+		if (cppi->cppi_info->rx_inf_mode) {
+			if (length > rx_ch->pkt_size)
+				dma_mode = USB_INFINITE_DMAMODE;
+			else
+				dma_mode = USB_TRANSPARENT_MODE;
 		}
+	}
+
+	if (length < rx_ch->pkt_size)
+		dma_mode = USB_TRANSPARENT_MODE;
+
+	if (dma_mode == USB_INFINITE_DMAMODE) {
+		pkt_len = 0;
+		length = length - rx_ch->pkt_size;
+		cppi41_rx_ch_set_maxbufcnt(
+			&rx_ch->dma_ch_obj,
+			DMA_CH_RX_MAX_BUF_CNT_1);
+			rx_ch->inf_mode = 1;
+		dma_mode = USB_GENERIC_RNDIS_MODE;
+		autoreq = USB_AUTOREQ_ALWAYS;
+	} else {
+		if (pkt_len > max_rx_transfer_size)
+			pkt_len = max_rx_transfer_size;
+	}
+
+	/* update cppi mode */
+	cppi41_mode_update(rx_ch, dma_mode);
+
+	if (dma_mode != USB_TRANSPARENT_MODE) {
+		if (is_host_enabled(cppi->musb))
+			cppi41_autoreq_update(rx_ch, autoreq);
+		cppi41_set_ep_size(rx_ch, pkt_len);
+	} else if (is_host_enabled(cppi->musb)) {
+		cppi41_autoreq_update(rx_ch, USB_NO_AUTOREQ);
 	}
 
 	DBG(4, "RX DMA%u, %s, maxpkt %u, addr %#x, rec'd %u/%u\n",
@@ -788,10 +787,13 @@ static unsigned cppi41_next_rx_segment(struct cppi41_channel *rx_ch)
 	    rx_ch->curr_offset, rx_ch->length);
 
 	/* calculate number of bd required */
-	if (is_host_active(cppi->musb) && (mode == USB_TRANSPARENT_MODE))
-		n_bd = 1;
-	else
-		n_bd = (length + max_rx_transfer_size - 1)/max_rx_transfer_size;
+	n_bd = (length + max_rx_transfer_size - 1)/max_rx_transfer_size;
+	if (dma_mode == USB_TRANSPARENT_MODE) {
+		if (!rx_ch->hb_mult)
+			max_rx_transfer_size = rx_ch->pkt_size;
+		else
+			max_rx_transfer_size = rx_ch->hb_mult * rx_ch->pkt_size;
+	}
 
 	for (i = 0; i < n_bd ; ++i) {
 		/* Get Rx packet descriptor from the free pool */
@@ -841,25 +843,27 @@ sched:
 	 * HCD arranged ReqPkt for the first packet.
 	 * We arrange it for all but the last one.
 	 */
-	if (is_host_active(cppi->musb) && rx_ch->channel.actual_len) {
+	if (is_host_active(cppi->musb) && rx_ch->channel.actual_len &&
+		!rx_ch->inf_mode) {
 		void __iomem *epio = rx_ch->end_pt->regs;
 		u16 csr = musb_readw(epio, MUSB_RXCSR);
 		u8 curr_toggle = (csr & MUSB_RXCSR_H_DATATOGGLE) ? 1 : 0;
+		if (cppi->musb->datatog_fix) {
+			/* check if data toggle bit got out of sync */
+			if (curr_toggle == rx_ch->end_pt->prev_toggle) {
+				DBG(4, "Data toggle same as previous (=%d) on"
+					"ep%d\n", curr_toggle,
+					rx_ch->end_pt->epnum);
 
-		/* check if data toggle bit got out of sync */
-		if (curr_toggle == rx_ch->end_pt->prev_toggle) {
-			DBG(4, "Data toggle same as previous (=%d) on ep%d\n",
-					curr_toggle, rx_ch->end_pt->epnum);
-
-			csr |= MUSB_RXCSR_H_DATATOGGLE |
+				csr |= MUSB_RXCSR_H_DATATOGGLE |
 					MUSB_RXCSR_H_WR_DATATOGGLE;
-			musb_writew(epio, MUSB_RXCSR, csr);
+				musb_writew(epio, MUSB_RXCSR, csr);
 
-			rx_ch->end_pt->prev_toggle = !curr_toggle;
-		} else {
-			rx_ch->end_pt->prev_toggle = curr_toggle;
+				rx_ch->end_pt->prev_toggle = !curr_toggle;
+			} else {
+				rx_ch->end_pt->prev_toggle = curr_toggle;
+			}
 		}
-
 		csr = musb_readw(epio, MUSB_RXCSR);
 		csr |= MUSB_RXCSR_H_REQPKT | MUSB_RXCSR_H_WZC_BITS;
 		musb_writew(epio, MUSB_RXCSR, csr);
@@ -1427,16 +1431,23 @@ cppi41_dma_controller_create(struct musb  *musb, void __iomem *mregs)
 	 * This issue is expected to be fixed in RTL version post 0xD.
 	 */
 	if ((cppi->cppi_info->version & USBSS_RTL_VERSION_MASK) >
-			USBSS_RTL_VERSION_D)
-		cppi->cppi_info->grndis_for_host_rx = 1;
-	else
-		cppi->cppi_info->grndis_for_host_rx = 0;
+			USBSS_RTL_VERSION_D) {
+		cppi->cppi_info->rx_dma_mode = USB_GENERIC_RNDIS_MODE;
+		cppi->musb->datatog_fix = 0;
+	} else {
+		cppi->cppi_info->rx_dma_mode = USB_TRANSPARENT_MODE;
+		cppi->musb->datatog_fix = 1;
+	}
 
 	/* enable infinite mode only for ti81xx silicon rev2 */
 	if (cpu_is_ti81xx() && ((omap_rev() == TI8168_REV_ES2_0) ||
 		(omap_rev() == TI8148_REV_ES2_0))) {
 		DBG(1, "cppi41dma supports infinite mode\n");
-		cppi->inf_mode = 1;
+		/*
+		 * to enable inf_mode, generic rndis mode must be
+		 * enabled. also datatog_fix must be set to zero
+		 */
+		cppi->cppi_info->rx_inf_mode = 0;
 	}
 
 	return &cppi->controller;
@@ -1568,7 +1579,8 @@ static void usb_process_rx_bd(struct cppi41 *cppi,
 	if (curr_pd->eop) {
 		curr_pd->eop = 0;
 		/* disable the rx dma schedular */
-		if (is_peripheral_active(cppi->musb) && !cppi->inf_mode)
+		if (is_peripheral_active(cppi->musb) &&
+			!cppi->cppi_info->rx_inf_mode)
 			cppi41_schedtbl_remove_dma_ch(0, 0, ch_num, 0);
 	}
 
@@ -1586,8 +1598,8 @@ static void usb_process_rx_bd(struct cppi41 *cppi,
 		curr_pd, length, orig_buf_len,
 		rx_ch->channel.actual_len, rx_ch->length);
 
-	if (unlikely(rx_ch->channel.actual_len >= rx_ch->length ||
-		     length < orig_buf_len)) {
+	if (rx_ch->channel.actual_len >= rx_ch->length ||
+		     length < orig_buf_len) {
 
 #ifdef CONFIG_ARCH_TI81XX
 		struct musb_hw_ep *ep;
@@ -1626,9 +1638,7 @@ static void usb_process_rx_bd(struct cppi41 *cppi,
 			musb_dma_completion(cppi->musb, ep_num, 0);
 		}
 	} else {
-			if ((is_peripheral_active(cppi->musb) ||
-				!cppi->cppi_info->grndis_for_host_rx) &&
-				(rx_ch->length - rx_ch->curr_offset) > 0)
+			if ((rx_ch->length - rx_ch->curr_offset) > 0)
 				cppi41_next_rx_segment(rx_ch);
 	}
 }

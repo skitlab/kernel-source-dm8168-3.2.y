@@ -67,7 +67,8 @@ struct usb_cppi41_info {
 	u16 *tx_comp_q;
 	u16 *rx_comp_q;
 	u8 bd_intr_ctrl;
-	u8 grndis_for_host_rx;
+	u8 rx_dma_mode;
+	u8 rx_inf_mode;
 	u32 version;
 	u32 numdesc;
 	dma_addr_t desc_vaddr;

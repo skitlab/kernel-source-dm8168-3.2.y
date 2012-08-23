@@ -527,6 +527,7 @@ struct musb {
 	short			fifo_mode;
 	u8			txfifo_intr_enable;
 	u8			is_overcurrent;
+	u8			datatog_fix;
 };
 
 #ifdef CONFIG_USB_GADGET_MUSB_HDRC
