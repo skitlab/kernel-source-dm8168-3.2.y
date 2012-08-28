@@ -43,11 +43,44 @@
 /* 44xx specific mux bit defines */
 #define OMAP_WAKEUP_EVENT		(1 << 15)
 
+/* TI81XX mux mode options for each pin.Go through TRM/DataSheet for details */
+#define TI81XX_MUX_MODE0	0
+#define TI81XX_MUX_MODE1	1
+#define TI81XX_MUX_MODE2	2
+#define TI81XX_MUX_MODE3	3
+#define TI81XX_MUX_MODE4	4
+#define TI81XX_MUX_MODE5	5
+#define TI81XX_MUX_MODE6	6
+#define TI81XX_MUX_MODE7	7
+#define TI81XX_MUX_MODE8	8
+#define TI81XX_MUX_MODE9	9
+#define TI81XX_MUX_MODE10	10
+#define TI81XX_MUX_MODE11	11
+
+/* TI816x Specific mux bit definitions */
+#define TI816X_PULL_DIS			(1 << 3)
+#define TI816X_PULL_UP			(1 << 4)
+
 /* TI814x specific mux bit definitions */
 #define TI814X_PULL_DIS			(1 << 16)
 #define TI814X_PULL_UP			(1 << 17)
 #define TI814X_INPUT_EN			(1 << 18)
 #define TI814X_SLEW_SLOW		(1 << 19)
+
+/* pin active states */
+#define TI816X_PIN_STATE_MASK		(TI816X_PULL_DIS | TI816X_PULL_UP)
+#define TI816X_PIN_PULL_UP		(TI816X_PULL_UP)
+#define TI816X_PIN_PULL_DOWN		(0)
+#define TI816X_PIN_PULL_DIS		(TI816X_PULL_DIS)
+
+#define TI814X_PIN_STATE_MASK		(TI814X_PULL_DIS | TI814X_PULL_UP |\
+					TI814X_INPUT_EN)
+#define TI814X_PIN_INPUT_PULL_DIS	(TI814X_INPUT_EN | TI814X_PULL_DIS)
+#define TI814X_PIN_INPUT_PULL_UP	(TI814X_INPUT_EN | TI814X_PULL_UP)
+#define TI814X_PIN_INPUT_PULL_DOWN	(TI814X_INPUT_EN)
+#define TI814X_PIN_OUTPUT_PULL_DIS	(TI814X_PULL_DIS)
+#define TI814X_PIN_OUTPUT_PULL_UP	(TI814X_PULL_UP)
+#define TI814X_PIN_OUTPUT_PULL_DOWN	(0)
 
 /* Active pin states */
 #define OMAP_PIN_OUTPUT			0

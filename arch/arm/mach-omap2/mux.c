@@ -441,6 +441,69 @@ static inline void omap_mux_decode(struct seq_file *s, u32 val)
 	} while (i-- > 0);
 }
 
+#ifdef CONFIG_ARCH_TI81XX
+static inline void ti81xx_mux_decode(struct seq_file *s, u32 val)
+{
+	char *flags[OMAP_MUX_MAX_NR_FLAGS];
+	char mode[sizeof("OMAP_MUX_MODE") + 1];
+	int i = -1;
+
+	if (cpu_is_ti816x()) {
+		sprintf(mode, "TI81XX_MUX_MODE%d", val & 0x7);
+		i++;
+		flags[i] = mode;
+
+		switch(val & TI816X_PIN_STATE_MASK ) {
+		case(TI816X_PIN_PULL_UP) :
+			OMAP_MUX_TEST_FLAG(val, TI816X_PIN_PULL_UP);
+			break;
+		case(TI816X_PIN_PULL_DOWN) :
+			OMAP_MUX_TEST_FLAG(val, TI816X_PIN_PULL_DOWN);
+			break;
+		case(TI816X_PIN_PULL_DIS) :
+			OMAP_MUX_TEST_FLAG(val, TI816X_PIN_PULL_DIS);
+			break;
+		default:
+			break;
+
+		};
+	}
+
+	if (cpu_is_ti814x()) {
+		sprintf(mode, "TI81XX_MUX_MODE%d", ffs(val & 0xff) - 1);
+		i++;
+		flags[i] = mode;
+
+		switch(val & TI814X_PIN_STATE_MASK ) {
+		case (TI814X_PIN_INPUT_PULL_DIS) :
+			OMAP_MUX_TEST_FLAG(val, TI814X_PIN_INPUT_PULL_DIS);
+			break;
+		case (TI814X_PIN_INPUT_PULL_UP) :
+			OMAP_MUX_TEST_FLAG(val, TI814X_PIN_INPUT_PULL_UP );
+			break;
+		case (TI814X_PIN_INPUT_PULL_DOWN) :
+			OMAP_MUX_TEST_FLAG(val, TI814X_PIN_INPUT_PULL_DOWN);
+			break;
+		case (TI814X_PIN_OUTPUT_PULL_UP) :
+			OMAP_MUX_TEST_FLAG(val, TI814X_PIN_OUTPUT_PULL_DIS);
+			break;
+		case (TI814X_PIN_OUTPUT_PULL_DOWN) :
+			OMAP_MUX_TEST_FLAG(val, TI814X_PIN_OUTPUT_PULL_DIS);
+			break;
+		case (TI814X_PIN_OUTPUT_PULL_DIS) :
+			OMAP_MUX_TEST_FLAG(val, TI814X_PIN_OUTPUT_PULL_DIS);
+			break;
+		}
+	}
+	do {
+		seq_printf(s, "%s", flags[i]);
+		if (i > 0)
+			seq_printf(s, " | ");
+	} while (i-- > 0);
+
+}
+#endif /* CONFIG_ARCH_TI81XX */
+
 #define OMAP_MUX_DEFNAME_LEN	32
 
 static int omap_mux_dbg_board_show(struct seq_file *s, void *unused)
@@ -482,7 +545,10 @@ static int omap_mux_dbg_board_show(struct seq_file *s, void *unused)
 		 * same OMAP generation.
 		 */
 		seq_printf(s, "OMAP%d_MUX(%s, ", omap_gen, m0_def);
-		omap_mux_decode(s, val);
+		if(cpu_is_ti81xx())
+			ti81xx_mux_decode(s, val);
+		else
+			omap_mux_decode(s, val);
 		seq_printf(s, "),\n");
 	}
 
@@ -545,17 +611,38 @@ static int omap_mux_dbg_signal_show(struct seq_file *s, void *unused)
 			m->balls[0] ? m->balls[0] : none,
 			m->balls[1] ? m->balls[1] : none);
 	seq_printf(s, "mode: ");
-	omap_mux_decode(s, val);
+	if(cpu_is_ti81xx())
+		ti81xx_mux_decode(s, val);
+	else
+		omap_mux_decode(s, val);
 	seq_printf(s, "\n");
-	seq_printf(s, "signals: %s | %s | %s | %s | %s | %s | %s | %s\n",
-			m->muxnames[0] ? m->muxnames[0] : none,
-			m->muxnames[1] ? m->muxnames[1] : none,
-			m->muxnames[2] ? m->muxnames[2] : none,
-			m->muxnames[3] ? m->muxnames[3] : none,
-			m->muxnames[4] ? m->muxnames[4] : none,
-			m->muxnames[5] ? m->muxnames[5] : none,
-			m->muxnames[6] ? m->muxnames[6] : none,
-			m->muxnames[7] ? m->muxnames[7] : none);
+
+	if (cpu_is_ti811x())
+		seq_printf(s, "signals: %s | %s | %s | %s | %s | %s | %s | %s"
+				" %s | %s | %s | %s\n",
+				m->muxnames[0] ? m->muxnames[0] : none,
+				m->muxnames[1] ? m->muxnames[1] : none,
+				m->muxnames[2] ? m->muxnames[2] : none,
+				m->muxnames[3] ? m->muxnames[3] : none,
+				m->muxnames[4] ? m->muxnames[4] : none,
+				m->muxnames[5] ? m->muxnames[5] : none,
+				m->muxnames[6] ? m->muxnames[6] : none,
+				m->muxnames[7] ? m->muxnames[7] : none,
+				m->muxnames[8] ? m->muxnames[8] : none,
+				m->muxnames[9] ? m->muxnames[9] : none,
+				m->muxnames[10] ? m->muxnames[10] : none,
+				m->muxnames[11] ? m->muxnames[11] : none);
+	else
+		seq_printf(s, "signals: %s | %s | %s | %s | %s | %s | %s"
+				"| %s\n",
+				m->muxnames[0] ? m->muxnames[0] : none,
+				m->muxnames[1] ? m->muxnames[1] : none,
+				m->muxnames[2] ? m->muxnames[2] : none,
+				m->muxnames[3] ? m->muxnames[3] : none,
+				m->muxnames[4] ? m->muxnames[4] : none,
+				m->muxnames[5] ? m->muxnames[5] : none,
+				m->muxnames[6] ? m->muxnames[6] : none,
+				m->muxnames[7] ? m->muxnames[7] : none);
 
 	return 0;
 }
@@ -585,9 +672,13 @@ static ssize_t omap_mux_dbg_signal_write(struct file *file,
 	ret = strict_strtoul(buf, 0x10, &val);
 	if (ret < 0)
 		return ret;
-
-	if (val > 0xffff)
-		return -EINVAL;
+	if(cpu_is_ti814x()) {
+		if (val > 0xffffffff)
+			return -EINVAL;
+	} else {
+		if (val > 0xffff)
+			return -EINVAL;
+	}
 
 	seqf = file->private_data;
 	m = seqf->private;
@@ -596,7 +687,7 @@ static ssize_t omap_mux_dbg_signal_write(struct file *file,
 	if (!partition)
 		return -ENODEV;
 
-	omap_mux_write(partition, (u16)val, m->reg_offset);
+	omap_mux_write(partition, (u32)val, m->reg_offset);
 	*ppos += count;
 
 	return count;
