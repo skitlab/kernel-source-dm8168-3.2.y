@@ -57,6 +57,7 @@ static void *usbss_virt_base;
 static u8 usbss_init_done;
 struct musb *gmusb[2];
 u8 usbid_sw_ctrl;
+u8 phyctrl_enable, usbphy_rxcalib_enable;
 #undef USB_TI81XX_DEBUG
 
 #ifdef USB_TI81XX_DEBUG
@@ -862,7 +863,7 @@ void musb_babble_workaround(struct musb *musb)
 	/* do not shut down the phy if rxcalib is enabled
 	 * performing rxcalibration second time does not work
 	 */
-	if (!data->usbphy_rxcalib_enable && data->set_phy_power)
+	if (phyctrl_enable && data->set_phy_power)
 		data->set_phy_power(musb->id, 0);
 	udelay(100);
 
@@ -873,7 +874,7 @@ void musb_babble_workaround(struct musb *musb)
 	mdelay(100);
 
 	/* enable the usbphy */
-	if (!data->usbphy_rxcalib_enable && data->set_phy_power)
+	if (data->set_phy_power)
 		data->set_phy_power(musb->id, 1);
 	mdelay(100);
 
@@ -1271,8 +1272,11 @@ int ti81xx_musb_init(struct musb *musb)
 	if (data->set_phy_power)
 		data->set_phy_power(musb->id, 1);
 
-	if (data->usbphy_rxcalib_enable)
+	if (usbphy_rxcalib_enable) {
 		usb2phy_config(musb, USBPHY_RX_CALIB, 0);
+		data->usbphy_rxcalib_enable = 0;
+		data->phyctrl_enable = 0;
+	}
 
 	musb->a_wait_bcon = A_WAIT_BCON_TIMEOUT;
 	musb->isr = ti81xx_interrupt;
@@ -1377,7 +1381,7 @@ int ti81xx_musb_exit(struct musb *musb)
 		del_timer_sync(&musb->otg_workaround);
 
 	/* Shutdown the on-chip PHY and its PLL. */
-	if (data->set_phy_power)
+	if (phyctrl_enable && data->set_phy_power)
 		data->set_phy_power(musb->id, 0);
 
 	otg_put_transceiver(musb->xceiv);
@@ -1563,6 +1567,8 @@ static int __init ti81xx_probe(struct platform_device *pdev)
 					glue->mem_va + USBSS_IRQ_STATUS);
 
 	/* create the child platform device for mulitple instances of musb */
+	usbphy_rxcalib_enable = data->usbphy_rxcalib_enable;
+	phyctrl_enable = data->phyctrl_enable;
 	for (i = 0; i <= data->instances; ++i) {
 #ifdef CONFIG_USB_TI_CPPI41_DMA
 		/* initialize the cppi41dma init */
@@ -1624,7 +1630,7 @@ static int ti81xx_suspend(struct device *dev)
 
 	/* Shutdown the on-chip PHY and its PLL. */
 	for (i = 0; i <= data->instances; ++i) {
-		if (data->set_phy_power)
+		if (phyctrl_enable && data->set_phy_power)
 			data->set_phy_power(i, 0);
 	}
 

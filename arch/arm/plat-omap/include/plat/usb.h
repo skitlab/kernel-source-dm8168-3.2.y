@@ -73,6 +73,7 @@ struct omap_musb_board_data {
 	u8	babble_ctrl;
 	u8	txfifo_intr_enable;
 	u8	usbphy_rxcalib_enable;
+	u8	phyctrl_enable;
 	void	(*set_phy_power)(u8 id, u8 on);
 	void	(*clear_irq)(void);
 	void	(*set_mode)(u8 mode);
