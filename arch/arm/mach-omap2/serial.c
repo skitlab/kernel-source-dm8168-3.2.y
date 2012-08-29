@@ -57,7 +57,7 @@
  * NOTE: By default the serial timeout is disabled as it causes lost characters
  * over the serial ports. This means that the UART clocks will stay on until
  * disabled via sysfs. This also causes that any deeper omap sleep states are
- * blocked. 
+ * blocked.
  */
 #define DEFAULT_TIMEOUT 0
 
@@ -712,6 +712,7 @@ void __init omap_serial_init_port(struct omap_board_data *bdata)
 	void *pdata = NULL;
 	u32 pdata_size = 0;
 	char *name;
+	struct clk *uart_clk;
 #ifndef CONFIG_SERIAL_OMAP
 	struct plat_serial8250_port ports[2] = {
 		{},
@@ -751,7 +752,8 @@ void __init omap_serial_init_port(struct omap_board_data *bdata)
 	p->flags = UPF_BOOT_AUTOCONF;
 	p->iotype = UPIO_MEM;
 	p->regshift = 2;
-	p->uartclk = OMAP24XX_BASE_BAUD * 16;
+	uart_clk = clk_get(NULL, oh->main_clk);
+	omap_up.uartclk = clk_get_rate(uart_clk);
 	p->irq = oh->mpu_irqs[0].irq;
 	p->mapbase = oh->slaves[0]->addr->pa_start;
 	p->membase = omap_hwmod_get_mpu_rt_va(oh);
@@ -784,7 +786,8 @@ void __init omap_serial_init_port(struct omap_board_data *bdata)
 	name = DRIVER_NAME;
 
 	omap_up.dma_enabled = uart->dma_enabled;
-	omap_up.uartclk = OMAP24XX_BASE_BAUD * 16;
+	uart_clk = clk_get(NULL, oh->main_clk);
+	omap_up.uartclk = clk_get_rate(uart_clk);
 	omap_up.mapbase = oh->slaves[0]->addr->pa_start;
 	omap_up.membase = omap_hwmod_get_mpu_rt_va(oh);
 	omap_up.irqflags = IRQF_SHARED;
