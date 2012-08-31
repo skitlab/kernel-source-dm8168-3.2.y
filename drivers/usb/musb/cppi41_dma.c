@@ -1214,6 +1214,7 @@ static int cppi41_channel_abort(struct dma_channel *channel)
 	} else { /* Rx */
 		dprintk("Rx channel teardown, cppi_ch = %p\n", cppi_ch);
 
+		cppi_ch->rx_complete = 0;
 		/* For host, ensure ReqPkt is never set again */
 		cppi41_autoreq_update(cppi_ch, USB_NO_AUTOREQ);
 
