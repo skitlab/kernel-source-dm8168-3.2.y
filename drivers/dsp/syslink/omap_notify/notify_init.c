@@ -384,16 +384,22 @@ static int __init notify_init(void)
 
 	if (dsp_notify_va != 0) {
 		i = multiproc_get_id("DSP");
-		list[0]->map_index = i;
-		notify_map_info[i].actualAddress = dsp_notify_va;
-		memreq = notify_shared_mem_req(i, (void *)
-				notify_map_info[i].actualAddress);
-		notify_map_info[i].size = memreq;
+		if (i != MULTIPROC_INVALIDID) {
+			list[0]->map_index = i;
+			notify_map_info[i].actualAddress = dsp_notify_va;
+			memreq = notify_shared_mem_req(i, (void *)
+					notify_map_info[i].actualAddress);
+			notify_map_info[i].size = memreq;
 
-		if (cpu_is_omap343x()) {
-			notify_add_mmu_entry(list[0]->mmu_handle,
+			if (cpu_is_omap343x()) {
+				notify_add_mmu_entry(list[0]->mmu_handle,
 					notify_map_info[i].actualAddress,
 					notify_map_info[i].size);
+			}
+		}
+		else {
+			printk(KERN_ERR "notify_init: dsp_notify_va was "
+			       "specified but no DSP found\n");
 		}
 	}
 

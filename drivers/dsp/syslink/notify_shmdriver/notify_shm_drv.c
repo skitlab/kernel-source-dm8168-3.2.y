@@ -309,24 +309,32 @@ int notify_shm_drv_setup(struct notify_shm_drv_config *cfg)
 	} else if (cpu_is_ti81xx()) {
 		u16 rproc_id = multiproc_get_id("DSP");
 		/* Initialize the maibox module for dsp, videom3 and vpssm3 */
-		if ((notify_shm_drv_state.mbox_handle[rproc_id] == NULL)) {
-			notify_shm_drv_state.mbox_handle[rproc_id] = \
-				omap_mbox_get("mailbox-dsp",
-						&ti81xx_dsp_notify_nb);
+                if (rproc_id != MULTIPROC_INVALIDID) {
+			if (notify_shm_drv_state.mbox_handle[rproc_id]
+			    == NULL) {
+				notify_shm_drv_state.mbox_handle[rproc_id] =
+					omap_mbox_get("mailbox-dsp",
+					              &ti81xx_dsp_notify_nb);
 
-			if ((notify_shm_drv_state.mbox_handle[rproc_id] \
-				== NULL)) {
-				printk(KERN_ERR "Failed in omap_mbox_get"
-						"(mailbox-dsp)\n");
-				status = NOTIFY_E_INVALIDSTATE;
-				goto error_mailbox_get_failed;
-			}
+				if (notify_shm_drv_state.mbox_handle[rproc_id]
+				    == NULL) {
+					printk(KERN_ERR
+					       "Failed in omap_mbox_get"
+					       "(mailbox-dsp)\n");
+					status = NOTIFY_E_INVALIDSTATE;
+					goto error_mailbox_get_failed;
+				}
 
 #if 0
-			((struct omap_mbox *)notify_shm_drv_state. \
-				mbox_handle[rproc_id])->rxq->callback = \
-				(int (*)(void *))notify_shmdrv_dsp_isr;
+				((struct omap_mbox *)notify_shm_drv_state.
+					mbox_handle[rproc_id])->rxq->callback =
+					(int (*)(void *))notify_shmdrv_dsp_isr;
 #endif
+			}
+		}
+		else {
+			printk(KERN_INFO "notify_shm_drv: no DSP present "
+                               "(MULTIPROC_INVALIDID)\n");
 		}
 
 		rproc_id = multiproc_get_id("VIDEO-M3");
@@ -449,9 +457,11 @@ int notify_shm_drv_destroy(void)
 	} else if (cpu_is_ti81xx()) {
 		/* Finalize the maibox module for DSP */
 		rproc_id =  multiproc_get_id("DSP");
-		omap_mbox_put(((struct omap_mbox *)notify_shm_drv_state. \
-			mbox_handle[rproc_id]), &ti81xx_dsp_notify_nb);
-		notify_shm_drv_state.mbox_handle[rproc_id] = NULL;
+		if (rproc_id != MULTIPROC_INVALIDID) {
+			omap_mbox_put((struct omap_mbox *)notify_shm_drv_state.
+				mbox_handle[rproc_id], &ti81xx_dsp_notify_nb);
+			notify_shm_drv_state.mbox_handle[rproc_id] = NULL;
+		}
 
 		/* Finalize the maibox module for Video m3*/
 		rproc_id =  multiproc_get_id("VIDEO-M3");
@@ -1483,11 +1493,13 @@ static int notify_shmdrv_dsp_isr(struct notifier_block *nb, unsigned long val,
 								void *ntfy_msg)
 {
 	/* Decode the msg to identify the processor that has sent the message */
-	u32 proc_id;
+	u16 proc_id;
 	proc_id = multiproc_get_id("DSP");
-	/* Call the corresponding prpc_id callback */
-	notify_shmdrv_isr_callback(notify_shm_drv_state.driver_handles
-		[proc_id][0], ntfy_msg);
+	if (proc_id != MULTIPROC_INVALIDID) {
+		/* Call the corresponding prpc_id callback */
+		notify_shmdrv_isr_callback(notify_shm_drv_state.driver_handles
+			[proc_id][0], ntfy_msg);
+	}
 	return 0;
 }
 EXPORT_SYMBOL(notify_shmdrv_dsp_isr);
