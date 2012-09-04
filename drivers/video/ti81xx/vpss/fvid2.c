@@ -851,9 +851,11 @@ int vps_fvid2_init(struct platform_device *pdev, u32 timeout)
 		 that M3 is ready to receive the command from A8,
 		 10s is way enough to do*/
 		r = get_firmware_version(pdev, procid, &fwversion, NULL);
-		if (r)
-			msleep(500);
-	} while ((r != 0) && (++i < 20));
+		if (r) {
+			VPSSDBG("Trying to get firmware version\n");
+			msleep(50);
+		}
+	} while ((r != 0) && (++i < 200));
 
 	if (r == 0) {
 		if (fwversion != CURRENT_VPS_FIRMWARE_VERSION) {
@@ -876,6 +878,7 @@ int vps_fvid2_init(struct platform_device *pdev, u32 timeout)
 				fwversion);
 	} else {
 		r = -EINVAL;
+		VPSSERR("Unable to get firmware version\n");
 		goto exit;
 	}
 
