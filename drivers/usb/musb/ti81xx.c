@@ -97,6 +97,10 @@ static void usbotg_ss_init(void)
 		usbss_write(USBSS_SYSCONFIG,
 			usbss_read(USBSS_SYSCONFIG) | USB_SOFT_RESET_MASK);
 
+		/* some customer faced kernel crashes without
+		 * providing this delay when Soc running at 1Ghz
+		 */
+		udelay(1);
 		/* clear any USBSS interrupts */
 		usbss_write(USBSS_IRQ_EOI, 0);
 		usbss_write(USBSS_IRQ_STATUS, usbss_read(USBSS_IRQ_STATUS));
