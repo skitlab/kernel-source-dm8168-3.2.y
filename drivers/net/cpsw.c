@@ -1894,7 +1894,7 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 	* switch statement required.
 	* Function calls are based on switch_config.cmd
 	*/
-	if (cmd != SIOCDEVPRIVATE)
+	if (cmd != SIOCSWITCHCONFIG)
 		return ret;
 
 	switch_config = kzalloc(sizeof(struct net_switch_config), GFP_KERNEL);
@@ -2381,7 +2381,7 @@ static int cpsw_ndo_do_ioctl(struct net_device *ndev, struct ifreq *ifrq,
 		return -EOPNOTSUPP;
 #endif
 
-	case SIOCDEVPRIVATE:
+	case SIOCSWITCHCONFIG:
 #ifdef CONFIG_TI_CPSW_DUAL_EMAC
 		return -EOPNOTSUPP;
 #else
