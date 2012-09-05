@@ -746,7 +746,7 @@ static unsigned cppi41_next_rx_segment(struct cppi41_channel *rx_ch)
 
 	if (dma_mode == USB_GENERIC_RNDIS_MODE) {
 		if (cppi->cppi_info->rx_inf_mode) {
-			if (length > rx_ch->pkt_size)
+			if (length >= 2 * rx_ch->pkt_size)
 				dma_mode = USB_INFINITE_DMAMODE;
 			else
 				dma_mode = USB_TRANSPARENT_MODE;
