@@ -71,7 +71,7 @@ void notify_get_config(struct notify_config *cfg)
 
 exit:
 	if (retval < 0) {
-		printk(KERN_ERR "notify_get_config failed! status = 0x%x",
+		printk(KERN_DEBUG "notify_get_config failed! status = 0x%x",
 			retval);
 	}
 	return;
@@ -140,7 +140,7 @@ local_notify_fail:
 	kfree(notify_state.gate_handle);
 exit:
 	atomic_set(&notify_state.ref_count, NOTIFY_MAKE_MAGICSTAMP(0));
-	printk(KERN_ERR "notify_setup failed! status = 0x%x", status);
+	printk(KERN_DEBUG "notify_setup failed! status = 0x%x", status);
 	return status;
 }
 EXPORT_SYMBOL(notify_setup);
@@ -179,7 +179,8 @@ int notify_destroy(void)
 
 exit:
 	if (status < 0)
-		printk(KERN_ERR "notify_destroy failed! status = 0x%x", status);
+		printk(KERN_DEBUG "notify_destroy failed! status = 0x%x",
+			status);
 	return status;
 }
 EXPORT_SYMBOL(notify_destroy);
@@ -245,7 +246,8 @@ notify_handle_fail:
 	obj = NULL;
 exit:
 	if (status < 0)
-		printk(KERN_ERR "notify_create failed! status = 0x%x", status);
+		printk(KERN_DEBUG "notify_create failed! status = 0x%x",
+			status);
 	return obj;
 }
 
@@ -289,7 +291,8 @@ int notify_delete(struct notify_object **handle_ptr)
 
 exit:
 	if (status < 0)
-		printk(KERN_ERR "notify_delete failed! status = 0x%x", status);
+		printk(KERN_DEBUG "notify_delete failed! status = 0x%x",
+			status);
 	return status;
 }
 
@@ -471,7 +474,7 @@ exit_unlock_mutex:
 	mutex_unlock(notify_state.gate_handle);
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_register_event failed! "
+		printk(KERN_DEBUG "notify_register_event failed! "
 			"status = 0x%x", status);
 	}
 	return status;
@@ -552,7 +555,7 @@ exit_unlock_mutex:
 	mutex_unlock(notify_state.gate_handle);
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_register_event_single failed! "
+		printk(KERN_DEBUG "notify_register_event_single failed! "
 			"status = 0x%x", status);
 	}
 	return status;
@@ -654,7 +657,7 @@ exit_unlock_mutex:
 	mutex_unlock(notify_state.gate_handle);
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_unregister_event failed! "
+		printk(KERN_DEBUG "notify_unregister_event failed! "
 			"status = 0x%x", status);
 	}
 	return status;
@@ -730,7 +733,7 @@ exit_unlock_mutex:
 	mutex_unlock(notify_state.gate_handle);
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_unregister_event_single failed! "
+		printk(KERN_DEBUG "notify_unregister_event_single failed! "
 			"status = 0x%x", status);
 	}
 	return status;
@@ -822,7 +825,7 @@ int notify_send_event(u16 proc_id, u16 line_id, u32 event_id, u32 payload,
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_send_event failed! status = 0x%x",
+		printk(KERN_DEBUG "notify_send_event failed! status = 0x%x",
 			status);
 	}
 	return status;
@@ -886,7 +889,8 @@ exit_unlock_mutex:
 	mutex_unlock(notify_state.gate_handle);
 exit:
 	if (status < 0)
-		printk(KERN_ERR "notify_disable failed! status = 0x%x", status);
+		printk(KERN_DEBUG "notify_disable failed! status = 0x%x",
+			status);
 	return key;
 }
 EXPORT_SYMBOL(notify_disable);
@@ -952,7 +956,8 @@ exit_unlock_mutex:
 	mutex_unlock(notify_state.gate_handle);
 exit:
 	if (status < 0)
-		printk(KERN_ERR "notify_restore failed! status = 0x%x", status);
+		printk(KERN_DEBUG "notify_restore failed! status = 0x%x",
+			status);
 	return;
 }
 EXPORT_SYMBOL(notify_restore);
@@ -1022,7 +1027,7 @@ exit_unlock_mutex:
 	mutex_unlock(notify_state.gate_handle);
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_disable_event failed! status = 0x%x",
+		printk(KERN_DEBUG "notify_disable_event failed! status = 0x%x",
 			status);
 	}
 	return;
@@ -1094,7 +1099,7 @@ exit_unlock_mutex:
 	mutex_unlock(notify_state.gate_handle);
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_enable_event failed! status = 0x%x",
+		printk(KERN_DEBUG "notify_enable_event failed! status = 0x%x",
 			status);
 	}
 	return;
@@ -1129,7 +1134,7 @@ bool notify_intline_registered(u16 proc_id, u16 line_id)
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_intline_registered failed! status = 0x%x",
+		printk(KERN_DEBUG "notify_intline_registered failed! status = 0x%x",
 			status);
 	}
 	return is_registered;
@@ -1196,7 +1201,7 @@ void notify_exec(struct notify_object *obj, u32 event_id, u32 payload)
 	WARN_ON(obj == NULL);
 	if (WARN_ON((event_id >= notify_state.cfg.num_events) ||
 		(event_id >= NOTIFY_MAXEVENTS))) {
-		printk(KERN_ERR "Invalid event_id %d\n", event_id);
+		printk(KERN_DEBUG "Invalid event_id %d\n", event_id);
 	} else {
 		callback = &(obj->callbacks[event_id]);
 		WARN_ON(callback->fn_notify_cbck == NULL);

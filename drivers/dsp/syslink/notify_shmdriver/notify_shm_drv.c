@@ -186,7 +186,7 @@ void notify_shm_drv_get_config(struct notify_shm_drv_config *cfg)
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_shm_drv_get_config failed! "
+		printk(KERN_DEBUG "notify_shm_drv_get_config failed! "
 			"status = 0x%x", status);
 	}
 	return;
@@ -246,7 +246,7 @@ int notify_shm_drv_setup(struct notify_shm_drv_config *cfg)
 				omap_mbox_get("dsp", &omap_notify_nb);
 			if ((notify_shm_drv_state.mbox_handle[rproc_id] == \
 				NULL)) {
-				printk(KERN_ERR \
+				printk(KERN_DEBUG \
 					"Failed in omap_mbox_get(dsp)\n");
 				status = NOTIFY_E_INVALIDSTATE;
 				goto error_mailbox_get_failed;
@@ -274,7 +274,7 @@ int notify_shm_drv_setup(struct notify_shm_drv_config *cfg)
 				== NULL)  \
 			    || (notify_shm_drv_state.mbox_handle[rproc_id] \
 				== NULL)) {
-				printk(KERN_ERR  \
+				printk(KERN_DEBUG  \
 					"Failed in omap_mbox_get(ducati)\n");
 				status = NOTIFY_E_INVALIDSTATE;
 				goto error_mailbox_get_failed;
@@ -295,7 +295,7 @@ int notify_shm_drv_setup(struct notify_shm_drv_config *cfg)
 				omap_mbox_get("mailbox-1", &omap_notify_nb);
 
 			if (!notify_shm_drv_state.mbox_handle[rproc_id]) {
-				printk(KERN_ERR \
+				printk(KERN_DEBUG \
 					"Failed in omap_mbox_get(tesla)\n");
 				status = NOTIFY_E_INVALIDSTATE;
 				goto error_mailbox_get_failed;
@@ -318,7 +318,7 @@ int notify_shm_drv_setup(struct notify_shm_drv_config *cfg)
 
 				if (notify_shm_drv_state.mbox_handle[rproc_id]
 				    == NULL) {
-					printk(KERN_ERR
+					printk(KERN_DEBUG
 					       "Failed in omap_mbox_get"
 					       "(mailbox-dsp)\n");
 					status = NOTIFY_E_INVALIDSTATE;
@@ -346,7 +346,7 @@ int notify_shm_drv_setup(struct notify_shm_drv_config *cfg)
 
 			if ((notify_shm_drv_state.mbox_handle[rproc_id] \
 				== NULL)) {
-				printk(KERN_ERR  \
+				printk(KERN_DEBUG  \
 					"Failed in omap_mbox_get(" \
 					"mailbox-video)\n");
 				status = NOTIFY_E_INVALIDSTATE;
@@ -368,7 +368,7 @@ int notify_shm_drv_setup(struct notify_shm_drv_config *cfg)
 
 			if ((notify_shm_drv_state.mbox_handle[rproc_id] \
 				== NULL)) {
-				printk(KERN_ERR  \
+				printk(KERN_DEBUG  \
 					"Failed in omap_mbox_get(" \
 					"mailbox-vpss)\n");
 				status = NOTIFY_E_INVALIDSTATE;
@@ -391,7 +391,7 @@ error_mailbox_get_failed:
 error_exit:
 	atomic_set(&(notify_shm_drv_state.ref_count),
 			NOTIFYSHMDRIVER_MAKE_MAGICSTAMP(0));
-	printk(KERN_ERR "notify_shm_drv_setup failed! status = 0x%x", status);
+	printk(KERN_DEBUG "notify_shm_drv_setup failed! status = 0x%x", status);
 	return status;
 }
 EXPORT_SYMBOL(notify_shm_drv_setup);
@@ -482,7 +482,7 @@ int notify_shm_drv_destroy(void)
 	}
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_shm_drv_destroy failed! "
+		printk(KERN_DEBUG "notify_shm_drv_destroy failed! "
 			"status = 0x%x", status);
 	}
 	return status;
@@ -512,7 +512,7 @@ void notify_shm_drv_params_init(struct notify_shm_drv_params *params)
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_shm_drv_params_init failed! "
+		printk(KERN_DEBUG "notify_shm_drv_params_init failed! "
 			"status = 0x%x", status);
 	}
 	return;
@@ -735,7 +735,7 @@ error_unlock_and_return:
 	/* Leave critical section protection. */
 	mutex_unlock(notify_shm_drv_state.gate_handle);
 exit:
-	printk(KERN_ERR "notify_shm_drv_create failed! status = 0x%x",
+	printk(KERN_DEBUG "notify_shm_drv_create failed! status = 0x%x",
 		status);
 	return NULL;
 }
@@ -806,7 +806,7 @@ int notify_shm_drv_delete(struct notify_shm_drv_object **handle_ptr)
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_shm_drv_delete failed! "
+		printk(KERN_DEBUG "notify_shm_drv_delete failed! "
 			"status = 0x%x", status);
 	}
 	return status;
@@ -906,7 +906,7 @@ int notify_shm_drv_register_event(struct notify_driver_object *handle,
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_shm_drv_register_event failed! "
+		printk(KERN_DEBUG "notify_shm_drv_register_event failed! "
 			"status = 0x%x", status);
 	}
 	return status;
@@ -1001,7 +1001,7 @@ int notify_shm_drv_unregister_event(struct notify_driver_object *handle,
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_shm_drv_unregister_event failed! "
+		printk(KERN_DEBUG "notify_shm_drv_unregister_event failed! "
 			"status = 0x%x", status);
 	}
 	return status;
@@ -1154,7 +1154,7 @@ int notify_shm_drv_send_event(struct notify_driver_object *handle,
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_shm_drv_sendevent failed! "
+		printk(KERN_DEBUG "notify_shm_drv_sendevent failed! "
 			"status = 0x%x", status);
 	}
 	return status;
@@ -1201,7 +1201,7 @@ int notify_shm_drv_disable(struct notify_driver_object *handle)
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_shm_drv_disable failed! "
+		printk(KERN_DEBUG "notify_shm_drv_disable failed! "
 			"status = 0x%x", status);
 	}
 	/*No flags to be returned. */
@@ -1250,7 +1250,7 @@ void notify_shm_drv_enable(struct notify_driver_object *handle)
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_shm_drv_enable failed! "
+		printk(KERN_DEBUG "notify_shm_drv_enable failed! "
 			"status = 0x%x", status);
 	}
 	return;
@@ -1357,7 +1357,7 @@ void notify_shm_drv_disable_event(struct notify_driver_object *handle,
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_shm_drv_disable_event failed! "
+		printk(KERN_DEBUG "notify_shm_drv_disable_event failed! "
 			"status = 0x%x", status);
 	}
 	return;
@@ -1415,7 +1415,7 @@ void notify_shm_drv_enable_event(struct notify_driver_object *handle,
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_shm_drv_enable_event failed! "
+		printk(KERN_DEBUG "notify_shm_drv_enable_event failed! "
 			"status = 0x%x", status);
 	}
 	return;
@@ -1454,7 +1454,7 @@ uint notify_shm_drv_shared_mem_req(
 
 exit:
 	if (status < 0) {
-		printk(KERN_ERR "notify_shm_drv_shared_mem_req failed!"
+		printk(KERN_DEBUG "notify_shm_drv_shared_mem_req failed!"
 			" status = 0x%x", status);
 	}
 	return mem_req;
