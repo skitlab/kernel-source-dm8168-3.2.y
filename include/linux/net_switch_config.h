@@ -116,7 +116,7 @@ struct net_switch_config {
 		struct net_switch_prio_cmd priocmd;
 		char buf[4096];		/* Buffer for Ale Dump */
 	} cmd_data;
-	unsigned int ret_type;   /* Return  Success/Failure */
+	int ret_type;   /* Return  Success/Failure */
 };
 
 #endif /* __NET_CONFIG_SWITCH_H__*/
