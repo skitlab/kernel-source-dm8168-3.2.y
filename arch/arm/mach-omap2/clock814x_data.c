@@ -1453,6 +1453,17 @@ static struct clk spinbox_ick = {
 	.recalc		= &followparent_recalc,
 };
 
+/* VLYNQ clock */
+static struct clk vlynq_ick = {
+	.name		= "vlynq_ick",
+	.parent		= &sysclk6_ck,
+	.ops		= &clkops_ti81xx_dflt_wait,
+	.enable_reg	= TI81XX_CM_ALWON_VLYNQ_CLKCTRL,
+	.enable_bit	= TI81XX_MODULEMODE_SWCTRL,
+	.recalc		= &followparent_recalc,
+};
+
+
 /* SmartReflex 0 mclk Clock(final) */
 static struct clk sr1_ick = {
 	.name		= "sr1_ick",
@@ -4198,6 +4209,7 @@ static struct omap_clk ti814x_clks[] = {
 	CLK(NULL,		"pata_ick",			&pata_ick,			CK_TI814X),
 	CLK(NULL,		"mailbox_ick",			&mailbox_ick,			CK_TI814X | CK_DM385 | CK_TI811X),
 	CLK(NULL,		"spinbox_ick",			&spinbox_ick,			CK_TI814X | CK_DM385 | CK_TI811X),
+	CLK(NULL,		"vlynq_ick",			&vlynq_ick,			CK_TI811X),
 	CLK(NULL,		"sr1_ick",			&sr1_ick,			CK_TI814X | CK_DM385),
 	CLK(NULL,		"sr2_ick",			&sr2_ick,			CK_TI814X | CK_DM385 | CK_TI811X),
 	CLK(NULL,		"sr3_ick",			&sr3_ick,			CK_TI814X | CK_DM385),
