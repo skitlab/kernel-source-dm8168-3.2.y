@@ -2389,9 +2389,9 @@ void ti814x_cpsw_init(void)
 		cpsw_slaves[0].phy_id = "0:01";
 
 	if (cpu_is_ti811x()) {
-		cpsw_slaves[0].slave_reg_ofs		= 0x208;
+		cpsw_slaves[0].slave_reg_ofs		= 0x200;
 		cpsw_slaves[0].sliver_reg_ofs		= 0xd80;
-		cpsw_slaves[1].slave_reg_ofs		= 0x308;
+		cpsw_slaves[1].slave_reg_ofs		= 0x300;
 		cpsw_slaves[1].sliver_reg_ofs		= 0xdc0;
 
 		ti814x_cpsw_pdata.ss_reg_ofs		= 0x1200;

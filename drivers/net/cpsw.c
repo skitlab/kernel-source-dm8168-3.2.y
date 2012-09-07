@@ -54,14 +54,7 @@ do {								\
 #define CPSW_USE_DEFAULT	0x0afbdce1  /**< Flag to indicate use of a
 						default */
 
-#define CPSW_PRIMAP_PRI0(_x_)	(_x_ << 0)
-#define CPSW_PRIMAP_PRI1(_x_)	(_x_ << 4)
-#define CPSW_PRIMAP_PRI2(_x_)	(_x_ << 8)
-#define CPSW_PRIMAP_PRI3(_x_)	(_x_ << 12)
-#define CPSW_PRIMAP_PRI4(_x_)	(_x_ << 16)
-#define CPSW_PRIMAP_PRI5(_x_)	(_x_ << 20)
-#define CPSW_PRIMAP_PRI6(_x_)	(_x_ << 24)
-#define CPSW_PRIMAP_PRI7(_x_)	(_x_ << 28)
+#define CPSW_PRIMAP(shift, priority)    (priority << (shift * 4))
 
 #define CPSW_IRQ_QUIRK
 #ifdef CPSW_IRQ_QUIRK
@@ -81,6 +74,13 @@ do {								\
 #define cpsw_enable_irq(priv) do { } while (0);
 #define cpsw_disable_irq(priv) do { } while (0);
 #endif
+
+#define CPSW_VER_1		0x19010a
+#define CPSW_VER_2		0x19010c
+#define cpsw_slave_reg(priv, slave, reg)				\
+	(((priv)->cpsw_version == CPSW_VER_1) ?				\
+	&(((struct cpsw_slave_regs_v1 *)((slave)->regs))->reg) :	\
+	&(((struct cpsw_slave_regs_v2 *)((slave)->regs))->reg))
 
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 #define VLAN_SUPPORT
@@ -167,9 +167,11 @@ struct cpsw_regs {
 	u32	gap_thresh;
 	u32	tx_start_wds;
 	u32	flow_control;
+	u32	vlan_ltype;
+	u32	ts_ltype;
 };
 
-struct cpsw_slave_regs {
+struct cpsw_slave_regs_v1 {
 	u32	max_blks;
 	u32	blk_cnt;
 	u32	flow_thresh;
@@ -180,6 +182,27 @@ struct cpsw_slave_regs {
 	u32	ts_vlan;
 	u32	sa_lo;
 	u32	sa_hi;
+	/* Dummy resigters */
+	u32	port_control;
+	u32	ts_control;
+	u32	ts_seq_mtype;
+};
+
+struct cpsw_slave_regs_v2 {
+	u32	port_control;
+	u32	ts_control;
+	u32	max_blks;
+	u32	blk_cnt;
+	u32	flow_thresh;
+	u32	port_vlan;
+	u32	tx_pri_map;
+	u32	ts_seq_mtype;
+	u32	sa_lo;
+	u32	sa_hi;
+	/* Dummy resigters */
+	u32	ts_ctl;
+	u32	ts_seq_ltype;
+	u32	ts_vlan;
 };
 
 struct cpsw_host_regs {
@@ -244,7 +267,7 @@ struct cpsw_hw_stats {
 };
 
 struct cpsw_slave {
-	struct cpsw_slave_regs __iomem	*regs;
+	void __iomem			*regs;
 	struct cpsw_sliver_regs __iomem	*sliver;
 	int				slave_num;
 	u32				mac_control;
@@ -320,6 +343,7 @@ struct cpsw_priv {
 	struct cpts_time_handle		*cpts_time;
 
 	u8				port_state[3];
+	u32				cpsw_version;
 	u32				msg_enable;
 	u32				coal_intvl;
 	u32				bus_freq_mhz;
@@ -740,8 +764,8 @@ static inline void soft_reset(const char *module, void __iomem *reg)
 static void cpsw_set_slave_mac(struct cpsw_slave *slave,
 			       struct cpsw_priv *priv)
 {
-	__raw_writel(mac_hi(priv->mac_addr), &slave->regs->sa_hi);
-	__raw_writel(mac_lo(priv->mac_addr), &slave->regs->sa_lo);
+	writel(mac_hi(priv->mac_addr), cpsw_slave_reg(priv, slave, sa_hi));
+	writel(mac_lo(priv->mac_addr), cpsw_slave_reg(priv, slave, sa_lo));
 }
 
 static inline u32 cpsw_get_slave_port(struct cpsw_priv *priv, u32 slave_num)
@@ -958,11 +982,11 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 	soft_reset(name, &slave->sliver->soft_reset);
 
 	/* setup priority mapping */
-	__raw_writel(0x76543210, &slave->sliver->rx_pri_map);
-	__raw_writel(0x33221100, &slave->regs->tx_pri_map);
+	writel(0x76543210, &slave->sliver->rx_pri_map);
+	writel(0x33221100, cpsw_slave_reg(priv, slave, tx_pri_map));
 
 	/* setup max packet size, and mac address */
-	__raw_writel(priv->rx_packet_max, &slave->sliver->rx_maxlen);
+	writel(priv->rx_packet_max, &slave->sliver->rx_maxlen);
 	cpsw_set_slave_mac(slave, priv);
 
 	slave->mac_control = 0;	/* no link yet */
@@ -970,7 +994,7 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 	slave_port = cpsw_get_slave_port(priv, slave->slave_num);
 
 #ifdef CONFIG_TI_CPSW_DUAL_EMAC
-	__raw_writel(slave->port_vlan, &slave->regs->port_vlan);
+	writel(slave->port_vlan, cpsw_slave_reg(priv, slave, port_vlan));
 	cpsw_ale_add_vlan(priv->ale, slave->port_vlan,
 			1 << slave_port | 1 << priv->host_port, 0,
 			1 << slave_port | 1 << priv->host_port, 0);
@@ -1064,7 +1088,8 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	if (priv->data.phy_control)
 		(*priv->data.phy_control)(true);
 
-	reg = __raw_readl(&priv->regs->id_ver);
+	reg = readl(&priv->regs->id_ver);
+	priv->cpsw_version = reg;
 
 	msg(info, ifup, "initializing cpsw version %d.%d (%d)\n",
 	    (reg >> 8 & 0x7), reg & 0xff, (reg >> 11) & 0x1f);
@@ -1080,9 +1105,11 @@ static int cpsw_ndo_open(struct net_device *ndev)
 #endif /* CONFIG_TI_CPSW_DUAL_EMAC */
 
 #if defined(VLAN_SUPPORT) && !defined(CONFIG_TI_CPSW_DUAL_EMAC)
-	__raw_writel(priv->data.default_vlan, &priv->host_port_regs->port_vlan);
-	__raw_writel(priv->data.default_vlan, &priv->slaves[0].regs->port_vlan);
-	__raw_writel(priv->data.default_vlan, &priv->slaves[1].regs->port_vlan);
+	writel(priv->data.default_vlan, &priv->host_port_regs->port_vlan);
+	writel(priv->data.default_vlan, cpsw_slave_reg(priv,
+						&priv->slaves[0], port_vlan));
+	writel(priv->data.default_vlan, cpsw_slave_reg(priv,
+						&priv->slaves[0], port_vlan));
 	cpsw_ale_add_vlan(priv->ale, priv->data.default_vlan,
 			ALE_ALL_PORTS << priv->host_port,
 			ALE_ALL_PORTS << priv->host_port,
@@ -1447,166 +1474,16 @@ static int cpsw_set_priority_mapping(struct cpsw_priv *priv, int port,
 	int rxpriority, int txpriority, int switchpriority)
 {
 	if (port == 0) {
-		switch (rxpriority) {
-		case 0:
-			__raw_writel(CPSW_PRIMAP_PRI0(txpriority),
-				&priv->host_port_regs->cpdma_tx_pri_map);
-			break;
-		case 1:
-			__raw_writel(CPSW_PRIMAP_PRI1(txpriority),
-				&priv->host_port_regs->cpdma_tx_pri_map);
-			break;
-		case 2:
-			__raw_writel(CPSW_PRIMAP_PRI2(txpriority),
-				&priv->host_port_regs->cpdma_tx_pri_map);
-			break;
-		case 3:
-			__raw_writel(CPSW_PRIMAP_PRI3(txpriority),
-				&priv->host_port_regs->cpdma_tx_pri_map);
-			break;
-		case 4:
-			__raw_writel(CPSW_PRIMAP_PRI4(txpriority),
-				&priv->host_port_regs->cpdma_tx_pri_map);
-			break;
-		case 5:
-			__raw_writel(CPSW_PRIMAP_PRI5(txpriority),
-				&priv->host_port_regs->cpdma_tx_pri_map);
-			break;
-		case 6:
-			__raw_writel(CPSW_PRIMAP_PRI6(txpriority),
-				&priv->host_port_regs->cpdma_tx_pri_map);
-			break;
-		case 7:
-			__raw_writel(CPSW_PRIMAP_PRI7(txpriority),
-				&priv->host_port_regs->cpdma_tx_pri_map);
-			break;
-		default:
-			printk(KERN_INFO "cpsw_set_priority_mapping:"
-						" Invalid rxpriority value");
-			return -EFAULT;
-		}
-
-		if (switchpriority != CPSW_USE_DEFAULT) {
-			switch (txpriority) {
-			case 0:
-				__raw_writel(CPSW_PRIMAP_PRI0(switchpriority),
-					&priv->host_port_regs->tx_pri_map);
-				break;
-			case 1:
-				__raw_writel(CPSW_PRIMAP_PRI1(switchpriority),
-					&priv->host_port_regs->tx_pri_map);
-				break;
-			case 2:
-				__raw_writel(CPSW_PRIMAP_PRI2(switchpriority),
-					&priv->host_port_regs->tx_pri_map);
-				break;
-			case 3:
-				__raw_writel(CPSW_PRIMAP_PRI3(switchpriority),
-					&priv->host_port_regs->tx_pri_map);
-				break;
-			case 4:
-				__raw_writel(CPSW_PRIMAP_PRI4(switchpriority),
-					&priv->host_port_regs->tx_pri_map);
-				break;
-			case 5:
-				__raw_writel(CPSW_PRIMAP_PRI5(switchpriority),
-					&priv->host_port_regs->tx_pri_map);
-				break;
-			case 6:
-				__raw_writel(CPSW_PRIMAP_PRI6(switchpriority),
-					&priv->host_port_regs->tx_pri_map);
-				break;
-			case 7:
-				__raw_writel(CPSW_PRIMAP_PRI7(switchpriority),
-					&priv->host_port_regs->tx_pri_map);
-				break;
-			default:
-				printk(KERN_INFO "cpsw_set_priority_mapping:"
-						"Invalid txpriority value");
-				return -EFAULT;
-			}
-		}
+		writel(CPSW_PRIMAP(rxpriority, txpriority),
+		       &priv->host_port_regs->cpdma_tx_pri_map);
+		writel(CPSW_PRIMAP(txpriority, switchpriority),
+		       &priv->host_port_regs->tx_pri_map);
 	} else {
 		/* Configure sliver priority mapping registers */
-		switch (rxpriority) {
-		case 0:
-			__raw_writel(CPSW_PRIMAP_PRI0(txpriority),
-				&slave(priv, port-1)->sliver->rx_pri_map);
-			break;
-		case 1:
-			__raw_writel(CPSW_PRIMAP_PRI1(txpriority),
-				&slave(priv, port-1)->sliver->rx_pri_map);
-			break;
-		case 2:
-			__raw_writel(CPSW_PRIMAP_PRI2(txpriority),
-				&slave(priv, port-1)->sliver->rx_pri_map);
-			break;
-		case 3:
-			__raw_writel(CPSW_PRIMAP_PRI3(txpriority),
-				&slave(priv, port-1)->sliver->rx_pri_map);
-			break;
-		case 4:
-			__raw_writel(CPSW_PRIMAP_PRI4(txpriority),
-				&slave(priv, port-1)->sliver->rx_pri_map);
-			break;
-		case 5:
-			__raw_writel(CPSW_PRIMAP_PRI5(txpriority),
-				&slave(priv, port-1)->sliver->rx_pri_map);
-			break;
-		case 6:
-			__raw_writel(CPSW_PRIMAP_PRI6(txpriority),
-				&slave(priv, port-1)->sliver->rx_pri_map);
-			break;
-		case 7:
-			__raw_writel(CPSW_PRIMAP_PRI7(txpriority),
-				&slave(priv, port-1)->sliver->rx_pri_map);
-			break;
-		default:
-			printk(KERN_INFO "\nWARN: cpsw_set_priority_mapping:"
-					" Invalid rxpriority value");
-			return -EFAULT;
-		}
-
-		if (switchpriority != CPSW_USE_DEFAULT) {
-			switch (txpriority) {
-			case 0:
-				__raw_writel(CPSW_PRIMAP_PRI0(switchpriority),
-					&slave(priv, port-1)->regs->tx_pri_map);
-				break;
-			case 1:
-				__raw_writel(CPSW_PRIMAP_PRI1(switchpriority),
-					&slave(priv, port-1)->regs->tx_pri_map);
-				break;
-			case 2:
-				__raw_writel(CPSW_PRIMAP_PRI2(switchpriority),
-					&slave(priv, port-1)->regs->tx_pri_map);
-				break;
-			case 3:
-				__raw_writel(CPSW_PRIMAP_PRI3(switchpriority),
-					&slave(priv, port-1)->regs->tx_pri_map);
-				break;
-			case 4:
-				__raw_writel(CPSW_PRIMAP_PRI4(switchpriority),
-					&slave(priv, port-1)->regs->tx_pri_map);
-				break;
-			case 5:
-				__raw_writel(CPSW_PRIMAP_PRI5(switchpriority),
-					&slave(priv, port-1)->regs->tx_pri_map);
-				break;
-			case 6:
-				__raw_writel(CPSW_PRIMAP_PRI6(switchpriority),
-					&slave(priv, port-1)->regs->tx_pri_map);
-				break;
-			case 7:
-				__raw_writel(CPSW_PRIMAP_PRI7(switchpriority),
-					&slave(priv, port-1)->regs->tx_pri_map);
-				break;
-			default:
-				printk(KERN_INFO "cpsw_set_priority_mapping:"
-						" Invalid txpriority value");
-				return -EFAULT;
-			}
-		}
+		writel(CPSW_PRIMAP(rxpriority, txpriority),
+		       &slave(priv, port-1)->sliver->rx_pri_map);
+		writel(CPSW_PRIMAP(txpriority, switchpriority),
+		       cpsw_slave_reg(priv, slave(priv, port-1), tx_pri_map));
 	}
 	return 0;
 }
@@ -1771,7 +1648,8 @@ static int cpsw_config_dump(struct cpsw_priv *priv, u8 *buf, u32 size)
 			port_state = "forward";
 			break;
 		}
-		port_vlan = __raw_readl(&priv->slaves[0].regs->port_vlan);
+		port_vlan = readl(cpsw_slave_reg(priv, &priv->slaves[0],
+						 port_vlan));
 		out_len += snprintf(buf + out_len, size - out_len,
 			"\t%-8u %-8u %-8u %s\n", 1,
 			port_vlan & 0xfff, (port_vlan > 13) & 0x7, port_state);
@@ -1790,7 +1668,8 @@ static int cpsw_config_dump(struct cpsw_priv *priv, u8 *buf, u32 size)
 			port_state = "forward";
 			break;
 		}
-		port_vlan = __raw_readl(&priv->slaves[1].regs->port_vlan);
+		port_vlan = readl(cpsw_slave_reg(priv, &priv->slaves[0],
+						 port_vlan));
 		out_len += snprintf(buf + out_len, size - out_len,
 			"\t%-8u %-8u %-8u %s\n", 2,
 			port_vlan & 0xfff, (port_vlan > 13) & 0x7, port_state);
@@ -2086,11 +1965,11 @@ static int cpsw_switch_config_ioctl(struct net_device *ndev,
 				writel(port_vlan,
 					&priv->host_port_regs->port_vlan);
 			else if (switchcmd(switch_config).port == 1)
-				writel(port_vlan,
-					&(priv->slaves[0].regs->port_vlan));
+				writel(port_vlan, cpsw_slave_reg(priv,
+						&priv->slaves[0], port_vlan));
 			else
-				writel(port_vlan,
-					&(priv->slaves[1].regs->port_vlan));
+				writel(port_vlan, cpsw_slave_reg(priv,
+						&priv->slaves[1], port_vlan));
 			ret = 0;
 		} else {
 			dev_err(priv->dev, "Invalid Arguments\n");
