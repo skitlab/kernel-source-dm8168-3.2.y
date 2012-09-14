@@ -898,7 +898,7 @@ extern void usb_ep_autoconfig_reset(struct usb_gadget *) __devinit;
 
 /* API for dual gadget configuration */
 extern int get_gadget_drv_id(void);
-extern int put_gadget_drv_id(void);
+extern int put_gadget_drv_id(int id);
 extern int get_gadget_max_drv_id(void);
 
 #endif /* __LINUX_USB_GADGET_H */

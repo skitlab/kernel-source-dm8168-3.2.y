@@ -1284,7 +1284,7 @@ extern int usb_composite_probe(struct usb_composite_driver *driver,
 
 	retval = usb_gadget_probe_driver(&composite_driver[id], composite_bind);
 	if (retval < 0)
-		put_gadget_drv_id();
+		put_gadget_drv_id(id);
 
 	return retval;
 }
@@ -1303,7 +1303,7 @@ void usb_composite_unregister(struct usb_composite_driver *driver)
 	for (i = 0; i < get_gadget_max_drv_id(); ++i)
 		if (composite[i] == driver) {
 			usb_gadget_unregister_driver(&composite_driver[i]);
-			put_gadget_drv_id();
+			put_gadget_drv_id(i);
 			composite[i] = NULL;
 		}
 }

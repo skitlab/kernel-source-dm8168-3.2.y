@@ -1842,24 +1842,42 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 }
 EXPORT_SYMBOL(usb_gadget_probe_driver);
 
-int num_composite_drv;
+u8 gadget_free_ids[MAX_MUSB_INSTANCE];
+
 int get_gadget_drv_id(void)
 {
 	int id;
-	if (num_composite_drv >= MAX_MUSB_INSTANCE)
+
+	for (id = 0; id < MAX_MUSB_INSTANCE; ++id) {
+		if (!gadget_free_ids[id]) {
+			gadget_free_ids[id] = 1;
+			break;
+		}
+	}
+
+	if (id >= MAX_MUSB_INSTANCE) {
+		DBG(8, "no free gadget_id available\n");
 		return -EINVAL;
-	id = num_composite_drv;
-	num_composite_drv++;
+	}
+
+	DBG(8, "gadget_free_ids[%d, %d], allocated_id %d\n", id,
+		gadget_free_ids[0], gadget_free_ids[1]);
+
 	return id;
 }
 EXPORT_SYMBOL(get_gadget_drv_id);
 
-int put_gadget_drv_id(void)
+int put_gadget_drv_id(int id)
 {
-	if (num_composite_drv <= 0)
+	if (id >= MAX_MUSB_INSTANCE)
 		return -EINVAL;
-	num_composite_drv--;
-	return num_composite_drv;
+
+	gadget_free_ids[id] = 0;
+
+	DBG(8, "gadget_free_ids[%d, %d], free-id %d\n", gadget_free_ids[0],
+		gadget_free_ids[1], id);
+
+	return 0;
 }
 EXPORT_SYMBOL(put_gadget_drv_id);
 

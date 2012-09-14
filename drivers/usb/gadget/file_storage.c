@@ -3157,7 +3157,6 @@ static void fsg_release(struct kref *ref)
 
 	kfree(fsg->luns);
 	kfree(fsg);
-	put_gadget_drv_id();
 }
 
 static void lun_release(struct device *dev)
@@ -3654,6 +3653,7 @@ module_init(fsg_init);
 static void __exit fsg_cleanup(void)
 {
 	struct fsg_dev	*fsg = the_fsg;
+	int id = fsg_driver.id;
 
 	/* Unregister the driver iff the thread hasn't already done so */
 	if (test_and_clear_bit(REGISTERED, &fsg->atomic_bitflags))
@@ -3663,5 +3663,6 @@ static void __exit fsg_cleanup(void)
 	wait_for_completion(&fsg->thread_notifier);
 
 	kref_put(&fsg->ref, fsg_release);
+	put_gadget_drv_id(id);
 }
 module_exit(fsg_cleanup);
