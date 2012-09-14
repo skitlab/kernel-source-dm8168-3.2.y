@@ -1680,6 +1680,14 @@ static void rxdma_completion_work(struct work_struct *data)
 					resched = 1;
 					continue;
 				}
+
+				/* reset length when handle zlp recived */
+				if (rx_ch->curr_pd->hw_desc.pkt_info
+					& CPPI41_ZLP) {
+					rx_ch->curr_pd->hw_desc.desc_info &=
+							~CPPI41_PKT_LEN_MASK;
+				}
+
 				spin_lock_irqsave(&musb->lock, flags);
 				usb_process_rx_bd(cppi, rx_ch->curr_pd);
 				rx_ch->rx_complete = 0;
@@ -1748,6 +1756,10 @@ static void usb_process_rx_queue(struct cppi41 *cppi, unsigned index)
 			schedule_work(&cppi->rxdma_work);
 			continue;
 		}
+
+		/* reset length when handle zlp recived */
+		if (curr_pd->hw_desc.pkt_info & CPPI41_ZLP)
+			curr_pd->hw_desc.desc_info &= ~CPPI41_PKT_LEN_MASK;
 
 		usb_process_rx_bd(cppi, curr_pd);
 	}
