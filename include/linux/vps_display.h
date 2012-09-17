@@ -141,8 +141,6 @@ struct vps_dei_disp_params {
 	/**< Enables/disables the DRN module in the DEI path. DRN is not
 	available in TI814X platform, hence this is not used for TI814X
 	platform. */
-	u32                           scenable;
-	/**< Enable/Disable the Scalar block in the DEI Path. */
 	struct vps_scconfig           sccfg;
 	/**< Scalar parameters like crop and scaler type for the
 	 scalar in DEI path. */
@@ -153,12 +151,12 @@ struct vps_dei_disp_params {
 	/**< Pointer to the deinterlacer configuration used for
 	*  DEI drivers. This parameter should be set to NULL for
 	*  DEI HQ drivers. */
-	struct vps_cropconfig          deicropcfg;
+	struct vps_cropconfig          *deisccropcfg;;
 	/**< Cropping configuration for the DEI scalar. */
-	u32                            startx;
-	/**< Horizontal start position in pixels. */
-	u32                            starty;
-	/**< Vertical start position in lines. */
+	struct vps_posconfig           *posCfg;
+	/**< Position configuration used to position the PIP window.
+	* Only used if VCOMP is available in the display path,
+	* Otherwise it is ignored. */
 	u32                            sctarwidth;
 	/**< Target image Width(o/p of scalar).User should provide
 	this data even if scalar is in bypass. If scalar is in bypass
@@ -169,6 +167,12 @@ struct vps_dei_disp_params {
 	this data even if scalar is in bypass. If scalar is in bypass
 	this is used to program the VPDMA, if scalar is enabled scalar IP
 	will be programmed to output this resolution */
+	u32                            comprenable;
+	/**< Enable compression/decompression for writing back the DEI context
+	to and from DDR. COMPR is not available in TI814X/TI813X platform,
+	hence this is not used for above platforms. And for TI816X, this
+	feature is not supported. Hence this flag should be always set to
+	FALSE. */
 };
 
 /**

@@ -824,15 +824,17 @@ static int video_set_deiparams(struct vps_video_ctrl *vctrl,
 	int r;
 	VPSSDBG("Set dei/scalar config params\n");
 
-	vctrl->vdeiprm->startx  = deiparams->startx;
-	vctrl->vdeiprm->starty = deiparams->starty;
+	vctrl->vdeicrpcfg->cropstartx = deiparams->deisccropcfg->cropstartx;
+	vctrl->vdeicrpcfg->cropstarty = deiparams->deisccropcfg->cropstarty;
 	vctrl->vdeiprm->sctarwidth = w;
 	vctrl->vdeiprm->sctarheight = h;
 	vctrl->vdeiprm->fmt.height = scalar_prm.inframe_height;
 	vctrl->vdeiprm->fmt.width = scalar_prm.inframe_width;
-	vctrl->vdeiprm->scenable = scalar_prm.scalar_enable;
+	vctrl->vdeiprm->sccfg.bypass = !scalar_prm.scalar_enable;
 	vctrl->vdeiprm->deicfg = NULL;
 	vctrl->vdeiprm->deihqcfg = NULL;
+	vctrl->vdeiprm->deisccropcfg = (struct vps_cropconfig *)
+					vctrl->vdeicr_phy;
 	r = vps_fvid2_control(
 		vctrl->handle,
 		IOCTL_VPS_DEI_DISP_SET_PARAMS,
@@ -1662,6 +1664,7 @@ static inline int get_alloc_size(void)
 	size += sizeof(struct vps_frameparams);
 	size += sizeof(struct vps_dispstatus);
 	size += sizeof(struct vps_dei_disp_params);
+	size += sizeof(struct vps_cropconfig);
 
 	size += sizeof(struct fvid2_cbparams);
 	size += sizeof(struct fvid2_format);
@@ -1717,6 +1720,12 @@ static inline void assign_payload_addr(struct vps_video_ctrl *vctrl,
 				buf_offset,
 				&vctrl->vdei_phy,
 				sizeof(struct vps_dei_disp_params));
+
+	vctrl->vdeicrpcfg = (struct vps_cropconfig *)
+				setaddr(pinfo,
+				buf_offset,
+				&vctrl->vdeicr_phy,
+				sizeof(struct vps_cropconfig));
 
 	vctrl->cbparams = (struct fvid2_cbparams *)
 				setaddr(pinfo,
@@ -1823,7 +1832,8 @@ int __init vps_video_init(struct platform_device *pdev)
 			break;
 		case 1:
 			vctrl->caps = VPSS_VID_CAPS_POSITIONING |
-				VPSS_VID_CAPS_COLOR | VPSS_VID_CAPS_CROPING;
+				VPSS_VID_CAPS_COLOR | VPSS_VID_CAPS_CROPING |
+				VPSS_VID_CAPS_SCALING;
 			break;
 		case 2:
 			vctrl->caps = VPSS_VID_CAPS_POSITIONING |

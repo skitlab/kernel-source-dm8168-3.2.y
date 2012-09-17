@@ -586,6 +586,7 @@ int ti81xxvid_setup_video(struct ti81xx_vidout_dev *vout,
 	int left, top;
 	bool crop = 0;
 	u8 fidmeg;
+	struct vps_cropconfig  dei_sc_crop_cfg;
 	struct vps_dei_disp_params deiprms;
 	if (video_mode_to_vpss_mode(vout, &dfmt) == -EINVAL) {
 		v4l2_err(&vout->vid_dev->v4l2_dev,
@@ -659,9 +660,10 @@ int ti81xxvid_setup_video(struct ti81xx_vidout_dev *vout,
 	if ((vout->vctrl->caps & VPSS_VID_CAPS_SCALING) &&
 					scalar_prms->scalar_enable) {
 		/*Setting Dei/scalar params. Currently used for scalar config*/
-		deiprms.scenable = scalar_prms->scalar_enable;
-		deiprms.startx = vout->crop.left;
-		deiprms.starty = vout->crop.top;
+		deiprms.deisccropcfg = &dei_sc_crop_cfg;
+		deiprms.sccfg.bypass = !scalar_prms->scalar_enable;
+		deiprms.deisccropcfg->cropstartx = vout->crop.left;
+		deiprms.deisccropcfg->cropstarty = vout->crop.top;
 		if (vctrl->set_deiparams(vctrl, &deiprms, outw, outh)) {
 			ret = -EINVAL;
 			goto error;

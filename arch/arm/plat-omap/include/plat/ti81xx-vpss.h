@@ -254,6 +254,9 @@ struct vps_video_ctrl {
 	/* De-interlacer config params*/
 	struct vps_dei_disp_params      *vdeiprm;
 	u32                             vdei_phy;
+	/* De-interlacer scalar crop configs*/
+	struct vps_cropconfig           *vdeicrpcfg;
+	u32                             vdeicr_phy;
 	/* The followings  are the FVID2 varables*/
 	/*fvid2 create params*/
 	struct fvid2_cbparams           *cbparams;
