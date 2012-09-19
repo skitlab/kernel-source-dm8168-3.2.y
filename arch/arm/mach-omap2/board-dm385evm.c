@@ -346,8 +346,8 @@ static const struct i2c_device_id pcf8575_video_id[] = {
 static struct i2c_client *pcf8575_1_client;
 static unsigned char pcf8575_1_port[2] = {0x4F, 0x7F};
 
-#define VPS_PCF8575_PIN0                (0x10)
-#define VPS_PCF8575_PIN1                (0x20)
+#define VPS_PCF8575_PIN0                (0x20)
+#define VPS_PCF8575_PIN1                (0x10)
 #define VPS_PCF8575_PIN2                (0x4)
 #define VPS_PCF8575_PIN3                (0x8)
 #define VPS_PCF8575_PIN4                (0x2)
