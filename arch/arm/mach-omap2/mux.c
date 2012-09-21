@@ -470,7 +470,8 @@ static inline void ti81xx_mux_decode(struct seq_file *s, u32 val)
 	}
 
 	if (cpu_is_ti814x()) {
-		sprintf(mode, "TI81XX_MUX_MODE%d", ffs(val & 0xff) - 1);
+		/* TI811X has 11 modes hence masking with 0xfff */
+		sprintf(mode, "TI81XX_MUX_MODE%d", ffs(val & 0xfff) - 1);
 		i++;
 		flags[i] = mode;
 
@@ -618,8 +619,8 @@ static int omap_mux_dbg_signal_show(struct seq_file *s, void *unused)
 	seq_printf(s, "\n");
 
 	if (cpu_is_ti811x())
-		seq_printf(s, "signals: %s | %s | %s | %s | %s | %s | %s | %s"
-				" %s | %s | %s | %s\n",
+		seq_printf(s, "signals: %s | %s | %s | %s | %s | %s | %s | %s "
+				"| %s | %s | %s | %s\n",
 				m->muxnames[0] ? m->muxnames[0] : none,
 				m->muxnames[1] ? m->muxnames[1] : none,
 				m->muxnames[2] ? m->muxnames[2] : none,
@@ -633,7 +634,7 @@ static int omap_mux_dbg_signal_show(struct seq_file *s, void *unused)
 				m->muxnames[10] ? m->muxnames[10] : none,
 				m->muxnames[11] ? m->muxnames[11] : none);
 	else
-		seq_printf(s, "signals: %s | %s | %s | %s | %s | %s | %s"
+		seq_printf(s, "signals: %s | %s | %s | %s | %s | %s | %s "
 				"| %s\n",
 				m->muxnames[0] ? m->muxnames[0] : none,
 				m->muxnames[1] ? m->muxnames[1] : none,
@@ -647,7 +648,7 @@ static int omap_mux_dbg_signal_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-#define OMAP_MUX_MAX_ARG_CHAR  7
+#define OMAP_MUX_MAX_ARG_CHAR  11
 
 static ssize_t omap_mux_dbg_signal_write(struct file *file,
 					 const char __user *user_buf,
