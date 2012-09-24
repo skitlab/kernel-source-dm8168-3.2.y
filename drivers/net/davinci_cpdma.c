@@ -788,6 +788,9 @@ static int __cpdma_chan_process(struct cpdma_chan *chan)
 		goto unlock_ret;
 	}
 
+	if (status & CPDMA_DESC_PASS_CRC)
+		outlen -= 4;
+
 	status	= status & (CPDMA_DESC_EOQ | CPDMA_DESC_TD_COMPLETE |
 				CPDMA_DESC_PORT_MASK);
 
