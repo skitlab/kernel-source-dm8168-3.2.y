@@ -2400,6 +2400,7 @@ void ti814x_cpsw_init(void)
 		ti814x_cpsw_pdata.ale_reg_ofs		= 0xd00;
 		ti814x_cpsw_pdata.host_port_reg_ofs	= 0x108;
 		ti814x_cpsw_pdata.hw_stats_reg_ofs	= 0x900;
+		ti814x_cpsw_pdata.cpts_reg_ofs		= 0xc00;
 
 		cpsw_mdio_resources[0].start	= TI811X_CPSW_MDIO_BASE;
 		cpsw_mdio_resources[0].end	= TI811X_CPSW_MDIO_BASE

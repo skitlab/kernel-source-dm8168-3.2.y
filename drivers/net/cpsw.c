@@ -98,6 +98,21 @@ do {								\
 #define CPTS_TS_HW_PUSH			(0x3 << 20)
 #define CPTS_TS_ETH_RX			(0x4 << 20)
 #define CPTS_TS_ETH_TX			(0x5 << 20)
+#define CPSW_MSG_TYPE_EN		0xffff
+#define CPSW_801_1Q_LTYPE		0x88f7
+#define CPSW_SEQ_ID_OFS			0x1e
+
+#define CPSW_V1_TS_RX_EN		BIT(0)
+#define CPSW_V1_TS_TX_EN		BIT(4)
+#define CPSW_V1_MSG_TYPE_OFS		16
+#define CPSW_V1_SEQ_ID_OFS_SHIFT	16
+
+#define CPSW_V2_TS_RX_EN		BIT(0)
+#define CPSW_V2_TS_TX_EN		BIT(1)
+#define CPSW_V2_TS_LTYPE_1_EN		BIT(2)
+#define CPSW_V2_TS_LTYPE_2_EN		BIT(3)
+#define CPSW_V2_TS_ANNEX_D_EN		BIT(4)
+#define CPSW_V2_SEQ_ID_OFS_SHIFT	16
 
 #define CPTS_FIFO_SIZE			32
 #define CPTS_READ_TS_MAX_TRY		20
@@ -1360,6 +1375,134 @@ static void cpsw_ndo_vlan_rx_kill_vid(struct net_device *ndev,
 #endif /* VLAN_SUPPORT */
 
 #ifdef CONFIG_PTP_1588_CLOCK_CPTS
+
+#ifdef CONFIG_TI_CPSW_DUAL_EMAC
+
+static int cpts_enable_l2_ts(struct cpsw_priv *priv, bool state)
+{
+	u32 val = 0;
+
+	if (priv->cpsw_version == CPSW_VER_1) {
+		if (state) {
+			/* Enable TS */
+			val = CPSW_V1_TS_RX_EN | CPSW_V1_TS_TX_EN |
+				(CPSW_MSG_TYPE_EN << CPSW_V1_MSG_TYPE_OFS);
+			writel(val, cpsw_slave_reg(priv,
+					&priv->slaves[priv->emac_port],
+					ts_ctl));
+
+			val = (CPSW_SEQ_ID_OFS << CPSW_V1_SEQ_ID_OFS_SHIFT) |
+				CPSW_801_1Q_LTYPE;
+			writel(val, cpsw_slave_reg(priv,
+					&priv->slaves[priv->emac_port],
+					ts_seq_ltype));
+		} else {
+			/* Disable TS */
+			writel(0, cpsw_slave_reg(priv,
+					&priv->slaves[priv->emac_port],
+					ts_ctl));
+		}
+	} else {
+		if (state) {
+			/* Enable TS */
+			val = CPSW_V2_TS_ANNEX_D_EN | CPSW_V2_TS_LTYPE_1_EN
+				| CPSW_V2_TS_RX_EN | CPSW_V2_TS_TX_EN;
+
+			writel(val, cpsw_slave_reg(priv,
+					&priv->slaves[priv->emac_port],
+					port_control));
+
+			val = (CPSW_SEQ_ID_OFS << CPSW_V2_SEQ_ID_OFS_SHIFT) |
+				CPSW_MSG_TYPE_EN;
+			writel(val, cpsw_slave_reg(priv,
+					&priv->slaves[priv->emac_port],
+					ts_seq_mtype));
+
+			writel(CPSW_801_1Q_LTYPE, &priv->regs->ts_ltype);
+		} else {
+			/* Disable TS */
+			writel(0, cpsw_slave_reg(priv, &priv->slaves[0],
+						 port_control));
+			writel(0, cpsw_slave_reg(priv, &priv->slaves[1],
+						 port_control));
+
+			writel(0, cpsw_slave_reg(priv, &priv->slaves[0],
+						 ts_seq_mtype));
+			writel(0, cpsw_slave_reg(priv, &priv->slaves[1],
+						 ts_seq_mtype));
+		}
+	}
+
+	return 0;
+}
+
+#else
+
+static int cpts_enable_l2_ts(struct cpsw_priv *priv, bool state)
+{
+	u32 val = 0;
+
+	if (priv->cpsw_version == CPSW_VER_1) {
+		if (state) {
+			/* Enable TS */
+			val = CPSW_V1_TS_RX_EN | CPSW_V1_TS_TX_EN |
+				(CPSW_MSG_TYPE_EN << CPSW_V1_MSG_TYPE_OFS);
+			writel(val, cpsw_slave_reg(priv, &priv->slaves[0],
+						   ts_ctl));
+			writel(val, cpsw_slave_reg(priv, &priv->slaves[1],
+						   ts_ctl));
+
+			val = (CPSW_SEQ_ID_OFS << CPSW_V1_SEQ_ID_OFS_SHIFT) |
+				CPSW_801_1Q_LTYPE;
+			writel(val, cpsw_slave_reg(priv, &priv->slaves[0],
+						   ts_seq_ltype));
+			writel(val, cpsw_slave_reg(priv, &priv->slaves[1],
+						   ts_seq_ltype));
+		} else {
+			/* Disable TS */
+			writel(0, cpsw_slave_reg(priv, &priv->slaves[0],
+						 ts_ctl));
+			writel(0, cpsw_slave_reg(priv, &priv->slaves[1],
+						 ts_ctl));
+		}
+	} else {
+		if (state) {
+			/* Enable TS */
+			val = CPSW_V2_TS_ANNEX_D_EN | CPSW_V2_TS_LTYPE_1_EN
+				| CPSW_V2_TS_RX_EN | CPSW_V2_TS_TX_EN;
+
+			writel(val, cpsw_slave_reg(priv, &priv->slaves[0],
+						   port_control));
+			writel(val, cpsw_slave_reg(priv, &priv->slaves[1],
+						   port_control));
+
+			val = (CPSW_SEQ_ID_OFS << CPSW_V2_SEQ_ID_OFS_SHIFT) |
+				CPSW_MSG_TYPE_EN;
+			writel(val, cpsw_slave_reg(priv, &priv->slaves[0],
+						   ts_seq_mtype));
+			writel(val, cpsw_slave_reg(priv, &priv->slaves[1],
+						   ts_seq_mtype));
+
+			writel(CPSW_801_1Q_LTYPE, &priv->regs->ts_ltype);
+		} else {
+			/* Disable TS */
+			writel(0, cpsw_slave_reg(priv, &priv->slaves[0],
+						 port_control));
+			writel(0, cpsw_slave_reg(priv, &priv->slaves[1],
+						 port_control));
+
+			writel(0, cpsw_slave_reg(priv, &priv->slaves[0],
+						 ts_seq_mtype));
+			writel(0, cpsw_slave_reg(priv, &priv->slaves[1],
+						 ts_seq_mtype));
+		}
+	}
+
+	return 0;
+}
+
+#endif
+
 static int cpsw_hwtstamp_ioctl(struct net_device *ndev,
 		struct ifreq *ifr, int cmd)
 {
@@ -1416,6 +1559,9 @@ static int cpsw_hwtstamp_ioctl(struct net_device *ndev,
 
 		/* Enabling All PTP v2/802.1AS Event time stamping */
 		config.rx_filter = HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
+		cpts_enable_l2_ts(priv, true);
+		priv->cpts_time->enable_timestamping = true;
+		dev_info(priv->dev, "Enabling PTP Time stamping...\n");
 		break;
 	default:
 		return -ERANGE;
@@ -1424,41 +1570,17 @@ static int cpsw_hwtstamp_ioctl(struct net_device *ndev,
 	/* Enabling Time stamping is done only for Port 1 */
 	if (config.tx_type == HWTSTAMP_TX_OFF &&
 			config.rx_filter == HWTSTAMP_FILTER_NONE) {
-		__raw_writel(0x0, &priv->slaves[0].regs->ts_ctl);
-		__raw_writel(0x001e0000,
-			&priv->slaves[0].regs->ts_seq_ltype);
+		cpts_enable_l2_ts(priv, false);
 
-		/* Empty Queue */
-		priv->cpts_time->rx_fifo.head = 0;
-		priv->cpts_time->tx_fifo.head = 0;
-		priv->cpts_time->rx_fifo.tail = 0;
-		priv->cpts_time->tx_fifo.tail = 0;
 		priv->cpts_time->enable_timestamping = false;
-		pr_debug("Disabling Time stamping...\n");
-	} else {
-		u32 val = 0;
-
-		val |= (1<<0);			/*enable RX */
-		val |= (1<<4);			/* enable TX */
-		val |= (0xFFFFu << 16);		/* enable all message types */
-
-#ifdef CONFIG_TI_CPSW_DUAL_EMAC
-		__raw_writel(val, &priv->slaves[priv->emac_port].regs->ts_ctl);
-		__raw_writel(0x001e88f7,
-			&priv->slaves[priv->emac_port].regs->ts_seq_ltype);
-#else /* !CONFIG_TI_CPSW_DUAL_EMAC */
-		__raw_writel(val, &priv->slaves[0].regs->ts_ctl);
-		__raw_writel(0x001e88f7,
-			&priv->slaves[0].regs->ts_seq_ltype);
-#endif /* CONFIG_TI_CPSW_DUAL_EMAC */
-
-		/* Empty Queue */
-		priv->cpts_time->rx_fifo.head = 0;
-		priv->cpts_time->tx_fifo.head = 0;
-		priv->cpts_time->rx_fifo.tail = 0;
-		priv->cpts_time->tx_fifo.tail = 0;
-		priv->cpts_time->enable_timestamping = true;
+		dev_info(priv->dev, "Disabling PTP Time stamping...\n");
 	}
+
+	/* Empty Queue */
+	priv->cpts_time->rx_fifo.head = 0;
+	priv->cpts_time->tx_fifo.head = 0;
+	priv->cpts_time->rx_fifo.tail = 0;
+	priv->cpts_time->tx_fifo.tail = 0;
 
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
 			-EFAULT : 0;
