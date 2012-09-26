@@ -64,6 +64,9 @@
 		__addr__[3] == 0xff && __addr__[4] == 0xff && \
 		__addr__[5] == 0xff)
 
+#define cpsw_ale_snprintf(buf, len, fmt, args...)			\
+		((len) > 0) ? snprintf(buf, len, fmt, ##args) : 0
+
 static inline int cpsw_ale_get_field(u32 *ale_entry, u32 start, u32 bits)
 {
 	int idx;
@@ -309,10 +312,10 @@ static int cpsw_ale_dump_mcast(u32 *ale_entry, char *buf, int len)
 	int port_mask   = cpsw_ale_get_port_mask(ale_entry);
 	int super       = cpsw_ale_get_super(ale_entry);
 
-	outlen += snprintf(buf + outlen, len - outlen,
+	outlen += cpsw_ale_snprintf(buf + outlen, len - outlen,
 			   "mcstate: %s(%d), ", str_mcast_state[mcast_state],
 			   mcast_state);
-	outlen += snprintf(buf + outlen, len - outlen,
+	outlen += cpsw_ale_snprintf(buf + outlen, len - outlen,
 			   "port mask: %x, %ssuper\n", port_mask,
 			   super ? "" : "no ");
 	return outlen;
@@ -328,10 +331,10 @@ static int cpsw_ale_dump_ucast(u32 *ale_entry, char *buf, int len)
 	int secure      = cpsw_ale_get_secure(ale_entry);
 	int blocked     = cpsw_ale_get_blocked(ale_entry);
 
-	outlen += snprintf(buf + outlen, len - outlen,
+	outlen += cpsw_ale_snprintf(buf + outlen, len - outlen,
 			   "uctype: %s(%d), ", str_ucast_type[ucast_type],
 			   ucast_type);
-	outlen += snprintf(buf + outlen, len - outlen,
+	outlen += cpsw_ale_snprintf(buf + outlen, len - outlen,
 			   "port: %d%s%s\n", port_num, secure ? ", Secure" : "",
 			   blocked ? ", Blocked" : "");
 	return outlen;
@@ -345,13 +348,13 @@ static int cpsw_ale_dump_vlan(u32 *ale_entry, char *buf, int len)
 	int unreg_mcast = cpsw_ale_get_vlan_unreg_mcast(ale_entry);
 	int member_list = cpsw_ale_get_vlan_member_list(ale_entry);
 
-	outlen += snprintf(buf + outlen, len - outlen,
+	outlen += cpsw_ale_snprintf(buf + outlen, len - outlen,
 			   "vlanuntag: %x, ", untag_force);
-	outlen += snprintf(buf + outlen, len - outlen,
+	outlen += cpsw_ale_snprintf(buf + outlen, len - outlen,
 			   "vlanregmcast: %x, ", reg_mcast);
-	outlen += snprintf(buf + outlen, len - outlen,
+	outlen += cpsw_ale_snprintf(buf + outlen, len - outlen,
 			   "vlanunregmcast: %x, ", unreg_mcast);
-	outlen += snprintf(buf + outlen, len - outlen,
+	outlen += cpsw_ale_snprintf(buf + outlen, len - outlen,
 			   "vlanmemberlist: %x\n", member_list);
 	return outlen;
 }
@@ -367,24 +370,26 @@ static int cpsw_ale_dump_entry(int idx, u32 *ale_entry, char *buf, int len)
 		return outlen;
 
 	if (idx >= 0) {
-		outlen += snprintf(buf + outlen, len - outlen,
+		outlen += cpsw_ale_snprintf(buf + outlen, len - outlen,
 				   "index %d, ", idx);
 	}
 
-	outlen += snprintf(buf + outlen, len - outlen, "raw: %08x %08x %08x, ",
-			   ale_entry[0], ale_entry[1], ale_entry[2]);
+	outlen += cpsw_ale_snprintf(buf + outlen, len - outlen,
+				"raw: %08x %08x %08x, ",
+				ale_entry[0], ale_entry[1], ale_entry[2]);
 
-	outlen += snprintf(buf + outlen, len - outlen,
+	outlen += cpsw_ale_snprintf(buf + outlen, len - outlen,
 			   "type: %s(%d), ", str_type[type], type);
 
 	if (type == ALE_TYPE_VLAN || type == ALE_TYPE_VLAN_ADDR) {
-		outlen += snprintf(buf + outlen, len - outlen, "vlan: %d, ",
-				   cpsw_ale_get_vlan_id(ale_entry));
+		outlen += cpsw_ale_snprintf(buf + outlen, len - outlen,
+					"vlan: %d, ",
+					cpsw_ale_get_vlan_id(ale_entry));
 	}
 
 	if (type == ALE_TYPE_ADDR || type == ALE_TYPE_VLAN_ADDR) {
 		cpsw_ale_get_addr(ale_entry, addr);
-		outlen += snprintf(buf + outlen, len - outlen,
+		outlen += cpsw_ale_snprintf(buf + outlen, len - outlen,
 			"addr: " ADDR_FMT_STR ", ", ADDR_FMT_ARGS(addr));
 		outlen += cpsw_ale_get_mcast(ale_entry) ?
 			cpsw_ale_dump_mcast(ale_entry, buf + outlen,
@@ -778,14 +783,14 @@ static ssize_t cpsw_ale_control_show(struct device *dev,
 	for (i = 0, info = ale_controls; i < ALE_NUM_CONTROLS; i++, info++) {
 		/* global controls */
 		if (info->port_shift == 0 &&  info->port_offset == 0) {
-			len += snprintf(buf + len, SZ_4K - len,
+			len += cpsw_ale_snprintf(buf + len, SZ_4K - len,
 					"%s=%d\n", info->name,
 					cpsw_ale_control_get(ale, 0, i));
 			continue;
 		}
 		/* port specific controls */
 		for (port = 0; port < ale->ale_ports; port++) {
-			len += snprintf(buf + len, SZ_4K - len,
+			len += cpsw_ale_snprintf(buf + len, SZ_4K - len,
 					"%s.%d=%d\n", info->name, port,
 					cpsw_ale_control_get(ale, port, i));
 		}
