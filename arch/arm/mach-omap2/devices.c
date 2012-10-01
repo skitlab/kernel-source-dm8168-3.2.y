@@ -2191,8 +2191,15 @@ static void ti814x_nor_init(void)
 	omap_mux_init_signal("gpmc_a_21_mux0", 0);
 	omap_mux_init_signal("gpmc_a_22_mux0", TI814X_PULL_UP);
 	omap_mux_init_signal("gpmc_a_23_mux0", 0);
-	omap_mux_init_signal("gpmc_cs2.gpmc_a_24_mux1", TI814X_PULL_UP);
-	omap_mux_init_signal("gpmc_cs1.gpmc_a_25_mux1", 0);
+
+	if (cpu_is_ti811x()) { /*TI811X */
+		omap_mux_init_signal("mmc2_dat7.gpmc_a_24_mux1", TI814X_PULL_UP);
+		omap_mux_init_signal("mmc2_dat6.gpmc_a_25_mux1", 0);
+	} else {
+		omap_mux_init_signal("gpmc_cs2.gpmc_a_24_mux1", TI814X_PULL_UP);
+		omap_mux_init_signal("gpmc_cs1.gpmc_a_25_mux1", 0);
+	}
+
 	omap_mux_init_signal("mmc2_dat4.gpio1_22", TI814X_PULL_UP);
 	omap_mux_init_signal("gpmc_cs0", TI814X_PULL_UP);
 	omap_mux_init_signal("gpmc_oen_ren", TI814X_PULL_UP);
