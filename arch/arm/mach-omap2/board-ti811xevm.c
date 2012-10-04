@@ -297,7 +297,7 @@ static int setup_gpio_ioexp(struct i2c_client *client, int gpio_base,
 }
 
 static struct pcf857x_platform_data io_expander_data = {
-	.gpio_base      = 4 * 32,
+	.gpio_base      = 6 * 32,
 	.setup          = setup_gpio_ioexp,
 };
 
