@@ -351,7 +351,7 @@ int vps_ti814x_set_tvp7002_filter(enum fvid2_standard standard)
 			__func__, __LINE__, ret);
 		return ret;
 	}
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(vps_ti814x_set_tvp7002_filter);
 /* Touchscreen platform data */
