@@ -48,6 +48,8 @@ int omap_type(void)
 		val = omap_ctrl_readl(OMAP343X_CONTROL_STATUS);
 	} else if (cpu_is_omap44xx()) {
 		val = omap_ctrl_readl(OMAP4_CTRL_MODULE_CORE_STATUS);
+	} else if (cpu_is_ti81xx()) {
+		val = omap_ctrl_readl(TI81XX_CONTROL_STATUS);
 	} else {
 		pr_err("Cannot detect omap type!\n");
 		goto out;
@@ -333,10 +335,18 @@ static void __init omap3_check_revision(const char **cpu_rev)
 			*cpu_rev = "1.0";
 			break;
 		case 1:
-		/* FALLTHROUGH */
-		default:
 			omap_revision = TI8168_REV_ES1_1;
 			*cpu_rev = "1.1";
+			break;
+		case 2:
+			omap_revision = TI8168_REV_ES2_0;
+			*cpu_rev = "2.0";
+			break;
+		case 3:
+			/* FALLTHROUGH */
+		default:
+			omap_revision = TI8168_REV_ES2_1;
+			*cpu_rev = "2.1";
 			break;
 		}
 		break;
