@@ -60,6 +60,12 @@ config AD525X_DPOT_SPI
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad525x_dpot-spi.
+config TI816X_CPLD_I2C
+	tristate "TI816X_CPLD_I2C"
+	depends on SOC_OMAPTI816X && I2C
+	default y
+	help
+	  Cake is a lie!
 
 config ATMEL_PWM
 	tristate "Atmel AT32/AT91 PWM support"
