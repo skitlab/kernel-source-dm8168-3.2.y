@@ -239,7 +239,7 @@ void omap3_ctrl_write_boot_mode(u8 bootmode)
 
 #endif
 
-#if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
+#if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM) && ! defined(CONFIG_SOC_OMAPTI81XX)
 /*
  * Clears the scratchpad contents in case of cold boot-
  * called during bootup
