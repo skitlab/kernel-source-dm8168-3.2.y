@@ -712,6 +712,8 @@ static int __init gpmc_init(void)
 	} else if (cpu_is_omap34xx()) {
 		ck = "gpmc_fck";
 		l = OMAP34XX_GPMC_BASE;
+		if (cpu_is_ti81xx())
+			l = TI81XX_GPMC_BASE;
 		gpmc_irq = INT_34XX_GPMC_IRQ;
 	} else if (cpu_is_omap44xx()) {
 		ck = "gpmc_ck";
