@@ -37,7 +37,7 @@
 #define OMAP2430_MDM_MOD				0xc00
 
 /* IVA2 module is < base on 3430 */
-#define OMAP3430_IVA2_MOD				-0x800
+#define OMAP3430_IVA2_MOD				0x800
 #define OMAP3430ES2_SGX_MOD				GFX_MOD
 #define OMAP3430_CCR_MOD				PLL_MOD
 #define OMAP3430_DSS_MOD				0x600
