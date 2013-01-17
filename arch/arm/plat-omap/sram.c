@@ -361,6 +361,10 @@ static inline int omap34xx_sram_init(void)
 
 int __init omap_sram_init(void)
 {
+	/* do not init sram for TI81XX, it doesn't work for now... */
+	if (cpu_is_ti81xx())
+		return 0;
+
 	omap_detect_sram();
 	omap_map_sram();
 
