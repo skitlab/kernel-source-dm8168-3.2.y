@@ -85,6 +85,8 @@
 #define OMAP2_EMU_IO_OFFSET		0xaa800000	/* Emulation */
 #define OMAP2_EMU_IO_ADDRESS(pa)	IOMEM((pa) + OMAP2_EMU_IO_OFFSET)
 
+#define TI81XX_L4_SLOW_IO_ADDRESS(pa)	IOMEM((pa) + OMAP2_L4_IO_OFFSET) /* L4 */
+
 /*
  * ----------------------------------------------------------------------------
  * Omap1 specific IO mapping
