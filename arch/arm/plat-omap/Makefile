@@ -3,8 +3,13 @@
 #
 
 # Common support
+ifeq ($(CONFIG_SOC_OMAPTI81XX),y)
+obj-y := common.o sram.o clock.o devices.o mux.o \
+	 usb.o fb.o io.o counter_32k.o sdma2edma.o
+else
 obj-y := common.o sram.o clock.o devices.o dma.o mux.o \
 	 usb.o fb.o io.o counter_32k.o
+endif
 obj-m :=
 obj-n :=
 obj-  :=

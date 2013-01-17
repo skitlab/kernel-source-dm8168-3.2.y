@@ -23,6 +23,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 #include <asm/pmu.h>
+#include <asm/hardware/edma.h>
 
 #include <plat/tc.h>
 #include <plat/board.h>
@@ -673,6 +674,172 @@ static inline void omap_init_vout(void) {}
 
 /*-------------------------------------------------------------------------*/
 
+#ifdef CONFIG_SOC_OMAPTI81XX
+
+#define TI81XX_TPCC_BASE		0x49000000
+#define TI81XX_TPTC0_BASE		0x49800000
+#define TI81XX_TPTC1_BASE		0x49900000
+#define TI81XX_TPTC2_BASE		0x49a00000
+#define TI81XX_TPTC3_BASE		0x49b00000
+
+#define TI81XX_SCM_BASE_EDMA		0x00000f90
+
+static struct resource ti81xx_edma_resources[] = {
+	{
+		.name	= "edma_cc0",
+		.start	= TI81XX_TPCC_BASE,
+		.end	= TI81XX_TPCC_BASE + SZ_32K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "edma_tc0",
+		.start	= TI81XX_TPTC0_BASE,
+		.end	= TI81XX_TPTC0_BASE + SZ_1K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "edma_tc1",
+		.start	= TI81XX_TPTC1_BASE,
+		.end	= TI81XX_TPTC1_BASE + SZ_1K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "edma_tc2",
+		.start	= TI81XX_TPTC2_BASE,
+		.end	= TI81XX_TPTC2_BASE + SZ_1K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "edma_tc3",
+		.start	= TI81XX_TPTC3_BASE,
+		.end	= TI81XX_TPTC3_BASE + SZ_1K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "edma0",
+		.start	= TI81XX_IRQ_EDMA_COMP,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.name	= "edma0_err",
+		.start	= TI81XX_IRQ_EDMA_ERR,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static const s16 ti816x_dma_rsv_chans[][2] = {
+	/* (offset, number) */
+	{0, 4},
+	{26, 6},
+	{48, 4},
+	{56, 8},
+	{-1, -1}
+};
+
+static const s16 ti816x_dma_rsv_slots[][2] = {
+	/* (offset, number) */
+	{0, 4},
+	{26, 6},
+	{48, 4},
+	{56, 8},
+	{64, 127},
+	{-1, -1}
+};
+
+/* Four Transfer Controllers on TI816X */
+static const s8 ti816x_queue_tc_mapping[][2] = {
+	/* {event queue no, TC no} */
+	{0, 0},
+	{1, 1},
+	{2, 2},
+	{3, 3},
+	{-1, -1}
+};
+
+static const s8 ti816x_queue_priority_mapping[][2] = {
+	/* {event queue no, Priority} */
+	{0, 0},
+	{1, 1},
+	{2, 2},
+	{3, 3},
+	{-1, -1}
+};
+
+static struct edma_soc_info ti816x_edma_info[] = {
+	{
+		.n_channel		= 64,
+		.n_region		= 5,	/* 0-2, 4-5 */
+		.n_slot			= 512,
+		.n_tc			= 4,
+		.n_cc			= 1,
+		.rsv_chans		= ti816x_dma_rsv_chans,
+		.rsv_slots		= ti816x_dma_rsv_slots,
+		.queue_tc_mapping	= ti816x_queue_tc_mapping,
+		.queue_priority_mapping	= ti816x_queue_priority_mapping,
+	},
+};
+
+static struct platform_device ti816x_edma_device = {
+	.name		= "edma",
+	.id		= -1,
+	.dev = {
+		.platform_data = ti816x_edma_info,
+	},
+	.num_resources	= ARRAY_SIZE(ti81xx_edma_resources),
+	.resource	= ti81xx_edma_resources,
+};
+
+int __init ti81xx_register_edma(void)
+{
+	struct platform_device *pdev;
+	static struct clk *edma_clk;
+
+	if (cpu_is_ti816x())
+		pdev = &ti816x_edma_device;
+	else {
+		pr_err("%s: platform not supported\n", __func__);
+		return -ENODEV;
+	}
+
+	edma_clk = clk_get(NULL, "tpcc_ick");
+	if (IS_ERR(edma_clk)) {
+		printk(KERN_ERR "EDMA: Failed to get clock\n");
+		return -EBUSY;
+	}
+	clk_enable(edma_clk);
+	edma_clk = clk_get(NULL, "tptc0_ick");
+	if (IS_ERR(edma_clk)) {
+		printk(KERN_ERR "EDMA: Failed to get clock\n");
+		return -EBUSY;
+	}
+	clk_enable(edma_clk);
+	edma_clk = clk_get(NULL, "tptc1_ick");
+	if (IS_ERR(edma_clk)) {
+		printk(KERN_ERR "EDMA: Failed to get clock\n");
+		return -EBUSY;
+	}
+	clk_enable(edma_clk);
+	edma_clk = clk_get(NULL, "tptc2_ick");
+	if (IS_ERR(edma_clk)) {
+		printk(KERN_ERR "EDMA: Failed to get clock\n");
+		return -EBUSY;
+	}
+	clk_enable(edma_clk);
+	edma_clk = clk_get(NULL, "tptc3_ick");
+	if (IS_ERR(edma_clk)) {
+		printk(KERN_ERR "EDMA: Failed to get clock\n");
+		return -EBUSY;
+	}
+	clk_enable(edma_clk);
+
+
+	return platform_device_register(pdev);
+}
+
+#endif
+
+/*-------------------------------------------------------------------------*/
+
 static int __init omap2_init_devices(void)
 {
 	/*
@@ -690,6 +857,9 @@ static int __init omap2_init_devices(void)
 	omap_init_sham();
 	omap_init_aes();
 	omap_init_vout();
+#ifdef CONFIG_SOC_OMAPTI81XX
+	ti81xx_register_edma();
+#endif
 
 	return 0;
 }
