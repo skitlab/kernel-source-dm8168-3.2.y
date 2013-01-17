@@ -208,31 +208,44 @@ static inline void omap_hsmmc_mux(struct omap_mmc_platform_data *mmc_controller,
 					OMAP_PIN_INPUT_PULLUP);
 	if (cpu_is_omap34xx()) {
 		if (controller_nr == 0) {
-			omap_mux_init_signal("sdmmc1_clk",
-				OMAP_PIN_INPUT_PULLUP);
-			omap_mux_init_signal("sdmmc1_cmd",
-				OMAP_PIN_INPUT_PULLUP);
-			omap_mux_init_signal("sdmmc1_dat0",
-				OMAP_PIN_INPUT_PULLUP);
-			if (mmc_controller->slots[0].caps &
-				(MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA)) {
-				omap_mux_init_signal("sdmmc1_dat1",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc1_dat2",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc1_dat3",
-					OMAP_PIN_INPUT_PULLUP);
-			}
-			if (mmc_controller->slots[0].caps &
-						MMC_CAP_8_BIT_DATA) {
-				omap_mux_init_signal("sdmmc1_dat4",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc1_dat5",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc1_dat6",
-					OMAP_PIN_INPUT_PULLUP);
-				omap_mux_init_signal("sdmmc1_dat7",
-					OMAP_PIN_INPUT_PULLUP);
+			if (cpu_is_ti816x()) {
+				omap_mux_init_signal("mmc_pow", OMAP_PULL_ENA);
+				omap_mux_init_signal("mmc_clk", OMAP_PIN_OUTPUT);
+				omap_mux_init_signal("mmc_cmd", OMAP_PULL_UP);
+				omap_mux_init_signal("mmc_dat0", OMAP_PULL_UP);
+				omap_mux_init_signal("mmc_dat1_sdirq", OMAP_PULL_UP);
+				omap_mux_init_signal("mmc_dat2_sdrw", OMAP_PULL_UP);
+				omap_mux_init_signal("mmc_dat3", OMAP_PULL_UP);
+				omap_mux_init_signal("mmc_sdcd", OMAP_PULL_ENA);
+				omap_mux_init_signal("mmc_sdwp", OMAP_PULL_ENA);
+			} else {
+				omap_mux_init_signal("sdmmc1_clk",
+									 OMAP_PIN_INPUT_PULLUP);
+				omap_mux_init_signal("sdmmc1_cmd",
+									 OMAP_PIN_INPUT_PULLUP);
+				omap_mux_init_signal("sdmmc1_dat0",
+									 OMAP_PIN_INPUT_PULLUP);
+				if (mmc_controller->slots[0].caps &
+					(MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA)) {
+					omap_mux_init_signal("sdmmc1_dat1",
+										 OMAP_PIN_INPUT_PULLUP);
+					omap_mux_init_signal("sdmmc1_dat2",
+										 OMAP_PIN_INPUT_PULLUP);
+					omap_mux_init_signal("sdmmc1_dat3",
+										 OMAP_PIN_INPUT_PULLUP);
+				}
+			
+				if (mmc_controller->slots[0].caps &
+					MMC_CAP_8_BIT_DATA) {
+					omap_mux_init_signal("sdmmc1_dat4",
+										 OMAP_PIN_INPUT_PULLUP);
+					omap_mux_init_signal("sdmmc1_dat5",
+										 OMAP_PIN_INPUT_PULLUP);
+					omap_mux_init_signal("sdmmc1_dat6",
+										 OMAP_PIN_INPUT_PULLUP);
+					omap_mux_init_signal("sdmmc1_dat7",
+										 OMAP_PIN_INPUT_PULLUP);
+				}
 			}
 		}
 		if (controller_nr == 1) {
@@ -288,6 +301,9 @@ static int __init omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
 		return -ENOMEM;
 	}
 
+	if (cpu_is_ti816x())
+		mmc->version = MMC_CTRL_VERSION_2;
+
 	if (c->name)
 		strncpy(hc_name, c->name, HSMMC_NAME_LEN);
 	else
@@ -300,6 +316,8 @@ static int __init omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
 	mmc->dma_mask = 0xffffffff;
 	if (cpu_is_omap44xx())
 		mmc->reg_offset = OMAP4_MMC_REG_OFFSET;
+	else if (cpu_is_ti816x())
+		mmc->reg_offset = 0x100;
 	else
 		mmc->reg_offset = 0;
 
@@ -338,7 +356,7 @@ static int __init omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
 	 */
 	mmc->slots[0].ocr_mask = c->ocr_mask;
 
-	if (cpu_is_omap3517() || cpu_is_omap3505())
+	if (cpu_is_omap3517() || cpu_is_omap3505() || cpu_is_ti81xx())
 		mmc->slots[0].set_power = nop_mmc_set_power;
 	else
 		mmc->slots[0].features |= HSMMC_HAS_PBIAS;

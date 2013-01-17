@@ -22,8 +22,10 @@
 
 #include <plat/irqs.h>
 #include <plat/board.h>
+#include <plat/mmc.h>
 #include "common.h"
 #include "mux.h"
+#include "hsmmc.h"
 
 static struct omap_board_config_kernel ti81xx_evm_config[] __initdata = {
 };
@@ -56,6 +58,17 @@ static struct omap_board_mux board_mux[] __initdata = {
 #define board_mux	NULL
 #endif
 
+static struct omap2_hsmmc_info mmc[] = {
+	{
+		.mmc		= 1,
+		.caps		= MMC_CAP_4_BIT_DATA,
+		.gpio_cd	= -EINVAL,/* Dedicated pins for CD and WP */
+		.gpio_wp	= -EINVAL,
+		.ocr_mask	= MMC_VDD_33_34,
+	},
+	{}	/* Terminator */
+};
+
 static void __init ti81xx_evm_init(void)
 {
 	ti81xx_mux_init(board_mux);
@@ -63,6 +76,7 @@ static void __init ti81xx_evm_init(void)
 	omap_sdrc_init(NULL, NULL);
 	omap_board_config = ti81xx_evm_config;
 	omap_board_config_size = ARRAY_SIZE(ti81xx_evm_config);
+	omap2_hsmmc_init(mmc);
 }
 
 MACHINE_START(TI8168EVM, "ti8168evm")

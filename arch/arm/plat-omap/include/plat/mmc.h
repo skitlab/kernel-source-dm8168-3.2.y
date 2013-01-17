@@ -31,6 +31,11 @@
 
 #define OMAP_MMC_MAX_SLOTS	2
 
+enum {
+	MMC_CTRL_VERSION_1 = 0, /* OMAP class devicess */
+	MMC_CTRL_VERSION_2      /* TI816X class devicess */
+};
+
 /*
  * struct omap_mmc_dev_attr.flags possibilities
  *
@@ -166,6 +171,8 @@ struct omap_mmc_platform_data {
 		unsigned int ban_openended:1;
 
 	} slots[OMAP_MMC_MAX_SLOTS];
+
+	u8 version;
 };
 
 /* called from board-specific card detection service routine */
