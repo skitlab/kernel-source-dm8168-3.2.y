@@ -15,11 +15,13 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/omapfb.h>
+#include <linux/memblock.h>
 
 #include <plat/common.h>
 #include <plat/board.h>
 #include <plat/vram.h>
 #include <plat/dsp.h>
+#include <plat/ti81xx_ram.h>
 
 
 #define NO_LENGTH_CHECK 0xffffffff
@@ -58,6 +60,28 @@ const void *__init __omap_get_config(u16 tag, size_t len, int nr)
 const void *__init omap_get_var_config(u16 tag, size_t *len)
 {
         return get_config(tag, NO_LENGTH_CHECK, 0, len);
+}
+
+void  __init ti81xx_reserve(void)
+{
+	/* Reserve 1MB for strongly ordered mapping for dram barrier */
+	extern phys_addr_t dram_sync_phys;
+	u32 size = ALIGN(PAGE_SIZE, SZ_1M);
+
+	dram_sync_phys = memblock_alloc(size, SZ_1M);
+
+	if (!dram_sync_phys) {
+		pr_err("%s: ### failed to reserve ddr\n", __func__);
+	} else {
+		pr_info("%s: ### Reserved DDR region @%p\n", __func__,
+				(void *)dram_sync_phys);
+	}
+
+	memblock_free(dram_sync_phys, size);
+	memblock_remove(dram_sync_phys, size);
+
+	ti81xxfb_reserve_sdram_memblock();
+	ti81xx_pcie_mem_reserve_sdram_memblock();
 }
 
 void __init omap_reserve(void)

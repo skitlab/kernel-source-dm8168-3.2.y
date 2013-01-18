@@ -34,6 +34,9 @@ extern int __init omap_init_clocksource_32k(void);
 extern unsigned long long notrace omap_32k_sched_clock(void);
 
 extern void omap_reserve(void);
+extern void ti81xx_reserve(void);
 void omap_sram_init(void);
+
+static inline void ti81xx_pcie_mem_reserve_sdram_memblock(void) { }
 
 #endif /* __ARCH_ARM_MACH_OMAP_COMMON_H */

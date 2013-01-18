@@ -1,0 +1,12 @@
+
+config TI81XX_VPSS_VRAM_SIZE
+	int "VRAM size (MB)"
+	range 0 256
+	default 50
+	---help---
+	  The amount of SDRAM to reserve at boot time for video RAM use.
+	  This VRAM will be used by ti81xxfb and other drivers that need
+	  large continuous RAM area for video use.
+
+	  You can also set this with "vram=<bytes>" kernel argument, or
+	  in the board file.

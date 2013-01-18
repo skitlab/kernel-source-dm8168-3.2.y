@@ -39,6 +39,7 @@ MACHINE_START(TI8168EVM, "ti8168evm")
 	/* Maintainer: Texas Instruments */
 	.atag_offset	= 0x100,
 	.map_io		= ti81xx_map_io,
+	.reserve	= ti81xx_reserve,
 	.init_early	= ti81xx_init_early,
 	.init_irq	= ti81xx_init_irq,
 	.timer		= &omap3_timer,

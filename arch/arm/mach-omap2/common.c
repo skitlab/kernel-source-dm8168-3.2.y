@@ -16,6 +16,9 @@
 #include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <plat/ti81xx.h>
+
+#include <asm/mach/map.h>
 
 #include "common.h"
 #include <plat/board.h>
@@ -27,6 +30,47 @@
 #include "control.h"
 
 /* Global address base setup code */
+phys_addr_t dram_sync_phys;
+void __iomem *dram_sync;
+void __iomem *sram_sync;
+
+static int __init omap_barriers_init(void)
+{
+	struct map_desc ram_io_desc[2];
+	u32 size = ALIGN(PAGE_SIZE, SZ_1M);
+
+	/*if (!cpu_is_ti81xx())
+		return -ENODEV;
+	*/
+
+	if (!dram_sync_phys) {
+		pr_err("%s: failed to reserve ddr\n", __func__);
+		return -ENOMEM;
+	}
+
+	ram_io_desc[0].virtual = TI81XX_DRAM_BARRIER_VA;
+	ram_io_desc[0].pfn = __phys_to_pfn(dram_sync_phys);
+	ram_io_desc[0].length = size;
+	ram_io_desc[0].type = MT_MEMORY_SO;
+
+	ram_io_desc[1].virtual = TI81XX_SRAM_BARRIER_VA;
+	ram_io_desc[1].pfn = __phys_to_pfn(TI81XX_OCMC0_BASE);
+	ram_io_desc[1].length = size;
+	ram_io_desc[1].type = MT_MEMORY_SO;
+
+	iotable_init(ram_io_desc, ARRAY_SIZE(ram_io_desc));
+
+	dram_sync = (void __iomem *)ram_io_desc[0].virtual;
+	sram_sync = (void __iomem *)ram_io_desc[1].virtual;
+
+	pr_info("TI81XX: Map 0x%08lx to 0x%08lx for dram barrier\n",
+		(long unsigned int) dram_sync_phys, ram_io_desc[0].virtual);
+	pr_info("TI81XX: Map 0x%08lx to 0x%08lx for sram barrier\n",
+		(long unsigned int) TI81XX_OCMC0_BASE, ram_io_desc[1].virtual);
+
+	return 0;
+}
+core_initcall(omap_barriers_init);
 
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 
