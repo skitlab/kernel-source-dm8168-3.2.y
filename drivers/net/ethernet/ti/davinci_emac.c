@@ -306,6 +306,9 @@ static const char emac_version_string[] = "TI DaVinci EMAC Linux v6.1";
 /* EMAC Stats Clear Mask */
 #define EMAC_STATS_CLR_MASK    (0xFFFFFFFF)
 
+/* EMAC MAX number of IRQ lines */
+#define MAX_MODULE_IRQS 4
+
 /* emac_priv: EMAC private data structure
  *
  * EMAC adapter private data structure
@@ -342,6 +345,10 @@ struct emac_priv {
 	/*platform specific members*/
 	void (*int_enable) (void);
 	void (*int_disable) (void);
+	/*snapshot of IRQs */
+	u32 irqs_table[MAX_MODULE_IRQS];
+	u32 num_irqs;
+	u32 gigabit_en; /* Is gigabit capable AND enabled */
 };
 
 /* clock frequency for EMAC */
@@ -977,6 +984,7 @@ static irqreturn_t emac_irq(int irq, void *dev_id)
 {
 	struct net_device *ndev = (struct net_device *)dev_id;
 	struct emac_priv *priv = netdev_priv(ndev);
+	int i;
 
 	++priv->isr_count;
 	if (likely(netif_running(priv->ndev))) {
@@ -985,6 +993,10 @@ static irqreturn_t emac_irq(int irq, void *dev_id)
 	} else {
 		/* we are closing down, so dont process anything */
 	}
+
+	for (i = 0; i < priv->num_irqs; i++)
+		disable_irq_nosync(priv->irqs_table[i]);
+
 	return IRQ_HANDLED;
 }
 
@@ -1413,8 +1425,12 @@ static int emac_poll(struct napi_struct *napi, int budget)
 					&emac_rxhost_errcodes[cause][0], ch);
 		}
 	} else if (num_rx_pkts < budget) {
+		int i;
+
 		napi_complete(napi);
 		emac_int_enable(priv);
+		for (i = 0; i < priv->num_irqs; i++)
+			enable_irq(priv->irqs_table[i]);
 	}
 
 	return num_rx_pkts;
@@ -1507,6 +1523,64 @@ static int match_first_device(struct device *dev, void *data)
 	return 1;
 }
 
+#define PHY_CONFIG_REG 22
+static void emac_set_phy_config(struct emac_priv *priv, struct phy_device *phy)
+{
+	struct emac_platform_data *pdata = priv->pdev->dev.platform_data;
+	struct mii_bus *miibus;
+	int phy_addr = 0;
+	u16 val = 0;
+	u16 tmp = 0;
+
+	if (!pdata->gigabit_en)
+		return;
+
+	if (!phy)
+		return;
+
+	miibus = phy->bus;
+
+	if (!miibus)
+		return;
+
+	phy_addr = phy->addr;
+
+	/* Following lines enable gigbit advertisement capability even in case
+	 * the advertisement is not enabled by default
+	 */
+	val = miibus->read(miibus, phy_addr, MII_BMCR);
+	val |= (BMCR_SPEED100 | BMCR_ANENABLE | BMCR_FULLDPLX);
+	miibus->write(miibus, phy_addr, MII_BMCR, val);
+	tmp = miibus->read(miibus, phy_addr, MII_BMCR);
+
+	tmp = miibus->read(miibus, phy_addr, MII_BMSR);
+	if (tmp & 0x1) {
+		val = miibus->read(miibus, phy_addr, MII_CTRL1000);
+		val |= BIT(9);
+		miibus->write(miibus, phy_addr, MII_CTRL1000, val);
+		tmp = miibus->read(miibus, phy_addr, MII_CTRL1000);
+	}
+
+	val = miibus->read(miibus, phy_addr, MII_ADVERTISE);
+	val |= (ADVERTISE_10HALF | ADVERTISE_10FULL |						\
+			ADVERTISE_100HALF | ADVERTISE_100FULL);
+	miibus->write(miibus, phy_addr, MII_ADVERTISE, val);
+	tmp = miibus->read(miibus, phy_addr, MII_ADVERTISE);
+
+	/* TODO : This check is required. This should be
+	 * moved to a board init section as its specific
+	 * to a phy.*/
+	if ((phy->phy_id == 0x0282F013) || (phy->phy_id == 0x0282F014)) {
+		/* This enables TX_CLK-ing in case of 10/100MBps operation */
+		val = miibus->read(miibus, phy_addr, PHY_CONFIG_REG);
+		val |= BIT(5);
+		miibus->write(miibus, phy_addr, PHY_CONFIG_REG, val);
+		tmp = miibus->read(miibus, phy_addr, PHY_CONFIG_REG);
+	}
+
+	return;
+}
+
 /**
  * emac_dev_open: EMAC device open
  * @ndev: The DaVinci EMAC network adapter
@@ -1523,7 +1597,7 @@ static int emac_dev_open(struct net_device *ndev)
 	u32 cnt;
 	struct resource *res;
 	int q, m, ret;
-	int i = 0;
+	int i = 0, irq_num = 0;
 	int k = 0;
 	struct emac_priv *priv = netdev_priv(ndev);
 
@@ -1553,14 +1627,17 @@ static int emac_dev_open(struct net_device *ndev)
 
 	/* Request IRQ */
 
+	priv->num_irqs = 0;
 	while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, k))) {
 		for (i = res->start; i <= res->end; i++) {
 			if (request_irq(i, emac_irq, IRQF_DISABLED,
 					ndev->name, ndev))
 				goto rollback;
+			priv->irqs_table[irq_num++] = i;
 		}
 		k++;
 	}
+	priv->num_irqs = irq_num;
 
 	/* Start/Enable EMAC hardware */
 	emac_hw_enable(priv);
@@ -1597,6 +1674,8 @@ static int emac_dev_open(struct net_device *ndev)
 			priv->phydev = NULL;
 			return PTR_ERR(priv->phydev);
 		}
+
+		emac_set_phy_config(priv, priv->phydev);
 
 		priv->link = 0;
 		priv->speed = 0;

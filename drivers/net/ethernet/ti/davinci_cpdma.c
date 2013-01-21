@@ -821,6 +821,8 @@ int cpdma_chan_stop(struct cpdma_chan *chan)
 	chan->state = CPDMA_STATE_TEARDOWN;
 	dma_reg_write(ctlr, chan->int_clear, chan->mask);
 
+	spin_unlock_irqrestore(&chan->lock, flags);
+
 	/* trigger teardown */
 	dma_reg_write(ctlr, chan->td, chan->chan_num);
 
@@ -845,6 +847,7 @@ int cpdma_chan_stop(struct cpdma_chan *chan)
 	spin_lock_irqsave(&chan->lock, flags);
 
 	/* remaining packets haven't been tx/rx'ed, clean them up */
+	spin_lock_irqsave(&chan->lock, flags);
 	while (chan->head) {
 		struct cpdma_desc __iomem *desc = chan->head;
 		dma_addr_t next_dma;
