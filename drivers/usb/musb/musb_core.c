@@ -536,6 +536,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 	}
 
 	if (int_usb & MUSB_INTR_VBUSERROR) {
+		struct usb_hcd *hcd = musb_to_hcd(musb);
 		int	ignore = 0;
 
 		/* During connection as an A-Device, we may see a short
@@ -575,6 +576,13 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 				musb->port1_status |=
 					  USB_PORT_STAT_OVERCURRENT
 					| (USB_PORT_STAT_C_OVERCURRENT << 16);
+
+				if (hcd->status_urb)
+					usb_hcd_poll_rh_status(hcd);
+				else
+					usb_hcd_resume_root_hub(hcd);
+
+				MUSB_HST_MODE(musb);
 			}
 			break;
 		default:
@@ -1029,7 +1037,8 @@ static void musb_shutdown(struct platform_device *pdev)
 	|| defined(CONFIG_USB_MUSB_OMAP2PLUS)		\
 	|| defined(CONFIG_USB_MUSB_OMAP2PLUS_MODULE)	\
 	|| defined(CONFIG_USB_MUSB_AM35X)		\
-	|| defined(CONFIG_USB_MUSB_AM35X_MODULE)
+	|| defined(CONFIG_USB_MUSB_AM35X_MODULE) \
+	|| defined(CONFIG_USB_MUSB_TI81XX)
 static ushort __initdata fifo_mode = 4;
 #elif defined(CONFIG_USB_MUSB_UX500)			\
 	|| defined(CONFIG_USB_MUSB_UX500_MODULE)
@@ -2229,7 +2238,7 @@ static int __exit musb_remove(struct platform_device *pdev)
 
 #ifdef	CONFIG_PM
 
-static void musb_save_context(struct musb *musb)
+void musb_save_context(struct musb *musb)
 {
 	int i;
 	void __iomem *musb_base = musb->mregs;
@@ -2302,9 +2311,10 @@ static void musb_save_context(struct musb *musb)
 				musb_read_rxhubport(musb_base, i);
 		}
 	}
+	musb_writeb(musb_base, MUSB_INDEX, musb->context.index);
 }
 
-static void musb_restore_context(struct musb *musb)
+void musb_restore_context(struct musb *musb)
 {
 	int i;
 	void __iomem *musb_base = musb->mregs;
@@ -2407,7 +2417,9 @@ static int musb_suspend(struct device *dev)
 
 static int musb_resume_noirq(struct device *dev)
 {
-	/* for static cmos like DaVinci, register values were preserved
+    /* clocks are getting enabled in glue layer and thus restore
+     * would get called from glue layers.
+     * for static cmos like DaVinci, register values were preserved
 	 * unless for some reason the whole soc powered down or the USB
 	 * module got reset through the PSC (vs just being disabled).
 	 */
