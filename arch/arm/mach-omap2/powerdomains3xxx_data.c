@@ -33,7 +33,7 @@
  * Powerdomains
  */
 
-static struct powerdomain iva2_pwrdm = {
+struct powerdomain iva2_pwrdm = {
 	.name		  = "iva2_pwrdm",
 	.prcm_offs	  = OMAP3430_IVA2_MOD,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
@@ -54,7 +54,7 @@ static struct powerdomain iva2_pwrdm = {
 	.voltdm           = { .name = "mpu_iva" },
 };
 
-static struct powerdomain mpu_3xxx_pwrdm = {
+struct powerdomain mpu_3xxx_pwrdm = {
 	.name		  = "mpu_pwrdm",
 	.prcm_offs	  = MPU_MOD,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
@@ -80,7 +80,7 @@ static struct powerdomain mpu_3xxx_pwrdm = {
  *  which applies to 3430 <= ES3.1, but since the SAR feature
  *  is broken, do not use it.
  */
-static struct powerdomain core_3xxx_pre_es3_1_pwrdm = {
+struct powerdomain core_3xxx_pre_es3_1_pwrdm = {
 	.name		  = "core_pwrdm",
 	.prcm_offs	  = CORE_MOD,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
@@ -318,3 +318,4 @@ void __init omap3xxx_powerdomains_init(void)
 
 	pwrdm_complete_init();
 }
+

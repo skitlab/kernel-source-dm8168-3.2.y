@@ -224,10 +224,12 @@ extern void omap242x_powerdomains_init(void);
 extern void omap243x_powerdomains_init(void);
 extern void omap3xxx_powerdomains_init(void);
 extern void omap44xx_powerdomains_init(void);
+extern void ti81xx_powerdomains_init(void);
 
 extern struct pwrdm_ops omap2_pwrdm_operations;
 extern struct pwrdm_ops omap3_pwrdm_operations;
 extern struct pwrdm_ops omap4_pwrdm_operations;
+extern struct pwrdm_ops ti81xx_pwrdm_operations;
 
 /* Common Internal functions used across OMAP rev's */
 extern u32 omap2_pwrdm_get_mem_bank_onstate_mask(u8 bank);
@@ -235,6 +237,9 @@ extern u32 omap2_pwrdm_get_mem_bank_retst_mask(u8 bank);
 extern u32 omap2_pwrdm_get_mem_bank_stst_mask(u8 bank);
 
 extern struct powerdomain wkup_omap2_pwrdm;
+extern struct powerdomain iva2_pwrdm;
+extern struct powerdomain mpu_3xxx_pwrdm;
+extern struct powerdomain core_3xxx_pre_es3_1_pwrdm;
 extern struct powerdomain gfx_omap2_pwrdm;
 
 
