@@ -24,6 +24,7 @@
 #include <plat/l4_3xxx.h>
 #include <plat/dmtimer.h>
 #include <plat/mmc.h>
+#include <plat/mcspi.h>
 #include <plat/ti81xx.h>
 
 #include "omap_hwmod_common_data.h"
@@ -91,6 +92,7 @@ static struct omap_hwmod ti81xx_usbss_hwmod;
 static struct omap_hwmod ti81xx_elm_hwmod;
 static struct omap_hwmod ti816x_mmc1_hwmod;
 static struct omap_hwmod ti816x_iva_hwmod;
+static struct omap_hwmod ti816x_mcspi1_hwmod;
 
 static struct omap_hwmod_ocp_if ti816x_l4_slow__uart1;
 static struct omap_hwmod_ocp_if ti816x_l4_slow__uart2;
@@ -1223,6 +1225,87 @@ static struct omap_hwmod ti816x_iva_hwmod = {
 	.masters_cnt	= ARRAY_SIZE(ti816x_iva_masters),
 };
 
+/*
+ * MCSPI
+ */
+
+struct omap_hwmod_addr_space ti816x_mcspi1_addr_space[] = {
+	{
+		.pa_start	= TI816X_SPI0_BASE + 0x100,
+		.pa_end		= TI816X_SPI0_BASE - 0x100 + SZ_4K - 1,
+		.flags		= ADDR_TYPE_RT,
+	},
+	{ }
+};
+
+/* l4 core -> mcspi1 interface */
+static struct omap_hwmod_ocp_if ti816x_l4_core__mcspi1 = {
+	.master		= &ti816x_l4_slow_hwmod,
+	.slave		= &ti816x_mcspi1_hwmod,
+	.clk		= "mcspi1_ick",
+	.addr		= ti816x_mcspi1_addr_space,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/* mcspi1 */
+static struct omap_hwmod_ocp_if *ti816x_mcspi1_slaves[] = {
+	&ti816x_l4_core__mcspi1,
+};
+
+static struct omap_hwmod_class_sysconfig ti816x_mcspi_sysc = {
+	.rev_offs	= 0x0000,
+	.sysc_offs	= 0x0010,
+	.syss_offs	= 0x0014,
+	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_SIDLEMODE |
+				   SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
+				   SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.sysc_fields    = &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class ti816x_mcspi_class = {
+	.name = "mcspi",
+	.sysc = &ti816x_mcspi_sysc,
+	.rev = OMAP3_MCSPI_REV,
+};
+
+static struct omap2_mcspi_dev_attr ti816x_mcspi1_dev_attr = {
+	.num_chipselect = 4,
+};
+
+struct omap_hwmod_irq_info ti816x_mcspi1_mpu_irqs[] = {
+	{ .irq = TI81XX_IRQ_SPI },
+	{ .irq = -1 }
+};
+
+struct omap_hwmod_dma_info ti816x_mcspi1_sdma_reqs[] = {
+	{ .name = "tx0", .dma_req = OMAP24XX_DMA_SPI1_TX0 },
+	{ .name = "rx0", .dma_req = OMAP24XX_DMA_SPI1_RX0 },
+	{ .name = "tx1", .dma_req = OMAP24XX_DMA_SPI1_TX1 },
+	{ .name = "rx1", .dma_req = OMAP24XX_DMA_SPI1_RX1 },
+	{ .name = "tx2", .dma_req = OMAP24XX_DMA_SPI1_TX2 },
+	{ .name = "rx2", .dma_req = OMAP24XX_DMA_SPI1_RX2 },
+	{ .name = "tx3", .dma_req = OMAP24XX_DMA_SPI1_TX3 },
+	{ .name = "rx3", .dma_req = OMAP24XX_DMA_SPI1_RX3 },
+	{ .dma_req = -1 }
+};
+
+static struct omap_hwmod ti816x_mcspi1_hwmod = {
+	.name		= "mcspi1",
+	.mpu_irqs	= ti816x_mcspi1_mpu_irqs,
+	.sdma_reqs	= ti816x_mcspi1_sdma_reqs,
+	.main_clk	= "mcspi1_fck",
+	.prcm		= {
+		.omap4 = {
+			.clkctrl_offs = TI81XX_CM_ALWON_SPI_CLKCTRL_OFF,
+		},
+	},
+	.slaves		= ti816x_mcspi1_slaves,
+	.slaves_cnt	= ARRAY_SIZE(ti816x_mcspi1_slaves),
+	.class		= &ti816x_mcspi_class,
+	.dev_attr   = &ti816x_mcspi1_dev_attr,
+};
+
 static __initdata struct omap_hwmod *ti816x_hwmods[] = {
 	&ti816x_l3_slow_hwmod,
 	&ti816x_l4_slow_hwmod,
@@ -1255,6 +1338,8 @@ static __initdata struct omap_hwmod *ti816x_hwmods[] = {
 	&ti816x_mmc1_hwmod,
 
 	&ti816x_iva_hwmod,
+
+	&ti816x_mcspi1_hwmod,
 	NULL,
 };
 

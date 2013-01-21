@@ -93,4 +93,6 @@
 
 #define TI816X_MMC0_BASE	0x48060000
 
+#define TI816X_SPI0_BASE	0x48030000
+
 #endif /* __ASM_ARCH_TI81XX_H */
