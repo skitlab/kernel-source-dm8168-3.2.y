@@ -88,7 +88,12 @@ struct omap_musb_board_data {
 	u8	mode;
 	u16	power;
 	unsigned extvbus:1;
-	void	(*set_phy_power)(u8 on);
+	u8	instances;
+	u8	babble_ctrl;
+	u8	txfifo_intr_enable;
+	u8	usbphy_rxcalib_enable;
+	u8	phyctrl_enable;
+	void	(*set_phy_power)(u8 id, u8 on);
 	void	(*clear_irq)(void);
 	void	(*set_mode)(u8 mode);
 	void	(*reset)(void);
@@ -114,6 +119,7 @@ extern void am35x_musb_reset(void);
 extern void am35x_musb_phy_power(u8 on);
 extern void am35x_musb_clear_irq(void);
 extern void am35x_set_mode(u8 musb_mode);
+extern void ti81xx_musb_phy_power(u8 id, u8 on);
 
 /*
  * FIXME correct answer depends on hmc_mode,
@@ -292,5 +298,92 @@ static inline u32 omap1_usb2_init(unsigned nwires, unsigned alt_pingroup)
 	return 0;
 }
 #endif
+
+/* DMA registers */
+#define TI81XX_USB_AUTOREQ_REG	0xd0
+#define TI81XX_USB_TEARDOWN_REG	0xd8
+#define USB_AUTOREQ_REG		0x14
+#define USB_TEARDOWN_REG	0x1c
+#define MOP_SOP_INTR_ENABLE	0x64
+/* 0x68-0x6c Reserved */
+#define USB_TX_MODE_REG		0x70	/* Transparent, CDC, [Generic] RNDIS */
+#define USB_RX_MODE_REG		0x74	/* Transparent, CDC, [Generic] RNDIS */
+#define EP_COUNT_MODE_REG	0x78
+#define USB_GENERIC_RNDIS_EP_SIZE_REG(n) (0x80 + (((n) - 1) << 2))
+
+#define QUEUE_THRESHOLD_INTR_ENABLE_REG	0xc0
+#define	QUEUE_63_THRESHOLD_REG	0xc4
+#define QUEUE_63_THRESHOLD_INTR_CLEAR_REG 0xc8
+#define	QUEUE_65_THRESHOLD_REG	0xd4
+#define QUEUE_65_THRESHOLD_INTR_CLEAR_REG 0xd8
+
+/* Mode register bits */
+#define USB_MODE_SHIFT(n)	((((n) - 1) << 1))
+#define USB_MODE_MASK(n)	(3 << USB_MODE_SHIFT(n))
+#define USB_RX_MODE_SHIFT(n)	USB_MODE_SHIFT(n)
+#define USB_TX_MODE_SHIFT(n)	USB_MODE_SHIFT(n)
+#define USB_RX_MODE_MASK(n)	USB_MODE_MASK(n)
+#define USB_TX_MODE_MASK(n)	USB_MODE_MASK(n)
+#define USB_TRANSPARENT_MODE	0
+#define USB_RNDIS_MODE		1
+#define USB_CDC_MODE		2
+#define USB_GENERIC_RNDIS_MODE	3
+#define USB_INFINITE_DMAMODE	4
+#define MAX_GRNDIS_PKTSIZE	(64 * 1024)
+
+/* AutoReq register bits */
+#define USB_RX_AUTOREQ_SHIFT(n) (((n) - 1) << 1)
+#define USB_RX_AUTOREQ_MASK(n)	(3 << USB_RX_AUTOREQ_SHIFT(n))
+#define USB_NO_AUTOREQ		0
+#define USB_AUTOREQ_ALL_BUT_EOP 1
+#define USB_AUTOREQ_ALWAYS	3
+
+/* Teardown register bits */
+#define USB_TX_TDOWN_SHIFT(n)	(16 + (n))
+#define USB_TX_TDOWN_MASK(n)	(1 << USB_TX_TDOWN_SHIFT(n))
+#define USB_RX_TDOWN_SHIFT(n)	(n)
+#define USB_RX_TDOWN_MASK(n)	(1 << USB_RX_TDOWN_SHIFT(n))
+
+#define USB_CPPI41_NUM_CH	15
+
+/* TI81XX specific definitions */
+#define TI81XX_USBCTRL0				0x0620
+#define TI81XX_USBSTAT0				0x0624
+#define TI81XX_USBCTRL1				0x0628
+#define TI81XX_USBSTAT1				0x062c
+
+/* TI816X PHY controls bits */
+#define	TI816X_USBPHY0_NORMAL_MODE		(1 << 0)
+#define	TI816X_USBPHY1_NORMAL_MODE		(1 << 1)
+#define	TI816X_USBPHY_REFCLK_OSC		(1 << 8)
+#define TI816X_PHYCTRL0				0x0624
+#define TI816X_PHYCTRL1				0x062c
+#define TI816X_PHY_TXRISETUNE			1
+#define TI816X_PHY_TXVREFTUNE			0xc
+#define TI816X_PHY_TXPREEMTUNE			0x2
+
+
+/* TI814X PHY controls bits */
+#define TI814X_USBPHY_CM_PWRDN		(1 << 0)
+#define TI814X_USBPHY_OTG_PWRDN		(1 << 1)
+#define TI814X_USBPHY_CHGDET_DIS	(1 << 2)
+#define TI814X_USBPHY_CHGDET_RSTRT	(1 << 3)
+#define TI814X_USBPHY_SRCONDM		(1 << 4)
+#define TI814X_USBPHY_SINKONDP		(1 << 5)
+#define TI814X_USBPHY_CHGISINK_EN	(1 << 6)
+#define TI814X_USBPHY_CHGVSRC_EN	(1 << 7)
+#define TI814X_USBPHY_DMPULLUP		(1 << 8)
+#define TI814X_USBPHY_DPPULLUP		(1 << 9)
+#define TI814X_USBPHY_CDET_EXTCTL	(1 << 10)
+#define TI814X_USBPHY_GPIO_MODE		(1 << 12)
+#define TI814X_USBPHY_DPOPBUFCTL	(1 << 13)
+#define TI814X_USBPHY_DMOPBUFCTL	(1 << 14)
+#define TI814X_USBPHY_DPINPUT		(1 << 15)
+#define TI814X_USBPHY_DMINPUT		(1 << 16)
+#define TI814X_USBPHY_DPGPIO_PD		(1 << 17)
+#define TI814X_USBPHY_DMGPIO_PD		(1 << 18)
+#define TI814X_USBPHY_OTGVDET_EN	(1 << 19)
+#define TI814X_USBPHY_OTGSESSEND_EN	(1 << 20)
+#define TI814X_USBPHY_DATA_POLARITY	(1 << 23)
 
 #endif	/* __ASM_ARCH_OMAP_USB_H */

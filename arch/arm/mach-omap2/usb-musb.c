@@ -34,6 +34,7 @@
 #include "mux.h"
 
 static struct musb_hdrc_config musb_config = {
+	.fifo_mode	= 4,
 	.multipoint	= 1,
 	.dyn_fifo	= 1,
 	.num_eps	= 16,
@@ -43,7 +44,7 @@ static struct musb_hdrc_config musb_config = {
 static struct musb_hdrc_platform_data musb_plat = {
 #ifdef CONFIG_USB_MUSB_OTG
 	.mode		= MUSB_OTG,
-#elif defined(CONFIG_USB_MUSB_HDRC_HCD)
+#elif defined(CONFIG_USB_MUSB_HDRC)
 	.mode		= MUSB_HOST,
 #elif defined(CONFIG_USB_GADGET_MUSB_HDRC)
 	.mode		= MUSB_PERIPHERAL,
@@ -84,7 +85,7 @@ void __init usb_musb_init(struct omap_musb_board_data *musb_board_data)
 	 * REVISIT: This line can be removed once all the platforms using
 	 * musb_core.c have been converted to use use clkdev.
 	 */
-	musb_plat.clock = "ick";
+	musb_plat.clock = "usb_ick";
 	musb_plat.board_data = board_data;
 	musb_plat.power = board_data->power >> 1;
 	musb_plat.mode = board_data->mode;
@@ -96,6 +97,31 @@ void __init usb_musb_init(struct omap_musb_board_data *musb_board_data)
 	} else if (cpu_is_ti81xx()) {
 		oh_name = "usb_otg_hs";
 		name = "musb-ti81xx";
+
+		musb_config.fifo_mode = 4;
+		board_data->txfifo_intr_enable = 1;
+		board_data->usbphy_rxcalib_enable = 1;
+		board_data->phyctrl_enable = 1;
+
+		/* disable multipoint for ti816x for ES1_0/1_1 */
+		if (cpu_is_ti816x()) {
+			board_data->usbphy_rxcalib_enable = 0;
+			if (omap_rev() < TI8168_REV_ES2_0) {
+				musb_config.multipoint = 0;
+				board_data->babble_ctrl = 1;
+				board_data->txfifo_intr_enable = 0;
+			}
+		} else if (cpu_is_ti814x() && (omap_rev() < TI8148_REV_ES2_0)) {
+			board_data->txfifo_intr_enable = 0;
+		}
+
+        /* only usb0 port enabled in peripheral mode*/
+		if (board_data->mode == MUSB_PERIPHERAL) {
+			board_data->instances = 0;
+			musb_config.fifo_mode = 6;
+		}
+
+		board_data->set_phy_power = ti81xx_musb_phy_power;
 	} else {
 		oh_name = "usb_otg_hs";
 		name = "musb-omap2430";

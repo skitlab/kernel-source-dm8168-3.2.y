@@ -260,3 +260,64 @@ void am35x_set_mode(u8 musb_mode)
 
 	omap_ctrl_writel(devconf2, AM35XX_CONTROL_DEVCONF2);
 }
+
+void ti81xx_musb_phy_power(u8 id, u8 on)
+{
+	u32 usbphycfg, ctrl_offs;
+
+	ctrl_offs = id ? TI81XX_USBCTRL1 : TI81XX_USBCTRL0;
+	usbphycfg = omap_ctrl_readl(ctrl_offs);
+
+	if (on) {
+		if (cpu_is_ti816x()) {
+			u32 phy_ctrl_offs, phy_ctrl_reg;
+
+			usbphycfg |= (TI816X_USBPHY0_NORMAL_MODE
+						  | TI816X_USBPHY1_NORMAL_MODE);
+			usbphycfg &= ~(TI816X_USBPHY_REFCLK_OSC);
+
+			/* fine tuning phy parameters in phy control
+			 * register to generate symmetrical eye diagram
+			 * and better signal quality
+			 */
+			phy_ctrl_offs = id ? TI816X_PHYCTRL1 : TI816X_PHYCTRL0;
+			phy_ctrl_reg = omap_ctrl_readl(phy_ctrl_offs);
+			phy_ctrl_reg |= TI816X_PHY_TXRISETUNE |
+				TI816X_PHY_TXVREFTUNE |
+				TI816X_PHY_TXPREEMTUNE;
+			omap_ctrl_writel(phy_ctrl_reg, phy_ctrl_offs);
+
+		} else if (cpu_is_ti814x()) {
+			usbphycfg &= ~(TI814X_USBPHY_CM_PWRDN
+						   | TI814X_USBPHY_OTG_PWRDN
+						   | TI814X_USBPHY_DMPULLUP
+						   | TI814X_USBPHY_DPPULLUP
+						   | TI814X_USBPHY_DPINPUT
+						   | TI814X_USBPHY_DMINPUT
+						   | TI814X_USBPHY_DATA_POLARITY);
+			usbphycfg |= (TI814X_USBPHY_SRCONDM
+						  | TI814X_USBPHY_SINKONDP
+						  | TI814X_USBPHY_CHGISINK_EN
+						  | TI814X_USBPHY_CHGVSRC_EN
+						  | TI814X_USBPHY_CDET_EXTCTL
+						  | TI814X_USBPHY_DPOPBUFCTL
+						  | TI814X_USBPHY_DMOPBUFCTL
+						  | TI814X_USBPHY_DPGPIO_PD
+						  | TI814X_USBPHY_DMGPIO_PD
+						  | TI814X_USBPHY_OTGVDET_EN
+						  | TI814X_USBPHY_OTGSESSEND_EN);
+		}
+
+		omap_ctrl_writel(usbphycfg, ctrl_offs);
+	} else {
+		if (cpu_is_ti816x())
+			usbphycfg &= ~(TI816X_USBPHY0_NORMAL_MODE
+						   | TI816X_USBPHY1_NORMAL_MODE
+						   | TI816X_USBPHY_REFCLK_OSC);
+		else if (cpu_is_ti814x())
+			usbphycfg |= TI814X_USBPHY_CM_PWRDN
+				| TI814X_USBPHY_OTG_PWRDN;
+
+		omap_ctrl_writel(usbphycfg, ctrl_offs);
+	}
+}
