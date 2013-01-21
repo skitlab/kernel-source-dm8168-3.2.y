@@ -22,6 +22,10 @@
 #include <linux/regulator/gpio-regulator.h>
 #endif
 
+#include <linux/spi/spi.h>
+#include <linux/spi/flash.h>
+#include <linux/mtd/physmap.h>
+
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -167,6 +171,54 @@ static void __init ti816x_gpio_vr_init(void)
 static inline void ti816x_gpio_vr_init(void) {}
 #endif
 
+struct mtd_partition ti816x_spi_partitions[] = {
+	/* All the partition sizes are listed in terms of NAND block size */
+	{
+		.name		= "U-Boot",
+		.offset		= 0,	/* Offset = 0x0 */
+		.size		= 64 * SZ_4K,
+		.mask_flags	= MTD_WRITEABLE,	/* force read-only */
+	},
+	{
+		.name		= "U-Boot Env",
+		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x40000 */
+		.size		= 2 * SZ_4K,
+	},
+	{
+		.name		= "Kernel",
+		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x42000 */
+		.size		= 640 * SZ_4K,
+	},
+	{
+		.name		= "File System",
+		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x2C2000 */
+		.size		= MTDPART_SIZ_FULL,	/* size = 1.24 MiB */
+	}
+};
+
+const struct flash_platform_data ti816x_spi_flash = {
+	.name		= "w25q32",
+	.parts		= ti816x_spi_partitions,
+	.nr_parts	= ARRAY_SIZE(ti816x_spi_partitions),
+};
+
+struct spi_board_info __initdata ti816x_spi_slave_info[] = {
+	{
+		.modalias		= "w25q32",
+		.platform_data	= &ti816x_spi_flash,
+		.irq			= -1,
+		.max_speed_hz	= 48000000, /* max spi freq */
+		.bus_num		= 1,
+		.chip_select	= 0,
+	},
+};
+
+static void __init ti816x_spi_init(void)
+{
+	spi_register_board_info(ti816x_spi_slave_info,
+							ARRAY_SIZE(ti816x_spi_slave_info));
+}
+
 static void __init ti81xx_evm_init(void)
 {
 	ti81xx_mux_init(board_mux);
@@ -181,6 +233,7 @@ static void __init ti81xx_evm_init(void)
 		ti816x_gpio_vr_init();
 		regulator_has_full_constraints();
 		regulator_use_dummy_regulator();
+		ti816x_spi_init();
 	}
 #endif
 }
