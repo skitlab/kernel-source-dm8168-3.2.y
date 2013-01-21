@@ -104,6 +104,10 @@
 
 #define TA_WAIT_BCON(m) max_t(int, (m)->a_wait_bcon, OTG_TIME_A_WAIT_BCON)
 
+unsigned musb_debug;
+EXPORT_SYMBOL_GPL(musb_debug);
+module_param_named(debug, musb_debug, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(debug, "Debug message level. Default = 0");
 
 #define DRIVER_AUTHOR "Mentor Graphics, Texas Instruments, Nokia"
 #define DRIVER_DESC "Inventra Dual-Role USB Controller Driver"
@@ -323,10 +327,11 @@ void musb_load_testpacket(struct musb *musb)
 	musb_ep_select(musb->mregs, 0);
 	musb_write_fifo(musb->control_ep,
 			sizeof(musb_test_packet), musb_test_packet);
-	musb_writew(regs, MUSB_CSR0, MUSB_CSR0_TXPKTRDY);
 }
 
 /*-------------------------------------------------------------------------*/
+
+#ifdef	CONFIG_USB_MUSB_OTG
 
 /*
  * Handles OTG hnp timeouts, such as b_ase0_brst
@@ -398,6 +403,8 @@ void musb_hnp_stop(struct musb *musb)
 	 */
 	musb->port1_status &= ~(USB_PORT_STAT_C_CONNECTION << 16);
 }
+
+#endif
 
 /*
  * Interrupt Service Routine to record USB "global" interrupts.
@@ -604,6 +611,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 		handled = IRQ_HANDLED;
 
 		switch (musb->xceiv->state) {
+#ifdef CONFIG_USB_OTG
 		case OTG_STATE_A_PERIPHERAL:
 			/* We also come here if the cable is removed, since
 			 * this silicon doesn't report ID-no-longer-grounded.
@@ -620,21 +628,6 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 						? : OTG_TIME_A_WAIT_BCON));
 
 			break;
-		case OTG_STATE_B_IDLE:
-			if (!musb->is_active)
-				break;
-		case OTG_STATE_B_PERIPHERAL:
-			musb_g_suspend(musb);
-			musb->is_active = is_otg_enabled(musb)
-					&& musb->xceiv->gadget->b_hnp_enable;
-			if (musb->is_active) {
-				musb->xceiv->state = OTG_STATE_B_WAIT_ACON;
-				dev_dbg(musb->controller, "HNP: Setting timer for b_ase0_brst\n");
-				mod_timer(&musb->otg_timer, jiffies
-					+ msecs_to_jiffies(
-							OTG_TIME_B_ASE0_BRST));
-			}
-			break;
 		case OTG_STATE_A_WAIT_BCON:
 			if (musb->a_wait_bcon != 0)
 				musb_platform_try_idle(musb, jiffies
@@ -648,6 +641,22 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 		case OTG_STATE_B_HOST:
 			/* Transition to B_PERIPHERAL, see 6.8.2.6 p 44 */
 			dev_dbg(musb->controller, "REVISIT: SUSPEND as B_HOST\n");
+			break;
+#endif
+		case OTG_STATE_B_IDLE:
+			if (!musb->is_active)
+				break;
+		case OTG_STATE_B_PERIPHERAL:
+			musb_g_suspend(musb);
+			musb->is_active = is_otg_enabled(musb)
+				&& musb->xceiv->gadget->b_hnp_enable;
+			if (musb->is_active) {
+				musb->xceiv->state = OTG_STATE_B_WAIT_ACON;
+				dev_dbg(musb->controller, "HNP: Setting timer for b_ase0_brst\n");
+				mod_timer(&musb->otg_timer, jiffies
+						  + msecs_to_jiffies(
+							  OTG_TIME_B_ASE0_BRST));
+			}
 			break;
 		default:
 			/* "should not happen" */
@@ -728,6 +737,7 @@ b_host:
 		handled = IRQ_HANDLED;
 
 		switch (musb->xceiv->state) {
+#ifdef CONFIG_USB_MUSB_HDRC
 		case OTG_STATE_A_HOST:
 		case OTG_STATE_A_SUSPEND:
 			usb_hcd_resume_root_hub(musb_to_hcd(musb));
@@ -736,6 +746,8 @@ b_host:
 				musb_platform_try_idle(musb, jiffies
 					+ msecs_to_jiffies(musb->a_wait_bcon));
 			break;
+#endif	/* HOST */
+#ifdef CONFIG_USB_MUSB_OTG
 		case OTG_STATE_B_HOST:
 			/* REVISIT this behaves for "real disconnect"
 			 * cases; make sure the other transitions from
@@ -754,10 +766,13 @@ b_host:
 			/* FALLTHROUGH */
 		case OTG_STATE_B_WAIT_ACON:
 			/* FALLTHROUGH */
+#endif	/* OTG */
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
 		case OTG_STATE_B_PERIPHERAL:
 		case OTG_STATE_B_IDLE:
 			musb_g_disconnect(musb);
 			break;
+#endif	/* GADGET */
 		default:
 			WARNING("unhandled DISCONNECT transition (%s)\n",
 				otg_state_string(musb->xceiv->state));
@@ -1474,6 +1489,13 @@ static int __init musb_core_init(u16 musb_type, struct musb *musb)
 	return 0;
 }
 
+void musb_reinit(u16 musb_type, struct musb *musb)
+{
+	musb_core_init(musb_type ? MUSB_CONTROLLER_MHDRC
+				   : MUSB_CONTROLLER_HDRC, musb);
+}
+EXPORT_SYMBOL(musb_reinit);
+
 /*-------------------------------------------------------------------------*/
 
 #if defined(CONFIG_SOC_OMAP2430) || defined(CONFIG_SOC_OMAP3430) || \
@@ -1523,6 +1545,14 @@ irqreturn_t musb_interrupt(struct musb *musb)
 	dev_dbg(musb->controller, "** IRQ %s usb%04x tx%04x rx%04x\n",
 		(devctl & MUSB_DEVCTL_HM) ? "host" : "peripheral",
 		musb->int_usb, musb->int_tx, musb->int_rx);
+
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
+	if (is_otg_enabled(musb) || is_peripheral_enabled(musb))
+		if (!musb->gadget_driver) {
+			DBG(5, "No gadget driver loaded\n");
+			return IRQ_HANDLED;
+		}
+#endif
 
 	/* the core can interrupt us for multiple reasons; docs have
 	 * a generic interrupt flowchart to follow
@@ -1601,7 +1631,7 @@ void musb_dma_completion(struct musb *musb, u8 epnum, u8 transmit)
 
 	if (!epnum) {
 #ifndef CONFIG_USB_TUSB_OMAP_DMA
-		if (!is_cppi_enabled()) {
+		if (!is_cppi_enabled(musb) && !is_cppi41_enabled(musb)) {
 			/* endpoint 0 */
 			if (devctl & MUSB_DEVCTL_HM)
 				musb_h_ep0_irq(musb);
@@ -1722,6 +1752,8 @@ musb_vbus_show(struct device *dev, struct device_attribute *attr, char *buf)
 }
 static DEVICE_ATTR(vbus, 0644, musb_vbus_show, musb_vbus_store);
 
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
+
 /* Gadget drivers can't know that a host is connected so they might want
  * to start SRP, but users can.  This allows userspace to trigger SRP.
  */
@@ -1745,10 +1777,14 @@ musb_srp_store(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR(srp, 0644, NULL, musb_srp_store);
 
+#endif /* CONFIG_USB_GADGET_MUSB_HDRC */
+
 static struct attribute *musb_attributes[] = {
 	&dev_attr_mode.attr,
 	&dev_attr_vbus.attr,
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	&dev_attr_srp.attr,
+#endif
 	NULL
 };
 
@@ -1781,6 +1817,7 @@ allocate_instance(struct device *dev,
 	struct musb		*musb;
 	struct musb_hw_ep	*ep;
 	int			epnum;
+#ifdef CONFIG_USB_MUSB_HDRC
 	struct usb_hcd	*hcd;
 
 	hcd = usb_create_hcd(&musb_hc_driver, dev, dev_name(dev));
@@ -1798,6 +1835,12 @@ allocate_instance(struct device *dev,
 
 	musb->vbuserr_retry = VBUSERR_RETRY_COUNT;
 	musb->a_wait_bcon = OTG_TIME_A_WAIT_BCON;
+#else
+	musb = kzalloc(sizeof *musb, GFP_KERNEL);
+	if (!musb)
+		return NULL;
+
+#endif
 	dev_set_drvdata(dev, musb);
 	musb->mregs = mbase;
 	musb->ctrl_base = mbase;
@@ -1827,7 +1870,9 @@ static void musb_free(struct musb *musb)
 	sysfs_remove_group(&musb->controller->kobj, &musb_attr_group);
 #endif
 
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	musb_gadget_cleanup(musb);
+#endif
 
 	if (musb->nIrq >= 0) {
 		if (musb->irq_wake)
@@ -1838,7 +1883,7 @@ static void musb_free(struct musb *musb)
 		struct dma_controller	*c = musb->dma_controller;
 
 		(void) c->stop(c);
-		dma_controller_destroy(c);
+		musb->ops->dma_controller_destroy(c);
 	}
 
 	kfree(musb);
@@ -1858,6 +1903,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	int			status;
 	struct musb		*musb;
 	struct musb_hdrc_platform_data *plat = dev->platform_data;
+	struct platform_device *pdev = to_platform_device(dev);
 
 	/* The driver might handle more features than the board; OK.
 	 * Fail when the board needs a feature that's not enabled.
@@ -1865,6 +1911,43 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	if (!plat) {
 		dev_dbg(dev, "no platform_data?\n");
 		status = -ENODEV;
+		goto fail0;
+	}
+	
+	switch (plat->mode) {
+	case MUSB_HOST:
+#ifdef CONFIG_USB_MUSB_HDRC
+		break;
+#else
+		goto bad_config;
+#endif
+	case MUSB_PERIPHERAL:
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
+		break;
+#else
+		goto bad_config;
+#endif
+	case MUSB_OTG:
+#ifdef CONFIG_USB_MUSB_OTG
+		break;
+#else
+#ifdef CONFIG_USB_MUSB_HDRC
+		plat->mode = MUSB_HOST;
+#endif
+
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
+		plat->mode = MUSB_PERIPHERAL;
+#endif
+		dev_info(dev, "degrade from otg to %s-only mode\n",
+				 (plat->mode == MUSB_HOST) ? "host" : "peripheral");
+		break;
+#endif
+#ifndef CONFIG_USB_MUSB_OTG
+	bad_config:
+#endif
+	default:
+		dev_err(dev, "incompatible Kconfig role setting\n");
+		status = -EINVAL;
 		goto fail0;
 	}
 
@@ -1884,6 +1967,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	musb->board_set_power = plat->set_power;
 	musb->min_power = plat->min_power;
 	musb->ops = plat->platform_ops;
+	musb->id = pdev->id;
 
 	/* The musb_platform_init() call:
 	 *   - adjusts musb->mregs and musb->isr if needed,
@@ -1915,7 +1999,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	if (use_dma && dev->dma_mask) {
 		struct dma_controller	*c;
 
-		c = dma_controller_create(musb, musb->mregs);
+		c = musb->ops->dma_controller_create(musb, musb->mregs);
 		musb->dma_controller = c;
 		if (c)
 			(void) c->start(c);
@@ -1936,7 +2020,9 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	if (status < 0)
 		goto fail3;
 
+#ifdef	CONFIG_USB_MUSB_OTG
 	setup_timer(&musb->otg_timer, musb_otg_timer_func, (unsigned long) musb);
+#endif
 
 	/* Init IRQ workqueue before request_irq */
 	INIT_WORK(&musb->irq_work, musb_irq_work);
@@ -1996,6 +2082,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 					& MUSB_DEVCTL_BDEVICE
 				? 'B' : 'A'));
 
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	} else /* peripheral is enabled */ {
 		MUSB_DEV_MODE(musb);
 		musb->xceiv->default_a = 0;
@@ -2007,7 +2094,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 			is_otg_enabled(musb) ? "OTG" : "PERIPHERAL",
 			status,
 			musb_readb(musb->mregs, MUSB_DEVCTL));
-
+#endif
 	}
 	if (status < 0)
 		goto fail3;
@@ -2042,9 +2129,10 @@ fail5:
 fail4:
 	if (!is_otg_enabled(musb) && is_host_enabled(musb))
 		usb_remove_hcd(musb_to_hcd(musb));
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	else
 		musb_gadget_cleanup(musb);
-
+#endif
 fail3:
 	if (musb->irq_wake)
 		device_init_wakeup(dev, 0);
@@ -2079,8 +2167,22 @@ static int __init musb_probe(struct platform_device *pdev)
 	int		status;
 	struct resource	*iomem;
 	void __iomem	*base;
+	char    res_name[20];
 
-	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (pdev->id == -1)
+		strcpy(res_name, "mc");
+	else
+		sprintf(res_name, "musb%d-irq", pdev->id);
+	irq = platform_get_irq_byname(pdev, res_name);
+
+	if (pdev->id == -1)
+		iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	else {
+		sprintf(res_name, "musb%d", pdev->id);
+		iomem = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+											 res_name);
+	}
+
 	if (!iomem || irq <= 0)
 		return -ENODEV;
 

@@ -15,7 +15,7 @@
 
 #include <linux/usb/otg.h>
 
-static struct otg_transceiver *xceiv;
+static struct otg_transceiver *xceiv[2];
 
 /**
  * otg_get_transceiver - find the (single) OTG transceiver
@@ -26,11 +26,11 @@ static struct otg_transceiver *xceiv;
  *
  * For use by USB host and peripheral drivers.
  */
-struct otg_transceiver *otg_get_transceiver(void)
+struct otg_transceiver *otg_get_transceiver(u8 id)
 {
-	if (xceiv)
-		get_device(xceiv->dev);
-	return xceiv;
+	if (xceiv[id])
+		get_device(xceiv[id]->dev);
+	return xceiv[id];
 }
 EXPORT_SYMBOL(otg_get_transceiver);
 
@@ -59,9 +59,9 @@ EXPORT_SYMBOL(otg_put_transceiver);
  */
 int otg_set_transceiver(struct otg_transceiver *x)
 {
-	if (xceiv && x)
+	if (x && xceiv[x->id])
 		return -EBUSY;
-	xceiv = x;
+	xceiv[x->id] = x;
 	return 0;
 }
 EXPORT_SYMBOL(otg_set_transceiver);
@@ -100,3 +100,11 @@ const char *otg_state_string(enum usb_otg_state state)
 	}
 }
 EXPORT_SYMBOL(otg_state_string);
+
+int otg_reset_transceiver(struct otg_transceiver *x)
+{
+	if (x && xceiv[x->id])
+		xceiv[x->id] = NULL;
+	return 0;
+}
+EXPORT_SYMBOL(otg_reset_transceiver);

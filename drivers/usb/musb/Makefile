@@ -42,7 +42,11 @@ ifneq ($(CONFIG_MUSB_PIO_ONLY),y)
         ifeq ($(CONFIG_USB_UX500_DMA),y)
 	  musb_hdrc-y		+= ux500_dma.o
 
-        endif
+		else
+	        ifeq ($(CONFIG_USB_TI_CPPI41_DMA),y)
+		  musb_hdrc-y	+= cppi41.o cppi41_dma.o
+			endif
+		endif
       endif
     endif
   endif

@@ -97,6 +97,8 @@ struct musb_ep;
 
 /****************************** PERIPHERAL ROLE *****************************/
 
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
+
 #define	is_peripheral_capable()	(1)
 
 extern irqreturn_t musb_g_ep0_irq(struct musb *);
@@ -108,13 +110,38 @@ extern void musb_g_resume(struct musb *);
 extern void musb_g_wakeup(struct musb *);
 extern void musb_g_disconnect(struct musb *);
 
+#else
+
+#define	is_peripheral_capable()	(0)
+
+static inline irqreturn_t musb_g_ep0_irq(struct musb *m) { return IRQ_NONE; }
+static inline void musb_g_reset(struct musb *m) {}
+static inline void musb_g_suspend(struct musb *m) {}
+static inline void musb_g_resume(struct musb *m) {}
+static inline void musb_g_wakeup(struct musb *m) {}
+static inline void musb_g_disconnect(struct musb *m) {}
+
+#endif
+
 /****************************** HOST ROLE ***********************************/
+
+#ifdef CONFIG_USB_MUSB_HDRC
 
 #define	is_host_capable()	(1)
 
 extern irqreturn_t musb_h_ep0_irq(struct musb *);
 extern void musb_host_tx(struct musb *, u8);
 extern void musb_host_rx(struct musb *, u8);
+
+#else
+
+#define	is_host_capable()	(0)
+
+static inline irqreturn_t musb_h_ep0_irq(struct musb *m) { return IRQ_NONE; }
+static inline void musb_host_tx(struct musb *m, u8 e) {}
+static inline void musb_host_rx(struct musb *m, u8 e) {}
+
+#endif
 
 /****************************** CONSTANTS ********************************/
 
@@ -204,6 +231,14 @@ enum musb_g_ep0_state {
 
 /******************************** TYPES *************************************/
 
+#define     MUSB_GLUE_TUSB_STYLE   0x0001
+#define     MUSB_GLUE_EP_ADDR_FLAT_MAPPING	0x0002
+#define     MUSB_GLUE_EP_ADDR_INDEXED_MAPPING	0x0004
+#define		MUSB_GLUE_DMA_INVENTRA				0x0008
+#define		MUSB_GLUE_DMA_CPPI					0x0010
+#define		MUSB_GLUE_DMA_TUSB					0x0020
+#define		MUSB_GLUE_DMA_CPPI41				0x0040
+
 /**
  * struct musb_platform_ops - Operations passed to musb_core by HW glue layer
  * @init:	turns on clocks, sets up platform-specific registers, etc
@@ -215,6 +250,8 @@ enum musb_g_ep0_state {
  * @adjust_channel_params: pre check for standard dma channel_program func
  */
 struct musb_platform_ops {
+	short	fifo_mode;
+	unsigned short	flags;
 	int	(*init)(struct musb *musb);
 	int	(*exit)(struct musb *musb);
 
@@ -230,6 +267,15 @@ struct musb_platform_ops {
 	int	(*adjust_channel_params)(struct dma_channel *channel,
 				u16 packet_sz, u8 *mode,
 				dma_addr_t *dma_addr, u32 *len);
+	void (*read_fifo)(struct musb_hw_ep *hw_ep, u16 len, u8 *buf);
+	void (*write_fifo)(struct musb_hw_ep *hw_ep, u16 len, const u8 *buf);
+	struct dma_controller* (*dma_controller_create)(struct musb *,
+													void __iomem *);
+	void (*dma_controller_destroy)(struct dma_controller *);
+	int (*simulate_babble_intr)(struct musb *musb);
+	void (*txfifoempty_intr_enable)(struct musb *musb, u8 ep_num);
+	void (*txfifoempty_intr_disable)(struct musb *musb, u8 ep_num);
+	void (*reinit)(u16 musb_type, struct musb *musb);
 };
 
 /*
@@ -280,6 +326,9 @@ struct musb_hw_ep {
 	/* peripheral side */
 	struct musb_ep		ep_in;			/* TX */
 	struct musb_ep		ep_out;			/* RX */
+
+	u8			xfer_type;
+	u8			prev_toggle;		/* Rx */
 };
 
 static inline struct musb_request *next_in_request(struct musb_hw_ep *hw_ep)
@@ -327,6 +376,8 @@ struct musb {
 
 	irqreturn_t		(*isr)(int, void *);
 	struct work_struct	irq_work;
+	struct work_struct	work;
+	u8			enable_babble_work;
 	u16			hwvers;
 
 /* this hub status bit is reserved by USB 2.0 and not seen by usbcore */
@@ -454,6 +505,19 @@ struct musb {
 #ifdef MUSB_CONFIG_PROC_FS
 	struct proc_dir_entry *proc_entry;
 #endif
+
+	/* id for multiple musb instances */
+	u8			id;
+	struct	timer_list	otg_workaround;
+	unsigned long		last_timer;
+	int			old_state;
+#ifndef CONFIG_MUSB_PIO_ONLY
+	u64			*orig_dma_mask;
+#endif
+	short			fifo_mode;
+	u8			txfifo_intr_enable;
+	u8			is_overcurrent;
+	u8			datatog_fix;
 };
 
 static inline struct musb *gadget_to_musb(struct usb_gadget *g)
@@ -544,6 +608,22 @@ extern irqreturn_t musb_interrupt(struct musb *);
 
 extern void musb_hnp_stop(struct musb *musb);
 
+extern void musb_restore_context(struct musb *musb);
+extern void musb_save_context(struct musb *musb);
+
+static inline void txfifoempty_int_enable(struct musb *musb, u8 ep_num)
+{
+	if (musb->ops->txfifoempty_intr_enable)
+		musb->ops->txfifoempty_intr_enable(musb, ep_num);
+}
+
+static inline void txfifoempty_int_disable(struct musb *musb, u8 ep_num)
+{
+	if (musb->ops->txfifoempty_intr_disable)
+		musb->ops->txfifoempty_intr_disable(musb, ep_num);
+}
+
+
 static inline void musb_platform_set_vbus(struct musb *musb, int is_on)
 {
 	if (musb->ops->set_vbus)
@@ -600,5 +680,7 @@ static inline int musb_platform_exit(struct musb *musb)
 
 	return musb->ops->exit(musb);
 }
+
+extern void musb_reinit(u16 musb_type, struct musb *musb);
 
 #endif	/* __MUSB_CORE_H__ */
