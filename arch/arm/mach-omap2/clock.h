@@ -41,6 +41,9 @@
 #define OMAP4XXX_EN_DPLL_FRBYPASS		0x6
 #define OMAP4XXX_EN_DPLL_LOCKED			0x7
 
+/* TI816X FAPLL_CTRL bits - for ti816x_get_fapll_rate() */
+#define FAPLL_LOW_POWER_BYPASS			0x1
+
 /* CM_CLKEN_PLL*.EN* bit values - not all are available for every DPLL */
 #define DPLL_LOW_POWER_STOP	0x1
 #define DPLL_LOW_POWER_BYPASS	0x5
@@ -48,6 +51,28 @@
 
 /* DPLL Type and DCO Selection Flags */
 #define DPLL_J_TYPE		0x1
+
+/* TI814x ADPLL operating modes */
+#define ADPLL_LOW_POWER_BYPASS			0x0
+#define ADPLL_LOCKED				0x1
+#define ADPLL_LOW_POWER_STOP			0x2
+
+/* ADPLL states */
+#define ST_ADPLL_BYPASSED			(TI814X_ST_BYPASS_MASK|	\
+				TI814X_ST_BYPASS_ACK_MASK)
+#define ST_ADPLL_LOCKED				(TI814X_ST_PHASELOCK_MASK | \
+				TI814X_ST_FREQLOCK_MASK)
+#define ST_ADPLL_RETENTION			0x1
+#define ST_ADPLL_ACTIVE				0x0
+
+/* ADPLL Types */
+#define TI814X_ADPLL_LS_TYPE			0x2
+#define TI814X_ADPLL_LJ_TYPE			0x4
+
+/* ADPLL IDs */
+/* Used for identification of PLL */
+#define TI814X_ARM_DPLL_ID			1
+#define TI814X_DDR_DPLL_ID			2
 
 int omap2_clk_enable(struct clk *clk);
 void omap2_clk_disable(struct clk *clk);
@@ -68,6 +93,31 @@ void omap4_dpllmx_allow_gatectrl(struct clk *clk);
 void omap4_dpllmx_deny_gatectrl(struct clk *clk);
 long omap4_dpll_regm4xen_round_rate(struct clk *clk, unsigned long target_rate);
 unsigned long omap4_dpll_regm4xen_recalc(struct clk *clk);
+
+long ti816x_clk_round_rate(struct clk *clk, unsigned long rate);
+int ti816x_clk_set_rate(struct clk *clk, unsigned long rate);
+int ti816x_clk_set_parent(struct clk *clk, struct clk *new_parent);
+void ti816x_init_fapll_parent(struct clk *clk);
+int ti816x_fapll_set_rate_tolerance(struct clk *clk, unsigned int tolerance);
+unsigned long ti816x_fapll_recalc(struct clk *clk);
+long ti816x_fapll_round_rate(struct clk *clk, unsigned long target_rate);
+int ti816x_fapll_set_rate(struct clk *clk, unsigned long rate);
+int ti816x_fapll_enable(struct clk *clk);
+void ti816x_fapll_disable(struct clk *clk);
+int ti816x_clksel_set_rate(struct clk *clk, unsigned long rate);
+void mcb_clk_sel_pins(int clk, int rate);
+
+void ti814x_init_dpll_parent(struct clk *clk);
+unsigned long ti814x_dpll_recalc(struct clk *clk);
+unsigned long ti814x_dpll_dco_recalc(struct clk *clk);
+int ti814x_dpll_enable(struct clk *clk);
+void ti814x_dpll_disable(struct clk *clk);
+int ti814x_dpll_set_rate(struct clk *clk, unsigned long rate);
+long ti814x_dpll_round_rate(struct clk *clk, unsigned long target_rate);
+int ti814x_clksel_set_rate(struct clk *clk, unsigned long rate);
+
+extern const struct clkops clkops_ti816x_fapll_ops;
+extern const struct clkops clkops_ti814x_dpll_ops;
 
 #ifdef CONFIG_OMAP_RESET_CLOCKS
 void omap2_clk_disable_unused(struct clk *clk);

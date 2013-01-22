@@ -34,6 +34,7 @@
 #include "clock2xxx.h"
 #include "clock3xxx.h"
 #include "clock44xx.h"
+#include "clock81xx.h"
 
 #include "common.h"
 #include <plat/omap-pm.h>
@@ -455,7 +456,7 @@ void __init ti81xx_init_early(void)
 	ti81xx_clockdomains_init();
 	omap3xxx_hwmod_init();
 	omap_hwmod_init_postsetup();
-	omap3xxx_clk_init();
+	ti81xx_clk_init();
 }
 #endif
 

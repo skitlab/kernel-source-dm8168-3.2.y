@@ -507,3 +507,94 @@ int omap2_clksel_set_parent(struct clk *clk, struct clk *new_parent)
 
 	return 0;
 }
+
+#ifdef CONFIG_MACH_TI8168EVM
+
+/**
+ * ti816x_clksel_set_rate() - program clock rate in hardware
+ * @clk: struct clk * to program rate
+ * @rate: target rate to program
+ *
+ * This function is intended to be called by the aduio and some
+ * of the coprocessors. Program @clk's rate to @rate in the hardware.
+ * The clock should be disabled when this happens, otherwise setrate
+ * will fail, because this is treated as clock being used. If multiple
+ * drivers are using the clock, even though it is trying to change
+ * then this return -EINVAL with error message. Returns -EINVAL upon
+ * error, or 0 upon success.
+ */
+int ti816x_clksel_set_rate(struct clk *clk, unsigned long rate)
+{
+	struct clk *pclk;
+	struct clk *fclk;
+	struct fapll_data *fd;
+	int ret, fapll_sr = 0;
+
+	if (clk->usecount == 0) {
+		pr_err("clock: Enable the clock '%s' before setting rate\n",
+			clk->name);
+		return -EINVAL;
+	}
+	if (clk->usecount > 1) {
+		pr_err("clock: '%s' clock is in use can't change the rate "
+			"usecount = '%d'", clk->name, clk->usecount);
+		return -EBUSY;
+	}
+
+	pclk = clk->parent;
+	if (pclk->usecount > 1) {
+		pr_err("clock: '%s' clock's parent '%s' is in use can't"
+			" change the rate usecount = %d", clk->name,
+			pclk->name, pclk->usecount);
+		return -EBUSY;
+	}
+
+	fclk = pclk->parent;
+	/* check the dividers in parent clock */
+	ret = pclk->set_rate(pclk, rate);
+	if (!ret)
+		propagate_rate(pclk);
+	else {
+		if (!fclk->fapll_data)
+			goto failed_set_divider;
+
+		fd = fclk->fapll_data;
+		if (!((fd->fapll_id == 1) || (fd->fapll_id == 4)))
+			goto failed_set_divider;
+
+		if ((fd->fapll_id == 1) && (fclk->synthesizer_id == 2))
+			goto failed_set_divider;
+
+		fapll_sr = 1;
+	}
+
+	if (fapll_sr) {
+		if (fclk->usecount > 1) {
+			pr_err("clock: %s, parent %s is already in use, change"
+				" parent\n", pclk->name, pclk->parent->name);
+			return -EINVAL;
+		}
+
+		/* Changing the FAPLL synthesizer rate */
+		ret = fclk->set_rate(fclk, rate);
+		if (ret) {
+			pr_err("clock: failed to set fapll rate\n");
+			return -EINVAL;
+		}
+
+		/* reset divider */
+		ret = omap2_clksel_set_rate(pclk, fclk->rate);
+		if (ret) {
+			pr_err("clock: failed to reset the divider\n");
+			return -EINVAL;
+		}
+		propagate_rate(fclk);
+	}
+	return 0;
+
+failed_set_divider:
+	pr_err("clock: failed to set divider\n");
+	return -EINVAL;
+}
+
+#endif
