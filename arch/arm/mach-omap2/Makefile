@@ -70,6 +70,7 @@ obj-$(CONFIG_SOC_OMAPTI81XX)	+= pm_bus.o pm81xx.o sleep814x.o
 obj-$(CONFIG_PM_DEBUG)			+= pm-debug.o
 obj-$(CONFIG_OMAP_SMARTREFLEX)          += sr_device.o smartreflex.o
 obj-$(CONFIG_OMAP_SMARTREFLEX_CLASS3)	+= smartreflex-class3.o
+obj-$(CONFIG_TI816X_SMARTREFLEX)	+= smartreflex-ti816x.o
 
 AFLAGS_sleep24xx.o			:=-Wa,-march=armv6
 AFLAGS_sleep34xx.o			:=-Wa,-march=armv7-a$(plus_sec)

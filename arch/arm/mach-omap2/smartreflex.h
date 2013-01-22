@@ -236,6 +236,65 @@ int sr_configure_minmax(struct voltagedomain *voltdm);
 /* API to register the smartreflex class driver with the smartreflex driver */
 int sr_register_class(struct omap_sr_class_data *class_data);
 #else
+
+#ifdef CONFIG_TI816X_SMARTREFLEX
+
+#define SRHVT				0
+#define SRSVT				1
+
+/* SRClk = 100KHz */
+#define SRCLKLENGTH_125MHZ_SYSCLK	(0x271 << 12)
+
+/**
+ * struct ti816x_sr_sdata	- Smartreflex sensors data
+ * @efuse_offs:		The offset of the efuse where n-target values are
+ *			stored.
+ * @e2v_gain:		Error to voltage gain for changing the percentage
+ *			error into voltage delta
+ * @err_weight:		Average sensor error weight
+ * @err_minlimit:	Minimum error limit of the sensor
+ * @err_maxlimit:	Maximum error limit of the sensor
+ * @senn_mod:		Enable bit for N sensor
+ * @senp_mod:		Enable bit for P sensor
+ */
+struct ti816x_sr_sdata {
+	u32	efuse_offs;
+	u32	e2v_gain;
+	u32	err_weight;
+	u32	err_minlimit;
+	u32	err_maxlimit;
+	u32	senn_mod;
+	u32	senp_mod;
+};
+
+/**
+ * struct ti816x_sr_platform_data - Smartreflex platform data.
+ * @sr_sdata:		SR per sensor details, contains the efuse off-sets,
+ *			error to voltage gain factor, minimum error limits
+ * @vd_name:		Name of the voltage domain.
+ * @ip_type:		Smartreflex IP type, class1 or class2 or class3.
+ * @irq_delay:		Time delay between disable and re-enable the
+ *			interrupts, in msec
+ * @no_of_vds:		Number of voltage domains to which SR applicable
+ * @no_of_sens:		Number of SR sensors used to monitor the device
+ *			performance, temp etc...
+ * @vstep_size_uv:	PMIC voltage step size in micro volts
+ * @enable_on_init:	whether this sr module needs to enabled at
+ *			boot up or not.
+ */
+struct ti816x_sr_platform_data {
+	struct ti816x_sr_sdata	*sr_sdata;
+	char			*vd_name;
+	u32			ip_type;
+	u32			irq_delay;
+	u32			no_of_vds;
+	u32			no_of_sens;
+	u32			vstep_size_uv;
+	bool			enable_on_init;
+};
+
+#endif /* CONFIG_TI816X_SMARTREFLEX */
+
 static inline void omap_sr_enable(struct voltagedomain *voltdm) {}
 static inline void omap_sr_disable(struct voltagedomain *voltdm) {}
 static inline void omap_sr_disable_reset_volt(
