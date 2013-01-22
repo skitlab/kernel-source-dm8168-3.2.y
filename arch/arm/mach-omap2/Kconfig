@@ -78,6 +78,8 @@ config SOC_OMAPTI81XX
 	bool "TI81XX support"
 	depends on ARCH_OMAP3
 	default y
+	select MIGHT_HAVE_PCI
+	select ARCH_SUPPORTS_MSI
 
 config SOC_OMAPAM33XX
 	bool "AM33XX support"

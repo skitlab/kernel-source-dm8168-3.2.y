@@ -282,3 +282,11 @@ obj-y					+= $(smsc911x-m) $(smsc911x-y)
 obj-$(CONFIG_ARCH_OMAP4)		+= hwspinlock.o
 
 obj-y					+= common-board-devices.o twl-common.o
+
+ifeq ($(CONFIG_SOC_OMAPTI81XX),y)
+obj-$(CONFIG_PCI)		+= pcie-ti81xx.o
+
+ifeq ($(CONFIG_PCI_DEBUG),y)
+CFLAGS_pcie-ti81xx.o += -DDEBUG
+endif
+endif

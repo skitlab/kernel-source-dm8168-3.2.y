@@ -36,6 +36,7 @@
 #include <plat/omap4-keypad.h>
 
 #include "smartreflex.h"
+#include "pcie-ti81xx.h"
 
 #include "mux.h"
 #include "control.h"
@@ -1140,6 +1141,108 @@ static inline void ti816x_ethernet_init(void) {}
 
 /*-------------------------------------------------------------------------*/
 
+#if defined(CONFIG_SOC_OMAPTI81XX) && defined(CONFIG_PCI)
+static struct ti81xx_pcie_data ti81xx_pcie_data = {
+	.msi_irq_base	= MSI_IRQ_BASE,
+	.msi_irq_num	= MSI_NR_IRQS,
+};
+
+static struct resource ti81xx_pcie_resources[] = {
+	{
+		/* Register space */
+		.name		= "pcie-regs",
+		.start		= TI816X_PCIE_REG_BASE,
+		.end		= TI816X_PCIE_REG_BASE + SZ_16K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		/* Non-prefetch memory */
+		.name		= "pcie-nonprefetch",
+		.start		= TI816X_PCIE_MEM_BASE,
+		.end		= TI816X_PCIE_MEM_BASE + SZ_256M - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		/* IO window */
+		.name		= "pcie-io",
+		.start		= TI816X_PCIE_IO_BASE,
+		.end		= TI816X_PCIE_IO_BASE + SZ_2M + SZ_1M - 1,
+		.flags		= IORESOURCE_IO,
+	},
+	{
+		/* Inbound memory window */
+		.name		= "pcie-inbound0",
+		.start		= (0x80000000),
+		.end		= (0x80000000) + SZ_2G - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		/* Legacy Interrupt */
+		.name		= "legacy_int",
+		.start		= TI81XX_IRQ_PCIINT0,
+		.end		= TI81XX_IRQ_PCIINT0,
+		.flags		= IORESOURCE_IRQ,
+	},
+#ifdef CONFIG_PCI_MSI
+	{
+		/* MSI Interrupt Line */
+		.name		= "msi_int",
+		.start		= TI81XX_IRQ_PCIINT1,
+		.end		= TI81XX_IRQ_PCIINT1,
+		.flags		= IORESOURCE_IRQ,
+	},
+#endif
+};
+
+static struct platform_device ti81xx_pcie_device = {
+	.name		= "ti81xx_pcie",
+	.id		= 0,
+	.dev		= {
+		.platform_data = &ti81xx_pcie_data,
+	},
+	.num_resources	= ARRAY_SIZE(ti81xx_pcie_resources),
+	.resource	= ti81xx_pcie_resources,
+};
+
+static inline void ti81xx_init_pcie(void)
+{
+	if (!cpu_is_ti81xx())
+		return;
+
+	if (cpu_is_ti816x()) {
+		omap_ctrl_writel(TI816X_PCIE_PLLMUX_25X |
+						 TI81XX_PCIE_DEVTYPE_RC,
+						 TI816X_CONTROL_PCIE_CFG);
+
+		/* MSI clearing is "write 0 to clear" */
+		ti81xx_pcie_data.msi_inv = 1;
+
+		ti81xx_pcie_data.device_id = 0xb800;
+	} else if (cpu_is_ti814x()) {
+
+		omap_ctrl_writel(TI81XX_PCIE_DEVTYPE_RC,
+						 TI814X_CONTROL_PCIE_CFG);
+		/*
+		 * Force x1 lane as TI814X only supports x1 while the PCIe
+		 * registers read x2 leading to wrong capability printed form
+		 * PCIe configuration.
+		 */
+		ti81xx_pcie_data.force_x1 = 1;
+
+		if (0 /* cpu_is_dm385() */)
+			ti81xx_pcie_data.device_id = 0xb802;
+		else
+			ti81xx_pcie_data.device_id = 0xb801;
+	}
+
+	platform_device_register(&ti81xx_pcie_device);
+}
+#else
+static inline void ti81xx_init_pcie(void) {}
+#endif
+
+/*-------------------------------------------------------------------------*/
+
 static int __init omap2_init_devices(void)
 {
 	/*
@@ -1164,6 +1267,10 @@ static int __init omap2_init_devices(void)
 	ti816x_sr_init();
 	ti816x_ethernet_init();
 #endif
+#ifdef CONFIG_SOC_OMAPTI81XX
+	ti81xx_init_pcie();
+#endif
+
 	return 0;
 }
 arch_initcall(omap2_init_devices);
