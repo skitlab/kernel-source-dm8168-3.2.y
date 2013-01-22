@@ -63,19 +63,23 @@ struct omap_mux_partition *omap_mux_get(const char *name)
 	return NULL;
 }
 
-u16 omap_mux_read(struct omap_mux_partition *partition, u16 reg)
+u32 omap_mux_read(struct omap_mux_partition *partition, u16 reg)
 {
 	if (partition->flags & OMAP_MUX_REG_8BIT)
 		return __raw_readb(partition->base + reg);
+	if (partition->flags & OMAP_MUX_REG_32BIT)
+		return __raw_readl(partition->base + reg);
 	else
 		return __raw_readw(partition->base + reg);
 }
 
-void omap_mux_write(struct omap_mux_partition *partition, u16 val,
+void omap_mux_write(struct omap_mux_partition *partition, u32 val,
 			   u16 reg)
 {
 	if (partition->flags & OMAP_MUX_REG_8BIT)
 		__raw_writeb(val, partition->base + reg);
+	if (partition->flags & OMAP_MUX_REG_32BIT)
+		__raw_writel(val, partition->base + reg);
 	else
 		__raw_writew(val, partition->base + reg);
 }
@@ -86,7 +90,7 @@ void omap_mux_write_array(struct omap_mux_partition *partition,
 	if (!board_mux)
 		return;
 
-	while (board_mux->reg_offset != OMAP_MUX_TERMINATOR) {
+	while (board_mux->reg_offset != OMAP_MUX_TERMINATOR) { /* limit6715: again - Why can't we use TI816X_CONTROL_PADCONF_MUX_SIZE instead of OMAP_MUX_TERMINATOR? */
 		omap_mux_write(partition, board_mux->value,
 			       board_mux->reg_offset);
 		board_mux++;
@@ -252,7 +256,7 @@ int __init omap_mux_init_signal(const char *muxname, int val)
 	mux_mode |= val;
 	pr_debug("%s: Setting signal %s 0x%04x -> 0x%04x\n",
 			 __func__, muxname, old_mode, mux_mode);
-	omap_mux_write(partition, mux_mode, mux->reg_offset);
+	omap_mux_write(partition, (u32)mux_mode, mux->reg_offset);
 
 	return 0;
 }
@@ -435,7 +439,7 @@ void omap_hwmod_mux(struct omap_hwmod_mux_info *hmux, u8 state)
 	}
 
 /* REVISIT: Add checking for non-optimal mux settings */
-static inline void omap_mux_decode(struct seq_file *s, u16 val)
+static inline void omap_mux_decode(struct seq_file *s, u32 val)
 {
 	char *flags[OMAP_MUX_MAX_NR_FLAGS];
 	char mode[sizeof("OMAP_MUX_MODE") + 1];
@@ -489,6 +493,43 @@ static inline void omap_mux_decode(struct seq_file *s, u16 val)
 	} while (i-- > 0);
 }
 
+#ifdef CONFIG_SOC_OMAPTI81XX
+static inline void ti81xx_mux_decode(struct seq_file *s, u32 val)
+{
+	char *flags[OMAP_MUX_MAX_NR_FLAGS];
+	char mode[sizeof("OMAP_MUX_MODE") + 1];
+	int i = -1;
+
+	if (cpu_is_ti816x()) {
+		sprintf(mode, "TI81XX_MUX_MODE%d", val & 0x7);
+		i++;
+		flags[i] = mode;
+
+		switch(val & TI816X_PIN_STATE_MASK ) {
+		case(TI816X_PIN_PULL_UP) :
+			OMAP_MUX_TEST_FLAG(val, TI816X_PIN_PULL_UP);
+			break;
+		case(TI816X_PIN_PULL_DOWN) :
+			OMAP_MUX_TEST_FLAG(val, TI816X_PIN_PULL_DOWN);
+			break;
+		case(TI816X_PIN_PULL_DIS) :
+			OMAP_MUX_TEST_FLAG(val, TI816X_PIN_PULL_DIS);
+			break;
+		default:
+			break;
+
+		};
+	}
+
+	do {
+		seq_printf(s, "%s", flags[i]);
+		if (i > 0)
+			seq_printf(s, " | ");
+	} while (i-- > 0);
+
+}
+#endif /* CONFIG_SOC_OMAPTI81XX */
+
 #define OMAP_MUX_DEFNAME_LEN	32
 
 static int omap_mux_dbg_board_show(struct seq_file *s, void *unused)
@@ -501,7 +542,7 @@ static int omap_mux_dbg_board_show(struct seq_file *s, void *unused)
 		struct omap_mux *m = &e->mux;
 		char m0_def[OMAP_MUX_DEFNAME_LEN];
 		char *m0_name = m->muxnames[0];
-		u16 val;
+		u32 val;
 		int i, mode;
 
 		if (!m0_name)
@@ -525,7 +566,10 @@ static int omap_mux_dbg_board_show(struct seq_file *s, void *unused)
 		 * same OMAP generation.
 		 */
 		seq_printf(s, "OMAP%d_MUX(%s, ", omap_gen, m0_def);
-		omap_mux_decode(s, val);
+		if(cpu_is_ti81xx())
+			ti81xx_mux_decode(s, val);
+		else
+			omap_mux_decode(s, val);
 		seq_printf(s, "),\n");
 	}
 
@@ -568,7 +612,7 @@ static int omap_mux_dbg_signal_show(struct seq_file *s, void *unused)
 	struct omap_mux *m = s->private;
 	struct omap_mux_partition *partition;
 	const char *none = "NA";
-	u16 val;
+	u32 val;
 	int mode;
 
 	partition = omap_mux_get_partition(m);
@@ -584,9 +628,13 @@ static int omap_mux_dbg_signal_show(struct seq_file *s, void *unused)
 			m->balls[0] ? m->balls[0] : none,
 			m->balls[1] ? m->balls[1] : none);
 	seq_printf(s, "mode: ");
-	omap_mux_decode(s, val);
+	if(cpu_is_ti81xx())
+		ti81xx_mux_decode(s, val);
+	else
+		omap_mux_decode(s, val);
 	seq_printf(s, "\n");
-	seq_printf(s, "signals: %s | %s | %s | %s | %s | %s | %s | %s\n",
+	seq_printf(s, "signals: %s | %s | %s | %s | %s | %s | %s "
+			"| %s\n",
 			m->muxnames[0] ? m->muxnames[0] : none,
 			m->muxnames[1] ? m->muxnames[1] : none,
 			m->muxnames[2] ? m->muxnames[2] : none,
@@ -599,7 +647,7 @@ static int omap_mux_dbg_signal_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-#define OMAP_MUX_MAX_ARG_CHAR  7
+#define OMAP_MUX_MAX_ARG_CHAR  11
 
 static ssize_t omap_mux_dbg_signal_write(struct file *file,
 					 const char __user *user_buf,
@@ -635,7 +683,7 @@ static ssize_t omap_mux_dbg_signal_write(struct file *file,
 	if (!partition)
 		return -ENODEV;
 
-	omap_mux_write(partition, (u16)val, m->reg_offset);
+	omap_mux_write(partition, (u32)val, m->reg_offset);
 	*ppos += count;
 
 	return count;
@@ -722,7 +770,7 @@ static int __init omap_mux_late_init(void)
 			struct omap_mux *m = &e->mux;
 			u16 mode = omap_mux_read(partition, m->reg_offset);
 
-			if (OMAP_MODE_GPIO(mode))
+			if (!cpu_is_ti81xx() && OMAP_MODE_GPIO(mode))
 				continue;
 
 #ifndef CONFIG_DEBUG_FS
@@ -840,7 +888,7 @@ static void __init omap_mux_set_cmdline_signals(void)
 			if (res < 0)
 				continue;
 
-			omap_mux_init_signal(name, (u16)val);
+			omap_mux_init_signal(name, (int)val);
 		}
 	}
 
@@ -852,7 +900,11 @@ static int __init omap_mux_copy_names(struct omap_mux *src,
 {
 	int i;
 
-	for (i = 0; i < OMAP_MUX_NR_MODES; i++) {
+	for (i = 0; i < OMAP_MUX_NR_MODES; i++) { /* limit6715: Originally in linux-stable branch 
+												 OMAP_MUX_NR_MODES was 8, in linux-omap3 it's 12 
+												 (There are 12 muxnames in _TI814X_MUXENTRY). I've
+												 decided to keep OMAP_MUX_NR_MODES as 8, because of
+												 _TI816X_MUXENTRY has 8 muxnames */
 		if (src->muxnames[i]) {
 			dst->muxnames[i] = kstrdup(src->muxnames[i],
 						   GFP_KERNEL);
@@ -971,7 +1023,7 @@ static struct omap_mux * __init omap_mux_list_add(
 static void __init omap_mux_init_list(struct omap_mux_partition *partition,
 				      struct omap_mux *superset)
 {
-	while (superset->reg_offset !=  OMAP_MUX_TERMINATOR) {
+	while (superset->reg_offset !=  OMAP_MUX_TERMINATOR) { /* limit6715: Why can't we use TI816X_CONTROL_PADCONF_MUX_SIZE instead of OMAP_MUX_TERMINATOR? */
 		struct omap_mux *entry;
 
 #ifdef CONFIG_OMAP_MUX
@@ -1065,7 +1117,7 @@ int __init omap_mux_init(const char *name, u32 flags,
 	pr_info("%s: Add partition: #%d: %s, flags: %x\n", __func__,
 		mux_partitions_cnt, partition->name, partition->flags);
 
-	omap_mux_init_package(superset, package_subset, package_balls);
+	omap_mux_init_package(superset, package_subset, package_balls); /* limit6715: This line doesn't have any effect */
 	omap_mux_init_list(partition, superset);
 	omap_mux_init_signals(partition, board_mux);
 

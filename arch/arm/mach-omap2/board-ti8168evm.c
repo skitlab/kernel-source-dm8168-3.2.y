@@ -23,12 +23,42 @@
 #include <plat/irqs.h>
 #include <plat/board.h>
 #include "common.h"
+#include "mux.h"
 
 static struct omap_board_config_kernel ti81xx_evm_config[] __initdata = {
 };
 
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+
+	/* PIN mux for non-muxed NOR */
+	TI816X_MUX(TIM7_OUT, OMAP_MUX_MODE1),	/* gpmc_a12 */
+	TI816X_MUX(UART1_CTSN, OMAP_MUX_MODE1),	/* gpmc_a13 */
+	TI816X_MUX(UART1_RTSN, OMAP_MUX_MODE1),	/* gpmc_a14 */
+	TI816X_MUX(UART2_RTSN, OMAP_MUX_MODE1),	/* gpmc_a15 */
+	/* REVISIT: why 2 lines configured as gpmc_a15 */
+	TI816X_MUX(SC1_RST, OMAP_MUX_MODE1),	/* gpmc_a15 */
+	TI816X_MUX(UART2_CTSN, OMAP_MUX_MODE1),	/* gpmc_a16 */
+	TI816X_MUX(UART0_RIN, OMAP_MUX_MODE1),	/* gpmc_a17 */
+	TI816X_MUX(UART0_DCDN, OMAP_MUX_MODE1),	/* gpmc_a18 */
+	TI816X_MUX(UART0_DSRN, OMAP_MUX_MODE1),	/* gpmc_a19 */
+	TI816X_MUX(UART0_DTRN, OMAP_MUX_MODE1),	/* gpmc_a20 */
+	TI816X_MUX(SPI_SCS3, OMAP_MUX_MODE1),	/* gpmc_a21 */
+	TI816X_MUX(SPI_SCS2, OMAP_MUX_MODE1),	/* gpmc_a22 */
+	TI816X_MUX(GP0_IO6, OMAP_MUX_MODE2),	/* gpmc_a23 */
+	TI816X_MUX(TIM6_OUT, OMAP_MUX_MODE1),	/* gpmc-a24 */
+	TI816X_MUX(SC0_DATA, OMAP_MUX_MODE1),	/* gpmc_a25 */
+	/* for controlling high address */
+	TI816X_MUX(GPMC_A27, OMAP_MUX_MODE1),	/* gpio-20 */
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#else
+#define board_mux	NULL
+#endif
+
 static void __init ti81xx_evm_init(void)
 {
+	ti81xx_mux_init(board_mux);
 	omap_serial_init();
 	omap_sdrc_init(NULL, NULL);
 	omap_board_config = ti81xx_evm_config;

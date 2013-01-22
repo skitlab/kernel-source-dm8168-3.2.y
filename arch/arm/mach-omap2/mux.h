@@ -11,6 +11,7 @@
 #include "mux2430.h"
 #include "mux34xx.h"
 #include "mux44xx.h"
+#include "mux81xx.h"
 
 #define OMAP_MUX_TERMINATOR	0xffff
 
@@ -40,6 +41,45 @@
 
 /* 44xx specific mux bit defines */
 #define OMAP_WAKEUP_EVENT		(1 << 15)
+
+/* TI81XX mux mode options for each pin.Go through TRM/DataSheet for details */
+#define TI81XX_MUX_MODE0	0
+#define TI81XX_MUX_MODE1	1
+#define TI81XX_MUX_MODE2	2
+#define TI81XX_MUX_MODE3	3
+#define TI81XX_MUX_MODE4	4
+#define TI81XX_MUX_MODE5	5
+#define TI81XX_MUX_MODE6	6
+#define TI81XX_MUX_MODE7	7
+#define TI81XX_MUX_MODE8	8
+#define TI81XX_MUX_MODE9	9
+#define TI81XX_MUX_MODE10	10
+#define TI81XX_MUX_MODE11	11
+
+/* TI816x Specific mux bit definitions */
+#define TI816X_PULL_DIS			(1 << 3)
+#define TI816X_PULL_UP			(1 << 4)
+
+/* TI814x specific mux bit definitions */
+#define TI814X_PULL_DIS			(1 << 16)
+#define TI814X_PULL_UP			(1 << 17)
+#define TI814X_INPUT_EN			(1 << 18)
+#define TI814X_SLEW_SLOW		(1 << 19)
+
+/* pin active states */
+#define TI816X_PIN_STATE_MASK		(TI816X_PULL_DIS | TI816X_PULL_UP)
+#define TI816X_PIN_PULL_UP		(TI816X_PULL_UP)
+#define TI816X_PIN_PULL_DOWN		(0)
+#define TI816X_PIN_PULL_DIS		(TI816X_PULL_DIS)
+
+#define TI814X_PIN_STATE_MASK		(TI814X_PULL_DIS | TI814X_PULL_UP |\
+					TI814X_INPUT_EN)
+#define TI814X_PIN_INPUT_PULL_DIS	(TI814X_INPUT_EN | TI814X_PULL_DIS)
+#define TI814X_PIN_INPUT_PULL_UP	(TI814X_INPUT_EN | TI814X_PULL_UP)
+#define TI814X_PIN_INPUT_PULL_DOWN	(TI814X_INPUT_EN)
+#define TI814X_PIN_OUTPUT_PULL_DIS	(TI814X_PULL_DIS)
+#define TI814X_PIN_OUTPUT_PULL_UP	(TI814X_PULL_UP)
+#define TI814X_PIN_OUTPUT_PULL_DOWN	(0)
 
 /* Active pin states */
 #define OMAP_PIN_OUTPUT			0
@@ -79,12 +119,14 @@
  * omap_mux_init flags definition:
  *
  * OMAP_MUX_REG_8BIT: Ensure that access to padconf is done in 8 bits.
+ * OMAP_MUX_REG_32BIT: Ensure that access to padconf is done in 32 bits.
  * The default value is 16 bits.
  * OMAP_MUX_GPIO_IN_MODE3: The GPIO is selected in mode3.
  * The default is mode4.
  */
 #define OMAP_MUX_REG_8BIT		(1 << 0)
 #define OMAP_MUX_GPIO_IN_MODE3		(1 << 1)
+#define OMAP_MUX_REG_32BIT		(1 << 2)
 
 /**
  * struct omap_board_data - board specific device data
@@ -126,7 +168,6 @@ struct omap_mux_partition {
  * @gpio:	GPIO number
  * @muxnames:	available signal modes for a ball
  * @balls:	available balls on the package
- * @partition:	mux partition
  */
 struct omap_mux {
 	u16	reg_offset;
@@ -156,7 +197,7 @@ struct omap_ball {
  */
 struct omap_board_mux {
 	u16	reg_offset;
-	u16	value;
+	u32	value;
 };
 
 #define OMAP_DEVICE_PAD_REMUX		BIT(1)	/* Dynamically remux a pad,
@@ -278,7 +319,7 @@ struct omap_mux_partition *omap_mux_get(const char *name);
  * @mux_offset:		Offset of the mux register
  *
  */
-u16 omap_mux_read(struct omap_mux_partition *p, u16 mux_offset);
+u32 omap_mux_read(struct omap_mux_partition *p, u16 mux_offset);
 
 /**
  * omap_mux_write() - write mux register
@@ -288,7 +329,7 @@ u16 omap_mux_read(struct omap_mux_partition *p, u16 mux_offset);
  *
  * This should be only needed for dynamic remuxing of non-gpio signals.
  */
-void omap_mux_write(struct omap_mux_partition *p, u16 val, u16 mux_offset);
+void omap_mux_write(struct omap_mux_partition *p, u32 val, u16 mux_offset);
 
 /**
  * omap_mux_write_array() - write an array of mux registers
@@ -329,6 +370,12 @@ int omap3_mux_init(struct omap_board_mux *board_mux, int flags);
  */
 int omap4_mux_init(struct omap_board_mux *board_subset,
 	struct omap_board_mux *board_wkup_subset, int flags);
+
+/**
+ * ti81xx_mux_init() - initialize mux system along with board specific set
+ * @board_mux:		Board specific mux table
+ */
+int ti81xx_mux_init(struct omap_board_mux *board_mux);
 
 /**
  * omap_mux_init - private mux init function, do not call
