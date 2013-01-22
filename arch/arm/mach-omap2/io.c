@@ -452,7 +452,7 @@ void __init ti81xx_init_early(void)
 	omap_common_init_early();
 	omap3xxx_voltagedomains_init();
 	ti81xx_powerdomains_init();
-	omap3xxx_clockdomains_init();
+	ti81xx_clockdomains_init();
 	omap3xxx_hwmod_init();
 	omap_hwmod_init_postsetup();
 	omap3xxx_clk_init();
