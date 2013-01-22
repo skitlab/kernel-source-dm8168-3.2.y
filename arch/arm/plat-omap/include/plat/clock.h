@@ -171,6 +171,78 @@ struct dpll_data {
 	u8			flags;
 };
 
+/**
+ * struct fapll_data - FAPLL registers and integration data
+ * @fapll_id: Identification number for FAPLL's
+ * @control_reg: register containing the FAPLL N and P bitfields
+ * @mult_mask: mask of the FAPLL N bitfield in @control_reg
+ * @div_mask: mask of the FAPLL P bitfield in @control_reg
+ * @bypass_mask: bypass mask of the FAPLL mode bitfield in @control_reg
+ * @enable_mask: enable mask of the FAPLL mode bitfield in @control_reg
+ * @lock_mask: lock mask of the FAPLL mode bitfield in @control_reg
+ * @lock_sts_mask: lock status mask of the FAPLL mode bitfield in @control_reg
+ * @pwd_reg: register containing the power down bitfields
+ * @clk_bypass: struct clk pointer to the clock's bypass clock input
+ * @clk_ref: struct clk pointer to the clock's reference clock input
+ * @freq_frac_mask: mask of the FAPLL freq fracional part bitfield
+ * @freq_int_mask: mask of the FAPLL freq integer part bitfield
+ * @post_div_mask: mask of the FAPLL post divider bitfield
+ * @ldfreq_mask: mask of the load freq value to synthesizer
+ * @lddiv1_mask: mask to load M value to synthesizer
+ * @trunc_mask: mask for enabling the truncate correction @freq_reg
+ * @bypass_en: Enable value for checking the bypass mode of FAPLL
+ * @modes: possible values of @enable_mask
+ * @rate_tolerance: maximum variance allowed from target rate (in Hz)
+ * @last_rounded_rate: cache of the last rate result of omap2_dpll_round_rate()
+ * @last_rounded_m: cache of the last M result of ti816x_fapll_round_rate()
+ * @last_rounded_freq_int: cache of the last freq integer result
+ * @last_rounded_freq_frac: cache of the last freq fractional result
+ * @mult_n: multiplier value for FAPLL (N)
+ * @pre_div_p: pre divider value for FAPLL (P)
+ * @max_multiplier: maximum valid non-bypass multiplier value (actual)
+ * @min_divider: minimum valid non-bypass divider value (actual)
+ * @max_divider: maximum valid non-bypass divider value (actual)
+ *
+ * XXX @rate_tolerance should probably be deprecated - currently there
+ * don't seem to be any usecases for FAPLL rounding that is not exact.
+ *
+ * XXX The runtime-variable fields (@last_rounded_rate, @last_rounded_m,
+ * @last_rounded_n) should be separated from the runtime-fixed fields
+ * and placed into a differenct structure, so that the runtime-fixed data
+ * can be placed into read-only space.
+ */
+struct fapll_data {
+	int			fapll_id;
+	void __iomem		*control_reg;
+	u32			mult_mask;
+	u32			div_mask;
+	u32			bypass_mask;
+	u32			enable_mask;
+	u32			lock_mask;
+	u32			lock_sts_mask;
+	void __iomem		*pwd_reg;
+	struct clk		*clk_bypass;
+	struct clk		*clk_ref;
+	u32			freq_frac_mask;
+	u32			freq_int_mask;
+	u32			post_div_mask;
+	u32			ldfreq_mask;
+	u32			lddiv1_mask;
+	u32			trunc_mask;
+	u32			bypass_en;
+	u8			modes;
+	unsigned int		rate_tolerance;
+	unsigned long		last_rounded_rate;
+	u8			last_rounded_m;
+	u8			last_rounded_freq_int;
+	u32			last_rounded_freq_frac;
+	u16			mult_n;
+	u8			pre_div_p;
+	u16			max_multiplier;
+	u8			min_divider;
+	u8			max_divider;
+};
+
 #endif
 
 /*
