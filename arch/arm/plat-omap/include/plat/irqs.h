@@ -430,6 +430,14 @@
 #define OMAP_GPMC_NR_IRQS	8
 #define OMAP_GPMC_IRQ_END	(OMAP_GPMC_IRQ_BASE + OMAP_GPMC_NR_IRQS)
 
+/* MSI IRQs (used, for example, in TI81XX) */
+#define MSI_IRQ_BASE		TWL_IRQ_END
+#ifdef CONFIG_PCI_MSI
+#define MSI_NR_IRQS		32
+#else
+#define MSI_NR_IRQS		0
+#endif
+#define MSI_IRQ_END		(MSI_IRQ_BASE + MSI_NR_IRQS)
 
 #define NR_IRQS			OMAP_GPMC_IRQ_END
 
