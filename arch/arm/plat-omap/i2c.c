@@ -81,7 +81,9 @@ static int __init omap_i2c_nr_ports(void)
 {
 	int ports = 0;
 
-	if (cpu_class_is_omap1())
+	if (cpu_is_ti81xx()) /* this MUST be before cpu_is_omap34xx() */
+		ports = 2;
+	else if (cpu_class_is_omap1())
 		ports = 1;
 	else if (cpu_is_omap24xx())
 		ports = 2;
@@ -168,7 +170,8 @@ static inline int omap2_i2c_add_bus(int bus_id)
 	pdata->rev = oh->class->rev;
 
 	dev_attr = (struct omap_i2c_dev_attr *)oh->dev_attr;
-	pdata->flags = dev_attr->flags;
+	if (dev_attr)
+		pdata->flags = dev_attr->flags;
 
 	/*
 	 * When waiting for completion of a i2c transfer, we need to
@@ -177,7 +180,7 @@ static inline int omap2_i2c_add_bus(int bus_id)
 	 * completes.
 	 * Only omap3 has support for constraints
 	 */
-	if (cpu_is_omap34xx())
+	if (cpu_is_omap34xx() && !cpu_is_ti81xx())
 		pdata->set_mpu_wkup_lat = omap_pm_set_max_mpu_wakeup_lat_compat;
 	pdev = omap_device_build(name, bus_id, oh, pdata,
 			sizeof(struct omap_i2c_bus_platform_data),
