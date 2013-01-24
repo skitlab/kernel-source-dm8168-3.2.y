@@ -25,6 +25,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #include <linux/mtd/physmap.h>
+#include <linux/i2c/at24.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -219,10 +220,32 @@ static void __init ti816x_spi_init(void)
 							ARRAY_SIZE(ti816x_spi_slave_info));
 }
 
+static struct i2c_board_info __initdata ti816x_i2c_boardinfo0[] = {
+	{
+		I2C_BOARD_INFO("24c256", 0x50),
+		.flags = I2C_M_TEN,
+	},
+
+};
+
+static struct i2c_board_info __initdata ti816x_i2c_boardinfo1[] = {
+
+};
+
+static int __init ti816x_evm_i2c_init(void)
+{
+	omap_register_i2c_bus(1, 10, ti816x_i2c_boardinfo0,
+		ARRAY_SIZE(ti816x_i2c_boardinfo0));
+	omap_register_i2c_bus(2, 10, ti816x_i2c_boardinfo1,
+		ARRAY_SIZE(ti816x_i2c_boardinfo1));
+	return 0;
+}
+
 static void __init ti81xx_evm_init(void)
 {
 	ti81xx_mux_init(board_mux);
 	omap_serial_init();
+	ti816x_evm_i2c_init();
 	omap_sdrc_init(NULL, NULL);
 	omap_board_config = ti81xx_evm_config;
 	omap_board_config_size = ARRAY_SIZE(ti81xx_evm_config);
