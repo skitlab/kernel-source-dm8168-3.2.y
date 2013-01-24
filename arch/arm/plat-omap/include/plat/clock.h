@@ -290,6 +290,12 @@ struct fapll_data {
  * @clkdm: pointer to struct clockdomain, resolved from @clkdm_name at runtime
  * @rate_offset: bitshift for rate selection bitfield (OMAP1 only)
  * @src_offset: bitshift for source selection bitfield (OMAP1 only)
+ * @synthesizer_id: synthesizer id in a particular FAPLL
+ * @pwd_mask: mask of the FAPLL to put all syn's in power down
+ * @freq_flag: Flag for setting the freq part is persent or not
+ * @fapll_data: for FAPLLs, pointer to struct fapll_data for this clock
+ * @freq_reg: for synthesizer clks, output rate is based on this value
+ * @post_div_reg: register containing M value of FAPLL
  *
  * XXX @rate_offset, @src_offset should probably be removed and OMAP1
  * clock code converted to use clksel.
@@ -338,6 +344,15 @@ struct clk {
 #else
 	u8			rate_offset;
 	u8			src_offset;
+#endif
+#ifdef CONFIG_SOC_OMAPTI81XX
+	u32			synthesizer_id;
+	u32			pwd_mask;
+	u32			freq_flag;
+	struct fapll_data	*fapll_data;
+	void __iomem		*freq_reg;
+	void __iomem		*post_div_reg;
+	u32			div_def_val;
 #endif
 #if defined(CONFIG_PM_DEBUG) && defined(CONFIG_DEBUG_FS)
 	struct dentry		*dent;	/* For visible tree hierarchy */
