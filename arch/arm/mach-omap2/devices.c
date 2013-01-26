@@ -35,6 +35,7 @@
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
 #include <plat/omap4-keypad.h>
+#include <plat/asp.h>
 
 #include "smartreflex.h"
 #include "pcie-ti81xx.h"
@@ -286,6 +287,17 @@ static inline void omap_init_sti(void) {}
 
 #if defined(CONFIG_SND_SOC) || defined(CONFIG_SND_SOC_MODULE)
 
+#if defined(CONFIG_SOC_OMAPTI81XX)
+struct platform_device ti81xx_pcm_device = {
+	.name		= "davinci-pcm-audio",
+	.id		= -1,
+};
+
+static void ti81xx_init_pcm(void)
+{
+	platform_device_register(&ti81xx_pcm_device);
+}
+#else
 static struct platform_device omap_pcm = {
 	.name	= "omap-pcm-audio",
 	.id	= -1,
@@ -316,6 +328,8 @@ static void omap_init_audio(void)
 
 	platform_device_register(&omap_pcm);
 }
+
+#endif /* defined(CONFIG_SOC_OMAPTI81XX) */
 
 #else
 static inline void omap_init_audio(void) {}
@@ -1440,13 +1454,80 @@ static inline void omap_init_ahci(void) {}
 
 /*-------------------------------------------------------------------------*/
 
+#if defined(CONFIG_SOC_OMAPTI81XX)
+static struct resource dm385_mcasp_resource[] = {
+	{
+		.name = "mcasp",
+		.start = TI81XX_ASP1_BASE,
+		.end = TI81XX_ASP1_BASE + (SZ_1K * 12) - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	/* TX event */
+	{
+		.start = TI81XX_DMA_MCASP1_AXEVT,
+		.end = TI81XX_DMA_MCASP1_AXEVT,
+		.flags = IORESOURCE_DMA,
+	},
+	/* RX event */
+	{
+		.start = TI81XX_DMA_MCASP1_AREVT,
+		.end = TI81XX_DMA_MCASP1_AREVT,
+		.flags = IORESOURCE_DMA,
+	},
+};
+
+static struct resource ti81xx_mcasp_resource[] = {
+	{
+		.name = "mcasp",
+		.start = TI81XX_ASP2_BASE,
+		.end = TI81XX_ASP2_BASE + (SZ_1K * 12) - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	/* TX event */
+	{
+		.start = TI81XX_DMA_MCASP2_AXEVT,
+		.end = TI81XX_DMA_MCASP2_AXEVT,
+		.flags = IORESOURCE_DMA,
+	},
+	/* RX event */
+	{
+		.start = TI81XX_DMA_MCASP2_AREVT,
+		.end = TI81XX_DMA_MCASP2_AREVT,
+		.flags = IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device ti81xx_mcasp_device = {
+	.name = "davinci-mcasp",
+};
+
+void __init ti81xx_register_mcasp(int id, struct snd_platform_data *pdata)
+{
+	if (machine_is_ti8168evm() || machine_is_ti8148evm()) {
+		ti81xx_mcasp_device.id = 2;
+		ti81xx_mcasp_device.resource = ti81xx_mcasp_resource;
+		ti81xx_mcasp_device.num_resources = ARRAY_SIZE(ti81xx_mcasp_resource);
+	} else {
+		pr_err("%s: platform not supported\n", __func__);
+		return;
+	}
+
+	ti81xx_mcasp_device.dev.platform_data = pdata;
+	platform_device_register(&ti81xx_mcasp_device);
+}
+#endif
+
+/*-------------------------------------------------------------------------*/
+
 static int __init omap2_init_devices(void)
 {
 	/*
 	 * please keep these calls, and their implementations above,
 	 * in alphabetical order so they're easier to sort through.
 	 */
+#if !defined(CONFIG_SOC_OMAPTI81XX)
 	omap_init_audio();
+#endif
 	omap_init_mcpdm();
 	omap_init_camera();
 	omap_init_mbox();
@@ -1459,12 +1540,11 @@ static int __init omap2_init_devices(void)
 	omap_init_vout();
 #ifdef CONFIG_SOC_OMAPTI81XX
 	ti81xx_register_edma();
-#endif
+	ti81xx_init_pcm();
 #if defined(CONFIG_TI816X_SMARTREFLEX) && defined(CONFIG_MACH_TI8168EVM)
 	ti816x_sr_init();
 	ti816x_ethernet_init();
 #endif
-#ifdef CONFIG_SOC_OMAPTI81XX
 	ti81xx_init_pcie();
 #endif
 	omap_init_ahci();

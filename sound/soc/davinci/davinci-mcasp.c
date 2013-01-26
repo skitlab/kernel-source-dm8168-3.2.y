@@ -104,10 +104,17 @@
 #define DAVINCI_MCASP_RXBUF_REG		0x280
 
 /* McASP FIFO Registers */
+#ifndef CONFIG_SOC_OMAPTI81XX
 #define DAVINCI_MCASP_WFIFOCTL		(0x1010)
 #define DAVINCI_MCASP_WFIFOSTS		(0x1014)
 #define DAVINCI_MCASP_RFIFOCTL		(0x1018)
 #define DAVINCI_MCASP_RFIFOSTS		(0x101C)
+#else
+#define DAVINCI_MCASP_WFIFOCTL		(0x1000)
+#define DAVINCI_MCASP_WFIFOSTS		(0x1004)
+#define DAVINCI_MCASP_RFIFOCTL		(0x1008)
+#define DAVINCI_MCASP_RFIFOSTS		(0x100C)
+#endif
 
 /*
  * DAVINCI_MCASP_PWREMUMGT_REG - Power Down and Emulation Management
@@ -565,7 +572,7 @@ static int davinci_config_channel_size(struct davinci_audio_dev *dev,
 					TXSSZ(fmt), TXSSZ(0x0F));
 	mcasp_mod_bits(dev->base + DAVINCI_MCASP_TXFMT_REG, TXROT(rotate),
 							TXROT(7));
-	mcasp_mod_bits(dev->base + DAVINCI_MCASP_RXFMT_REG, RXROT(rotate),
+	mcasp_mod_bits(dev->base + DAVINCI_MCASP_RXFMT_REG, RXROT(0),
 							RXROT(7));
 	mcasp_set_reg(dev->base + DAVINCI_MCASP_TXMASK_REG, mask);
 	mcasp_set_reg(dev->base + DAVINCI_MCASP_RXMASK_REG, mask);
@@ -916,8 +923,11 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	dma_data->asp_chan_q = pdata->asp_chan_q;
 	dma_data->ram_chan_q = pdata->ram_chan_q;
 	dma_data->sram_size = pdata->sram_size_playback;
-	dma_data->dma_addr = (dma_addr_t) (pdata->tx_dma_offset +
-							mem->start);
+	if (cpu_is_ti81xx())
+		dma_data->dma_addr = (dma_addr_t) (pdata->tx_dma_offset);
+	else
+		dma_data->dma_addr = (dma_addr_t) (pdata->tx_dma_offset
+										   + mem->start);
 
 	/* first TX, then RX */
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
@@ -933,8 +943,11 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	dma_data->asp_chan_q = pdata->asp_chan_q;
 	dma_data->ram_chan_q = pdata->ram_chan_q;
 	dma_data->sram_size = pdata->sram_size_capture;
-	dma_data->dma_addr = (dma_addr_t)(pdata->rx_dma_offset +
-							mem->start);
+	if (cpu_is_ti81xx())
+		dma_data->dma_addr = (dma_addr_t) (pdata->rx_dma_offset);
+	else
+		dma_data->dma_addr = (dma_addr_t) (pdata->rx_dma_offset
+										   + mem->start);
 
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
 	if (!res) {

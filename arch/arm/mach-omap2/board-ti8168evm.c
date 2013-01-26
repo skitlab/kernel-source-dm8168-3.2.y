@@ -26,6 +26,9 @@
 #include <linux/spi/flash.h>
 #include <linux/mtd/physmap.h>
 #include <linux/i2c/at24.h>
+#include <linux/clk.h>
+#include <linux/err.h>
+#include <sound/tlv320aic3x.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -36,6 +39,8 @@
 #include <plat/board.h>
 #include <plat/mmc.h>
 #include <plat/usb.h>
+#include <plat/asp.h>
+
 #include "common.h"
 #include "mux.h"
 #include "hsmmc.h"
@@ -225,7 +230,9 @@ static struct i2c_board_info __initdata ti816x_i2c_boardinfo0[] = {
 		I2C_BOARD_INFO("24c256", 0x50),
 		.flags = I2C_M_TEN,
 	},
-
+	{
+		I2C_BOARD_INFO("tlv320aic3x", 0x18),
+	},
 };
 
 static struct i2c_board_info __initdata ti816x_i2c_boardinfo1[] = {
@@ -241,24 +248,45 @@ static int __init ti816x_evm_i2c_init(void)
 	return 0;
 }
 
+static u8 ti8168_iis_serializer_direction[] = {
+	TX_MODE,	RX_MODE,	INACTIVE_MODE,	INACTIVE_MODE,
+	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,
+	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,
+	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,
+};
+
+static struct snd_platform_data ti8168_evm_snd_data = {
+	.tx_dma_offset	= 0x46800000,
+	.rx_dma_offset	= 0x46800000,
+	.op_mode	= DAVINCI_MCASP_IIS_MODE,
+	.num_serializer = ARRAY_SIZE(ti8168_iis_serializer_direction),
+	.tdm_slots	= 2,
+	.serial_dir	= ti8168_iis_serializer_direction,
+	.asp_chan_q	= EVENTQ_2,
+	.version	= MCASP_VERSION_2,
+	.txnumevt	= 1,
+	.rxnumevt	= 1,
+};
+
 static void __init ti81xx_evm_init(void)
 {
 	ti81xx_mux_init(board_mux);
 	omap_serial_init();
-	ti816x_evm_i2c_init();
 	omap_sdrc_init(NULL, NULL);
 	omap_board_config = ti81xx_evm_config;
 	omap_board_config_size = ARRAY_SIZE(ti81xx_evm_config);
 	omap2_hsmmc_init(mmc);
 	usb_musb_init(&musb_board_data);
-#ifdef CONFIG_REGULATOR_GPIO
 	if (cpu_is_ti816x()) {
+#ifdef CONFIG_REGULATOR_GPIO
 		ti816x_gpio_vr_init();
 		regulator_has_full_constraints();
 		regulator_use_dummy_regulator();
-		ti816x_spi_init();
-	}
 #endif
+		ti816x_spi_init();
+		ti816x_evm_i2c_init();
+		ti81xx_register_mcasp(0, &ti8168_evm_snd_data);
+	}
 }
 
 MACHINE_START(TI8168EVM, "ti8168evm")

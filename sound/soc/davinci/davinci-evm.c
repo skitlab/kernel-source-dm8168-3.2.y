@@ -22,9 +22,14 @@
 #include <asm/dma.h>
 #include <asm/mach-types.h>
 
+#ifndef CONFIG_SOC_OMAPTI81XX
 #include <mach/asp.h>
 #include <mach/edma.h>
 #include <mach/mux.h>
+#else
+#include <plat/asp.h>
+#include <asm/hardware/edma.h>
+#endif
 
 #include "davinci-pcm.h"
 #include "davinci-i2s.h"
@@ -54,7 +59,8 @@ static int evm_hw_params(struct snd_pcm_substream *substream,
 		sysclk = 12288000;
 
 	else if (machine_is_davinci_da830_evm() ||
-				machine_is_davinci_da850_evm())
+			 machine_is_davinci_da850_evm() ||
+			 machine_is_ti8168evm())
 		sysclk = 24576000;
 
 	else
@@ -239,6 +245,19 @@ static struct snd_soc_dai_link da850_evm_dai = {
 	.ops = &evm_ops,
 };
 
+static struct snd_soc_dai_link ti81xx_evm_dai[] = {
+	{
+		.name = "TLV320AIC3X",
+		.stream_name = "AIC3X",
+		.cpu_dai_name = "davinci-mcasp.2",
+		.codec_dai_name = "tlv320aic3x-hifi",
+		.codec_name = "tlv320aic3x-codec.1-0018",
+		.platform_name = "davinci-pcm-audio",
+		.init = evm_aic3x_init,
+		.ops = &evm_ops,
+	},
+};
+
 /* davinci dm6446 evm audio machine driver */
 static struct snd_soc_card dm6446_snd_soc_card_evm = {
 	.name = "DaVinci DM6446 EVM",
@@ -279,6 +298,21 @@ static struct snd_soc_card da850_snd_soc_card = {
 	.num_links = 1,
 };
 
+static struct snd_soc_card ti81xx_snd_soc_card = {
+	.name = "TI81XX EVM",
+	.dai_link = ti81xx_evm_dai,
+	.num_links = ARRAY_SIZE(ti81xx_evm_dai),
+};
+
+static void ti81xx_evm_dai_fixup(void)
+{
+	if (machine_is_ti8168evm() || machine_is_ti8148evm()) {
+		ti81xx_evm_dai[0].cpu_dai_name = "davinci-mcasp.2";
+	} else {
+		ti81xx_evm_dai[0].cpu_dai_name = NULL;
+	}
+}
+
 static struct platform_device *evm_snd_device;
 
 static int __init evm_init(void)
@@ -304,6 +338,10 @@ static int __init evm_init(void)
 		index = 1;
 	} else if (machine_is_davinci_da850_evm()) {
 		evm_snd_dev_data = &da850_snd_soc_card;
+		index = 0;
+	} else if (machine_is_ti8168evm()) {
+		ti81xx_evm_dai_fixup();
+		evm_snd_dev_data = &ti81xx_snd_soc_card;
 		index = 0;
 	} else
 		return -EINVAL;

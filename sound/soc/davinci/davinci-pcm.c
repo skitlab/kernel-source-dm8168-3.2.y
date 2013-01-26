@@ -23,8 +23,12 @@
 #include <sound/soc.h>
 
 #include <asm/dma.h>
+#ifndef CONFIG_SOC_OMAPTI81XX
 #include <mach/edma.h>
 #include <mach/sram.h>
+#else
+#include <asm/hardware/edma.h>
+#endif
 
 #include "davinci-pcm.h"
 
@@ -80,7 +84,7 @@ static struct snd_pcm_hardware pcm_hardware_playback = {
 	.buffer_bytes_max = 128 * 1024,
 	.period_bytes_min = 32,
 	.period_bytes_max = 8 * 1024,
-	.periods_min = 16,
+	.periods_min = 2,
 	.periods_max = 255,
 	.fifo_size = 0,
 };
@@ -103,7 +107,7 @@ static struct snd_pcm_hardware pcm_hardware_capture = {
 	.buffer_bytes_max = 128 * 1024,
 	.period_bytes_min = 32,
 	.period_bytes_max = 8 * 1024,
-	.periods_min = 16,
+	.periods_min = 2,
 	.periods_max = 255,
 	.fifo_size = 0,
 };
@@ -264,13 +268,16 @@ static int allocate_sram(struct snd_pcm_substream *substream, unsigned size,
 		struct snd_pcm_hardware *ppcm)
 {
 	struct snd_dma_buffer *buf = &substream->dma_buffer;
+#if !defined(CONFIG_SOC_OMAPTI81XX)	/* No SRAM support on TI81xx */
 	struct snd_dma_buffer *iram_dma = NULL;
 	dma_addr_t iram_phys = 0;
 	void *iram_virt = NULL;
+#endif
 
 	if (buf->private_data || !size)
 		return 0;
 
+#if !defined(CONFIG_SOC_OMAPTI81XX)	/* No SRAM support on TI81xx */
 	ppcm->period_bytes_max = size;
 	iram_virt = sram_alloc(size, &iram_phys);
 	if (!iram_virt)
@@ -289,6 +296,9 @@ exit2:
 		sram_free(iram_virt, size);
 exit1:
 	return -ENOMEM;
+#else
+	return 0;
+#endif
 }
 
 /*
@@ -820,8 +830,10 @@ static void davinci_pcm_free(struct snd_pcm *pcm)
 		buf->area = NULL;
 		iram_dma = buf->private_data;
 		if (iram_dma) {
+#if !defined(CONFIG_SOC_OMAPTI81XX)	/* No SRAM support on TI81xx */
 			sram_free(iram_dma->area, iram_dma->bytes);
 			kfree(iram_dma);
+#endif
 		}
 	}
 }
