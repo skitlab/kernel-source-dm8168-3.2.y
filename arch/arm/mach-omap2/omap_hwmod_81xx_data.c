@@ -93,6 +93,7 @@ static struct omap_hwmod ti81xx_elm_hwmod;
 static struct omap_hwmod ti816x_mmc1_hwmod;
 static struct omap_hwmod ti816x_iva_hwmod;
 static struct omap_hwmod ti816x_mcspi1_hwmod;
+static struct omap_hwmod ti816x_mailbox_hwmod;
 
 static struct omap_hwmod_ocp_if ti816x_l4_slow__uart1;
 static struct omap_hwmod_ocp_if ti816x_l4_slow__uart2;
@@ -1306,6 +1307,68 @@ static struct omap_hwmod ti816x_mcspi1_hwmod = {
 	.dev_attr   = &ti816x_mcspi1_dev_attr,
 };
 
+/*
+ * 'mailbox' class
+ * mailbox module allowing communication between the on-chip processors
+ * using a queued mailbox-interrupt mechanism.
+ */
+
+static struct omap_hwmod_class_sysconfig ti816x_mailbox_sysc = {
+	.rev_offs	= 0x000,
+	.sysc_offs	= 0x010,
+	.syss_offs	= 0x014,
+	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_SIDLEMODE |
+				   SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class ti816x_mailbox_hwmod_class = {
+	.name = "mailbox",
+	.sysc = &ti816x_mailbox_sysc,
+};
+
+static struct omap_hwmod_irq_info ti816x_mailbox_irqs[] = {
+	{ .irq = TI81XX_IRQ_MBOX },
+	{ .irq = -1 }
+};
+
+#define TI81XX_MBOX_REG_SIZE            0x144
+static struct omap_hwmod_addr_space ti816x_mailbox_addrs[] = {
+	{
+		.pa_start	= TI81XX_MAILBOX_BASE,
+		.pa_end		= TI81XX_MAILBOX_BASE + TI81XX_MBOX_REG_SIZE - 1,
+		.flags		= ADDR_TYPE_RT,
+	},
+	{ }
+};
+
+/* l4_core -> mailbox */
+static struct omap_hwmod_ocp_if ti816x_l4_core__mailbox = {
+	.master		= &ti816x_l4_slow_hwmod,
+	.slave		= &ti816x_mailbox_hwmod,
+	.addr		= ti816x_mailbox_addrs,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/* mailbox slave ports */
+static struct omap_hwmod_ocp_if *ti816x_mailbox_slaves[] = {
+	&ti816x_l4_core__mailbox,
+};
+
+static struct omap_hwmod ti816x_mailbox_hwmod = {
+	.name		= "mailbox",
+	.class		= &ti816x_mailbox_hwmod_class,
+	.mpu_irqs	= ti816x_mailbox_irqs,
+	.main_clk	= "mailbox_ick",
+	.prcm		= {
+		.omap4 = {
+		},
+	},
+	.slaves		= ti816x_mailbox_slaves,
+	.slaves_cnt	= ARRAY_SIZE(ti816x_mailbox_slaves),
+};
+
 static __initdata struct omap_hwmod *ti816x_hwmods[] = {
 	&ti816x_l3_slow_hwmod,
 	&ti816x_l4_slow_hwmod,
@@ -1340,6 +1403,8 @@ static __initdata struct omap_hwmod *ti816x_hwmods[] = {
 	&ti816x_iva_hwmod,
 
 	&ti816x_mcspi1_hwmod,
+
+	&ti816x_mailbox_hwmod,
 	NULL,
 };
 
