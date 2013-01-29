@@ -656,8 +656,8 @@ EXPORT_SYMBOL_GPL(omap_iopgtable_store_entry);
  * @ppgd:	iommu pgd entry pointer to be returned
  * @ppte:	iommu pte entry pointer to be returned
  **/
-static void
-iopgtable_lookup_entry(struct omap_iommu *obj, u32 da, u32 **ppgd, u32 **ppte)
+void
+omap_iopgtable_lookup_entry(struct omap_iommu *obj, u32 da, u32 **ppgd, u32 **ppte)
 {
 	u32 *iopgd, *iopte = NULL;
 
@@ -671,6 +671,7 @@ out:
 	*ppgd = iopgd;
 	*ppte = iopte;
 }
+EXPORT_SYMBOL(omap_iopgtable_lookup_entry);
 
 static size_t iopgtable_clear_entry_core(struct omap_iommu *obj, u32 da)
 {
@@ -725,7 +726,7 @@ out:
  * @obj:	target iommu
  * @da:		iommu device virtual address
  **/
-static size_t iopgtable_clear_entry(struct omap_iommu *obj, u32 da)
+size_t omap_iopgtable_clear_entry(struct omap_iommu *obj, u32 da)
 {
 	size_t bytes;
 
@@ -738,6 +739,7 @@ static size_t iopgtable_clear_entry(struct omap_iommu *obj, u32 da)
 
 	return bytes;
 }
+EXPORT_SYMBOL(omap_iopgtable_clear_entry);
 
 static void iopgtable_clear_entry_all(struct omap_iommu *obj)
 {
@@ -1059,7 +1061,7 @@ static int omap_iommu_unmap(struct iommu_domain *domain, unsigned long da,
 
 	dev_dbg(dev, "unmapping da 0x%lx order %d\n", da, order);
 
-	unmap_size = iopgtable_clear_entry(oiommu, da);
+	unmap_size = omap_iopgtable_clear_entry(oiommu, da);
 
 	return unmap_size ? get_order(unmap_size) : -EINVAL;
 }
@@ -1175,7 +1177,7 @@ static phys_addr_t omap_iommu_iova_to_phys(struct iommu_domain *domain,
 	u32 *pgd, *pte;
 	phys_addr_t ret = 0;
 
-	iopgtable_lookup_entry(oiommu, da, &pgd, &pte);
+	omap_iopgtable_lookup_entry(oiommu, da, &pgd, &pte);
 
 	if (pte) {
 		if (iopte_is_small(*pte))

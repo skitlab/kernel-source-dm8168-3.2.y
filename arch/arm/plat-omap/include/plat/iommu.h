@@ -178,4 +178,7 @@ extern size_t
 omap_dump_tlb_entries(struct omap_iommu *obj, char *buf, ssize_t len);
 struct device *omap_find_iommu_device(const char *name);
 
+extern size_t omap_iopgtable_clear_entry(struct omap_iommu *obj, u32 da);
+extern int omap_iopgtable_store_entry(struct omap_iommu *obj, struct iotlb_entry *e);
+
 #endif /* __MACH_IOMMU_H */
