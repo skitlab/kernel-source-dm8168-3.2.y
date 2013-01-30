@@ -152,7 +152,7 @@ obj-$(CONFIG_ARCH_OMAP3)		+= $(clock-common) clock3xxx.o \
 					   clkt_iclk.o
 obj-$(CONFIG_ARCH_OMAP4)		+= $(clock-common) clock44xx_data.o \
 					   dpll3xxx.o dpll44xx.o
-obj-$(CONFIG_SOC_OMAPTI81XX)	+= clock81xx.o
+obj-$(CONFIG_SOC_OMAPTI81XX)	+= clock81xx.o ti81xx_vpss.o 
 obj-$(CONFIG_MACH_TI8168EVM)	+= fapll_ti816x.o
 obj-$(CONFIG_MACH_TI8168EVM)	+= clock816x_data.o
 obj-$(CONFIG_MACH_TI8148EVM)	+= clock814x_data.o
