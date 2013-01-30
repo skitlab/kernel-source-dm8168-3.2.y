@@ -1,3 +1,13 @@
+menuconfig TI81XX_VPSS
+	tristate "TI81XX Video Processing Subsystem (EXPERIMENTAL)"
+	depends on SOC_OMAPTI81XX && Sys_Link
+	---help---
+	    TI81XX Video Processing Subsystem. This module is the lowest level
+	    driver to control HDVPSS HW Modules. Fbdev/V4l2 are all dependent on
+	    this module.
+	    Use 'M' to build as module.
+
+if TI81XX_VPSS
 
 config TI81XX_VPSS_VRAM_SIZE
 	int "VRAM size (MB)"
@@ -10,3 +20,12 @@ config TI81XX_VPSS_VRAM_SIZE
 
 	  You can also set this with "vram=<bytes>" kernel argument, or
 	  in the board file.
+
+config TI81XX_VPSS_DEBUG_SUPPORT
+        bool "Debug support"
+	default y
+	---help---
+	  This enables debug messages.
+	  You need to enable printing with 'debug' module parameter.
+
+endif
