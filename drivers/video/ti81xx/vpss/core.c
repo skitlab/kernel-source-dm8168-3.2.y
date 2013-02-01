@@ -46,7 +46,7 @@
 #ifdef DEBUG
 unsigned int vpss_debug;
 module_param_named(debug, vpss_debug, bool, S_IRUGO);
-MODULE_PARM_DESC(vpss_debug, "debug on/off");
+MODULE_PARM_DESC(debug, "debug on/off");
 #endif
 /*module parameters*/
 static char *def_mode;
@@ -164,26 +164,26 @@ static void __exit vps_cleanup(void)
 }
 
 module_param_named(mode, def_mode, charp, S_IRUGO);
-MODULE_PARM_DESC(def_mode,
+MODULE_PARM_DESC(mode,
 	"Mode of VENCs to be set in the VPSS device");
 module_param_named(tiedvencs, def_tiedvencs, int, S_IRUGO);
-MODULE_PARM_DESC(def_tiedvencs,
+MODULE_PARM_DESC(tiedvencs,
 	"tied vencs to be set in the VPSS device");
 module_param_named(clksrc, def_clksrc, charp, S_IRUGO);
-MODULE_PARM_DESC(def_clksrc,
+MODULE_PARM_DESC(clksrc,
 	"VENC clock source to be set in the VPSS device");
 module_param_named(sbufaddr, def_sbaddr, charp, S_IRUGO);
-MODULE_PARM_DESC(def_pladdr,
+MODULE_PARM_DESC(sbufaddr,
 	"sharing buffer address to be set in the VPSS device");
 module_param_named(sbufsize, def_sbsize, charp, S_IRUGO);
-MODULE_PARM_DESC(def_plsize,
+MODULE_PARM_DESC(sbufsize,
 	"sharing buffer size to be set in the VPSS device");
 module_param_named(timeout, def_timeout, uint, S_IRUGO);
-MODULE_PARM_DESC(def_timeout,
+MODULE_PARM_DESC(timeout,
 	"timeout value to be set in the VPSS device \
 for waiting the response from M3");
 module_param_named(i2c_mode, def_i2cmode, bool, S_IRUGO);
-MODULE_PARM_DESC(def_i2cmode,
+MODULE_PARM_DESC(i2c_mode,
 	"control of i2c-based external video devices in \
 A8 or M3, by default it is on A8, a special fimrware is required\
 if control is on M3");

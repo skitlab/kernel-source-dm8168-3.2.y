@@ -59,7 +59,7 @@
 #ifdef DEBUG
 unsigned int ti81xxhdmi_debug;
 module_param_named(debug, ti81xxhdmi_debug, bool, 0644);
-MODULE_PARM_DESC(ti81xxhdmi_debug, "debug on/off");
+MODULE_PARM_DESC(debug, "debug on/off");
 #endif
 
 #ifdef DEBUG
