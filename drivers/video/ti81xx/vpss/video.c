@@ -824,17 +824,15 @@ static int video_set_deiparams(struct vps_video_ctrl *vctrl,
 	int r;
 	VPSSDBG("Set dei/scalar config params\n");
 
-	vctrl->vdeicrpcfg->cropstartx = deiparams->deisccropcfg->cropstartx;
-	vctrl->vdeicrpcfg->cropstarty = deiparams->deisccropcfg->cropstarty;
+	vctrl->vdeiprm->startx  = deiparams->startx;
+	vctrl->vdeiprm->starty = deiparams->starty;
 	vctrl->vdeiprm->sctarwidth = w;
 	vctrl->vdeiprm->sctarheight = h;
 	vctrl->vdeiprm->fmt.height = scalar_prm.inframe_height;
 	vctrl->vdeiprm->fmt.width = scalar_prm.inframe_width;
-	vctrl->vdeiprm->sccfg.bypass = !scalar_prm.scalar_enable;
+	vctrl->vdeiprm->scenable = scalar_prm.scalar_enable;
 	vctrl->vdeiprm->deicfg = NULL;
 	vctrl->vdeiprm->deihqcfg = NULL;
-	vctrl->vdeiprm->deisccropcfg = (struct vps_cropconfig *)
-					vctrl->vdeicr_phy;
 	r = vps_fvid2_control(
 		vctrl->handle,
 		IOCTL_VPS_DEI_DISP_SET_PARAMS,
@@ -1664,7 +1662,6 @@ static inline int get_alloc_size(void)
 	size += sizeof(struct vps_frameparams);
 	size += sizeof(struct vps_dispstatus);
 	size += sizeof(struct vps_dei_disp_params);
-	size += sizeof(struct vps_cropconfig);
 
 	size += sizeof(struct fvid2_cbparams);
 	size += sizeof(struct fvid2_format);
@@ -1721,12 +1718,6 @@ static inline void assign_payload_addr(struct vps_video_ctrl *vctrl,
 				&vctrl->vdei_phy,
 				sizeof(struct vps_dei_disp_params));
 
-	vctrl->vdeicrpcfg = (struct vps_cropconfig *)
-				setaddr(pinfo,
-				buf_offset,
-				&vctrl->vdeicr_phy,
-				sizeof(struct vps_cropconfig));
-
 	vctrl->cbparams = (struct fvid2_cbparams *)
 				setaddr(pinfo,
 					buf_offset,
@@ -1758,7 +1749,8 @@ int __init vps_video_init(struct platform_device *pdev)
 	struct vps_payload_info *pinfo;
 	u32 size = 0;
 	u32 offset = 0;
-	int numvid;
+	u8 num_edges = 0;
+	u8 num_outputs = 0;
 	VPSSDBG("video init\n");
 	INIT_LIST_HEAD(&vctrl_list);
 
@@ -1786,11 +1778,9 @@ int __init vps_video_init(struct platform_device *pdev)
 
 	pinfo->size = PAGE_ALIGN(size);
 	memset(pinfo->vaddr, 0, pinfo->size);
-	numvid = v_pdata->numvideo > VPS_DISPLAY_INST_MAX ? \
-		VPS_DISPLAY_INST_MAX : v_pdata->numvideo;
-	for (i = 0; i < numvid; i++) {
+
+	for (i = 0; i < VPS_DISPLAY_INST_MAX; i++) {
 		struct vps_video_ctrl *vctrl;
-		int j;
 		vctrl = kzalloc(sizeof(*vctrl), GFP_KERNEL);
 
 		if (vctrl == NULL) {
@@ -1804,42 +1794,64 @@ int __init vps_video_init(struct platform_device *pdev)
 				    &offset);
 		/*init video control*/
 		vps_fvid2_video_ctrl_init(vctrl);
-		vctrl->idx = v_pdata->vdata[i].idx;
+		vctrl->idx = i;
 		vps_video_add_ctrl(vctrl);
 		mutex_init(&vctrl->vmutex);
 
 		INIT_LIST_HEAD(&vctrl->cb_list);
 		/*setup the nodes*/
-		vctrl->num_edges = v_pdata->vdata[i].numedges;
-		vctrl->num_outputs = v_pdata->vdata[i].numoutput;
-		for (j = 0; j < vctrl->num_edges; j++) {
-			vctrl->nodes[j].inputid =
-				v_pdata->vdata[i].snodes_inputid[j];
-			vctrl->nodes[j].nodeid = v_pdata->vdata[i].snodes[j];
-		}
-
-		for (j = 0; j < vctrl->num_outputs; j++) {
-			vctrl->enodes[j].inputid =
-				v_pdata->vdata[i].enodes_inputid[j];
-			vctrl->enodes[j].nodeid = v_pdata->vdata[i].enodes[j];
-
-		}
 		switch (i) {
 		case 0:
+			num_edges = 2;
+			vctrl->nodes[0].nodeid = VPS_DC_VCOMP_MUX;
+			vctrl->nodes[0].inputid = VPS_DC_BP0_INPUT_PATH;
+
+			vctrl->nodes[1].nodeid =  VPS_DC_VCOMP;
+			vctrl->nodes[1].inputid = VPS_DC_VCOMP_MUX;
+
+			num_outputs = 1;
+			vctrl->enodes[0].nodeid =  VPS_DC_HDMI_BLEND;
+			vctrl->enodes[0].inputid =
+				VPS_DC_CIG_NON_CONSTRAINED_OUTPUT;
+
 			vctrl->caps = VPSS_VID_CAPS_POSITIONING |
 				VPSS_VID_CAPS_COLOR | VPSS_VID_CAPS_CROPING |
 				VPSS_VID_CAPS_SCALING;
 			break;
 		case 1:
+			num_edges = 2;
+			vctrl->nodes[0].nodeid = VPS_DC_HDCOMP_MUX;
+			vctrl->nodes[0].inputid = VPS_DC_BP1_INPUT_PATH;
+
+			vctrl->nodes[1].nodeid =  VPS_DC_CIG_PIP_INPUT;
+			vctrl->nodes[1].inputid = VPS_DC_HDCOMP_MUX;
+
+			num_outputs = 1;
+			if (v_pdata->cpu == CPU_DM816X)
+				vctrl->enodes[0].nodeid = VPS_DC_HDCOMP_BLEND;
+			else
+				vctrl->enodes[0].nodeid = VPS_DC_DVO2_BLEND;
+
+			vctrl->enodes[0].inputid = VPS_DC_CIG_PIP_OUTPUT;
 			vctrl->caps = VPSS_VID_CAPS_POSITIONING |
-				VPSS_VID_CAPS_COLOR | VPSS_VID_CAPS_CROPING |
-				VPSS_VID_CAPS_SCALING;
+				VPSS_VID_CAPS_COLOR | VPSS_VID_CAPS_CROPING;
 			break;
 		case 2:
+			num_edges = 1;
+			vctrl->nodes[0].nodeid = VPS_DC_SDVENC_MUX;
+			vctrl->nodes[0].inputid = VPS_DC_SEC1_INPUT_PATH;
+
+			num_outputs = 1;
+			vctrl->enodes[0].nodeid = VPS_DC_SDVENC_BLEND;
+			vctrl->enodes[0].inputid = VPS_DC_SDVENC_MUX;
 			vctrl->caps = VPSS_VID_CAPS_POSITIONING |
 					 VPSS_VID_CAPS_CROPING;
+
 			break;
 		}
+		vctrl->num_edges = num_edges;
+		vctrl->num_outputs = num_outputs;
+
 		r = video_create_sysfs(vctrl);
 		if (r)
 			goto cleanup;

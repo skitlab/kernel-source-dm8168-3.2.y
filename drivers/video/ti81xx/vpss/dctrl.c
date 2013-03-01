@@ -31,6 +31,7 @@
 #include <linux/kobject.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
+#include <mach/board-ti816x.h>
 
 #include "core.h"
 #include "system.h"
@@ -299,9 +300,7 @@ static int get_idx_from_vid(int vid, int *idx)
 {
 	int i;
 
-	for (i = 0; i < VPS_DC_MAX_VENC; i++) {
-		if (!disp_ctrl->blenders[i].mask)
-			continue;
+	for (i = 0; i < disp_ctrl->numvencs; i++) {
 		if (vid == venc_name[i].vid) {
 			*idx = venc_name[i].idx;
 			return 0;
@@ -317,11 +316,8 @@ static int dc_get_vencid(char *vname, int *vid)
 
 	int i;
 
-	for (i = 0; i < VPS_DC_MAX_VENC; i++) {
+	for (i = 0; i < disp_ctrl->numvencs; i++) {
 		const struct dc_vencname_info *vnid = &venc_name[i];
-		if (!disp_ctrl->blenders[i].mask)
-			continue;
-
 		if (sysfs_streq(vname, vnid->name)) {
 			*vid = vnid->vid;
 			return 0;
@@ -334,10 +330,8 @@ static int get_bid_from_idx(int idx, int *bid)
 {
 	int i;
 
-	for (i = 0; i < VPS_DC_MAX_VENC; i++) {
+	for (i = 0; i < disp_ctrl->numvencs; i++) {
 		const struct dc_vencname_info *vnid = &venc_name[i];
-		if (!disp_ctrl->blenders[i].mask)
-			continue;
 		if (vnid->idx == idx) {
 			*bid = vnid->bid;
 			return 0;
@@ -618,9 +612,7 @@ static int dc_get_format_from_bid(int bid,
 {
 	int i;
 	int r = -EINVAL;
-	for (i = 0; i < VPS_DC_MAX_VENC; i++) {
-		if (!disp_ctrl->blenders[i].mask)
-			continue;
+	for (i = 0; i < disp_ctrl->numvencs; i++) {
 		if (bid == venc_name[i].bid) {
 			r = dc_get_format_from_vid(venc_name[i].vid,
 						   width,
@@ -702,26 +694,9 @@ static int dc_venc_disable(int vid)
 				if (venc_ids == 1)
 					disp_ctrl->tiedvenc = 0;
 			}
-		} else {
+		} else
 			VPSSERR("failed to disable the venc.\n");
-			return -r;
-		}
 
-	}
-	if (!def_i2cmode) {
-		int ret = 0;
-		if (vid & VPS_DC_VENC_HDCOMP) {
-			if (v_pdata->pcf_ths_hd_set)
-				ret = v_pdata->pcf_ths_hd_set(
-					TI81XX_THS7360_DISABLE_SF);
-
-		} else if (vid & VPS_DC_VENC_SD) {
-			if (v_pdata->pcf_ths_sd_set)
-				ret = v_pdata->pcf_ths_sd_set(
-					TI81XX_THSFILTER_DISABLE_MODULE);
-		}
-		if (ret < 0)
-			VPSSERR("Disable THS filter failed.\n");
 	}
 	i = 0;
 	/*disable the external video device if applicable*/
@@ -756,45 +731,40 @@ static int dc_set_vencmode(struct vps_dcvencinfo *vinfo)
 {
 	int i, r = 0;
 	int vencs = 0;
-	int bidx = 0, idx;
+	int bidx = 0;
 	struct vps_dcvencinfo vi;
 	if ((disp_ctrl == NULL) || (disp_ctrl->fvid2_handle == NULL))
 		return -EINVAL;
-	if (!vinfo->numvencs)
-		return 0;
-	vi.numvencs = 0;
+
+
 	/*get the current setting based on the app inputs*/
-	for (i = 0; i < vinfo->numvencs; i++) {
-		if (vinfo->modeinfo[i].vencid & disp_ctrl->vencmask)
-			vi.modeinfo[vi.numvencs++].vencid =
-				vinfo->modeinfo[i].vencid;
-	}
+	for (i = 0; i < vinfo->numvencs; i++)
+		vi.modeinfo[i].vencid = vinfo->modeinfo[i].vencid;
+
+	vi.numvencs = vinfo->numvencs;
 
 	r = dc_get_vencinfo(&vi);
+
 	if (r) {
 		VPSSERR("failed to get venc info.\n");
 		goto exit;
 	}
+
 	/*make sure current venc status is matching */
 	disp_ctrl->vinfo->numvencs = 0;
 	disp_ctrl->vinfo->tiedvencs = 0;
-	idx = 0;
 	for (i = 0; i < vinfo->numvencs; i++) {
-		if (!(vinfo->modeinfo[i].vencid & disp_ctrl->vencmask))
-			continue;
-
-		if (vi.modeinfo[idx].isvencrunning) {
-			if (vi.modeinfo[idx].minfo.standard !=
+		if (vi.modeinfo[i].isvencrunning) {
+			if (vi.modeinfo[i].minfo.standard !=
 			    vinfo->modeinfo[i].minfo.standard) {
 				VPSSERR("venc %d already running with \
-					different mode %d\n",
-					vi.modeinfo[idx].vencid,
-					vi.modeinfo[idx].minfo.standard);
+						different mode %d\n",
+						vi.modeinfo[i].vencid,
+						vi.modeinfo[i].minfo.standard);
 				/*update the local infor*/
-				get_idx_from_vid(vi.modeinfo[idx].vencid,
-						&bidx);
+				get_idx_from_vid(vi.modeinfo[i].vencid, &bidx);
 				memcpy(&venc_info.modeinfo[bidx],
-				       &vi.modeinfo[idx],
+				       &vi.modeinfo[i],
 				       sizeof(struct vps_dcmodeinfo));
 				/*Update the SDVENC Clock */
 				if (bidx == SDVENC) {
@@ -809,7 +779,7 @@ static int dc_set_vencmode(struct vps_dcvencinfo *vinfo)
 
 			} else
 				VPSSDBG("venc %d already running\n",
-					vi.modeinfo[idx].vencid);
+					vi.modeinfo[i].vencid);
 
 
 		} else {
@@ -818,9 +788,9 @@ static int dc_set_vencmode(struct vps_dcvencinfo *vinfo)
 				    [disp_ctrl->vinfo->numvencs++],
 				&vinfo->modeinfo[i],
 				sizeof(struct vps_dcmodeinfo));
+
 			vencs |= vinfo->modeinfo[i].vencid;
 		}
-		idx++;
 	}
 	if (vinfo->tiedvencs) {
 		if ((vencs & vinfo->tiedvencs) != vinfo->tiedvencs) {
@@ -846,37 +816,8 @@ static int dc_set_vencmode(struct vps_dcvencinfo *vinfo)
 		}
 		disp_ctrl->enabled_venc_ids |= vencs;
 		disp_ctrl->tiedvenc = disp_ctrl->vinfo->tiedvencs;
-	}
-	if (!def_i2cmode) {
-		int ret = 0;
-		if (vencs & VPS_DC_VENC_HDCOMP)	{
-			if (v_pdata->pcf_ths_hd_set) {
-				u32 clock, thsctrl;
-				clock = venc_info.modeinfo[HDCOMP]. \
-					minfo.pixelclock;
-				thsctrl = TI81XX_THS7360_SF_TRUE_HD_MODE;
-				if (clock <= 54000)
-					thsctrl = TI81XX_THS7360_SF_ED_MODE;
-				else if (clock <= 74250)
-					thsctrl = TI81XX_THS7360_SF_HD_MODE;
-				if (v_pdata->pcf_ths_hd_set)
-					ret = v_pdata->pcf_ths_hd_set(
-								thsctrl);
-				if (ret > 0)
-					VPSSDBG("program ths to %d mode\n",
-						thsctrl);
-			}
-		}
-		if (vencs & VPS_DC_VENC_SD) {
-			if (v_pdata->pcf_ths_sd_set)
-				ret = v_pdata->pcf_ths_sd_set(
-					TI81XX_THSFILTER_ENABLE_MODULE);
-		}
-		if (ret < 0)
-			VPSSERR("failed to set THS filter\n");
 
 	}
-
 	/*handle external video device if applicable*/
 	for (i = 0; i < vinfo->numvencs; i++) {
 		struct dc_blender_info *binfo;
@@ -1034,27 +975,7 @@ exit:
 	return r;
 
 }
-static void dc_select_dvo2_clock(u32 src)
-{
-	u32 temp;
-	if (v_pdata->cpu == CPU_DM816X)
-		return;
-
-	temp = omap_readl(
-		TI814X_PLL_BASE + DM814X_PLL_CLOCK_SOURCE);
-
-	temp &= ~(0x1 << 24);
-
-	if (src == HDMI)
-		temp |= 0x1 << 24;
-
-	omap_writel(temp,
-		TI814X_PLL_BASE + DM814X_PLL_CLOCK_SOURCE);
-
-	return;
-
-}
-static void dc_select_hdcomp_pll(u32 pllclk)
+static void dc_set_hdcomp_pll(u32 pllclk)
 {
 	u32 value;
 	if (v_pdata->cpu != CPU_DM813X)
@@ -1084,52 +1005,6 @@ static void dc_select_hdcomp_pll(u32 pllclk)
 	}
 	omap_writel(value, TI814X_PLL_BASE + DM813X_PLL_HD_CLOCK_SOURCE);
 	return;
-
-}
-/*select correct sync source*/
-static int dc_select_hdcomp_syncsrc(u32 src)
-{
-	if (cpu_is_ti816x() && (omap_rev() >= TI8168_REV_ES2_0)) {
-		u32 reg = omap_readl(TI81XX_CTRL_BASE +
-			VPSS_HDCOMP_SYNC_SRC_OFFSET);
-		/*select the sync source for DVO or HDCOMP
-		 in the 2.0 silicon, HDCOMP supports discrete
-		 sync output(HSYNC/VSYNC),
-		 these two signals are shared with SYNC pins of either DVO1 or
-		 DVO2 as below.
-
-		Pin Mapping:
-		HSYNC -- AR5/AT9/AR8
-		VSYNC -- AL5/AP9/AL9
-		Change pin names:
-		Pins AR5 and AT9 - change VOUT[1]_HSYNC to DAC_VOUT[1]_HSYNC
-		Pin AR8 - change VOUT[0]_AVID to DAC_HSYNC_VOUT[0]_AVID
-		Pins AL5 and AP9 - change VOUT[1]_VSYNC to DAC_VOUT[1]_VSYNC
-		Pin AL9 - change VOUT[0]_FLD to DAC_VSYNC_VOUT[0]_FLD
-
-		Bits   Field          Value        Descriptions
-		2      SPR_CTL0_2		To Select DAC or VOUT[0]
-					0	Selects VOUT[0]_AVID/FLD
-					1	Selects DAC_HSYNC/VSYNC
-
-
-		1	SPR_CTL0_1		To Select DAC or VOUT[1]
-
-					0	Selects VOUT[1]_HSYNC/VSYNC
-					1	Selects DAC_HSYNC/VSYNC
-
-		 */
-		reg &= ~(VPSS_HDCOMP_SYNC_SRC_DVO1 |
-				VPSS_HDCOMP_SYNC_SRC_DVO2);
-		if (src == HDMI)
-			reg |= VPSS_HDCOMP_SYNC_SRC_DVO1;
-		else if (src == DVO2)
-			reg |= VPSS_HDCOMP_SYNC_SRC_DVO2;
-
-		omap_writel(reg, TI81XX_CTRL_BASE +
-			VPSS_HDCOMP_SYNC_SRC_OFFSET);
-	}
-	return 0;
 
 }
 /*E******************************** private functions *********************/
@@ -1624,6 +1499,22 @@ static ssize_t blender_mode_store(struct dc_blender_info *binfo,
 
 	venc_info.modeinfo[idx].minfo.standard = mid;
 	dc_get_timing(mid, &venc_info.modeinfo[idx].minfo);
+	if ((v_pdata->cpu == CPU_DM816X) && (!def_i2cmode)) {
+		if ((binfo->idx == HDCOMP) && (binfo->isdeviceon == true)) {
+			if ((mid == FVID2_STD_1080P_60) ||
+			    (mid == FVID2_STD_1080P_50))
+				r = pcf8575_ths7360_hd_enable(
+					TI816X_THS7360_SF_TRUE_HD_MODE);
+			else
+				r = pcf8575_ths7360_hd_enable(
+					TI816X_THS7360_SF_HD_MODE);
+			if (r < 0) {
+				VPSSERR("failed to set THS filter\n");
+				goto exit;
+			}
+
+		}
+	}
 	r = size;
 exit:
 	dc_unlock(binfo->dctrl);
@@ -1858,8 +1749,42 @@ static ssize_t blender_clksrc_store(struct dc_blender_info *binfo,
 			binfo->clksrc.clksrc = clksrc.clksrc;
 		}
 	} else {
-		r = -EINVAL;
-		VPSSERR("invalid clock source input\n");
+		/*this is the special case to let
+		DVO2 use the HDMI_PLL*/
+		if ((v_pdata->cpu != CPU_DM816X) && (binfo->idx == DVO2))  {
+			u32 temp;
+			temp = omap_readl(
+				TI814X_PLL_BASE + DM814X_PLL_CLOCK_SOURCE);
+
+			if (sysfs_streq(buf, "hdmi"))
+				temp |= 0x1 << 24;
+			else
+				temp &= ~(0x1 << 24);
+
+
+			omap_writel(temp,
+				TI814X_PLL_BASE + DM814X_PLL_CLOCK_SOURCE);
+			r = size;
+		} else if ((v_pdata->cpu == CPU_DM813X) &&
+		    (binfo->idx == HDCOMP)) {
+			/*FIXME add DM813X support here */
+			enum vps_vplloutputclk pllclk;
+			pllclk = VPS_SYSTEM_VPLL_OUTPUT_MAX_VENC;
+			if (sysfs_streq(buf, "sd"))
+				pllclk = VPS_SYSTEM_VPLL_OUTPUT_VENC_RF;
+			else if (sysfs_streq(buf, "dvo2"))
+				pllclk = VPS_SYSTEM_VPLL_OUTPUT_VENC_D;
+			else if (sysfs_streq(buf, "hdmi"))
+				pllclk = VPS_SYSTEM_VPLL_OUTPUT_VENC_HDMI;
+
+			dc_set_hdcomp_pll(pllclk);
+			r = size;
+
+		} else {
+			r = -EINVAL;
+			VPSSERR("invalid clock source input\n");
+		}
+
 	}
 
 exit:
@@ -1867,107 +1792,6 @@ exit:
 	return r;
 }
 
-static ssize_t blender_source_show(struct dc_blender_info *binfo, char *buf)
-{
-	u32 value, r = 0;
-	if (binfo->idx == HDMI || binfo->idx == SDVENC)
-		return -EINVAL;
-	if ((binfo->idx == DVO2) && (v_pdata->cpu != CPU_DM816X)) {
-		value = omap_readl(
-		TI814X_PLL_BASE + DM814X_PLL_CLOCK_SOURCE);
-		if ((value >> 24) & 1)
-			r = snprintf(buf, PAGE_SIZE, "hdmi\n");
-		else
-			r = snprintf(buf, PAGE_SIZE, "dvo2\n");
-	} else if ((v_pdata->cpu == CPU_DM813X) &&
-	    (binfo->idx == HDCOMP)) {
-		value = omap_readl(TI814X_PLL_BASE +
-				DM813X_PLL_HD_CLOCK_SOURCE);
-		value &= 3;
-		switch (value) {
-		case 0:
-			r = snprintf(buf, PAGE_SIZE, "hdmi\n");
-			break;
-		case 2:
-			r = snprintf(buf, PAGE_SIZE, "sd\n");
-			break;
-		default:
-			r = snprintf(buf, PAGE_SIZE, "dvo2\n");
-			break;
-		}
-
-	} else if ((v_pdata->cpu == CPU_DM816X) &&
-		   (binfo->idx == HDCOMP) &&
-		   (omap_rev() >= TI8168_REV_ES2_0)) {
-
-		value = omap_readl(TI81XX_CTRL_BASE +
-			VPSS_HDCOMP_SYNC_SRC_OFFSET);
-		if (value & VPSS_HDCOMP_SYNC_SRC_DVO2)
-			r = snprintf(buf, PAGE_SIZE, "dvo2\n");
-		else if (value & VPSS_HDCOMP_SYNC_SRC_DVO1)
-			r = snprintf(buf, PAGE_SIZE, "dvo2\n");
-		else
-			r = snprintf(buf, PAGE_SIZE, "none\n");
-	}
-
-
-	return r;
-}
-
-static ssize_t blender_source_store(struct dc_blender_info *binfo,
-				     const char *buf,
-				     size_t size)
-{
-
-	int r = 0;
-
-	if (binfo->idx == HDMI || binfo->idx == SDVENC)
-		return -EINVAL;
-
-	/*this is the special case to let
-	DVO2 use the HDMI_PLL*/
-	if ((v_pdata->cpu != CPU_DM816X) && (binfo->idx == DVO2))  {
-		u32 src = DVO2;;
-
-		if (sysfs_streq(buf, "hdmi"))
-			src = HDMI;
-		/*select right clock source*/
-		dc_select_dvo2_clock(src);
-		r = size;
-	} else if ((v_pdata->cpu == CPU_DM813X) &&
-	    (binfo->idx == HDCOMP)) {
-		/*add DM813X support here */
-		enum vps_vplloutputclk pllclk;
-		pllclk = VPS_SYSTEM_VPLL_OUTPUT_MAX_VENC;
-		if (sysfs_streq(buf, "sd"))
-			pllclk = VPS_SYSTEM_VPLL_OUTPUT_VENC_RF;
-		else if (sysfs_streq(buf, "dvo2"))
-			pllclk = VPS_SYSTEM_VPLL_OUTPUT_VENC_D;
-		else if (sysfs_streq(buf, "hdmi"))
-			pllclk = VPS_SYSTEM_VPLL_OUTPUT_VENC_HDMI;
-
-		dc_select_hdcomp_pll(pllclk);
-		r = size;
-
-	} else if ((v_pdata->cpu == CPU_DM816X) &&
-		   (binfo->idx == HDCOMP) &&
-		   (omap_rev() >= TI8168_REV_ES2_0)) {
-			u32 src = HDCOMP;
-			if (sysfs_streq(buf, "dvo1"))
-				src = HDMI;
-			else if (sysfs_streq(buf, "dvo2"))
-				src = DVO2;
-
-		/*set the correct sync source*/
-		dc_select_hdcomp_syncsrc(src);
-		r = size;
-	} else {
-		r = -EINVAL;
-		VPSSERR("invalid clock source input\n");
-	}
-
-	return r;
-}
 static ssize_t blender_output_show(struct dc_blender_info *binfo, char *buf)
 {
 	struct vps_dcoutputinfo oinfo;
@@ -1986,17 +1810,11 @@ static ssize_t blender_output_show(struct dc_blender_info *binfo, char *buf)
 		l += snprintf(buf + l,
 			      PAGE_SIZE - l, "%s",
 			      dfmt_name[oinfo.dvofmt].name);
-	else {
-		if ((oinfo.afmt == VPS_DC_A_OUTPUT_COMPONENT) &&
-			(oinfo.dvofmt == VPS_DC_DVOFMT_TRIPLECHAN_DISCSYNC) &&
-			binfo->idx == HDCOMP)
-			l += snprintf(buf + l,
-			      PAGE_SIZE - l, "vga");
-		else
-			l += snprintf(buf + l,
+	else
+		l += snprintf(buf + l,
 			      PAGE_SIZE - l, "%s",
 			      afmt_name[oinfo.afmt].name);
-	}
+
 	if (binfo->idx != SDVENC) {
 		for (i = 0 ; i < ARRAY_SIZE(datafmt_name); i++) {
 			if (datafmt_name[i].value == oinfo.dataformat)
@@ -2058,7 +1876,7 @@ static ssize_t blender_output_store(struct dc_blender_info *binfo,
 		/*check digital format or analog format based on current venc*/
 		if (!found) {
 			if (isdigitalvenc(oinfo.vencnodenum)) {
-				for (i = 0; i < ARRAY_SIZE(dfmt_name); i++)
+				for (i = 0; i < VPS_DC_DVOFMT_MAX; i++)
 					if (sysfs_streq(ptr,
 					    dfmt_name[i].name)) {
 						dfmt = dfmt_name[i].value;
@@ -2066,7 +1884,7 @@ static ssize_t blender_output_store(struct dc_blender_info *binfo,
 						break;
 					}
 			} else {
-				for (i = 0; i < ARRAY_SIZE(afmt_name); i++)
+				for (i = 0; i < VPS_DC_A_OUTPUT_MAX; i++)
 					if (sysfs_streq(ptr,
 					    afmt_name[i].name)) {
 						afmt = afmt_name[i].value;
@@ -2105,6 +1923,13 @@ static ssize_t blender_output_store(struct dc_blender_info *binfo,
 		if (dfmt != VPS_DC_DVOFMT_MAX)
 			oinfo.dvofmt = dfmt;
 
+		if (pol == 0xFF) {
+			oinfo.dvoactvidpolarity = polarity[0];
+			oinfo.dvofidpolarity = polarity[1];
+			oinfo.dvohspolarity = polarity[2];
+			oinfo.dvovspolarity = polarity[3];
+		}
+
 	} else {
 		if ((afmt == VPS_DC_A_OUTPUT_MAX) && (fmt == FVID2_DF_MAX)) {
 			VPSSERR("no valid analog output settings\n");
@@ -2113,42 +1938,14 @@ static ssize_t blender_output_store(struct dc_blender_info *binfo,
 
 		}
 		if ((binfo->idx == SDVENC) &&
-		     ((afmt == VPS_DC_A_OUTPUT_COMPONENT) ||
-		     (afmt == VPS_DC_OUTPUT_VGA))) {
+		     (afmt == VPS_DC_A_OUTPUT_COMPONENT)) {
 			VPSSERR("component out not supported on sdvenc\n");
 			r = -EINVAL;
 			goto exit;
 
 		}
-		if (afmt != VPS_DC_A_OUTPUT_MAX) {
+		if (afmt != VPS_DC_A_OUTPUT_MAX)
 			oinfo.afmt = afmt;
-			if (afmt == VPS_DC_A_OUTPUT_COMPONENT)
-				oinfo.dvofmt =
-					VPS_DC_DVOFMT_TRIPLECHAN_EMBSYNC;
-			else if (afmt == VPS_DC_OUTPUT_VGA) {
-				oinfo.afmt = VPS_DC_A_OUTPUT_COMPONENT;
-				oinfo.dvofmt =
-				    VPS_DC_DVOFMT_TRIPLECHAN_EMBSYNC;
-				if (((v_pdata->cpu == CPU_DM816X) &&
-					(omap_rev() >= TI8168_REV_ES2_0)) ||
-					(v_pdata->cpu == CPU_DM813X))
-					oinfo.dvofmt =
-					    VPS_DC_DVOFMT_TRIPLECHAN_DISCSYNC;
-				else
-					VPSSERR("vga is not support"
-						"on this silicon, forced to "
-						"component\n");
-
-			}
-		}
-
-	}
-
-	if (pol == 0xFF) {
-		oinfo.dvoactvidpolarity = polarity[0];
-		oinfo.dvofidpolarity = polarity[1];
-		oinfo.dvohspolarity = polarity[2];
-		oinfo.dvovspolarity = polarity[3];
 	}
 
 	if (fmt != FVID2_DF_MAX)
@@ -2291,6 +2088,13 @@ static ssize_t blender_edid_show(struct dc_blender_info *binfo, char *buf)
 	return l;
 }
 
+static ssize_t blender_edid_store(struct dc_blender_info *binfo,
+				     const char *buf,
+				     size_t size)
+{
+	return 0;
+}
+
 struct blender_attribute {
 	struct attribute attr;
 	ssize_t (*show)(struct dc_blender_info *, char *);
@@ -2315,11 +2119,9 @@ static BLENDER_ATTR(clksrc, S_IRUGO | S_IWUSR,
 		blender_clksrc_show, blender_clksrc_store);
 static BLENDER_ATTR(order, S_IRUGO | S_IWUSR,
 		blender_order_show, blender_order_store);
-static BLENDER_ATTR(source, S_IRUGO | S_IWUSR,
-		blender_source_show, blender_source_store);
 /* currently EDID read only */
 static BLENDER_ATTR(edid, S_IRUGO,
-		blender_edid_show, NULL);
+		blender_edid_show, blender_edid_store);
 
 static struct attribute *blender_sysfs_attrs[] = {
 	&blender_attr_mode.attr,
@@ -2330,7 +2132,6 @@ static struct attribute *blender_sysfs_attrs[] = {
 	&blender_attr_order.attr,
 	&blender_attr_name.attr,
 	&blender_attr_edid.attr,
-	&blender_attr_source.attr,
 	NULL
 };
 
@@ -2376,6 +2177,10 @@ static struct kobj_type blender_ktype = {
 	.sysfs_ops = &blender_sysfs_ops,
 	.default_attrs = blender_sysfs_attrs,
 };
+
+
+
+/*sysfs for the display controller*/
 
 static ssize_t dctrl_tiedvencs_show(struct vps_dispctrl *dctrl, char *buf)
 {
@@ -2555,22 +2360,12 @@ static int parse_def_clksrc(const char *clksrc)
 			}
 		}
 		if (i == ARRAY_SIZE(vclksrc_name)) {
-			if (v_pdata->cpu != CPU_DM816X) {
-
+			if (v_pdata->cpu == CPU_DM813X) {
 				if (dc_get_vencid(venc, &vid)) {
 					VPSSERR("wrong venc\n");
 					break;
 				}
-				/*this apply for both DM813X and DM814x*/
-				if (vid == VPS_DC_VENC_DVO2) {
-					if (sysfs_streq(csrc, "hdmi"))
-						dc_select_dvo2_clock(HDMI);
-					else
-						dc_select_dvo2_clock(DVO2);
-				}
-
-				if ((v_pdata->cpu == CPU_DM813X) &&
-				    (vid == VPS_DC_VENC_HDCOMP)) {
+				if (vid == VPS_DC_VENC_HDCOMP) {
 					enum vps_vplloutputclk pllclk;
 					pllclk =
 					    VPS_SYSTEM_VPLL_OUTPUT_MAX_VENC;
@@ -2584,8 +2379,9 @@ static int parse_def_clksrc(const char *clksrc)
 					else if (sysfs_streq(csrc, "sd"))
 						pllclk = \
 						VPS_SYSTEM_VPLL_OUTPUT_VENC_RF;
-					dc_select_hdcomp_pll(pllclk);
+					dc_set_hdcomp_pll(pllclk);
 				}
+
 			} else
 				VPSSERR("wrong clock source\n");
 		}
@@ -2838,14 +2634,13 @@ int __init vps_dc_init(struct platform_device *pdev,
 			  int tied_vencs,
 			  const char *clksrc)
 {
-	int r = 0, i, idx;
+	int r = 0;
+	int i;
 	int size = 0, offset = 0;
-	struct vps_dcvencinfo vinfo;
-
 	VPSSDBG("dctrl init\n");
 
-	if ((!def_i2cmode) && (v_pdata->pcf_ths_init))
-		v_pdata->pcf_ths_init();
+	if ((v_pdata->cpu == CPU_DM816X) && (!def_i2cmode))
+		ti816x_pcf8575_init();
 
 	dc_payload_info = kzalloc(sizeof(struct vps_payload_info),
 				  GFP_KERNEL);
@@ -2872,27 +2667,12 @@ int __init vps_dc_init(struct platform_device *pdev,
 		r = -ENOMEM;
 		goto cleanup;
 	}
-
-	disp_ctrl->vencmask = v_pdata->vencmask & 0xF;
-	/*get the id of VENC to be mask*/
-	i = 0;
-	vinfo.numvencs = 0;
-	while (disp_ctrl->vencmask >> i) {
-		if ((disp_ctrl->vencmask  >> i++) & 1) {
-			if (i == 2)
-				disp_ctrl->blenders[HDCOMP].mask = 1;
-			else if (i == 1)
-				disp_ctrl->blenders[HDMI].mask = 1;
-			else
-				disp_ctrl->blenders[i - 2].mask = 1;
-			vinfo.numvencs++;
-		}
-	}
-	if (vinfo.numvencs != v_pdata->numvencs)
-		v_pdata->numvencs = vinfo.numvencs;
-
 	disp_ctrl->numvencs = v_pdata->numvencs;
+	venc_info.numvencs = disp_ctrl->numvencs;
+	disp_ctrl->vencmask = v_pdata->vencmask;
+
 	assign_payload_addr(disp_ctrl, dc_payload_info, &offset);
+
 	vps_dc_ctrl_init(disp_ctrl);
 	/*get dc handle*/
 	dc_handle = vps_fvid2_create(FVID2_VPS_DCTRL_DRV,
@@ -2920,15 +2700,14 @@ int __init vps_dc_init(struct platform_device *pdev,
 		VPSSERR("failed to create dctrl sysfs file.\n");
 
 	/*create sysfs*/
-	for (i = 0; i < VPS_DC_MAX_VENC; i++) {
+	for (i = 0; i < disp_ctrl->numvencs; i++) {
 		struct dc_blender_info *blend = &disp_ctrl->blenders[i];;
-		if (!blend->mask)
-			continue;
+
 		blend->idx = i;
 		blend->actnodes = 0;
 		blend->name = (char *)venc_name[i].name;
 		blend->dctrl = disp_ctrl;
-		blend->isdeviceon = false;
+		blend->isdeviceon = true;
 		INIT_LIST_HEAD(&blend->dev_list);
 		r = kobject_init_and_add(
 			&blend->kobj, &blender_ktype,
@@ -2940,12 +2719,9 @@ int __init vps_dc_init(struct platform_device *pdev,
 			continue;
 		}
 	}
-	if ((tied_vencs & disp_ctrl->vencmask) == tied_vencs) {
-		disp_ctrl->tiedvenc = tied_vencs;
-		venc_info.tiedvencs = disp_ctrl->tiedvenc;
-		vinfo.tiedvencs = venc_info.tiedvencs;
-	} else
-		VPSSERR("tied venc 0x%x is not supported\n", tied_vencs);
+
+	disp_ctrl->tiedvenc = tied_vencs;
+	venc_info.tiedvencs = disp_ctrl->tiedvenc;
 
 
 	/*parse the mode*/
@@ -2955,25 +2731,22 @@ int __init vps_dc_init(struct platform_device *pdev,
 		goto cleanup;
 	}
 	/*set up the default clksrc and output format*/
-	for (i = 0; i < VPS_DC_MAX_VENC; i++) {
+	for (i = 0; i < disp_ctrl->numvencs; i++) {
 		struct vps_dcvencclksrc *clksrcp =
 				&disp_ctrl->blenders[i].clksrc;
 		struct vps_dcoutputinfo opinfo;
-		if (!disp_ctrl->blenders[i].mask)
-			continue;
+
 		clksrcp->venc = venc_name[i].vid;
 		/*set the venc output*/
 		opinfo.dvofidpolarity = VPS_DC_POLARITY_ACT_HIGH;
 		opinfo.dvohspolarity = VPS_DC_POLARITY_ACT_HIGH;
 		opinfo.dvovspolarity = VPS_DC_POLARITY_ACT_HIGH;
 		opinfo.dvoactvidpolarity = VPS_DC_POLARITY_ACT_HIGH;
+
 		switch (i) {
 		case HDMI:
 			opinfo.vencnodenum = VPS_DC_VENC_HDMI;
-			if(v_pdata->cpu == CPU_DM811X)
-				opinfo.dvofmt = VPS_DC_DVOFMT_TRIPLECHAN_DISCSYNC;
-			else
-				opinfo.dvofmt = VPS_DC_DVOFMT_TRIPLECHAN_EMBSYNC;
+			opinfo.dvofmt = VPS_DC_DVOFMT_TRIPLECHAN_EMBSYNC;
 			opinfo.dataformat = FVID2_DF_RGB24_888;
 			if ((v_pdata->cpu == CPU_DM816X) && (TI8168_REV_ES1_0 ==
 			    omap_rev()))
@@ -3010,7 +2783,6 @@ int __init vps_dc_init(struct platform_device *pdev,
 			opinfo.vencnodenum = VPS_DC_VENC_HDCOMP;
 			opinfo.afmt = VPS_DC_A_OUTPUT_COMPONENT;
 			opinfo.dataformat = FVID2_DF_YUV422SP_UV;
-			opinfo.dvofmt = VPS_DC_DVOFMT_TRIPLECHAN_EMBSYNC;
 
 			clksrcp->clksrc = VPS_DC_CLKSRC_VENCA;
 			break;
@@ -3033,7 +2805,7 @@ int __init vps_dc_init(struct platform_device *pdev,
 	/*for DM813X, HDCOMP share the frequency with either HDMI or DVO2
 	so if HDCOMP's pixel clock does not match either HDMI or DVO2,
 	we need force HDCOMP to one based on the clock mux*/
-	if (v_pdata->cpu == CPU_DM813X && (disp_ctrl->blenders[HDCOMP].mask)) {
+	if (v_pdata->cpu == CPU_DM813X) {
 		u8 hdcomp_clk;
 		hdcomp_clk = hdcomppll(HDCOMP);
 		switch (hdcomp_clk) {
@@ -3067,11 +2839,7 @@ int __init vps_dc_init(struct platform_device *pdev,
 		}
 	}
 	/*set the clock source*/
-	for (i = 0; i < VPS_DC_MAX_VENC; i++) {
-
-		if (!disp_ctrl->blenders[i].mask)
-			continue;
-
+	for (i = 0; i < venc_info.numvencs; i++) {
 		if (disp_ctrl->blenders[i].idx != SDVENC) {
 			r = dc_set_clksrc(
 				&disp_ctrl->blenders[i].clksrc);
@@ -3083,9 +2851,7 @@ int __init vps_dc_init(struct platform_device *pdev,
 		}
 	}
 	/*config the PLL*/
-	for (i = 0; i < VPS_DC_MAX_VENC; i++) {
-		if (!disp_ctrl->blenders[i].mask)
-			continue;
+	for (i = 0; i < venc_info.numvencs; i++) {
 		if ((SDVENC == i) && (v_pdata->cpu != CPU_DM816X))
 			venc_info.modeinfo[i].minfo.pixelclock = 54000;
 
@@ -3096,22 +2862,35 @@ int __init vps_dc_init(struct platform_device *pdev,
 			goto cleanup;
 		}
 	}
-	/*only enable the required VENCs, now these are based
-	 on the mask information, but it can expand in the future*/
-	idx = 0;
-	if (vinfo.numvencs) {
-		for (i = 0; i < VPS_DC_MAX_VENC; i++) {
-			if (!disp_ctrl->blenders[i].mask)
-				continue;
-			memcpy(&vinfo.modeinfo[idx++],
-				&venc_info.modeinfo[i],
-				sizeof(struct vps_dcmodeinfo));
+
+	/*set the venc mode*/
+	r = dc_set_vencmode(&venc_info);
+	if (r) {
+		VPSSERR("Failed to set venc mode.\n");
+		goto cleanup;
+	}
+	/*set the the THS filter, device is still registered even
+	if THS setup is failed*/
+	if ((v_pdata->cpu == CPU_DM816X) && (!def_i2cmode)) {
+		r = pcf8575_ths7375_enable(TI816X_THSFILTER_ENABLE_MODULE);
+		if ((venc_info.modeinfo[HDCOMP].minfo.standard ==
+		    FVID2_STD_1080P_60)  ||
+		    (venc_info.modeinfo[HDCOMP].minfo.standard ==
+		    FVID2_STD_1080P_50))
+			r |= pcf8575_ths7360_hd_enable(
+				TI816X_THS7360_SF_TRUE_HD_MODE);
+		else
+			r |= pcf8575_ths7360_hd_enable(
+				TI816X_THS7360_SF_HD_MODE);
+		if (r < 0) {
+			VPSSERR("setup 7375 filter failed\n");
+			disp_ctrl->blenders[HDCOMP].isdeviceon = false;
 		}
-		/*set the venc mode*/
-		r = dc_set_vencmode(&vinfo);
-		if (r) {
-			VPSSERR("Failed to set venc mode.\n");
-			goto cleanup;
+		r = pcf8575_ths7360_sd_enable(TI816X_THSFILTER_ENABLE_MODULE);
+		if (r < 0) {
+			VPSSERR("setup 7360 filter failed.\n");
+			disp_ctrl->blenders[SDVENC].isdeviceon = false;
+
 		}
 	}
 	return 0;
@@ -3140,11 +2919,8 @@ int __exit vps_dc_deinit(struct platform_device *pdev)
 		kobject_del(&disp_ctrl->kobj);
 		kobject_put(&disp_ctrl->kobj);
 
-		for (i = 0; i < VPS_DC_MAX_VENC; i++) {
+		for (i = 0; i < disp_ctrl->numvencs; i++) {
 			struct ti81xx_external_encoder *extenc;
-			if (!disp_ctrl->blenders[i].mask)
-				continue;
-
 			kobject_del(&disp_ctrl->blenders[i].kobj);
 			kobject_put(&disp_ctrl->blenders[i].kobj);
 			/*remove all register devices, should not happen*/
@@ -3183,8 +2959,8 @@ int __exit vps_dc_deinit(struct platform_device *pdev)
 		dc_handle = NULL;
 	}
 
-	if ((!def_i2cmode) && (v_pdata->pcf_ths_exit))
-		v_pdata->pcf_ths_exit();
+	if ((v_pdata->cpu == CPU_DM816X) && (!def_i2cmode))
+		ti816x_pcf8575_exit();
 
 	return r;
 }
@@ -3210,10 +2986,6 @@ int TI81xx_register_display_panel(struct TI81xx_display_driver *panel_driver,
 	}
 	display_num = panel_driver->display;
 	if (display_num >= disp_ctrl->numvencs) {
-		return -1;
-	}
-	if (!disp_ctrl->blenders[display_num].mask) {
-		VPSSERR("the VENC is not enabled in the platform level\n");
 		return -1;
 	}
 	dc_lock(disp_ctrl);
@@ -3323,18 +3095,6 @@ int TI81xx_un_register_display_panel(struct TI81xx_display_driver *panel_driver)
 		}
 
 	}
-
-	if (((v_pdata->cpu != CPU_DM816X) && (HDMI == display_num) &&
-		(panel_driver->type ==
-		TI81xx_DEVICE_TYPE_MASTER))) {
-		/*reconfigure the PLL*/
-		r = dc_set_pllclock(display_num,
-			    venc_info.modeinfo[display_num].
-				minfo.pixelclock);
-		if (r)
-			VPSSERR("failed to set pll");
-	}
-
 exit:
 	dc_unlock(disp_ctrl);
 	return r;

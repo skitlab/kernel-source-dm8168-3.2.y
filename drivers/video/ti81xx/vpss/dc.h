@@ -31,8 +31,6 @@
 #define SDVENC 2
 #define HDCOMP 3
 
-#define VPS_DC_OUTPUT_VGA	0xFF
-
 #define MAX_INPUT_NODES_BLENDER   5
 
 #define DM814X_PLL_CLOCK_SOURCE	0x2C8
@@ -45,9 +43,6 @@ enum dc_idtype {
 	DC_NODE_ID
 };
 
-#define VPSS_HDCOMP_SYNC_SRC_OFFSET	0x724
-#define VPSS_HDCOMP_SYNC_SRC_DVO2	0x4
-#define VPSS_HDCOMP_SYNC_SRC_DVO1	0x2
 
 struct dc_vencmode_info {
 	const char            *name;
@@ -68,8 +63,6 @@ struct dc_blender_info {
 	char                     *name;
 	u32                      idx;
 	bool                     enabled;
-	/*if it is not mask, then this blender will not shown up*/
-	bool                     mask;
 	struct kobject           kobj;
 	u32                      actnodes;
 	struct vps_dispctrl      *dctrl;

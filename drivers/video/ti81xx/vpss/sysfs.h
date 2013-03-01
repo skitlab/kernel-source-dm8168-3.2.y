@@ -265,7 +265,7 @@ static const struct vps_sname_info vclksrc_name[] =  {
 	{"aclkdiff", VPS_DC_CLKSRC_VENCA_DIV2_DIFF}
 };
 /*used for output sysfs*/
-static const struct vps_sname_info dfmt_name[] = {
+static const struct vps_sname_info dfmt_name[VPS_DC_DVOFMT_MAX] = {
 	{"single", VPS_DC_DVOFMT_SINGLECHAN},
 	{"double", VPS_DC_DVOFMT_DOUBLECHAN},
 	{"triple", VPS_DC_DVOFMT_TRIPLECHAN_EMBSYNC},
@@ -274,11 +274,10 @@ static const struct vps_sname_info dfmt_name[] = {
 
 };
 /*used for output sysfs*/
-static const struct vps_sname_info afmt_name[] = {
+static const struct vps_sname_info afmt_name[VPS_DC_A_OUTPUT_MAX] = {
 	{"composite", VPS_DC_A_OUTPUT_COMPOSITE},
 	{"svideo", VPS_DC_A_OUTPUT_SVIDEO},
 	{"component", VPS_DC_A_OUTPUT_COMPONENT},
-	{"vga", VPS_DC_OUTPUT_VGA},
 };
 /*used for output sysfs*/
 static const struct vps_sname_info datafmt_name[] = {
