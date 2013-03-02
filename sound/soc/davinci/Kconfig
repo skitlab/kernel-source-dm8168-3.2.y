@@ -100,3 +100,10 @@ config  SND_TI81XX_SOC_EVM
 	  Say Y if you want to add support for SoC audio on TI
 	  81XX EVM
 
+config SND_SOC_TI81XX_HDMI
+	tristate "On-chip HDMI audio support for TI81XX EVM"
+	depends on SND_TI81XX_SOC
+	help
+	  Build the module for on-chip HDMI audio on TI
+	  81XX EVM
+

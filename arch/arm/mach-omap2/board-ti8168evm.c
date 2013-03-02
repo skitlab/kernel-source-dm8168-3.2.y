@@ -40,6 +40,7 @@
 #include <plat/mmc.h>
 #include <plat/usb.h>
 #include <plat/asp.h>
+#include <plat/hdmi_lib.h>
 
 #include "common.h"
 #include "mux.h"
@@ -273,6 +274,63 @@ static struct snd_platform_data ti8168_evm_snd_data = {
 	.rxnumevt	= 1,
 };
 
+#ifdef CONFIG_SND_SOC_TI81XX_HDMI
+static struct snd_hdmi_platform_data ti8168_snd_hdmi_pdata = {
+	.dma_addr = TI81xx_HDMI_WP + HDMI_WP_AUDIO_DATA,
+	.channel = 53,
+	.data_type = 4,
+	.acnt = 4,
+	.fifo_level = 0x20,
+};
+
+static struct platform_device ti8168_hdmi_audio_device = {
+	.name	= "hdmi-dai",
+	.id	= -1,
+        .dev = {
+		.platform_data = &ti8168_snd_hdmi_pdata,
+        }
+};
+
+static struct platform_device ti8168_hdmi_codec_device = {
+	.name	= "hdmi-dummy-codec",
+	.id	= -1,
+};
+
+static struct platform_device *ti8168_devices[] __initdata = {
+	&ti8168_hdmi_audio_device,
+	&ti8168_hdmi_codec_device,
+};
+
+/*
+ * TI8168 PG2.0 support Auto CTS which needs MCLK .
+ * McBSP clk is used as MCLK in PG2.0 which have 4 parent clks
+ * sysclk20, sysclk21, sysclk21 and CLKS(external)
+ * Currently we are using sysclk22 as the parent for McBSP clk
+ * ToDo:
+*/
+void __init ti8168_hdmi_mclk_init(void)
+{
+	int ret = 0;
+	struct clk *parent, *child;
+
+	/* modify the clk name from list to use different clk source */
+	parent = clk_get(NULL, "sysclk22_ck");
+	if (IS_ERR(parent))
+		pr_err("Unable to get [sysclk22_ck] clk\n");
+
+	/* get HDMI dev clk*/
+	child = clk_get(NULL, "hdmi_i2s_ck");
+	if (IS_ERR(child))
+		pr_err("Unable to get [hdmi_i2s_ck] clk\n");
+
+	ret = clk_set_parent(child, parent);
+	if (ret < 0)
+		pr_err("Unable to set parent [hdmi_ck] clk\n");
+
+	pr_debug("HDMI: Audio MCLK setup complete!\n");
+
+}
+#endif
 static void __init ti81xx_evm_init(void)
 {
 	ti81xx_mux_init(board_mux);
@@ -292,6 +350,10 @@ static void __init ti81xx_evm_init(void)
 		ti816x_evm_i2c_init();
 		ti81xx_register_mcasp(0, &ti8168_evm_snd_data);
 	}
+#ifdef CONFIG_SND_SOC_TI81XX_HDMI
+	ti8168_hdmi_mclk_init();
+	platform_add_devices(ti8168_devices, ARRAY_SIZE(ti8168_devices));
+#endif
 }
 
 MACHINE_START(TI8168EVM, "ti8168evm")
