@@ -5,7 +5,7 @@
 # Common support
 ifeq ($(CONFIG_SOC_OMAPTI81XX),y)
 obj-y := common.o sram.o clock.o devices.o mux.o \
-	 usb.o fb.o io.o counter_32k.o sdma2edma.o
+	 usb.o fb.o io.o counter_32k.o hdmi_lib.o
 else
 obj-y := common.o sram.o clock.o devices.o dma.o mux.o \
 	 usb.o fb.o io.o counter_32k.o
@@ -21,6 +21,7 @@ obj-$(CONFIG_ARCH_OMAP16XX) += ocpi.o
 obj-$(CONFIG_ARCH_OMAP2) += omap_device.o
 obj-$(CONFIG_ARCH_OMAP3) += omap_device.o
 obj-$(CONFIG_ARCH_OMAP4) += omap_device.o
+obj-$(CONFIG_SOC_OMAPTI81XX) += omap_device.o sdma2edma.o hdmi_lib.o
 
 obj-$(CONFIG_OMAP_MCBSP) += mcbsp.o
 
