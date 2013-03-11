@@ -461,6 +461,14 @@ config ARM_CHARLCD
 	  line and the Linux version on the second line, but that's
 	  still useful.
 
+config TI816X_THS7360
+	bool "THS7360 support for TI816X"
+	depends on GPIO_PCF857X && MACH_TI8168EVM
+	help
+	  If you say yes here you get support for the THS7360 video amplifier,
+	  which is in the charge of PCF857X. It is responsible for SD channel
+	  video output on TI816EVM board.
+
 config BMP085
 	tristate "BMP085 digital pressure sensor"
 	depends on I2C && SYSFS
