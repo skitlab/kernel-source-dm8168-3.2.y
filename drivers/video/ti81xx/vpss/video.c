@@ -29,7 +29,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/ti81xxscalar.h>
-#include <plat/ti81xx-vpss.h>
+#include <mach/board-ti816x.h>
 
 #include "core.h"
 #include "dc.h"

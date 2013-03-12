@@ -31,7 +31,6 @@
 #include <linux/kobject.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
-#include <mach/board-ti816x.h>
 
 #include "core.h"
 #include "system.h"
@@ -1499,15 +1498,14 @@ static ssize_t blender_mode_store(struct dc_blender_info *binfo,
 
 	venc_info.modeinfo[idx].minfo.standard = mid;
 	dc_get_timing(mid, &venc_info.modeinfo[idx].minfo);
-	if ((v_pdata->cpu == CPU_DM816X) && (!def_i2cmode)) {
+	if ((v_pdata->cpu == CPU_DM816X) && (!def_i2cmode) &&
+		(v_pdata->hd_channel_ctrl != NULL)) {
 		if ((binfo->idx == HDCOMP) && (binfo->isdeviceon == true)) {
-			if ((mid == FVID2_STD_1080P_60) ||
-			    (mid == FVID2_STD_1080P_50))
-				r = pcf8575_ths7360_hd_enable(
-					TI816X_THS7360_SF_TRUE_HD_MODE);
+			if (mid == FVID2_STD_1080P_60 ||
+			    mid == FVID2_STD_1080P_50)
+				r = v_pdata->hd_channel_ctrl(SF_FILTER_TRUE_HD_MODE);
 			else
-				r = pcf8575_ths7360_hd_enable(
-					TI816X_THS7360_SF_HD_MODE);
+				r = v_pdata->hd_channel_ctrl(SF_FILTER_HD_MODE);
 			if (r < 0) {
 				VPSSERR("failed to set THS filter\n");
 				goto exit;
@@ -2639,9 +2637,6 @@ int __init vps_dc_init(struct platform_device *pdev,
 	int size = 0, offset = 0;
 	VPSSDBG("dctrl init\n");
 
-	if ((v_pdata->cpu == CPU_DM816X) && (!def_i2cmode))
-		ti816x_pcf8575_init();
-
 	dc_payload_info = kzalloc(sizeof(struct vps_payload_info),
 				  GFP_KERNEL);
 
@@ -2871,26 +2866,21 @@ int __init vps_dc_init(struct platform_device *pdev,
 	}
 	/*set the the THS filter, device is still registered even
 	if THS setup is failed*/
-	if ((v_pdata->cpu == CPU_DM816X) && (!def_i2cmode)) {
-		r = pcf8575_ths7375_enable(TI816X_THSFILTER_ENABLE_MODULE);
-		if ((venc_info.modeinfo[HDCOMP].minfo.standard ==
-		    FVID2_STD_1080P_60)  ||
-		    (venc_info.modeinfo[HDCOMP].minfo.standard ==
-		    FVID2_STD_1080P_50))
-			r |= pcf8575_ths7360_hd_enable(
-				TI816X_THS7360_SF_TRUE_HD_MODE);
+	if ((v_pdata->cpu == CPU_DM816X) && (!def_i2cmode) && 
+		(v_pdata->hd_channel_ctrl != NULL) && (v_pdata->sd_channel_ctrl != NULL)) {
+		if ((venc_info.modeinfo[HDCOMP].minfo.standard == FVID2_STD_1080P_60) ||
+			(venc_info.modeinfo[HDCOMP].minfo.standard == FVID2_STD_1080P_50))
+			r |= v_pdata->hd_channel_ctrl(SF_FILTER_TRUE_HD_MODE);
 		else
-			r |= pcf8575_ths7360_hd_enable(
-				TI816X_THS7360_SF_HD_MODE);
+			r |= v_pdata->hd_channel_ctrl(SF_FILTER_HD_MODE);
 		if (r < 0) {
-			VPSSERR("setup 7375 filter failed\n");
+			VPSSERR("setup filter failed\n");
 			disp_ctrl->blenders[HDCOMP].isdeviceon = false;
 		}
-		r = pcf8575_ths7360_sd_enable(TI816X_THSFILTER_ENABLE_MODULE);
+		r = v_pdata->sd_channel_ctrl(SD_FILTER_ENABLE);
 		if (r < 0) {
-			VPSSERR("setup 7360 filter failed.\n");
+			VPSSERR("setup filter failed.\n");
 			disp_ctrl->blenders[SDVENC].isdeviceon = false;
-
 		}
 	}
 	return 0;
@@ -2958,9 +2948,6 @@ int __exit vps_dc_deinit(struct platform_device *pdev)
 		}
 		dc_handle = NULL;
 	}
-
-	if ((v_pdata->cpu == CPU_DM816X) && (!def_i2cmode))
-		ti816x_pcf8575_exit();
 
 	return r;
 }

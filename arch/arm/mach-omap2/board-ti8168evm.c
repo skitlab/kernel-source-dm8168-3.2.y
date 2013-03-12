@@ -28,9 +28,12 @@
 #include <linux/i2c/at24.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/ti81xxfb.h>
 #include <sound/tlv320aic3x.h>
 
 #include <mach/hardware.h>
+#include <mach/board-ti816x.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -241,7 +244,7 @@ static struct i2c_board_info __initdata ti816x_i2c_boardinfo0[] = {
 
 static struct i2c_board_info __initdata ti816x_i2c_boardinfo1[] = {
 	{
-		I2C_BOARD_INFO("pcf8575", 0x20), /* this IO Expander interacts with THS7375 and THS7360 video amplifiers */
+		I2C_BOARD_INFO("pcf8575_ths7360", 0x20), /* this IO Expander interacts with THS7375 and THS7360 video amplifiers */
 	},
 };
 
@@ -331,6 +334,172 @@ void __init ti8168_hdmi_mclk_init(void)
 
 }
 #endif
+
+#if defined(CONFIG_TI81XX_VPSS) || defined(CONFIG_TI81XX_VPSS_MODULE)
+
+static u64 ti81xx_dma_mask = ~(u32)0;
+
+static struct platform_device vpss_device = {
+	.name = "vpss",
+	.id = -1,
+	.dev = {
+		.platform_data = NULL,
+	},
+};
+
+#if defined (CONFIG_TI816X_THS7360)
+int pcf8575_ths7360_hd_enable(enum sf_channel_filter_ctrl ctrl);
+int pcf8575_ths7360_sd_enable(enum sd_channel_filter_ctrl ctrl);
+#else
+int pcf8575_ths7360_hd_enable(enum sf_channel_filter_ctrl ctrl)
+{
+	return 0;
+}
+int pcf8575_ths7360_sd_enable(enum sd_channel_filter_ctrl ctrl)
+{
+	return 0;
+}
+#endif
+
+static struct vps_platform_data vps_pdata = {
+	.cpu = CPU_DM816X,
+	.hd_channel_ctrl = pcf8575_ths7360_hd_enable,
+	.sd_channel_ctrl = pcf8575_ths7360_sd_enable,
+	.numvencs = 4,
+	.vencmask = (1 << VPS_DC_MAX_VENC) - 1,
+
+	/*set up the grpx connections*/
+	.numgrpx = VPS_DISP_GRPX_MAX_INST,
+	.gdata = {
+		/*grpx0 out to hdmi*/
+		{ .snode = VPS_DC_GRPX0_INPUT_PATH, .numends = 1, .enode[0] = VPS_DC_HDMI_BLEND },
+		/*grpx1 out to HDCOMP(DM816X)*/
+		{ .snode = VPS_DC_GRPX1_INPUT_PATH, .numends = 1, .enode[0] = VPS_DC_HDCOMP_BLEND },
+		/*grpx2 out to SD*/
+		{ .snode = VPS_DC_GRPX2_INPUT_PATH, .numends = 1, .enode[0] = VPS_DC_SDVENC_BLEND }
+	},
+
+	.numvideo = 3,
+	/*set up the v4l2 video display connections*/
+	.vdata = {
+		{
+			/*/dev/video1 -> HDMI*/
+			.idx = 0,
+			.numedges = 2,
+			.snodes[0] = VPS_DC_VCOMP_MUX,
+			.snodes_inputid[0] = VPS_DC_BP0_INPUT_PATH,
+			.snodes[1] = VPS_DC_VCOMP,
+			.snodes_inputid[1] = VPS_DC_VCOMP_MUX,
+			.numoutput = 1,
+			.enodes[0] = VPS_DC_HDMI_BLEND,
+			.enodes_inputid[0] = VPS_DC_CIG_NON_CONSTRAINED_OUTPUT
+		}, {
+			/*/dev/video2 -> HDCOMP or DVO2*/
+			.idx = 0,
+			.numedges = 2,
+			.snodes[0] = VPS_DC_VCOMP_MUX,
+			.snodes_inputid[0] = VPS_DC_BP0_INPUT_PATH,
+			.snodes[1] = VPS_DC_VCOMP,
+			.snodes_inputid[1] = VPS_DC_VCOMP_MUX,
+			.numoutput = 1,
+			.enodes[0] = VPS_DC_HDMI_BLEND,
+			.enodes_inputid[0] = VPS_DC_CIG_NON_CONSTRAINED_OUTPUT
+		}, {
+			/*/dev/video3 is SD only*/
+			.idx = 2,
+			.numedges = 1,
+			.snodes_inputid[0] = VPS_DC_SEC1_INPUT_PATH,
+			.snodes[0] = VPS_DC_SDVENC_MUX,
+			.numoutput = 1,
+			.enodes[0] = VPS_DC_SDVENC_BLEND,
+			.enodes_inputid[0] = VPS_DC_SDVENC_MUX
+		}
+	},
+};
+
+static int __init ti81xx_vpss_init(void)
+{
+	int r;
+	vpss_device.dev.platform_data = &vps_pdata;
+
+	r = platform_device_register(&vpss_device);
+	if (r)
+		printk(KERN_ERR "unable to register ti81xx_vpss device\n");
+	else
+		printk(KERN_INFO "registered ti81xx_vpss device\n");
+	return r;
+}
+#endif
+
+#if defined(CONFIG_TI81XX_HDMI_MODULE) || defined(CONFIG_TI81XX_HDMI)
+
+static struct platform_device ti81xx_hdmi_plat_device = {
+	.name = "TI81XX_HDMI",
+	.id = -1,
+	.num_resources = 0,
+	.dev = {
+		.platform_data = NULL,
+	}
+};
+
+static int __init ti81xx_hdmi_init(void)
+{
+	int r;
+	r = platform_device_register(&ti81xx_hdmi_plat_device);
+	if (r)
+		printk(KERN_ERR "Unable to register ti81xx onchip-HDMI device\n");
+	else
+		printk(KERN_INFO "registered ti81xx on-chip HDMI device\n");
+	return r;
+}
+#else
+static int __init ti81xx_hdmi_init(void)
+{
+	return 0;
+}
+#endif
+
+#if defined(CONFIG_FB_TI81XX_MODULE) || defined(CONFIG_FB_TI81XX)
+static struct ti81xxfb_platform_data ti81xxfb_config;
+
+static struct platform_device ti81xx_fb_device = {
+	.name		= "ti81xxfb",
+	.id		= -1,
+	.dev = {
+		.dma_mask		= &ti81xx_dma_mask,
+		.coherent_dma_mask	= ~(u32)0,
+		.platform_data		= &ti81xxfb_config,
+	},
+	.num_resources = 0,
+};
+
+
+void ti81xxfb_set_platform_data(struct ti81xxfb_platform_data *data)
+{
+	ti81xxfb_config = *data;
+}
+
+static int __init ti81xx_fb_init(void)
+{
+	int r;
+	r = platform_device_register(&ti81xx_fb_device);
+	if (r)
+		printk(KERN_ERR "unable to register ti81xx_fb device\n");
+	else
+		printk(KERN_INFO "registered ti81xx_fb device\n");
+	return r;
+
+}
+#else
+static int __init ti81xx_fb_init(void)
+{
+	return 0;
+}
+void ti81xxfb_set_platform_data(struct ti81xxfb_platform_data *data)
+{
+}
+#endif
+
 static void __init ti81xx_evm_init(void)
 {
 	ti81xx_mux_init(board_mux);
@@ -354,6 +523,9 @@ static void __init ti81xx_evm_init(void)
 	ti8168_hdmi_mclk_init();
 	platform_add_devices(ti8168_devices, ARRAY_SIZE(ti8168_devices));
 #endif
+	ti81xx_vpss_init();
+	ti81xx_hdmi_init();
+	ti81xx_fb_init();
 }
 
 MACHINE_START(TI8168EVM, "ti8168evm")

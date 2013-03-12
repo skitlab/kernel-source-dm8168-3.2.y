@@ -20,7 +20,7 @@
  * sub-system of TI81xx SoCs through APIs provided by this file.
  */
 #include <linux/platform_device.h>
-#include <plat/ti81xx-vpss.h>
+#include <mach/board-ti816x.h>
 
 #define MAX_EXT_VENCS_PER_DISPLAY 4
 

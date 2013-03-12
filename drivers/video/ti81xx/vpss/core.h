@@ -33,7 +33,7 @@ extern unsigned int vpss_debug;
 #endif
 #include <linux/delay.h>
 #include <linux/platform_device.h>
-#include <plat/ti81xx-vpss.h>
+#include <mach/board-ti816x.h>
 #include "system.h"
 
 #ifdef DEBUG

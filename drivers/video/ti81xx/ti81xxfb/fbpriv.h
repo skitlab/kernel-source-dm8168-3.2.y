@@ -29,7 +29,7 @@
 #define DEBUG
 #endif
 
-#include "plat/ti81xx-vpss.h"
+#include <mach/board-ti816x.h>
 
 #ifdef DEBUG
 extern unsigned int fb_debug;
