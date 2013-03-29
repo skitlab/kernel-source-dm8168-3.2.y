@@ -694,6 +694,7 @@ int __video_register_device(struct video_device *vdev, int type, int nr,
 			name_base, nr, video_device_node_name(vdev));
 
 	/* Increase v4l2_device refcount */
+	kref_init(&vdev->v4l2_dev->ref);
 	if (vdev->v4l2_dev)
 		v4l2_device_get(vdev->v4l2_dev);
 
