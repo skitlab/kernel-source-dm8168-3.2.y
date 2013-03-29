@@ -246,6 +246,9 @@ static struct i2c_board_info __initdata ti816x_i2c_boardinfo1[] = {
 	{
 		I2C_BOARD_INFO("pcf8575_ths7360", 0x20), /* this IO Expander interacts with THS7375 and THS7360 video amplifiers */
 	},
+	{
+		I2C_BOARD_INFO("pcf8575_ths7368", 0x21), /* this IO Expander interacts with THS7368 video amplifier */
+	},
 };
 
 static int __init ti816x_evm_i2c_init(void)
