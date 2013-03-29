@@ -616,7 +616,7 @@ config VIDEO_VIVI
 source "drivers/media/video/davinci/Kconfig"
 
 source "drivers/media/video/omap/Kconfig"
-
+source "drivers/media/video/ti81xx/Kconfig"
 source "drivers/media/video/bt8xx/Kconfig"
 
 config VIDEO_PMS
