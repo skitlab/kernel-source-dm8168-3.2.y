@@ -1500,8 +1500,6 @@ int hdmi_lib_enable(struct hdmi_config *cfg)
 
 	/***************** init DSS register **********************/
 
-	hdmi_w1_irq_enable(&IrqHdmiVectorEnable);
-
 	mdelay(100);
 	IrqHdmiVectorEnable.phyDisconnect = 0;
 	hdmi_w1_irq_wakeup_enable(&IrqHdmiVectorEnable);
@@ -1677,6 +1675,7 @@ int hdmi_lib_enable(struct hdmi_config *cfg)
 
 	REG_FLD_MOD(av_name, HDMI_CORE_AV__HDMI_CTRL, cfg->hdmi_dvi, 0, 0);
 	memcpy(&hdmi.hdmi_cfg, cfg, sizeof(struct hdmi_config));
+	hdmi_w1_irq_enable(&IrqHdmiVectorEnable);
 	return r;
 }
 
